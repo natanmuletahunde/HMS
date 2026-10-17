@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexus-hms
+  namespace: nexus-hms
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/session-cookie-name: nexus-hms-affinity
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Metrics stays reachable through the internal API Service for Prometheus,
+    # but is deliberately not available through the public virtual host.
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location = /api/metrics {
+        return 404;
+      }
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hotel.example.com
+      secretName: nexus-hms-tls
+  rules:
+    - host: hotel.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  name: http
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  name: http

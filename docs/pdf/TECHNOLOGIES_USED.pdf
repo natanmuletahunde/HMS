@@ -1,0 +1,232 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4024 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS TECHNOLOGIES USED) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 689.89 487.28 94 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS Technologies Used) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 716.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 649.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 643.89 m 130 643.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- Document type: Technology and architecture guide) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 560.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 525.89 Tm (1. Architecture summary) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 519.89 m 130 519.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 499.89 Tm (Nexus HMS is a TypeScript pnpm workspace containing a Next.js web application, a NestJS REST API,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 485.89 Tm (shared database schema libraries, generated API support, and operational scripts. The backend is a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (modular monolith: each business area owns a controller, service, and module while the application is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 457.89 Tm (deployed as one API process.) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 436.89 Tm (Hotel workstation or mobile client) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 425.39 Tm (|) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 413.89 Tm (v) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 402.39 Tm (Next.js 15 web app ---- Socket.IO realtime connection) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 390.89 Tm (|) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 379.39 Tm (v) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 367.89 Tm (NestJS 10 API) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 356.39 Tm (|-- authentication, guards, modules, metrics) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 344.89 Tm (|-- EventEmitter2 event bus) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 333.39 Tm (|-- process-local cache) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 321.89 Tm (|-- Socket.IO Redis adapter) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 310.39 Tm (|-- Swagger / OpenAPI) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 298.89 Tm (| |) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 287.39 Tm (v v) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 275.89 Tm (PostgreSQL 16 Redis 7) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 264.39 Tm (through Drizzle ORM realtime backplane) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 231.89 Tm (2. Runtime stack) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 225.89 m 130 225.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 197.89 Tm (Frontend) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 178.89 Tm (- Next.js 15 App Router for routing, server rendering, and client pages.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 157.89 Tm (- React 19 for component rendering and stateful UI.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 136.89 Tm (- TypeScript for type safety.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 115.89 Tm (- Tailwind CSS and ShadCN-style UI primitives for styling and common controls.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 94.89 Tm (- TanStack Query for API data fetching and cache-aware client state.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Technology and architecture guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4362 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS TECHNOLOGIES USED) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (- Recharts for BI and report visualizations.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (- Socket.IO client for real-time subscriptions.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 733.89 Tm (The frontend contains providers for authentication state, locale, and theme. Locale files support) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (English, Amharic, Oromo, Arabic, and French. Arabic applies RTL document direction. Theme state) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 705.89 Tm (persists in local storage and can apply tenant branding colors when configured.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 676.89 Tm (Backend) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 657.89 Tm (- NestJS 10 for module composition, dependency injection, guards, controllers, and lifecycle.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 636.89 Tm (- Express 5 adapter for HTTP handling.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 615.89 Tm (- Passport and passport-jwt for bearer authentication.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 594.89 Tm (- `@nestjs/swagger` and OpenAPI generation for API discovery.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 573.89 Tm (- `@nestjs/throttler` for a default 300 requests-per-minute throttle.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 552.89 Tm (- Helmet for HTTP security headers.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 531.89 Tm (- Compression middleware for response compression.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 510.89 Tm (- Socket.IO and NestJS WebSockets for real-time channels.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 489.89 Tm (- `@socket.io/redis-adapter` and the `redis` client for cross-replica Socket.IO delivery.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 460.89 Tm (Data layer) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 441.89 Tm (- PostgreSQL 16 for transactional relational storage.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 420.89 Tm (- Drizzle ORM for typed SQL queries and schema definitions.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 399.89 Tm (- Shared `lib/db` package for table definitions and database access.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 378.89 Tm (- PostgreSQL ILIKE search for the current global search implementation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 357.89 Tm (- Local filesystem storage for uploaded documents in the current deployment boundary.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 322.89 Tm (3. Security technologies) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 316.89 m 130 316.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 296.89 Tm (- bcryptjs password hash verification.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 275.89 Tm (- JWT access and refresh tokens.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 254.89 Tm (- A separate short-lived MFA-pending JWT secret derived from the session secret.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 233.89 Tm (- Speakeasy for TOTP generation and verification.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 212.89 Tm (- QRCode for authenticator enrollment QR data URIs.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 191.89 Tm (- Node crypto AES-256-GCM for MFA secret and backup-code encryption at rest.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 170.89 Tm (- Global fail-closed JWT guard and route-level guards.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 149.89 Tm (- IP allowlist/blocklist support for IPv4 and IPv4 CIDR.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 128.89 Tm (- NestJS ValidationPipe for request transformation and whitelisting behavior.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 107.89 Tm (- Password-authenticated Redis connections, Kubernetes Secrets, and Redis NetworkPolicies.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Technology and architecture guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4997 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS TECHNOLOGIES USED) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (`SESSION_SECRET` is the critical runtime secret for token signing and the MFA encryption key) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (derivation. The MFA module refuses to silently use a weak default when this secret is absent.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 726.89 Tm (4. Phase 7B enterprise runtime) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 720.89 m 130 720.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 692.89 Tm (Event bus) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 673.89 Tm (`@nestjs/event-emitter` and EventEmitter2 provide the process-local internal publish/subscribe) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 659.89 Tm (interface. Reservation and room changes publish domain events consumed by the WebSocket gateway.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 645.89 Tm (Redis is not a durable EventBus and does not replace EventEmitter2.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 616.89 Tm (Cache) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 597.89 Tm (The cache is an in-memory Map with expiry, statistics, prefix invalidation, and an explicit) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 583.89 Tm (administrative flush. It remains process-local; the deployed Redis service is not used as a shared) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 569.89 Tm (cache.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 540.89 Tm (Real-time gateway) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 521.89 Tm (Socket.IO connections authenticate through the JWT handshake, subscribe to named channels, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 507.89 Tm (receive tenant-scoped events. In production, the API uses Redis 7 through `@socket.io/redis-adapter`) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 493.89 Tm (and the `redis` client so Socket.IO packets reach clients connected to other API replicas.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 479.89 Tm (`REDIS_URL` is required in production and must carry the Redis credential. The included Compose and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 465.89 Tm (Kubernetes Redis deployments require a matching password; the container smoke test authenticates its) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 451.89 Tm (Redis readiness check and both API replicas. A connection counter is included in metrics.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 422.89 Tm (Mobile) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 403.89 Tm (Mobile sessions store device identity, optional push token, platform, activity, and active state.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 389.89 Tm (Token refresh, delta synchronization, and batch push endpoints are included. Actual FCM/APNs delivery) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 375.89 Tm (is outside this release.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 346.89 Tm (Business intelligence) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 327.89 Tm (The BI module exposes KPI summaries, current-versus-prior comparisons, simple occupancy and revenue) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 313.89 Tm (forecasts, and branch/category drill-downs. The frontend renders cards and Recharts visualizations.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 284.89 Tm (Metrics) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 265.89 Tm (An interceptor tracks request totals and durations. The metrics controller returns) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 251.89 Tm (Prometheus-compatible text. Metrics are public for standard scraping and should be restricted at the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 237.89 Tm (network boundary in production.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 202.89 Tm (5. Workspace and build tooling) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 196.89 m 130 196.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 176.89 Tm (- pnpm workspace for package management.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 155.89 Tm (- TypeScript 5.9 with project references and package-level type checking.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 134.89 Tm (- Node.js 24 workspace runtime guidance, with container versions selected per release policy.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 113.89 Tm (- Nest CLI for API development and compilation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 92.89 Tm (- Next CLI for web development and production builds.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Technology and architecture guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4567 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS TECHNOLOGIES USED) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (- Prettier for consistent formatting.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (- SQL migration files for database changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 733.89 Tm (The database library must be compiled before the NestJS API requires it. Its runtime path points to) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (compiled CommonJS output, which keeps the API build compatible with the shared package.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 684.89 Tm (6. API contract and integration boundaries) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 678.89 m 130 678.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 658.89 Tm (The API uses a global `/api` prefix. JSON is the default payload format. Swagger is mounted at) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 644.89 Tm (`/api/docs`. Protected requests use:) Tj ET
+BT 0.15 0.17 0.2 rg /F3 8.2 Tf 1 0 0 1 54.00 623.89 Tm (Authorization: Bearer <access-token>) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 605.39 Tm (Redis 7 is a required production dependency for the implemented cross-replica Socket.IO adapter. The) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 591.39 Tm (Kubernetes template stores `REDIS_PASSWORD` and the credential-bearing `REDIS_URL` in a Secret,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 577.39 Tm (permits Redis ingress only from API pods, and denies Redis egress. Redis and web pods explicitly run) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 563.39 Tm (as non-root without privilege escalation. The included internal Redis service is password-protected) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 549.39 Tm (but does not provide TLS; real production should prefer a managed, private TLS Redis service and a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 535.39 Tm (`rediss://` URL. Separate future integrations would still be required for a shared cache or a durable) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 521.39 Tm (event bus. RabbitMQ or Kafka for durable event delivery, Elasticsearch for search, S3 or MinIO for) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 507.39 Tm (object storage, and an external identity provider for OAuth2/OIDC/LDAP/SSO remain architectural) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 493.39 Tm (extension points.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 458.39 Tm (7. Architectural trade-offs) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 452.39 m 130 452.39 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 432.39 Tm (- A modular monolith keeps transactions and deployment simple while the hotel domain is still) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 418.39 Tm (  evolving.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 397.39 Tm (- PostgreSQL and Drizzle provide a strong relational model and typed queries without adding a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 383.39 Tm (  separate service layer.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 362.39 Tm (- Redis-backed Socket.IO supports realtime delivery across API replicas, while cache entries) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 348.39 Tm (  and EventEmitter2 domain events remain process-local.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 327.39 Tm (- The 10Gi ReadWriteOnce upload volume and required API pod affinity support the current) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 313.39 Tm (  three-replica, single-node storage boundary; multi-node API placement requires shared or) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 299.39 Tm (  object storage.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 278.39 Tm (- Explicit public routes make Prometheus and refresh flows practical while global) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 264.39 Tm (  authentication remains fail-closed.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 243.39 Tm (- Tenant-aware enterprise services are safer than pretending the legacy core tables already) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 229.39 Tm (  have complete tenant isolation.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Technology and architecture guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000141 00000 n 
+0000000211 00000 n 
+0000000286 00000 n 
+0000000354 00000 n 
+0000004430 00000 n 
+0000004582 00000 n 
+0000008996 00000 n 
+0000009148 00000 n 
+0000014198 00000 n 
+0000014352 00000 n 
+0000018972 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+19126
+%%EOF

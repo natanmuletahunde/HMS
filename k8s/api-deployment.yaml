@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: nexus-hms
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nexus-hms-api
+  template:
+    metadata:
+      labels:
+        app: nexus-hms-api
+    spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: nexus-hms-api
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: api
+          image: ghcr.io/your-org/nexus-hms-api:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: nexus-hms-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: nexus-hms-config
+                  key: API_PORT
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-hms-secrets
+                  key: DATABASE_URL
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-hms-secrets
+                  key: SESSION_SECRET
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-hms-secrets
+                  key: REDIS_URL
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads

@@ -1,0 +1,229 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4310 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS HANDS-ON USER MANUAL) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 689.89 487.28 94 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS Hands-On User Manual) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 716.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 649.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 643.89 m 130 643.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- Document type: End-user operating guide) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 560.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 525.89 Tm (1. Before you begin) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 519.89 m 130 519.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 499.89 Tm (Use a current desktop browser on the hotel network. Open the web application URL provided by your) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 485.89 Tm (administrator. Your account must be active and assigned a role. Ask an administrator for an account) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (through the approved onboarding process; never share another user's password.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 450.89 Tm (The dashboard navigation is grouped by operational area. Menu entries may vary by role and enabled) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 436.89 Tm (modules. Changes are saved through the API and may be visible to other staff immediately.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 401.89 Tm (2. Sign in and MFA) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 395.89 m 130 395.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 375.89 Tm (1. Enter your email address and password.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 354.89 Tm (2. If MFA is not enabled, the dashboard opens after successful validation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 333.89 Tm (3. If MFA is enabled, enter the six-digit code from your authenticator application.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (4. If you cannot access the authenticator, enter one unused backup code.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 291.89 Tm (5. Do not reuse or share backup codes. Each accepted backup code is consumed.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 270.89 Tm (6. If login fails, verify the code clock, account status, and network before trying again.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 249.89 Tm (To enroll MFA, open **Security > MFA Setup**, choose setup, scan the QR code with an authenticator,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 235.89 Tm (save the displayed backup codes in a secure location, and enter the current six-digit code. To) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 221.89 Tm (disable MFA, open the same area and provide the current TOTP code.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 186.89 Tm (3. Dashboard) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 180.89 m 130 180.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 160.89 Tm (The dashboard gives a current operational view of occupancy, reservations, open complaints, low-stock) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 146.89 Tm (items, and revenue or activity trends where data is available.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 125.89 Tm (- Use the date or period filters to change the reporting window.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 104.89 Tm (- Select a KPI or chart to open its detail view when the page provides one.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 83.89 Tm (- A live room or reservation event may update the page through the real-time connection.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Practical operating guide for hotel teams) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4519 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS HANDS-ON USER MANUAL) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (- Treat a stale or unavailable metric as an operational signal and confirm the underlying) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (  module record.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 726.89 Tm (4. Reservations and guest stays) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 720.89 m 130 720.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 692.89 Tm (Create a reservation) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 673.89 Tm (1. Open **Reservations** and choose create.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 652.89 Tm (2. Search for an existing guest or create a new guest profile.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 631.89 Tm (3. Enter arrival and departure dates, room type or room, occupancy, rate, and required) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 617.89 Tm (notes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 596.89 Tm (4. Review the calculated amount and save.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 575.89 Tm (5. Confirm the reservation when your role and hotel process allow confirmation.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 546.89 Tm (Manage a reservation) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 527.89 Tm (Open the reservation to review guest, room, rate, payment, and status information. Use edit for) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 513.89 Tm (permitted corrections. Use cancel only when the hotel's cancellation policy and authorization allow) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 499.89 Tm (it. The reservation detail and audit history are the source of truth for later review.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 470.89 Tm (Check in and check out) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 451.89 Tm (1. Use **Check-in** or the reservation action for an arriving guest.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 430.89 Tm (2. Confirm identity and required guest details.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 409.89 Tm (3. Allocate or confirm the room, record key-card information if required, and complete) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 395.89 Tm (check-in.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 374.89 Tm (4. For departure, open **Check-out**, confirm charges and payment state, record any notes,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 360.89 Tm (and complete checkout.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 339.89 Tm (5. If a room change or stay extension is needed, use the stay-management action rather than) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 325.89 Tm (changing dates informally.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 290.89 Tm (5. Rooms, housekeeping, and maintenance) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 284.89 m 130 284.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 264.89 Tm (- **Rooms:** review room inventory, room type, status, pricing, and availability.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 243.89 Tm (- **Housekeeping:** open assigned tasks, update clean, dirty, inspecting, or other supported) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 229.89 Tm (  states, and record completion.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 208.89 Tm (- **Maintenance:** create a request with room, category, priority, description, and cost) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 194.89 Tm (  details; assign it to the correct team; progress it through resolution.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 173.89 Tm (- Confirm that a repaired or cleaned room is in the correct operational state before front) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 159.89 Tm (  desk assigns it.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 124.89 Tm (6. Restaurant, POS, and room service) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 118.88999999999999 m 130 118.88999999999999 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 98.89 Tm (1. Use **Restaurant** to maintain categories and menu items.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Practical operating guide for hotel teams) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4861 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS HANDS-ON USER MANUAL) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (2. Use **POS** to start or select a session, create an order, add items, apply authorized) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (adjustments, and complete the sale.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (3. Use **Room Service** for orders connected to a reservation or room, then update) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 726.89 Tm (preparation and delivery status.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 705.89 Tm (4. Use the order history to reconcile kitchen, service, and finance questions.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 670.89 Tm (7. Inventory and procurement) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 664.89 m 130 664.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 644.89 Tm (- Review inventory categories and item quantities in **Inventory**.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (- Record stock-in, stock-out, adjustment, damaged, or expired movements with a reason.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (- Monitor reorder levels and low-stock alerts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- In **Procurement**, create a supplier record, submit a purchase request, obtain approval,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 567.89 Tm (  create a purchase order, and record a goods receipt.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 546.89 Tm (- Verify received quantities before acceptance; accepted receipts may update stock.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 511.89 Tm (8. Invoices, payments, and finance) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 505.89 m 130 505.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 485.89 Tm (Use **Invoices** to create or review invoice headers and lines. Use **Payments** to record settlement) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (information. Use **Financial** for transactions, cash registers, cash shifts, credit notes, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 457.89 Tm (financial dashboards. Close cash shifts with the actual count and investigate discrepancies rather) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 443.89 Tm (than overwriting them.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 408.89 Tm (9. HR, conference, and transport) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 402.89 m 130 402.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 382.89 Tm (- **HR:** maintain departments and employee records, record attendance, review leave requests,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 368.89 Tm (  assign shifts, and record performance reviews.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 347.89 Tm (- **Conference:** configure halls and equipment, create bookings, add services, and check for) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 333.89 Tm (  double-booking conflicts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (- **Transport:** maintain vehicles and drivers, create trips, assign a driver, and move the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 298.89 Tm (  trip through its operational lifecycle.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 263.89 Tm (10. Complaints, notifications, documents, and search) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 257.89 m 130 257.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 237.89 Tm (- Register a complaint with category, priority, guest context, and description.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 216.89 Tm (- Assign and escalate according to service policy. Add internal notes carefully; mark) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 202.89 Tm (  guest-visible responses only when appropriate.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 181.89 Tm (- Review notifications from the notification center and mark them read after action.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 160.89 Tm (- Upload documents through the document area with the correct reference. Use soft delete only) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 146.89 Tm (  when policy allows.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 125.89 Tm (- Use global search for guests, reservations, rooms, inventory, suppliers, employees,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 111.89 Tm (  complaints, and vehicles. Always confirm the entity before editing.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Practical operating guide for hotel teams) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4233 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS HANDS-ON USER MANUAL) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 761.89 Tm (11. BI dashboard) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 755.89 m 130 755.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 735.89 Tm (Open **BI** to view executive KPIs, period comparisons, revenue forecasts, occupancy forecasts, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 721.89 Tm (drill-down breakdowns. Select a period such as day, week, or month. For forecasts, choose the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 707.89 Tm (supported horizon. For drill-down, choose occupancy or revenue and group by branch or category.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 693.89 Tm (Forecasts are planning aids, not accounting commitments.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 658.89 Tm (12. Security page) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 652.89 m 130 652.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 632.89 Tm (Authorized users can view MFA status, active devices, and permitted security settings. Administrators) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 618.89 Tm (may manage IP restrictions according to hotel policy. Password-policy changes are platform-wide and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 604.89 Tm (restricted to platform administrators. If a device is lost, revoke it promptly and report the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 590.89 Tm (incident.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 555.89 Tm (13. Language and theme) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 549.89 m 130 549.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 529.89 Tm (Use the top-bar controls to select English, Amharic, Oromo, Arabic, or French. Arabic changes the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 515.89 Tm (page direction to right-to-left. Use the theme control for light, dark, system, or configured custom) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 501.89 Tm (colors. If a translation is missing, report the screen and label to the administrator instead of) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 487.89 Tm (guessing at a high-risk operational action.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 452.89 Tm (14. Mobile and offline behavior) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 446.89 m 130 446.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 426.89 Tm (Register a device from the mobile client with a unique device ID. The client can refresh tokens,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 412.89 Tm (request changes since the last sync, and submit queued offline changes. Keep the device secure, use) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 398.89 Tm (the OS lock, and revoke the device from **Security > Active Devices** when it is lost or replaced.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 384.89 Tm (Until core row-level tenant isolation is complete, tenant-scoped sync may intentionally return an) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 370.89 Tm (empty result.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 335.89 Tm (15. Good operating practice) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 329.89 m 130 329.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 309.89 Tm (- Confirm the guest, room, and date before saving a reservation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 288.89 Tm (- Do not copy tokens, QR codes, backup codes, or passwords into chat or tickets.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 267.89 Tm (- Use notes and comments that are factual and appropriate for the audience.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 246.89 Tm (- Review audit history when correcting a financial or guest record.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 225.89 Tm (- Contact an administrator for access changes; do not work around a forbidden action.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Practical operating guide for hotel teams) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000141 00000 n 
+0000000211 00000 n 
+0000000286 00000 n 
+0000000354 00000 n 
+0000004716 00000 n 
+0000004868 00000 n 
+0000009439 00000 n 
+0000009591 00000 n 
+0000014505 00000 n 
+0000014659 00000 n 
+0000018945 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+19099
+%%EOF

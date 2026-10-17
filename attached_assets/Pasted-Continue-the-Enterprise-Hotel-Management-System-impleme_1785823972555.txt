@@ -1,0 +1,834 @@
+Continue the Enterprise Hotel Management System implementation.
+
+Phase 1 (Foundation), Phase 2 (Hotel Core), and Phase 3 (Reservation & Front Office) have been completed successfully.
+
+Implement ONLY Phase 4.
+
+====================================================
+PHASE 4 – HOTEL OPERATIONS MANAGEMENT
+====================================================
+
+Implement the following modules completely.
+
+1. Housekeeping Management
+
+2. Maintenance Management
+
+3. Restaurant Management
+
+4. Point of Sale (POS)
+
+5. Room Service Management
+
+Integrate these modules with Rooms, Guests, Reservations, and Check-in/Check-out.
+
+Do NOT implement Inventory, Procurement, Financial Transactions, HR, Customer Service, Reports, AI, or External Integrations in this phase.
+
+====================================================
+ARCHITECTURE
+====================================================
+
+Continue using the existing architecture.
+
+Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- ShadCN UI
+- React Hook Form
+- Zod
+- TanStack Query
+
+Backend
+
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- Repository Pattern
+- Service Layer
+- DTO Validation
+- JWT
+- RBAC
+- Swagger
+
+====================================================
+DATABASE
+====================================================
+
+Create normalized database tables.
+
+Each table must include
+
+id
+createdAt
+updatedAt
+deletedAt
+createdBy
+updatedBy
+isActive
+
+====================================================
+HOUSEKEEPING MANAGEMENT
+====================================================
+
+Housekeeping focuses on assigning work and monitoring staff performance.
+
+Entities
+
+CleaningAssignment
+
+CleaningSchedule
+
+CleaningStatus
+
+CleaningPriority
+
+CleaningInspection
+
+CleaningHistory
+
+CleaningArea
+
+Assign cleaners to
+
+Guest Rooms
+
+Conference Rooms
+
+Lobby
+
+Restaurant
+
+Kitchen
+
+Reception
+
+Corridors
+
+Parking
+
+Swimming Pool
+
+Garden
+
+Public Toilets
+
+Support
+
+Daily Cleaning
+
+Checkout Cleaning
+
+Deep Cleaning
+
+Emergency Cleaning
+
+Inspection Cleaning
+
+Cleaning Status
+
+Pending
+
+Assigned
+
+Accepted
+
+In Progress
+
+Ready For Inspection
+
+Completed
+
+Rejected
+
+Cancelled
+
+Cleaning Priority
+
+Low
+
+Normal
+
+High
+
+Urgent
+
+Operations
+
+Assign Cleaner
+
+Reassign Cleaner
+
+Change Priority
+
+Update Status
+
+Inspection
+
+Approve Cleaning
+
+Reject Cleaning
+
+Cleaning Notes
+
+Cleaning History
+
+Performance Statistics
+
+Automatically create cleaning tasks after guest checkout.
+
+Automatically notify housekeeping after checkout.
+
+Automatically change room status
+
+Dirty
+
+↓
+
+Cleaning
+
+↓
+
+Inspection
+
+↓
+
+Available
+
+Dashboard
+
+Today's Tasks
+
+Pending Tasks
+
+Completed Tasks
+
+Inspection Pending
+
+Cleaning Performance
+
+====================================================
+MAINTENANCE MANAGEMENT
+====================================================
+
+Maintenance Categories
+
+Electrical
+
+Plumbing
+
+Furniture
+
+Air Conditioner
+
+Television
+
+Internet
+
+Door Lock
+
+Bathroom
+
+Painting
+
+Flooring
+
+General Repair
+
+Workflow
+
+Request
+
+↓
+
+Approval
+
+↓
+
+Assignment
+
+↓
+
+Repair
+
+↓
+
+Inspection
+
+↓
+
+Completed
+
+Entities
+
+MaintenanceRequest
+
+MaintenanceCategory
+
+MaintenanceAssignment
+
+MaintenanceTechnician
+
+MaintenanceInspection
+
+MaintenanceHistory
+
+Priority
+
+Low
+
+Medium
+
+High
+
+Critical
+
+Status
+
+Pending
+
+Approved
+
+Assigned
+
+In Progress
+
+Waiting Parts
+
+Completed
+
+Rejected
+
+Cancelled
+
+Operations
+
+Create Request
+
+Approve
+
+Reject
+
+Assign Technician
+
+Transfer Technician
+
+Add Repair Notes
+
+Upload Images
+
+Before Repair
+
+After Repair
+
+Close Request
+
+Maintenance Reports
+
+Automatically mark room
+
+Under Maintenance
+
+Out Of Service
+
+Available
+
+====================================================
+RESTAURANT MANAGEMENT
+====================================================
+
+Menu Categories
+
+Breakfast
+
+Lunch
+
+Dinner
+
+Drinks
+
+Dessert
+
+Coffee
+
+Juice
+
+Fast Food
+
+Traditional Food
+
+Menu Item
+
+Code
+
+Name
+
+Description
+
+Category
+
+Price
+
+Preparation Time
+
+Available
+
+Kitchen Section
+
+Image
+
+Restaurant Tables
+
+Table Number
+
+Capacity
+
+Status
+
+Waiter Assignment
+
+Kitchen Display
+
+Kitchen Order Queue
+
+Kitchen Status
+
+Pending
+
+Preparing
+
+Ready
+
+Served
+
+Cancelled
+
+====================================================
+POINT OF SALE (POS)
+====================================================
+
+Create POS System.
+
+Operations
+
+Walk-in Order
+
+Dine-in
+
+Room Charge
+
+Take Away
+
+Delivery
+
+Split Bill
+
+Merge Bill
+
+Discount
+
+Tax
+
+Service Charge
+
+Promotion
+
+Coupon
+
+Payment Placeholder
+
+Receipt
+
+Kitchen Ticket
+
+Order Status
+
+Pending
+
+Preparing
+
+Ready
+
+Served
+
+Cancelled
+
+====================================================
+ROOM SERVICE
+====================================================
+
+Guests can request
+
+Food
+
+Drinks
+
+Laundry
+
+Spa
+
+Taxi
+
+Airport Pickup
+
+Airport Drop-off
+
+Wake-up Call
+
+Extra Pillow
+
+Extra Blanket
+
+Baby Cot
+
+Wheelchair
+
+Housekeeping
+
+Maintenance
+
+Other Services
+
+Automatically route requests
+
+Restaurant
+
+Housekeeping
+
+Maintenance
+
+Transport
+
+Reception
+
+Spa
+
+Laundry
+
+Request Status
+
+Requested
+
+Accepted
+
+Assigned
+
+In Progress
+
+Completed
+
+Cancelled
+
+Track SLA
+
+Estimated Completion
+
+Actual Completion
+
+Request History
+
+====================================================
+AUTOMATION
+====================================================
+
+Guest Checkout
+
+↓
+
+Create Cleaning Task
+
+Cleaning Complete
+
+↓
+
+Room Available
+
+Maintenance Requested
+
+↓
+
+Room Under Maintenance
+
+Maintenance Complete
+
+↓
+
+Room Available
+
+Restaurant Order
+
+↓
+
+Kitchen Queue
+
+Kitchen Ready
+
+↓
+
+Waiter Notification
+
+Room Service Request
+
+↓
+
+Route To Department
+
+====================================================
+FRONTEND PAGES
+====================================================
+
+Housekeeping Dashboard
+
+Cleaning Assignments
+
+Cleaning Calendar
+
+Maintenance Dashboard
+
+Maintenance Requests
+
+Maintenance Details
+
+Restaurant Dashboard
+
+Menu Categories
+
+Menu Items
+
+Restaurant Tables
+
+Kitchen Display
+
+POS
+
+Room Service Dashboard
+
+Service Requests
+
+Each page includes
+
+Responsive Design
+
+Professional Tables
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Dialogs
+
+Forms
+
+Status Badges
+
+Loading State
+
+Error State
+
+Empty State
+
+====================================================
+API ENDPOINTS
+====================================================
+
+Generate REST APIs for
+
+Cleaning
+
+Cleaning Assignments
+
+Maintenance
+
+Maintenance Categories
+
+Restaurant
+
+Menu
+
+Tables
+
+Kitchen Orders
+
+POS Orders
+
+Room Service
+
+Swagger documentation required.
+
+====================================================
+RBAC
+====================================================
+
+Administrator
+
+Full Access
+
+Hotel Manager
+
+Full Access
+
+Housekeeping Supervisor
+
+Cleaning Management
+
+Housekeeping Staff
+
+Assigned Cleaning Only
+
+Maintenance Manager
+
+Maintenance Management
+
+Maintenance Staff
+
+Assigned Repairs
+
+Restaurant Manager
+
+Restaurant Management
+
+Waiter
+
+Orders
+
+Tables
+
+Kitchen Staff
+
+Kitchen Display
+
+Order Preparation
+
+Receptionist
+
+Create Room Service Requests
+
+Guest
+
+View Own Requests
+
+====================================================
+REPORTS
+====================================================
+
+Cleaning Performance
+
+Cleaner Productivity
+
+Pending Cleaning
+
+Maintenance Summary
+
+Maintenance Cost Placeholder
+
+Restaurant Sales Summary
+
+Popular Menu Items
+
+Kitchen Performance
+
+Room Service Requests
+
+Service Completion Time
+
+====================================================
+SEED DATA
+====================================================
+
+Generate
+
+30 Housekeeping Employees
+
+20 Maintenance Staff
+
+15 Waiters
+
+10 Kitchen Staff
+
+100 Cleaning Tasks
+
+50 Maintenance Requests
+
+150 Menu Items
+
+60 Restaurant Tables
+
+500 POS Orders
+
+200 Room Service Requests
+
+Generate realistic hotel operational data.
+
+====================================================
+CODING STANDARDS
+====================================================
+
+Use SOLID Principles.
+
+Repository Pattern.
+
+Service Layer.
+
+Strong Typing.
+
+Reusable Components.
+
+DTO Validation.
+
+Audit Logging.
+
+Centralized Exception Handling.
+
+No Business Logic inside Controllers.
+
+Complete Swagger Documentation.
+
+====================================================
+STOP CONDITION
+====================================================
+
+Complete ONLY
+
+Housekeeping
+
+Maintenance
+
+Restaurant
+
+POS
+
+Room Service
+
+Do NOT implement
+
+Inventory
+
+Procurement
+
+Financial Transactions
+
+Conference
+
+Transport
+
+Human Resource
+
+Customer Service
+
+Reports
+
+Notifications
+
+Audit Trail
+
+AI
+
+External Integrations
+
+These will be implemented in the next phase.

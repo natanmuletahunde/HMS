@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-hms-config
+  namespace: nexus-hms
+data:
+  NODE_ENV: production
+  API_PORT: "8080"
+  WEB_PORT: "3000"
+  NEXT_PUBLIC_API_URL: ""

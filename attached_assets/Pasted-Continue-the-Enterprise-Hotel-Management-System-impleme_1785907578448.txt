@@ -1,0 +1,863 @@
+Continue the Enterprise Hotel Management System implementation.
+
+Phase 1 (Foundation)
+Phase 2 (Hotel Core)
+Phase 3 (Reservation & Front Office)
+Phase 4 (Hotel Operations)
+Phase 5 (Business Management)
+
+have all been completed successfully.
+
+Implement ONLY Phase 6.
+
+====================================================
+PHASE 6 – ENTERPRISE SERVICES & PRODUCTION RELEASE
+====================================================
+
+This is the final phase.
+
+Complete the entire Hotel Management System and prepare it for production deployment.
+
+Implement
+
+1. Customer Service Management
+
+2. Notification Management
+
+3. Reports & Business Intelligence
+
+4. Executive Dashboard
+
+5. Audit Trail
+
+6. External System Integrations
+
+7. AI Features
+
+8. File & Document Management
+
+9. Scheduler & Background Jobs
+
+10. Monitoring & Logging
+
+11. Security Hardening
+
+12. Performance Optimization
+
+13. API Documentation
+
+14. Testing
+
+15. Docker Production Deployment
+
+16. CI/CD
+
+17. Final Documentation
+
+====================================================
+ARCHITECTURE
+====================================================
+
+Maintain
+
+Modular Monolith
+
+DDD
+
+SOLID
+
+Repository Pattern
+
+Service Layer
+
+DTO
+
+Dependency Injection
+
+Clean Architecture
+
+All modules must integrate seamlessly.
+
+====================================================
+CUSTOMER SERVICE MANAGEMENT
+====================================================
+
+Complaint Management
+
+Complaint Categories
+
+Room
+
+Restaurant
+
+Billing
+
+Staff
+
+Housekeeping
+
+Maintenance
+
+Transport
+
+Conference
+
+General
+
+Priority
+
+Low
+
+Medium
+
+High
+
+Critical
+
+Status
+
+New
+
+Assigned
+
+In Progress
+
+Resolved
+
+Closed
+
+Rejected
+
+Escalated
+
+Operations
+
+Register Complaint
+
+Assign Staff
+
+Escalate Complaint
+
+Resolution Notes
+
+Customer Feedback
+
+Satisfaction Rating
+
+Complaint History
+
+Response Time
+
+Resolution Time
+
+====================================================
+NOTIFICATION MANAGEMENT
+====================================================
+
+Notification Channels
+
+Email
+
+SMS
+
+In-App
+
+Push Notification
+
+Notification Types
+
+Reservation Confirmation
+
+Reservation Cancellation
+
+Check-in Reminder
+
+Check-out Reminder
+
+Payment Reminder
+
+Invoice Generated
+
+Cleaning Completed
+
+Maintenance Completed
+
+Room Ready
+
+Purchase Approval
+
+Low Stock Alert
+
+Conference Reminder
+
+Transport Reminder
+
+Leave Approval
+
+Complaint Update
+
+Promotion Campaign
+
+Support
+
+Templates
+
+Variables
+
+Scheduling
+
+Retry
+
+Delivery Status
+
+Notification History
+
+====================================================
+REPORTS
+====================================================
+
+Generate reports for every module.
+
+Operational Reports
+
+Occupancy
+
+Room Availability
+
+Reservation
+
+Check-in
+
+Check-out
+
+Guest
+
+VIP Guests
+
+Housekeeping
+
+Maintenance
+
+Restaurant Sales
+
+POS
+
+Inventory
+
+Purchasing
+
+Financial Transactions
+
+Conference
+
+Transport
+
+HR
+
+Customer Complaints
+
+Management Reports
+
+Revenue
+
+Expenses
+
+Profit
+
+Cash Flow
+
+Booking Sources
+
+Seasonal Analysis
+
+Room Utilization
+
+Cancellation Rate
+
+Average Stay
+
+Top Guests
+
+Top Customers
+
+Top Services
+
+Top Selling Menu Items
+
+Low Performing Rooms
+
+Export
+
+PDF
+
+Excel
+
+CSV
+
+Print
+
+====================================================
+BUSINESS INTELLIGENCE
+====================================================
+
+Interactive Charts
+
+Line
+
+Bar
+
+Pie
+
+Area
+
+Heat Map
+
+Drill Down
+
+Dashboard Filters
+
+Date
+
+Branch
+
+Hotel
+
+Department
+
+====================================================
+EXECUTIVE DASHBOARD
+====================================================
+
+KPIs
+
+Occupancy Rate
+
+ADR
+
+RevPAR
+
+Revenue
+
+Profit
+
+Expenses
+
+Cash Flow
+
+Average Length Of Stay
+
+Booking Trends
+
+Booking Sources
+
+Customer Satisfaction
+
+Cancellation Rate
+
+No Show Rate
+
+Inventory Value
+
+Purchase Cost
+
+Maintenance Cost
+
+Restaurant Revenue
+
+Conference Revenue
+
+Transport Revenue
+
+Employee Attendance
+
+Productivity
+
+Complaint Resolution
+
+Realtime Dashboard
+
+====================================================
+AUDIT TRAIL
+====================================================
+
+Track
+
+Login
+
+Logout
+
+Failed Login
+
+Password Change
+
+Role Change
+
+Permission Change
+
+Create
+
+Update
+
+Delete
+
+Approval
+
+Payment
+
+Refund
+
+Inventory Changes
+
+Reservation Changes
+
+Configuration Changes
+
+Security Events
+
+Store
+
+IP Address
+
+Browser
+
+Operating System
+
+User
+
+Timestamp
+
+Previous Values
+
+New Values
+
+====================================================
+FILE MANAGEMENT
+====================================================
+
+Support
+
+Images
+
+Documents
+
+Invoices
+
+Receipts
+
+Guest IDs
+
+Passports
+
+Contracts
+
+Employee Documents
+
+Supplier Documents
+
+Conference Attachments
+
+Store
+
+Local Storage
+
+Amazon S3 Compatible Storage
+
+Download
+
+Preview
+
+Versioning
+
+====================================================
+BACKGROUND JOBS
+====================================================
+
+Implement Scheduler
+
+Daily Reports
+
+Automatic Backups
+
+Reservation Expiration
+
+Reminder Notifications
+
+Inventory Alerts
+
+Housekeeping Schedule
+
+Maintenance Schedule
+
+Database Cleanup
+
+====================================================
+EXTERNAL INTEGRATIONS
+====================================================
+
+Payment Gateways
+
+Stripe
+
+Chapa
+
+Telebirr
+
+PayPal
+
+Email
+
+SMTP
+
+SendGrid
+
+SMS
+
+Twilio
+
+Africa's Talking
+
+Door Lock API
+
+Key Card API
+
+Currency Exchange API
+
+Weather API
+
+Maps API
+
+Google Calendar
+
+Microsoft Outlook Calendar
+
+====================================================
+AI FEATURES
+====================================================
+
+Occupancy Forecast
+
+Demand Forecast
+
+Revenue Prediction
+
+Guest Recommendation Engine
+
+Personalized Room Recommendation
+
+Personalized Service Recommendation
+
+Dynamic Pricing Suggestion
+
+Guest Chatbot
+
+Management AI Assistant
+
+Natural Language Dashboard Query
+
+Examples
+
+"What is today's occupancy?"
+
+"Revenue this month?"
+
+"Top selling room?"
+
+"Rooms needing maintenance?"
+
+====================================================
+SEARCH
+====================================================
+
+Implement Global Search
+
+Search
+
+Guest
+
+Reservation
+
+Invoice
+
+Payment
+
+Employee
+
+Inventory
+
+Supplier
+
+Room
+
+Conference
+
+Vehicle
+
+Complaint
+
+====================================================
+SECURITY HARDENING
+====================================================
+
+Implement
+
+JWT
+
+Refresh Tokens
+
+RBAC
+
+Permission Guards
+
+Rate Limiting
+
+Helmet
+
+CORS
+
+Argon2 Password Hashing
+
+CSRF Ready
+
+Input Validation
+
+SQL Injection Protection
+
+XSS Protection
+
+Content Security Policy
+
+Account Lockout
+
+Password Policy
+
+Session Timeout
+
+====================================================
+PERFORMANCE
+====================================================
+
+Redis Cache
+
+Database Indexing
+
+Lazy Loading
+
+Pagination
+
+Virtual Scrolling
+
+Query Optimization
+
+Image Optimization
+
+Compression
+
+====================================================
+MONITORING
+====================================================
+
+Application Logs
+
+Audit Logs
+
+Error Logs
+
+Performance Logs
+
+Prometheus Metrics
+
+Grafana Dashboard
+
+Health Check API
+
+====================================================
+TESTING
+====================================================
+
+Generate
+
+Unit Tests
+
+Integration Tests
+
+API Tests
+
+E2E Tests
+
+Seed Test Data
+
+====================================================
+API DOCUMENTATION
+====================================================
+
+Complete Swagger Documentation
+
+Examples
+
+Schemas
+
+Authentication
+
+Authorization
+
+Error Responses
+
+====================================================
+DEPLOYMENT
+====================================================
+
+Generate
+
+Dockerfile Frontend
+
+Dockerfile Backend
+
+Docker Compose
+
+NGINX
+
+Production Environment
+
+Development Environment
+
+Environment Variables
+
+====================================================
+CI/CD
+====================================================
+
+GitHub Actions
+
+Automatic Build
+
+Automatic Test
+
+Automatic Deployment
+
+====================================================
+README
+====================================================
+
+Generate Complete Documentation
+
+Architecture
+
+Installation
+
+Configuration
+
+Deployment
+
+API
+
+Folder Structure
+
+Database
+
+Development Guide
+
+Production Guide
+
+====================================================
+RBAC
+====================================================
+
+Review every module.
+
+Verify every endpoint has proper permission.
+
+====================================================
+SEED DATA
+====================================================
+
+Generate complete enterprise demo data.
+
+Multiple Hotels
+
+Multiple Branches
+
+Thousands of Guests
+
+Thousands of Reservations
+
+Restaurant Sales
+
+Inventory
+
+Financial Transactions
+
+HR Records
+
+Complaints
+
+Notifications
+
+====================================================
+FINAL QUALITY CHECK
+====================================================
+
+Before completion
+
+Review
+
+Database
+
+API
+
+Frontend
+
+Backend
+
+Security
+
+Performance
+
+Documentation
+
+Testing
+
+Deployment
+
+Fix any inconsistencies.
+
+Remove duplicate code.
+
+Refactor where necessary.
+
+====================================================
+FINAL DELIVERABLE
+====================================================
+
+Produce a production-ready Enterprise Hotel Management System.
+
+The project should compile successfully without errors.
+
+All APIs should work.
+
+All frontend pages should function.
+
+All modules should be integrated.
+
+All database migrations should execute successfully.
+
+Generate final README.md.
+
+Generate LICENSE.
+
+Generate CHANGELOG.md.
+
+Generate API Collection (Postman).
+
+Generate OpenAPI Specification.
+
+Mark the project as Version 1.0.0 Production Ready.
+
+====================================================
+STOP CONDITION
+====================================================
+
+Do not create placeholder code.
+
+Implement complete working modules.
+
+Ensure the application is production-ready, maintainable, scalable, secure, and fully documented.

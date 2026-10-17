@@ -1,0 +1,823 @@
+Continue the Enterprise Hotel Management System implementation.
+
+Phase 1 (Foundation) and Phase 2 (Hotel Core Management) have been completed.
+
+Implement ONLY Phase 3.
+
+====================================================
+PHASE 3 – RESERVATION, BOOKING & FRONT OFFICE
+====================================================
+
+Implement the following modules completely.
+
+1. Reservation Management
+
+2. Booking Management
+
+3. Guest Management
+
+4. Front Office Management
+
+5. Check-in Management
+
+6. Stay Management
+
+7. Check-out Management
+
+Do not implement Restaurant, Housekeeping, Maintenance, Billing, Inventory or HR in this phase.
+
+====================================================
+ARCHITECTURE
+====================================================
+
+Continue using the existing architecture.
+
+Frontend
+
+Next.js
+
+React
+
+TypeScript
+
+Tailwind CSS
+
+ShadCN UI
+
+React Hook Form
+
+Zod
+
+TanStack Query
+
+Axios
+
+Backend
+
+NestJS
+
+Prisma ORM
+
+PostgreSQL
+
+REST API
+
+Repository Pattern
+
+Service Layer
+
+DTO Validation
+
+JWT
+
+RBAC
+
+Swagger
+
+====================================================
+DATABASE
+====================================================
+
+Create all necessary Prisma models, relationships, indexes and migrations.
+
+Every table must contain
+
+id UUID
+
+createdAt
+
+updatedAt
+
+deletedAt
+
+createdBy
+
+updatedBy
+
+isActive
+
+====================================================
+GUEST MANAGEMENT
+====================================================
+
+Create Guest entity.
+
+Fields
+
+Guest Code
+
+First Name
+
+Middle Name
+
+Last Name
+
+Gender
+
+Date of Birth
+
+Nationality
+
+Passport Number
+
+National ID
+
+Visa Number
+
+Phone
+
+Alternative Phone
+
+Email
+
+Country
+
+Region
+
+City
+
+Address
+
+Emergency Contact Name
+
+Emergency Contact Phone
+
+VIP Status
+
+Guest Type
+
+Individual
+
+Corporate
+
+Travel Agency
+
+Government
+
+Preferences
+
+Smoking Preference
+
+Bed Preference
+
+Floor Preference
+
+Food Preference
+
+Special Requests
+
+Profile Photo
+
+Remarks
+
+Relationships
+
+Guest
+
+1 → Many Reservations
+
+1 → Many Check-ins
+
+1 → Many Check-outs
+
+====================================================
+GUEST HISTORY
+====================================================
+
+Automatically maintain
+
+Previous Stays
+
+Reservation History
+
+Payment History
+
+Complaint History
+
+Reviews
+
+Services Used
+
+Room History
+
+Visit Frequency
+
+====================================================
+RESERVATION MANAGEMENT
+====================================================
+
+Reservation Types
+
+Individual
+
+Group
+
+Corporate
+
+Travel Agency
+
+Online
+
+Walk-in
+
+Reservation Status
+
+Draft
+
+Pending
+
+Confirmed
+
+Guaranteed
+
+Checked-in
+
+Checked-out
+
+Cancelled
+
+No-show
+
+Expired
+
+Waitlisted
+
+Reservation Information
+
+Reservation Number
+
+Booking Source
+
+Guest
+
+Arrival Date
+
+Departure Date
+
+Nights
+
+Adults
+
+Children
+
+Room Type
+
+Specific Room (optional)
+
+Rate Plan
+
+Discount
+
+Tax
+
+Deposit Required
+
+Deposit Paid
+
+Special Requests
+
+Remarks
+
+====================================================
+RESERVATION OPERATIONS
+====================================================
+
+Search Available Rooms
+
+Availability Calendar
+
+Price Comparison
+
+View Room Photos
+
+Hold Reservation
+
+Confirm Reservation
+
+Modify Reservation
+
+Cancel Reservation
+
+Rebook Reservation
+
+Split Reservation
+
+Merge Reservation
+
+Duplicate Reservation
+
+Reservation Expiration
+
+Reservation Reminder
+
+Waitlist Management
+
+Reservation Approval (optional)
+
+====================================================
+AVAILABILITY ENGINE
+====================================================
+
+The reservation engine must
+
+Prevent Double Booking
+
+Check Room Status
+
+Check Existing Reservations
+
+Check Maintenance Status
+
+Check Blocked Rooms
+
+Calculate Available Inventory
+
+Support Room Upgrade
+
+Support Room Downgrade
+
+Support Room Transfer
+
+====================================================
+RATE CALCULATION
+====================================================
+
+Automatically calculate
+
+Base Price
+
+Weekend Rate
+
+Holiday Rate
+
+Seasonal Rate
+
+Corporate Rate
+
+Travel Agency Rate
+
+VIP Discount
+
+Tax
+
+Service Charge
+
+Promotion
+
+Coupon
+
+Grand Total
+
+====================================================
+CHECK-IN MANAGEMENT
+====================================================
+
+Workflow
+
+Reservation Verification
+
+↓
+
+Identity Verification
+
+↓
+
+Room Assignment
+
+↓
+
+Deposit Collection
+
+↓
+
+Digital Signature
+
+↓
+
+Key Card Generation
+
+↓
+
+Check-in Confirmation
+
+Allow Walk-in Check-in.
+
+Generate Registration Card.
+
+Generate Guest Folio.
+
+====================================================
+STAY MANAGEMENT
+====================================================
+
+During stay allow
+
+Room Upgrade
+
+Room Downgrade
+
+Room Transfer
+
+Extend Stay
+
+Shorten Stay
+
+Additional Guests
+
+Additional Services
+
+Notes
+
+Guest Requests
+
+====================================================
+CHECK-OUT MANAGEMENT
+====================================================
+
+Workflow
+
+Calculate Charges
+
+↓
+
+Apply Late Checkout Fee
+
+↓
+
+Review Charges
+
+↓
+
+Generate Invoice
+
+↓
+
+Receive Payment Placeholder
+
+↓
+
+Refund Deposit
+
+↓
+
+Close Folio
+
+↓
+
+Email Invoice
+
+↓
+
+Customer Feedback
+
+====================================================
+ROOM STATUS AUTOMATION
+====================================================
+
+Automatically update room status.
+
+Reservation Confirmed
+
+↓
+
+Reserved
+
+Guest Checked-in
+
+↓
+
+Occupied
+
+Guest Checked-out
+
+↓
+
+Dirty
+
+Housekeeping Completed
+
+↓
+
+Available
+
+Maintenance Started
+
+↓
+
+Under Maintenance
+
+Maintenance Completed
+
+↓
+
+Available
+
+====================================================
+SEARCH
+====================================================
+
+Global Reservation Search
+
+Reservation Number
+
+Guest Name
+
+Phone
+
+Passport
+
+Email
+
+Room Number
+
+Booking Source
+
+Date
+
+Status
+
+====================================================
+CALENDAR
+====================================================
+
+Create Reservation Calendar.
+
+Daily View
+
+Weekly View
+
+Monthly View
+
+Room Occupancy Calendar
+
+Drag and Drop Reservation (optional)
+
+====================================================
+FRONT OFFICE DASHBOARD
+====================================================
+
+Display
+
+Today's Arrivals
+
+Today's Departures
+
+Current In-house Guests
+
+Walk-ins
+
+VIP Guests
+
+No Shows
+
+Expected Check-outs
+
+Late Check-outs
+
+Occupancy
+
+Available Rooms
+
+====================================================
+FRONTEND PAGES
+====================================================
+
+Guest List
+
+Guest Profile
+
+Guest Registration
+
+Reservations
+
+Reservation Calendar
+
+Reservation Details
+
+Check-in
+
+Check-out
+
+Stay Management
+
+Walk-in Registration
+
+Availability Search
+
+Each page must contain
+
+Responsive Layout
+
+Professional Table
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Dialogs
+
+Validation
+
+Loading
+
+Empty State
+
+Error Handling
+
+====================================================
+API ENDPOINTS
+====================================================
+
+Generate REST APIs for
+
+Guests
+
+Reservations
+
+Availability
+
+Check-in
+
+Check-out
+
+Stay Management
+
+Guest History
+
+Reservation Calendar
+
+Swagger Documentation required.
+
+====================================================
+BUSINESS RULES
+====================================================
+
+Prevent Double Booking.
+
+Room cannot be checked in twice.
+
+Cancelled reservations cannot be checked in.
+
+Room under maintenance cannot be reserved.
+
+Blocked rooms cannot be reserved.
+
+Guest must be active.
+
+Reservation dates must be valid.
+
+Departure date must be greater than arrival date.
+
+Deposit rules configurable.
+
+Automatically calculate nights.
+
+Automatically update room status.
+
+Automatically create audit logs.
+
+====================================================
+RBAC
+====================================================
+
+Administrator
+
+Full Access
+
+Hotel Manager
+
+Full Operational Access
+
+Reservation Officer
+
+Reservations
+
+Guest Management
+
+Receptionist
+
+Reservations
+
+Check-in
+
+Check-out
+
+Stay Management
+
+Cashier
+
+Read Only (Payment placeholder only)
+
+Other roles
+
+Read access only
+
+====================================================
+REPORTS
+====================================================
+
+Reservation Report
+
+Arrival Report
+
+Departure Report
+
+Occupancy Report
+
+Guest Report
+
+VIP Guest Report
+
+Cancellation Report
+
+No-show Report
+
+Expected Arrival Report
+
+Expected Departure Report
+
+====================================================
+SEED DATA
+====================================================
+
+Generate
+
+500 Guests
+
+300 Reservations
+
+50 Corporate Clients
+
+20 Travel Agencies
+
+Reservation History
+
+Guest History
+
+Sample Walk-ins
+
+VIP Guests
+
+====================================================
+CODING STANDARDS
+====================================================
+
+Use SOLID Principles.
+
+Repository Pattern.
+
+Service Layer.
+
+Reusable Components.
+
+DTO Validation.
+
+Strong Typing.
+
+No Business Logic inside Controllers.
+
+Audit Logging.
+
+Centralized Exception Handling.
+
+Complete Swagger Documentation.
+
+====================================================
+STOP CONDITION
+====================================================
+
+Complete Reservation, Booking and Front Office Management completely.
+
+Do NOT implement
+
+Housekeeping
+
+Maintenance
+
+Restaurant
+
+POS
+
+Inventory
+
+Procurement
+
+Financial Transactions
+
+Conference
+
+Transport
+
+Human Resource
+
+Customer Service
+
+Notifications
+
+AI
+
+These will be implemented in the next phases.

@@ -1,0 +1,251 @@
+{
+  "info": {
+    "name": "Nexus HMS API",
+    "description": "Enterprise Hotel Management System — Complete API Collection v1.0.0",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080/api", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["const r = pm.response.json(); if(r.accessToken) { pm.collectionVariables.set('access_token', r.accessToken); pm.test('Login successful', ()=>pm.response.to.have.status(200)); }"] } }],
+          "request": { "method": "POST", "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@nexushms.com\",\"password\":\"Admin@1234\"}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏨 Dashboard",
+      "item": [
+        { "name": "Get Stats", "request": { "method": "GET", "url": "{{base_url}}/dashboard/stats" } },
+        { "name": "Get Occupancy", "request": { "method": "GET", "url": "{{base_url}}/dashboard/occupancy" } },
+        { "name": "Get Revenue", "request": { "method": "GET", "url": "{{base_url}}/dashboard/revenue" } },
+        { "name": "Get Activity", "request": { "method": "GET", "url": "{{base_url}}/dashboard/activity" } }
+      ]
+    },
+    {
+      "name": "👥 Guests",
+      "item": [
+        { "name": "List Guests", "request": { "method": "GET", "url": "{{base_url}}/guests" } },
+        { "name": "Create Guest", "request": { "method": "POST", "url": "{{base_url}}/guests", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john@example.com\",\"phone\":\"+1234567890\",\"nationality\":\"US\"}" } } },
+        { "name": "Get Guest", "request": { "method": "GET", "url": "{{base_url}}/guests/:id" } },
+        { "name": "Update Guest", "request": { "method": "PATCH", "url": "{{base_url}}/guests/:id", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"phone\":\"+9876543210\"}" } } }
+      ]
+    },
+    {
+      "name": "📅 Reservations",
+      "item": [
+        { "name": "List Reservations", "request": { "method": "GET", "url": "{{base_url}}/reservations" } },
+        { "name": "Create Reservation", "request": { "method": "POST", "url": "{{base_url}}/reservations", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"guestId\":\"GUEST_ID\",\"roomId\":\"ROOM_ID\",\"checkInDate\":\"2026-09-01\",\"checkOutDate\":\"2026-09-05\",\"adults\":2}" } } },
+        { "name": "Get Reservation", "request": { "method": "GET", "url": "{{base_url}}/reservations/:id" } },
+        { "name": "Update Reservation", "request": { "method": "PATCH", "url": "{{base_url}}/reservations/:id", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"status\":\"confirmed\"}" } } }
+      ]
+    },
+    {
+      "name": "🏠 Rooms",
+      "item": [
+        { "name": "List Rooms", "request": { "method": "GET", "url": "{{base_url}}/rooms" } },
+        { "name": "Room Availability", "request": { "method": "GET", "url": "{{base_url}}/rooms/availability?checkIn=2026-09-01&checkOut=2026-09-05" } },
+        { "name": "Get Room", "request": { "method": "GET", "url": "{{base_url}}/rooms/:id" } }
+      ]
+    },
+    {
+      "name": "🛎 Front Office",
+      "item": [
+        { "name": "Check-in", "request": { "method": "POST", "url": "{{base_url}}/checkin", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"reservationId\":\"RESERVATION_ID\"}" } } },
+        { "name": "Check-out", "request": { "method": "POST", "url": "{{base_url}}/checkout", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"checkinId\":\"CHECKIN_ID\"}" } } },
+        { "name": "Front Office Dashboard", "request": { "method": "GET", "url": "{{base_url}}/front-office/dashboard" } }
+      ]
+    },
+    {
+      "name": "🧹 Housekeeping",
+      "item": [
+        { "name": "List Tasks", "request": { "method": "GET", "url": "{{base_url}}/housekeeping" } },
+        { "name": "Create Task", "request": { "method": "POST", "url": "{{base_url}}/housekeeping", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"roomId\":\"ROOM_ID\",\"taskType\":\"cleaning\",\"priority\":\"normal\"}" } } },
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/housekeeping/dashboard" } }
+      ]
+    },
+    {
+      "name": "🔧 Maintenance",
+      "item": [
+        { "name": "List Requests", "request": { "method": "GET", "url": "{{base_url}}/maintenance" } },
+        { "name": "Create Request", "request": { "method": "POST", "url": "{{base_url}}/maintenance", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"roomId\":\"ROOM_ID\",\"title\":\"AC not working\",\"priority\":\"high\"}" } } }
+      ]
+    },
+    {
+      "name": "🍽 Restaurant",
+      "item": [
+        { "name": "List Orders", "request": { "method": "GET", "url": "{{base_url}}/restaurant/orders" } },
+        { "name": "Menu Items", "request": { "method": "GET", "url": "{{base_url}}/restaurant/menu-items" } },
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/restaurant/dashboard" } }
+      ]
+    },
+    {
+      "name": "🏪 POS",
+      "item": [
+        { "name": "List Orders", "request": { "method": "GET", "url": "{{base_url}}/pos/orders" } },
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/pos/dashboard" } }
+      ]
+    },
+    {
+      "name": "📦 Inventory",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/inventory/dashboard" } },
+        { "name": "List Items", "request": { "method": "GET", "url": "{{base_url}}/inventory" } },
+        { "name": "Low Stock Alerts", "request": { "method": "GET", "url": "{{base_url}}/inventory/alerts" } },
+        { "name": "Stock Movements", "request": { "method": "GET", "url": "{{base_url}}/inventory/movements" } },
+        { "name": "Stock In", "request": { "method": "POST", "url": "{{base_url}}/inventory/stock-in", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"itemId\":\"ITEM_ID\",\"quantity\":50,\"notes\":\"Monthly stock replenishment\"}" } } },
+        { "name": "Stock Out", "request": { "method": "POST", "url": "{{base_url}}/inventory/stock-out", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"itemId\":\"ITEM_ID\",\"quantity\":10,\"referenceType\":\"pos_order\",\"referenceId\":\"ORDER_ID\"}" } } }
+      ]
+    },
+    {
+      "name": "🛒 Procurement",
+      "item": [
+        { "name": "List Suppliers", "request": { "method": "GET", "url": "{{base_url}}/procurement/suppliers" } },
+        { "name": "List Purchase Orders", "request": { "method": "GET", "url": "{{base_url}}/procurement/purchase-orders" } },
+        { "name": "List Purchase Requests", "request": { "method": "GET", "url": "{{base_url}}/procurement/purchase-requests" } },
+        { "name": "List Goods Receipts", "request": { "method": "GET", "url": "{{base_url}}/procurement/goods-receipts" } }
+      ]
+    },
+    {
+      "name": "💰 Financial",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/financial/dashboard" } },
+        { "name": "List Transactions", "request": { "method": "GET", "url": "{{base_url}}/financial/transactions" } },
+        { "name": "Create Transaction", "request": { "method": "POST", "url": "{{base_url}}/financial/transactions", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"transactionType\":\"revenue\",\"category\":\"room_charges\",\"amount\":500,\"paymentMethod\":\"credit_card\",\"description\":\"Room payment\",\"transactionDate\":\"2026-08-05\"}" } } },
+        { "name": "Cash Registers", "request": { "method": "GET", "url": "{{base_url}}/financial/cash-registers" } },
+        { "name": "Cash Shifts", "request": { "method": "GET", "url": "{{base_url}}/financial/cash-shifts" } },
+        { "name": "Revenue Summary", "request": { "method": "GET", "url": "{{base_url}}/financial/revenue-summary?startDate=2026-08-01&endDate=2026-08-05" } }
+      ]
+    },
+    {
+      "name": "🎪 Conference",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/conference/dashboard" } },
+        { "name": "List Halls", "request": { "method": "GET", "url": "{{base_url}}/conference/halls" } },
+        { "name": "List Bookings", "request": { "method": "GET", "url": "{{base_url}}/conference/bookings" } },
+        { "name": "Calendar", "request": { "method": "GET", "url": "{{base_url}}/conference/calendar?month=2026-08" } }
+      ]
+    },
+    {
+      "name": "🚗 Transport",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/transport/dashboard" } },
+        { "name": "List Vehicles", "request": { "method": "GET", "url": "{{base_url}}/transport/vehicles" } },
+        { "name": "List Drivers", "request": { "method": "GET", "url": "{{base_url}}/transport/drivers" } },
+        { "name": "List Trips", "request": { "method": "GET", "url": "{{base_url}}/transport/trips" } }
+      ]
+    },
+    {
+      "name": "👤 HR",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/hr/dashboard" } },
+        { "name": "Departments", "request": { "method": "GET", "url": "{{base_url}}/hr/departments" } },
+        { "name": "Attendance", "request": { "method": "GET", "url": "{{base_url}}/hr/attendance" } },
+        { "name": "Leave Requests", "request": { "method": "GET", "url": "{{base_url}}/hr/leaves" } },
+        { "name": "Shifts", "request": { "method": "GET", "url": "{{base_url}}/hr/shifts" } },
+        { "name": "Performance Reviews", "request": { "method": "GET", "url": "{{base_url}}/hr/performance-reviews" } }
+      ]
+    },
+    {
+      "name": "👨‍💼 Employees",
+      "item": [
+        { "name": "List Employees", "request": { "method": "GET", "url": "{{base_url}}/employees" } },
+        { "name": "Employee Stats", "request": { "method": "GET", "url": "{{base_url}}/employees/stats" } },
+        { "name": "Create Employee", "request": { "method": "POST", "url": "{{base_url}}/employees", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"firstName\":\"Jane\",\"lastName\":\"Smith\",\"email\":\"jane@nexushms.com\",\"department\":\"Front Office\",\"position\":\"Receptionist\",\"hiredAt\":\"2026-08-05\"}" } } }
+      ]
+    },
+    {
+      "name": "💬 Customer Service",
+      "item": [
+        { "name": "Dashboard", "request": { "method": "GET", "url": "{{base_url}}/customer-service/dashboard" } },
+        { "name": "List Complaints", "request": { "method": "GET", "url": "{{base_url}}/customer-service" } },
+        { "name": "Create Complaint", "request": { "method": "POST", "url": "{{base_url}}/customer-service", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"guestName\":\"John Doe\",\"category\":\"room\",\"priority\":\"high\",\"subject\":\"AC not working\",\"description\":\"The air conditioning in room 101 is not functioning properly.\"}" } } },
+        { "name": "Get Complaint", "request": { "method": "GET", "url": "{{base_url}}/customer-service/:id" } },
+        { "name": "Update Complaint", "request": { "method": "PATCH", "url": "{{base_url}}/customer-service/:id", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"status\":\"resolved\",\"resolutionNotes\":\"AC repaired and tested.\"}" } } },
+        { "name": "Add Comment", "request": { "method": "POST", "url": "{{base_url}}/customer-service/:id/comments", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"authorName\":\"Staff Member\",\"comment\":\"Technician dispatched.\",\"isInternal\":true}" } } },
+        { "name": "Stats", "request": { "method": "GET", "url": "{{base_url}}/customer-service/stats" } }
+      ]
+    },
+    {
+      "name": "📊 Reports",
+      "item": [
+        { "name": "Occupancy Report", "request": { "method": "GET", "url": "{{base_url}}/reports/occupancy?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Revenue Report", "request": { "method": "GET", "url": "{{base_url}}/reports/revenue?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Reservations Report", "request": { "method": "GET", "url": "{{base_url}}/reports/reservations?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Restaurant Report", "request": { "method": "GET", "url": "{{base_url}}/reports/restaurant?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Inventory Report", "request": { "method": "GET", "url": "{{base_url}}/reports/inventory" } },
+        { "name": "HR Report", "request": { "method": "GET", "url": "{{base_url}}/reports/hr" } },
+        { "name": "Complaints Report", "request": { "method": "GET", "url": "{{base_url}}/reports/complaints?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Financial Report", "request": { "method": "GET", "url": "{{base_url}}/reports/financial?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Conference Report", "request": { "method": "GET", "url": "{{base_url}}/reports/conference?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Transport Report", "request": { "method": "GET", "url": "{{base_url}}/reports/transport?startDate=2026-07-01&endDate=2026-08-05" } },
+        { "name": "Executive Summary", "request": { "method": "GET", "url": "{{base_url}}/reports/executive-summary?startDate=2026-07-01&endDate=2026-08-05" } }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        { "name": "Notification History", "request": { "method": "GET", "url": "{{base_url}}/notifications/history" } },
+        { "name": "Templates", "request": { "method": "GET", "url": "{{base_url}}/notifications/templates" } },
+        { "name": "Create Template", "request": { "method": "POST", "url": "{{base_url}}/notifications/templates", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"code\":\"CUSTOM_ALERT\",\"name\":\"Custom Alert\",\"channel\":\"in_app\",\"type\":\"custom\",\"body\":\"Dear {{guestName}}, {{message}}\"}" } } },
+        { "name": "Broadcast", "request": { "method": "POST", "url": "{{base_url}}/notifications/broadcast", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"type\":\"announcement\",\"title\":\"System Maintenance\",\"message\":\"The system will be down for 30 minutes at midnight.\"}" } } },
+        { "name": "Mark Read", "request": { "method": "PATCH", "url": "{{base_url}}/notifications/:id/read" } },
+        { "name": "Unread Count", "request": { "method": "GET", "url": "{{base_url}}/notifications/unread-count?userId=USER_ID" } }
+      ]
+    },
+    {
+      "name": "🔍 Search",
+      "item": [
+        { "name": "Global Search", "request": { "method": "GET", "url": "{{base_url}}/search?q=john&limit=20" } }
+      ]
+    },
+    {
+      "name": "📁 Documents",
+      "item": [
+        { "name": "List Documents", "request": { "method": "GET", "url": "{{base_url}}/documents" } },
+        { "name": "Get Document", "request": { "method": "GET", "url": "{{base_url}}/documents/:id" } },
+        { "name": "By Reference", "request": { "method": "GET", "url": "{{base_url}}/documents/reference/guest/GUEST_ID" } },
+        { "name": "Delete Document", "request": { "method": "DELETE", "url": "{{base_url}}/documents/:id" } }
+      ]
+    },
+    {
+      "name": "📋 Audit Logs",
+      "item": [
+        { "name": "List Logs", "request": { "method": "GET", "url": "{{base_url}}/audit-logs" } },
+        { "name": "Stats", "request": { "method": "GET", "url": "{{base_url}}/audit-logs/stats" } },
+        { "name": "Create Log", "request": { "method": "POST", "url": "{{base_url}}/audit-logs", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"action\":\"create\",\"resource\":\"reservation\",\"resourceId\":\"RES_ID\",\"ipAddress\":\"192.168.1.1\"}" } } }
+      ]
+    },
+    {
+      "name": "💳 Invoices & Payments",
+      "item": [
+        { "name": "List Invoices", "request": { "method": "GET", "url": "{{base_url}}/invoices" } },
+        { "name": "Create Invoice", "request": { "method": "POST", "url": "{{base_url}}/invoices", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"guestId\":\"GUEST_ID\",\"subtotal\":500,\"tax\":75,\"total\":575}" } } },
+        { "name": "List Payments", "request": { "method": "GET", "url": "{{base_url}}/payments" } },
+        { "name": "Create Payment", "request": { "method": "POST", "url": "{{base_url}}/payments", "header": [{"key":"Content-Type","value":"application/json"}], "body": { "mode": "raw", "raw": "{\"invoiceId\":\"INVOICE_ID\",\"amount\":575,\"method\":\"credit_card\"}" } } }
+      ]
+    },
+    {
+      "name": "⚙️ Admin",
+      "item": [
+        { "name": "List Users", "request": { "method": "GET", "url": "{{base_url}}/users" } },
+        { "name": "List Roles", "request": { "method": "GET", "url": "{{base_url}}/roles" } },
+        { "name": "Health Check", "request": { "method": "GET", "url": "{{base_url}}/health" } }
+      ]
+    }
+  ]
+}

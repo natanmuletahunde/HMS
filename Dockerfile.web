@@ -1,0 +1,32 @@
+FROM node:20-alpine AS deps
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY artifacts ./artifacts
+COPY lib ./lib
+COPY scripts ./scripts
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS builder
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ARG API_INTERNAL_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV API_INTERNAL_URL=${API_INTERNAL_URL}
+RUN pnpm --filter @workspace/hotel-management run build
+# Keep the runner COPY valid for projects which do not have a public directory.
+RUN mkdir -p /tmp/public && \
+    if [ -d artifacts/hotel-management/public ]; then cp -a artifacts/hotel-management/public/. /tmp/public/; fi
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# Standalone output preserves the monorepo path, including this nested server.js.
+COPY --from=builder /app/artifacts/hotel-management/.next/standalone ./
+COPY --from=builder /app/artifacts/hotel-management/.next/static ./artifacts/hotel-management/.next/static
+COPY --from=builder /tmp/public ./artifacts/hotel-management/public
+USER node
+EXPOSE 3000
+CMD ["node", "artifacts/hotel-management/server.js"]

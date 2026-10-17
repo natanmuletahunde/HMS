@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-api-ingress-only
+  namespace: nexus-hms
+spec:
+  podSelector:
+    matchLabels:
+      app: nexus-hms-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nexus-hms-api
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-deny-egress
+  namespace: nexus-hms
+spec:
+  podSelector:
+    matchLabels:
+      app: nexus-hms-redis
+  policyTypes:
+    - Egress
+  egress: []

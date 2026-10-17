@@ -1,0 +1,298 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R] /Count 6 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4020 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 667.89 487.28 116 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS Non-Functional) Tj ET
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 717.89 Tm (Requirements) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 694.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 627.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 621.89 m 130 621.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 601.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 580.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 559.89 Tm (- Document type: Non-functional requirements specification) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 538.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 503.89 Tm (1. Quality objectives) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 497.89 m 130 497.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 477.89 Tm (Nexus HMS shall be secure by default, operationally observable, responsive for normal hotel) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 463.89 Tm (workloads, maintainable by a TypeScript team, and deployable from a repeatable build. Requirements in) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 449.89 Tm (this document are targets and operating expectations. They should be measured in each production) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 435.89 Tm (environment rather than assumed from development results.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 400.89 Tm (2. Performance and capacity) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 394.89 m 130 394.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 366.89 Tm (NFR-001 Response time) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 347.89 Tm (- Health checks should complete in under 250 ms when the database is healthy.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 326.89 Tm (- Normal authenticated list and detail requests should complete within 1 second at the 95th) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (  percentile under the agreed baseline load.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 291.89 Tm (- Dashboard and BI requests should complete within 2 seconds at the 95th percentile for a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 277.89 Tm (  single property and normal seeded data volume.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 256.89 Tm (- API requests that exceed the target should be visible through request-duration metrics.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 227.89 Tm (NFR-002 Throughput and throttling) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 208.89 Tm (- The default request throttle is 300 requests per minute per throttling key.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 187.89 Tm (- Production shall use Redis 7 with the Socket.IO Redis adapter so realtime packets can reach) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 173.89 Tm (  clients connected to different API replicas.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 152.89 Tm (- The Kubernetes baseline shall retain three API replicas and an HPA range of two to ten) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 138.89 Tm (  replicas.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 117.89 Tm (- Load tests should cover authentication, reservations, dashboard, search, reports, and mobile) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 103.89 Tm (  synchronization separately.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4784 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 767.89 Tm (NFR-003 Caching) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 748.89 Tm (- Expensive dashboard and reservation reads may use a 60-second in-memory cache.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 727.89 Tm (- Cache entries shall have explicit expiry and invalidation behavior.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 706.89 Tm (- Cache flush is an administrative operation and shall be observable in audit logs where) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 692.89 Tm (  enabled.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 671.89 Tm (- The in-memory cache is process-local and shall not be described or operated as Redis-backed.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 657.89 Tm (  Cross-instance cache consistency is not provided.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 622.89 Tm (3. Availability and resilience) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 616.89 m 130 616.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 588.89 Tm (NFR-004 Health and startup) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 569.89 Tm (- The API shall expose `/api/health` with a machine-readable status and timestamp.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 548.89 Tm (- A deployment shall use health checks for process readiness and liveness.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 527.89 Tm (- The application shall fail startup when the required MFA encryption secret is absent; it) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 513.89 Tm (  shall not silently fall back to a weak secret for MFA data.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 492.89 Tm (- The production API shall fail startup when `REDIS_URL` is absent so cross-replica Socket.IO) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 478.89 Tm (  delivery is not silently disabled.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 457.89 Tm (- Redis readiness checks and application connections shall authenticate; an unauthenticated) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 443.89 Tm (  Redis URL shall not be used.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 414.89 Tm (NFR-005 Failure behavior) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 395.89 Tm (- Invalid credentials, invalid tokens, invalid TOTP codes, forbidden administrative actions,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 381.89 Tm (  malformed input, and missing resources shall return explicit HTTP errors.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 360.89 Tm (- A failed security check shall not silently grant access.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 339.89 Tm (- A malformed stored IP rule shall be ignored safely and should be investigated through) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 325.89 Tm (  operational review.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 304.89 Tm (- A failed mobile synchronization request shall not advance the client's sync watermark.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 275.89 Tm (NFR-006 Recovery) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 256.89 Tm (- PostgreSQL backups shall be scheduled according to the hotel's recovery point objective.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 235.89 Tm (- Restore procedures shall be rehearsed in a non-production environment.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 214.89 Tm (- Deployments shall retain a previous application image or build so that rollback is possible) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 200.89 Tm (  without rebuilding from an unverified commit.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 179.89 Tm (- The Kubernetes 10Gi ReadWriteOnce uploads PVC shall use required API pod affinity to) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 165.89 Tm (  co-locate API replicas on one node. Multi-node placement shall not be enabled until shared) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 151.89 Tm (  filesystem or object storage replaces that boundary.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 116.89 Tm (4. Security and privacy) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 110.88999999999999 m 130 110.88999999999999 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 82.89 Tm (NFR-007 Authentication and authorization) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4971 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (- JWT access tokens shall be required for protected routes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (- MFA-pending tokens shall be cryptographically distinct from full access tokens and shall) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (  have a short lifetime.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (- Refresh tokens shall use a separate signing secret derived from the session secret.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 698.89 Tm (- Role and tenant scope shall be evaluated server-side; client-side navigation is not an) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 684.89 Tm (  authorization boundary.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 655.89 Tm (NFR-008 Secret and credential protection) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 636.89 Tm (- `SESSION_SECRET` shall be supplied through the environment secret store.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 615.89 Tm (- `REDIS_PASSWORD` and the credential-bearing `REDIS_URL` shall be supplied through the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 601.89 Tm (  environment secret store and shall contain matching credentials.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 580.89 Tm (- Real production should use managed Redis on a private network with TLS and a `rediss://`) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 566.89 Tm (  URL. The included internal Redis service shall not be represented as TLS-enabled.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 545.89 Tm (- MFA TOTP secrets and backup codes shall be encrypted at rest with AES-256-GCM using a key) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 531.89 Tm (  derived from `SESSION_SECRET`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 510.89 Tm (- Backup codes shall be one-time use.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 489.89 Tm (- Secrets, access tokens, refresh tokens, QR payloads, and backup codes shall not be written) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 475.89 Tm (  to logs.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 454.89 Tm (- Production systems shall not use demo credentials or a default session secret.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 425.89 Tm (NFR-009 Network protection) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 406.89 Tm (- Helmet shall be enabled for standard HTTP security headers.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 385.89 Tm (- CORS shall be configured to the approved application origins in production rather than left) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 371.89 Tm (  broadly permissive.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 350.89 Tm (- The Prometheus metrics endpoint is public by design for scrape compatibility and shall be) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 336.89 Tm (  restricted at the ingress, firewall, or network-policy layer.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 315.89 Tm (- IP restriction rules shall accept only validated IPv4 addresses or IPv4 CIDR notation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 294.89 Tm (- Kubernetes NetworkPolicies shall allow Redis ingress only from API pods on TCP 6379 and deny) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 280.89 Tm (  all Redis egress.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 259.89 Tm (- Kubernetes Redis and web containers shall run as non-root, disallow privilege escalation,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 245.89 Tm (  and drop all Linux capabilities.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 216.89 Tm (NFR-010 Data isolation) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 197.89 Tm (- Tenant-aware services shall filter by authenticated tenant context.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 176.89 Tm (- No service shall return cross-tenant core hotel rows while a safe tenant_id filter is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 162.89 Tm (  unavailable.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 141.89 Tm (- A future core-table tenant migration shall include indexes, backfill, constraints, and a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 127.89 Tm (  verification plan before tenant operational sync is enabled.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 92.89 Tm (5. Observability) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 86.88999999999999 m 130 86.88999999999999 l S
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4119 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 767.89 Tm (NFR-011 Metrics) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 748.89 Tm (The metrics endpoint shall expose Prometheus-compatible text for:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 727.89 Tm (- Total HTTP requests.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 706.89 Tm (- Requests by method and route.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 685.89 Tm (- Average request duration and duration count.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 664.89 Tm (- Active database pool connections where available.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 643.89 Tm (- Active WebSocket connections.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 622.89 Tm (- Cache hits and misses.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 593.89 Tm (NFR-012 Logs and audit) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 574.89 Tm (- Application logs shall capture startup, fatal errors, and operational warnings without) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 560.89 Tm (  secret values.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 539.89 Tm (- Audit records should include actor, action, resource, method, status, and relevant request) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 525.89 Tm (  metadata.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 504.89 Tm (- Security administrators shall be able to review active devices, IP rules, and audit) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 490.89 Tm (  activity.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 461.89 Tm (NFR-013 Alerting) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 442.89 Tm (Operations should alert on failed health checks, elevated 5xx rates, high request latency, database) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 428.89 Tm (exhaustion, repeated authentication failures, WebSocket disconnect spikes, and backup failures.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 393.89 Tm (6. Accessibility and localization) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 387.89 m 130 387.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 359.89 Tm (NFR-014 Accessibility) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 340.89 Tm (- Interactive controls shall have accessible names and keyboard focus behavior.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 319.89 Tm (- Color shall not be the sole indicator of room, reservation, or task state.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 298.89 Tm (- Forms shall expose validation errors adjacent to the relevant field.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 277.89 Tm (- Charts shall have a textual summary or data table path for users who cannot interpret a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 263.89 Tm (  visual chart.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 234.89 Tm (NFR-015 Localization) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 215.89 Tm (- The user interface shall support English, Amharic, Oromo, Arabic, and French.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 194.89 Tm (- Locale selection shall persist across sessions.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 173.89 Tm (- Arabic shall apply right-to-left document direction.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 152.89 Tm (- Dates, numbers, currency, and time zones shall be rendered with a documented property-level) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 138.89 Tm (  convention.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 103.89 Tm (7. Maintainability and delivery) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 97.88999999999999 m 130 97.88999999999999 l S
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 4828 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 767.89 Tm (NFR-016 Code quality) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 748.89 Tm (- Backend features shall follow the module, controller, service, and module-registration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 734.89 Tm (  pattern.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 713.89 Tm (- Shared database schema changes shall be compiled before the API build consumes them.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 692.89 Tm (- API changes should update the OpenAPI contract or relevant client types.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 671.89 Tm (- Security-sensitive behavior shall have durable integration coverage for MFA, authorization,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 657.89 Tm (  IP rules, and token refresh.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 628.89 Tm (NFR-017 Build reproducibility) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 609.89 Tm (- The repository shall use pnpm workspaces and a committed lockfile.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 588.89 Tm (- CI should run type checking, builds, tests, and image validation before release.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 567.89 Tm (- Container validation shall verify PostgreSQL readiness, authenticated Redis readiness,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 553.89 Tm (  production health for two API replicas, and non-root write access to the shared upload) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 539.89 Tm (  volume.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 518.89 Tm (- The API and web applications shall be independently buildable from the workspace.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 489.89 Tm (NFR-018 Compatibility) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 470.89 Tm (- Supported browsers shall include current Chromium, Firefox, and Safari releases used by) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 456.89 Tm (  hotel workstations.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 435.89 Tm (- The API shall use JSON request and response payloads except for multipart document uploads) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 421.89 Tm (  and the Prometheus text endpoint.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 400.89 Tm (- WebSocket clients shall use Socket.IO-compatible transports and authentication.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 379.89 Tm (- Cross-replica Socket.IO delivery shall use `@socket.io/redis-adapter` with the Redis client) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 365.89 Tm (  and Redis 7.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 330.89 Tm (8. Operational constraints and trade-offs) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 324.89 m 130 324.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 304.89 Tm (- Cache is process-local rather than Redis-backed.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 283.89 Tm (- Event delivery uses an in-process EventEmitter2 bus rather than RabbitMQ or Kafka.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 262.89 Tm (- Redis 7 is used only as the Socket.IO cross-replica backplane; it is not a shared cache or) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 248.89 Tm (  durable EventBus.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 227.89 Tm (- Included Compose and Kubernetes Redis use password authentication without TLS;) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 213.89 Tm (  managed/private TLS Redis is the recommendation for real production.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 192.89 Tm (- Search uses PostgreSQL ILIKE rather than Elasticsearch.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 171.89 Tm (- Kubernetes upload storage is a 10Gi ReadWriteOnce volume with required pod affinity) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 157.89 Tm (  co-locating API pods on one node; multi-node operation requires shared or object storage.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 136.89 Tm (- Push tokens are stored, but FCM/APNs delivery is not implemented.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 115.89 Tm (- Core table tenant columns are incomplete; safe empty responses are preferred over unsafe) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 101.89 Tm (  data exposure.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 667 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS NON-FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (These constraints are deliberate Phase 7B boundaries and must be considered during capacity planning) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (and any multi-replica production deployment.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Quality, security, and operational requirements) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 6) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 16 0 R >>
+endobj
+xref
+0 18
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000155 00000 n 
+0000000225 00000 n 
+0000000300 00000 n 
+0000000368 00000 n 
+0000004440 00000 n 
+0000004592 00000 n 
+0000009428 00000 n 
+0000009580 00000 n 
+0000014604 00000 n 
+0000014758 00000 n 
+0000018930 00000 n 
+0000019084 00000 n 
+0000023965 00000 n 
+0000024119 00000 n 
+0000024838 00000 n 
+trailer
+<< /Size 18 /Root 1 0 R >>
+startxref
+24992
+%%EOF

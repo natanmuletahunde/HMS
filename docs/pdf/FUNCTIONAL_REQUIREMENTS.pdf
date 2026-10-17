@@ -1,0 +1,323 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R] /Count 6 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4354 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 689.89 487.28 94 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS Functional Requirements) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 716.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 649.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 643.89 m 130 643.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- Document type: Functional requirements specification) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 560.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 539.89 Tm (- Audience: Product owners, hotel operators, implementation teams, QA, and auditors) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 504.89 Tm (1. Purpose and scope) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 498.89 m 130 498.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 478.89 Tm (Nexus HMS is a multi-module hotel management platform for hotel operators, front-office teams,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 464.89 Tm (department supervisors, finance teams, HR teams, tenant administrators, and platform administrators.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 450.89 Tm (The system supports the hotel lifecycle from property configuration and reservations through guest) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 436.89 Tm (stays, operations, finance, reporting, security, and enterprise administration.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 415.89 Tm (The requirements below describe the behavior delivered across the foundation, hotel core, front) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 401.89 Tm (office, operations, business management, enterprise services, and Phase 7 SaaS and enterprise) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 387.89 Tm (features. The implementation is a modular monolith with a shared PostgreSQL database and a Next.js) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 373.89 Tm (web application.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 338.89 Tm (2. Actors and permissions) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 332.89 m 130 332.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (- Platform administrator: manages global settings, tenants, subscriptions, modules, plugins,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 298.89 Tm (  and platform-wide security policy.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 277.89 Tm (- Tenant administrator: manages users and operational configuration inside an assigned tenant,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 263.89 Tm (  subject to tenant scope.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 242.89 Tm (- Hotel manager: supervises property operations, dashboards, approvals, reports, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 228.89 Tm (  department activity.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 207.89 Tm (- Front-desk agent: manages guests, reservations, arrivals, check-in, stay changes, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 193.89 Tm (  checkout.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 172.89 Tm (- Housekeeping and maintenance staff: update room readiness, tasks, and maintenance requests.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 151.89 Tm (- Restaurant, POS, and room-service staff: manage menus, orders, tables, kitchen status, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 137.89 Tm (  delivery.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 116.89 Tm (- Finance staff: manage invoices, payments, cash registers, transactions, and financial) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 102.89 Tm (  reports.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4780 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (- HR staff: manage employees, attendance, leave, shifts, and performance reviews.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (- Read-only or reporting user: views permitted operational and BI information without mutation) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (  rights.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (- Mobile client: authenticates a user device, receives scoped synchronization data, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 705.89 Tm (  submits offline changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 684.89 Tm (Authorization is role-based. The global authentication guard is fail-closed: protected routes require) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 670.89 Tm (a valid access token. Public routes are explicitly marked and include login, MFA verification, token) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 656.89 Tm (refresh, health, and metrics.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 621.89 Tm (3. Functional requirements) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 615.89 m 130 615.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 587.89 Tm (FR-001 Authentication and session management) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 568.89 Tm (1. The system shall authenticate users with email and password.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 547.89 Tm (2. Passwords shall be verified against bcrypt hashes and inactive users shall be rejected.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 526.89 Tm (3. Successful authentication shall issue an access token and a refresh token when MFA is not) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 512.89 Tm (enabled.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 491.89 Tm (4. When MFA is enabled, login shall return only a short-lived MFA-pending token and shall) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 477.89 Tm (not grant API access.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 456.89 Tm (5. The MFA verification endpoint shall accept a current TOTP code or a valid one-time backup) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 442.89 Tm (code before issuing full tokens.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 421.89 Tm (6. Refresh endpoints shall be public because an expired access token is expected during) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 407.89 Tm (refresh.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 386.89 Tm (7. Logout shall be available to clients and clients shall remove stored tokens locally.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 357.89 Tm (FR-002 User and role administration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 338.89 Tm (1. Authorized administrators shall create, update, deactivate, and view users.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 317.89 Tm (2. Users shall be associated with a role and, where applicable, a tenant.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 296.89 Tm (3. Roles shall be listed and assigned according to the caller's administrative scope.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 275.89 Tm (4. Deactivated users shall not be able to authenticate.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 254.89 Tm (5. User actions and security-sensitive mutations shall be auditable.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 225.89 Tm (FR-003 Hotel and property configuration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 206.89 Tm (1. Authorized users shall configure hotels, branches, buildings, floors, room categories,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 192.89 Tm (room types, amenities, bed types, room images, and room pricing.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 171.89 Tm (2. The room hierarchy shall support availability and operational status management.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 150.89 Tm (3. Pricing rules shall support date ranges and room-type or category-based configuration.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 121.89 Tm (FR-004 Guest, reservation, and front-office operations) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 102.89 Tm (1. Staff shall create, search, view, update, confirm, cancel, and manage reservations.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 5020 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (2. Reservations shall link guests, rooms or room types, stay dates, pricing, and status.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (3. Staff shall create guest profiles and view stay history and VIP or loyalty information) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (where available.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (4. Front-desk staff shall process arrivals, assign rooms, check guests in, record key-card) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 705.89 Tm (information, and handle checkout.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 684.89 Tm (5. Staff shall support walk-in bookings, stay extensions, and room changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 663.89 Tm (6. Calendar and availability views shall show room occupancy and reservation state.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 634.89 Tm (FR-005 Hotel operations) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 615.89 Tm (1. Housekeeping staff shall receive assigned tasks and update room readiness states.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 594.89 Tm (2. Maintenance staff shall create, assign, progress, and resolve maintenance requests with) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 580.89 Tm (priority and cost information.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 559.89 Tm (3. Restaurant users shall manage menu categories, menu items, dining orders, and kitchen) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 545.89 Tm (status.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 524.89 Tm (4. POS users shall create orders, apply supported discounts or voids, and manage sessions.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 503.89 Tm (5. Room-service staff shall manage in-room dining requests through delivery completion.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 474.89 Tm (FR-006 Inventory, procurement, and business management) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 455.89 Tm (1. Inventory users shall manage item categories, stock levels, reorder thresholds, and stock) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 441.89 Tm (movements.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 420.89 Tm (2. Procurement users shall manage suppliers, purchase requests, purchase orders, and goods) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 406.89 Tm (receipts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 385.89 Tm (3. Accepted goods receipts shall update inventory quantities.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 364.89 Tm (4. Finance users shall manage invoices, invoice lines, payments, transactions, cash) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 350.89 Tm (registers, cash shifts, credit notes, and financial dashboards.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 329.89 Tm (5. Conference users shall manage halls, equipment, bookings, services, and double-booking) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 315.89 Tm (validation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 294.89 Tm (6. Transport users shall manage vehicles, drivers, and trips through scheduled, assigned,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 280.89 Tm (started, and completed states.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 259.89 Tm (7. HR users shall manage departments, employees, attendance, leave, shifts, shift) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 245.89 Tm (assignments, and performance reviews.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 216.89 Tm (FR-007 Enterprise services) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 197.89 Tm (1. Customer service users shall manage complaints through registration, assignment,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 183.89 Tm (escalation, response, resolution, closure, comments, and satisfaction tracking.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 162.89 Tm (2. Notification users shall create templates, send broadcasts, list notifications, and mark) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 148.89 Tm (notifications read.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 127.89 Tm (3. Document users shall upload, find, version, and soft-delete files associated with) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 113.89 Tm (supported references.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 92.89 Tm (4. Authorized users shall search across supported entities from a single search experience.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4709 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (5. Scheduled jobs shall support inventory alerts, reservation expiry, statistics reporting,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (and room-status synchronization.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (6. Audit logs shall record relevant actions and support review of security events.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 711.89 Tm (FR-008 SaaS platform administration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 692.89 Tm (1. Platform administrators shall create and manage tenants and organizations.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 671.89 Tm (2. Subscription records shall represent plan, status, and lifecycle data.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 650.89 Tm (3. Authorized administrators shall configure modules and plugin records.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 629.89 Tm (4. Workflow definitions shall support configurable approvals and transitions where the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 615.89 Tm (module exposes them.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 594.89 Tm (5. Tenant context shall be derived from the authenticated caller and used by tenant-aware) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 580.89 Tm (enterprise services.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 551.89 Tm (FR-009 Real-time events and caching) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 532.89 Tm (1. Authenticated Socket.IO clients shall connect using a JWT during the handshake.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 511.89 Tm (2. Clients shall subscribe to reservations, rooms, housekeeping, notifications, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 497.89 Tm (dashboard channels.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 476.89 Tm (3. Reservation and room mutations shall publish internal EventBus events.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 455.89 Tm (4. The gateway shall broadcast events only to the appropriate tenant-scoped room or) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 441.89 Tm (subscription.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 420.89 Tm (5. Cache statistics shall expose hit and miss counts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 399.89 Tm (6. Authorized administrators shall be able to flush cache state; ordinary tenant users shall) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 385.89 Tm (receive a forbidden response.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 356.89 Tm (FR-010 Security administration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 337.89 Tm (1. Users shall be able to begin MFA setup and receive a QR code, secret, and backup codes) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 323.89 Tm (for one-time display.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 302.89 Tm (2. TOTP verification shall enable MFA only after a valid current code is supplied.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 281.89 Tm (3. Disabling MFA shall require the current TOTP code.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 260.89 Tm (4. TOTP secrets and backup codes shall be encrypted before database persistence.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 239.89 Tm (5. Platform administrators shall configure password length, complexity, expiry, and password) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 225.89 Tm (reuse settings.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 204.89 Tm (6. Administrators shall add or deactivate IPv4 and IPv4 CIDR allowlist or blocklist rules.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 183.89 Tm (7. Users shall view active mobile devices and revoke their own devices.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 162.89 Tm (8. Malformed persisted IP rules shall be ignored rather than treated as a match.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 133.89 Tm (FR-011 Mobile synchronization) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 114.89 Tm (1. Authenticated users shall register a mobile device with device ID, name, platform, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 100.89 Tm (optional push token.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 4947 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (2. A mobile refresh endpoint shall exchange a valid refresh token for a new access and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (refresh token pair.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 740.89 Tm (3. Mobile clients shall request a delta using an ISO timestamp.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (4. Platform-scoped synchronization shall return reservations, rooms, and guests changed) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 705.89 Tm (since the timestamp with counts and a sync timestamp.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 684.89 Tm (5. Mobile clients shall submit offline changes as a batch and receive accepted results and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 670.89 Tm (conflicts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 649.89 Tm (6. Until row-level tenant columns exist on core hotel tables, tenant-user sync shall return) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 635.89 Tm (an empty, explicitly annotated result rather than risk cross-tenant leakage.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 606.89 Tm (FR-012 Business intelligence and metrics) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 587.89 Tm (1. Authorized BI users shall view KPI values and current-versus-prior period comparisons.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 566.89 Tm (2. The system shall provide occupancy and revenue forecasts for a requested horizon.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 545.89 Tm (3. BI users shall drill down by supported metric and grouping such as branch or category.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 524.89 Tm (4. The dashboard shall display KPI cards, forecast charts, and drill-down views.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 503.89 Tm (5. The Prometheus endpoint shall expose request totals, durations, cache counters, database) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 489.89 Tm (pool metrics, and active WebSocket connections.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 460.89 Tm (FR-013 Web application experience) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 441.89 Tm (1. The dashboard shall provide navigation to the major hotel, business, enterprise, BI, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 427.89 Tm (security modules.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 406.89 Tm (2. The language switcher shall support English, Amharic, Oromo, Arabic, and French.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 385.89 Tm (3. Selecting Arabic shall apply right-to-left document direction.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 364.89 Tm (4. The theme control shall support light, dark, system, and custom behavior where tenant) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 350.89 Tm (branding is available.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 329.89 Tm (5. The login screen shall render a second step for MFA users without exposing protected) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 315.89 Tm (pages before verification.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 280.89 Tm (4. Core workflows) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 274.89 m 130 274.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 246.89 Tm (Reservation lifecycle) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 227.89 Tm (Search or create a guest, select dates and room inventory, calculate the price, save the reservation,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 213.89 Tm (confirm it when approved, allocate a room, check the guest in, record stay changes, and complete) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 199.89 Tm (checkout. Cancellation and no-show handling update the reservation state and remain visible to) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 185.89 Tm (authorized reporting users.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 156.89 Tm (MFA enrollment) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 137.89 Tm (Open Security, start MFA setup, scan the QR code in an authenticator application, save the backup) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 123.89 Tm (codes, enter a current six-digit code, and confirm enrollment. On the next login, enter the password) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 109.89 Tm (first and then the TOTP or an unused backup code. Disablement requires the current TOTP code.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 3401 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS FUNCTIONAL REQUIREMENTS) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 767.89 Tm (Offline mobile synchronization) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 748.89 Tm (Register the device, store the returned session metadata securely on the device, request changes) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 734.89 Tm (since the last successful sync, apply the delta locally, submit queued changes, inspect conflicts,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 720.89 Tm (and advance the local sync watermark only after a successful response.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 685.89 Tm (5. Acceptance criteria) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 679.89 m 130 679.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 659.89 Tm (- Protected endpoints return an authentication error without a valid access token.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 638.89 Tm (- Public health, login, MFA verification, refresh, and metrics endpoints remain callable) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 624.89 Tm (  without a bearer token.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 603.89 Tm (- An enabled MFA user cannot receive full tokens from password validation alone.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 582.89 Tm (- A consumed backup code cannot be used again.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 561.89 Tm (- Tenant users cannot receive unscoped core-table mobile data while tenant row isolation is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 547.89 Tm (  incomplete.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 526.89 Tm (- A malformed IP restriction never grants or blocks access by accidental pattern matching.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 505.89 Tm (- Non-admin users cannot change platform password policy, mutate IP restrictions, or flush the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 491.89 Tm (  cache.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 470.89 Tm (- The web application can switch supported locales and themes without a full page reload.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 449.89 Tm (- Reservation and room mutations can be observed by an authenticated subscribed WebSocket) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 435.89 Tm (  client.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 400.89 Tm (6. Known scope boundary) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 394.89 m 130 394.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 374.89 Tm (Core hotel tables do not yet carry tenant_id columns. Tenant-aware BI and mobile responses are) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 360.89 Tm (therefore intentionally limited where a safe row-level filter cannot be proven. Full core-table) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 346.89 Tm (tenant isolation is a required follow-on migration before unrestricted tenant operational data access) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 332.89 Tm (is enabled.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Functional requirements specification) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 6) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 16 0 R >>
+endobj
+xref
+0 18
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000155 00000 n 
+0000000225 00000 n 
+0000000300 00000 n 
+0000000368 00000 n 
+0000004774 00000 n 
+0000004926 00000 n 
+0000009758 00000 n 
+0000009910 00000 n 
+0000014983 00000 n 
+0000015137 00000 n 
+0000019899 00000 n 
+0000020053 00000 n 
+0000025053 00000 n 
+0000025207 00000 n 
+0000028661 00000 n 
+trailer
+<< /Size 18 /Root 1 0 R >>
+startxref
+28815
+%%EOF

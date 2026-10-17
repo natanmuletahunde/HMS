@@ -1,0 +1,2880 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Hotel Management System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: roles
+    description: Role management
+  - name: rooms
+    description: Room management
+  - name: roomTypes
+    description: Room type management
+  - name: guests
+    description: Guest management
+  - name: reservations
+    description: Reservation management
+  - name: housekeeping
+    description: Housekeeping management
+  - name: maintenance
+    description: Maintenance requests
+  - name: restaurant
+    description: Restaurant orders
+  - name: inventory
+    description: Inventory management
+  - name: invoices
+    description: Invoice management
+  - name: payments
+    description: Payment management
+  - name: employees
+    description: Employee / HR management
+  - name: dashboard
+    description: Dashboard statistics
+  - name: auditLogs
+    description: Audit trail
+  - name: notifications
+    description: Notifications
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Auth tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [auth]
+      summary: Refresh JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshInput"
+      responses:
+        "200":
+          description: New auth tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # ── USERS ─────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: getUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: roleId
+          schema:
+            type: string
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUserById
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── ROLES ─────────────────────────────────────────────────────────────────
+  /roles:
+    get:
+      operationId: getRoles
+      tags: [roles]
+      summary: List all roles
+      responses:
+        "200":
+          description: Role list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+    post:
+      operationId: createRole
+      tags: [roles]
+      summary: Create a role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "201":
+          description: Created role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+
+  /roles/{id}:
+    get:
+      operationId: getRoleById
+      tags: [roles]
+      summary: Get role by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+    patch:
+      operationId: updateRole
+      tags: [roles]
+      summary: Update role
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleUpdate"
+      responses:
+        "200":
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+    delete:
+      operationId: deleteRole
+      tags: [roles]
+      summary: Delete role
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── ROOM TYPES ────────────────────────────────────────────────────────────
+  /room-types:
+    get:
+      operationId: getRoomTypes
+      tags: [roomTypes]
+      summary: List room types
+      responses:
+        "200":
+          description: Room type list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomType"
+    post:
+      operationId: createRoomType
+      tags: [roomTypes]
+      summary: Create room type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomTypeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomType"
+
+  /room-types/{id}:
+    get:
+      operationId: getRoomTypeById
+      tags: [roomTypes]
+      summary: Get room type by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomType"
+    patch:
+      operationId: updateRoomType
+      tags: [roomTypes]
+      summary: Update room type
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomTypeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomType"
+    delete:
+      operationId: deleteRoomType
+      tags: [roomTypes]
+      summary: Delete room type
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── ROOMS ─────────────────────────────────────────────────────────────────
+  /rooms:
+    get:
+      operationId: getRooms
+      tags: [rooms]
+      summary: List all rooms
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [available, occupied, reserved, maintenance, cleaning]
+        - in: query
+          name: floor
+          schema:
+            type: number
+        - in: query
+          name: roomTypeId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Paginated room list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomListResponse"
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/{id}:
+    get:
+      operationId: getRoomById
+      tags: [rooms]
+      summary: Get room by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+    patch:
+      operationId: updateRoom
+      tags: [rooms]
+      summary: Update room
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomUpdate"
+      responses:
+        "200":
+          description: Updated room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+    delete:
+      operationId: deleteRoom
+      tags: [rooms]
+      summary: Delete room
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /rooms/availability:
+    get:
+      operationId: getRoomAvailability
+      tags: [rooms]
+      summary: Get room availability for date range
+      parameters:
+        - in: query
+          name: checkIn
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: checkOut
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: roomTypeId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Available rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+
+  # ── GUESTS ────────────────────────────────────────────────────────────────
+  /guests:
+    get:
+      operationId: getGuests
+      tags: [guests]
+      summary: List guests
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated guest list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestListResponse"
+    post:
+      operationId: createGuest
+      tags: [guests]
+      summary: Create guest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestInput"
+      responses:
+        "201":
+          description: Created guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+
+  /guests/{id}:
+    get:
+      operationId: getGuestById
+      tags: [guests]
+      summary: Get guest by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+    patch:
+      operationId: updateGuest
+      tags: [guests]
+      summary: Update guest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestUpdate"
+      responses:
+        "200":
+          description: Updated guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+    delete:
+      operationId: deleteGuest
+      tags: [guests]
+      summary: Delete guest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /guests/{id}/reservations:
+    get:
+      operationId: getGuestReservations
+      tags: [guests]
+      summary: Get reservation history for a guest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guest reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+
+  # ── RESERVATIONS ──────────────────────────────────────────────────────────
+  /reservations:
+    get:
+      operationId: getReservations
+      tags: [reservations]
+      summary: List reservations
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, checked_in, checked_out, cancelled, no_show]
+        - in: query
+          name: checkIn
+          schema:
+            type: string
+        - in: query
+          name: checkOut
+          schema:
+            type: string
+        - in: query
+          name: guestId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Paginated reservation list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationListResponse"
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      summary: Create reservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationInput"
+      responses:
+        "201":
+          description: Created reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /reservations/{id}:
+    get:
+      operationId: getReservationById
+      tags: [reservations]
+      summary: Get reservation by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+    patch:
+      operationId: updateReservation
+      tags: [reservations]
+      summary: Update reservation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationUpdate"
+      responses:
+        "200":
+          description: Updated reservation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+    delete:
+      operationId: deleteReservation
+      tags: [reservations]
+      summary: Delete / cancel reservation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /reservations/{id}/check-in:
+    post:
+      operationId: checkIn
+      tags: [reservations]
+      summary: Check in a guest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Check-in result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /reservations/{id}/check-out:
+    post:
+      operationId: checkOut
+      tags: [reservations]
+      summary: Check out a guest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Check-out result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+
+  /reservations/today-arrivals:
+    get:
+      operationId: getTodayArrivals
+      tags: [reservations]
+      summary: Today's expected arrivals
+      responses:
+        "200":
+          description: Arrivals list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+
+  /reservations/today-departures:
+    get:
+      operationId: getTodayDepartures
+      tags: [reservations]
+      summary: Today's expected departures
+      responses:
+        "200":
+          description: Departures list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+
+  # ── HOUSEKEEPING ──────────────────────────────────────────────────────────
+  /housekeeping:
+    get:
+      operationId: getHousekeepingAssignments
+      tags: [housekeeping]
+      summary: List housekeeping assignments
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, inspected]
+        - in: query
+          name: date
+          schema:
+            type: string
+        - in: query
+          name: staffId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assignment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HousekeepingAssignment"
+    post:
+      operationId: createHousekeepingAssignment
+      tags: [housekeeping]
+      summary: Create housekeeping assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HousekeepingInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HousekeepingAssignment"
+
+  /housekeeping/{id}:
+    get:
+      operationId: getHousekeepingById
+      tags: [housekeeping]
+      summary: Get housekeeping assignment by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Assignment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HousekeepingAssignment"
+    patch:
+      operationId: updateHousekeeping
+      tags: [housekeeping]
+      summary: Update housekeeping assignment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HousekeepingUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HousekeepingAssignment"
+
+  /housekeeping/summary:
+    get:
+      operationId: getHousekeepingSummary
+      tags: [housekeeping]
+      summary: Housekeeping summary stats
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HousekeepingSummary"
+
+  # ── MAINTENANCE ───────────────────────────────────────────────────────────
+  /maintenance:
+    get:
+      operationId: getMaintenanceRequests
+      tags: [maintenance]
+      summary: List maintenance requests
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [open, in_progress, resolved, closed]
+        - in: query
+          name: priority
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+        - in: query
+          name: roomId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Maintenance request list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaintenanceRequest"
+    post:
+      operationId: createMaintenanceRequest
+      tags: [maintenance]
+      summary: Create maintenance request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /maintenance/{id}:
+    get:
+      operationId: getMaintenanceById
+      tags: [maintenance]
+      summary: Get maintenance request by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+    patch:
+      operationId: updateMaintenance
+      tags: [maintenance]
+      summary: Update maintenance request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  # ── RESTAURANT ────────────────────────────────────────────────────────────
+  /restaurant/orders:
+    get:
+      operationId: getRestaurantOrders
+      tags: [restaurant]
+      summary: List restaurant orders
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, preparing, ready, served, cancelled]
+        - in: query
+          name: tableNumber
+          schema:
+            type: number
+        - in: query
+          name: date
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RestaurantOrder"
+    post:
+      operationId: createRestaurantOrder
+      tags: [restaurant]
+      summary: Create restaurant order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestaurantOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurantOrder"
+
+  /restaurant/orders/{id}:
+    get:
+      operationId: getRestaurantOrderById
+      tags: [restaurant]
+      summary: Get restaurant order by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurantOrder"
+    patch:
+      operationId: updateRestaurantOrder
+      tags: [restaurant]
+      summary: Update restaurant order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestaurantOrderUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurantOrder"
+
+  /restaurant/menu-items:
+    get:
+      operationId: getMenuItems
+      tags: [restaurant]
+      summary: List menu items
+      responses:
+        "200":
+          description: Menu item list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+    post:
+      operationId: createMenuItem
+      tags: [restaurant]
+      summary: Create menu item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuItemInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+
+  # ── INVENTORY ─────────────────────────────────────────────────────────────
+  /inventory:
+    get:
+      operationId: getInventoryItems
+      tags: [inventory]
+      summary: List inventory items
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: lowStock
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Inventory list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItem"
+    post:
+      operationId: createInventoryItem
+      tags: [inventory]
+      summary: Create inventory item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/{id}:
+    get:
+      operationId: getInventoryItemById
+      tags: [inventory]
+      summary: Get inventory item by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+    patch:
+      operationId: updateInventoryItem
+      tags: [inventory]
+      summary: Update inventory item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/alerts:
+    get:
+      operationId: getInventoryAlerts
+      tags: [inventory]
+      summary: Get low-stock and expiry alerts
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryAlert"
+
+  # ── INVOICES ──────────────────────────────────────────────────────────────
+  /invoices:
+    get:
+      operationId: getInvoices
+      tags: [invoices]
+      summary: List invoices
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [draft, issued, paid, cancelled]
+        - in: query
+          name: guestId
+          schema:
+            type: string
+        - in: query
+          name: reservationId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Invoice list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceListResponse"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoiceById
+      tags: [invoices]
+      summary: Get invoice by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update invoice
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  # ── PAYMENTS ──────────────────────────────────────────────────────────────
+  /payments:
+    get:
+      operationId: getPayments
+      tags: [payments]
+      summary: List payments
+      parameters:
+        - in: query
+          name: invoiceId
+          schema:
+            type: string
+        - in: query
+          name: method
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Payment list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentListResponse"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  # ── EMPLOYEES ─────────────────────────────────────────────────────────────
+  /employees:
+    get:
+      operationId: getEmployees
+      tags: [employees]
+      summary: List employees
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Paginated employee list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeListResponse"
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}:
+    get:
+      operationId: getEmployeeById
+      tags: [employees]
+      summary: Get employee by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+    patch:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update employee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Delete employee
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── DASHBOARD ─────────────────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get main dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/occupancy:
+    get:
+      operationId: getOccupancyStats
+      tags: [dashboard]
+      summary: Get occupancy statistics
+      parameters:
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [week, month, year]
+      responses:
+        "200":
+          description: Occupancy stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccupancyStats"
+
+  /dashboard/revenue:
+    get:
+      operationId: getRevenueStats
+      tags: [dashboard]
+      summary: Get revenue statistics
+      parameters:
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [week, month, year]
+      responses:
+        "200":
+          description: Revenue stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  # ── AUDIT LOGS ────────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: getAuditLogs
+      tags: [auditLogs]
+      summary: List audit logs
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: resource
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: number
+        - in: query
+          name: limit
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Audit log list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+components:
+  schemas:
+    # ── SHARED ────────────────────────────────────────────────────────────────
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        totalPages:
+          type: number
+      required: [total, page, limit, totalPages]
+
+    # ── AUTH ──────────────────────────────────────────────────────────────────
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 6
+
+    RefreshInput:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    # ── USER ──────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, email, firstName, lastName, roleId, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        roleId:
+          type: string
+        roleName:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    UserListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    UserInput:
+      type: object
+      required: [email, password, firstName, lastName, roleId]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        roleId:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        roleId:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── ROLE ──────────────────────────────────────────────────────────────────
+    Role:
+      type: object
+      required: [id, name, description, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        permissions:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    RoleInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+
+    RoleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+
+    # ── ROOM TYPE ─────────────────────────────────────────────────────────────
+    RoomType:
+      type: object
+      required: [id, name, basePrice, maxOccupancy, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        basePrice:
+          type: number
+        maxOccupancy:
+          type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    RoomTypeInput:
+      type: object
+      required: [name, basePrice, maxOccupancy]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        basePrice:
+          type: number
+        maxOccupancy:
+          type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+
+    RoomTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        basePrice:
+          type: number
+        maxOccupancy:
+          type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── ROOM ──────────────────────────────────────────────────────────────────
+    Room:
+      type: object
+      required: [id, number, floor, status, roomTypeId, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+        floor:
+          type: number
+        status:
+          type: string
+          enum: [available, occupied, reserved, maintenance, cleaning]
+        roomTypeId:
+          type: string
+        roomTypeName:
+          type: ["string", "null"]
+        basePrice:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    RoomListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Room"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    RoomInput:
+      type: object
+      required: [number, floor, roomTypeId]
+      properties:
+        number:
+          type: string
+        floor:
+          type: number
+        roomTypeId:
+          type: string
+        notes:
+          type: string
+
+    RoomUpdate:
+      type: object
+      properties:
+        number:
+          type: string
+        floor:
+          type: number
+        status:
+          type: string
+          enum: [available, occupied, reserved, maintenance, cleaning]
+        roomTypeId:
+          type: string
+        notes:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── GUEST ─────────────────────────────────────────────────────────────────
+    Guest:
+      type: object
+      required: [id, firstName, lastName, email, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        nationality:
+          type: ["string", "null"]
+        idType:
+          type: ["string", "null"]
+        idNumber:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        totalStays:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    GuestListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Guest"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    GuestInput:
+      type: object
+      required: [firstName, lastName, email]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        nationality:
+          type: string
+        idType:
+          type: string
+          enum: [passport, national_id, drivers_license, other]
+        idNumber:
+          type: string
+        address:
+          type: string
+        notes:
+          type: string
+
+    GuestUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        nationality:
+          type: string
+        idType:
+          type: string
+        idNumber:
+          type: string
+        address:
+          type: string
+        notes:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── RESERVATION ───────────────────────────────────────────────────────────
+    Reservation:
+      type: object
+      required: [id, guestId, roomId, checkInDate, checkOutDate, status, totalAmount, createdAt]
+      properties:
+        id:
+          type: string
+        confirmationNumber:
+          type: string
+        guestId:
+          type: string
+        guestName:
+          type: ["string", "null"]
+        roomId:
+          type: string
+        roomNumber:
+          type: ["string", "null"]
+        roomTypeName:
+          type: ["string", "null"]
+        checkInDate:
+          type: string
+        checkOutDate:
+          type: string
+        actualCheckIn:
+          type: ["string", "null"]
+        actualCheckOut:
+          type: ["string", "null"]
+        adults:
+          type: number
+        children:
+          type: number
+        status:
+          type: string
+          enum: [pending, confirmed, checked_in, checked_out, cancelled, no_show]
+        totalAmount:
+          type: number
+        paidAmount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ReservationListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reservation"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    ReservationInput:
+      type: object
+      required: [guestId, roomId, checkInDate, checkOutDate, adults]
+      properties:
+        guestId:
+          type: string
+        roomId:
+          type: string
+        checkInDate:
+          type: string
+        checkOutDate:
+          type: string
+        adults:
+          type: number
+        children:
+          type: number
+        notes:
+          type: string
+
+    ReservationUpdate:
+      type: object
+      properties:
+        roomId:
+          type: string
+        checkInDate:
+          type: string
+        checkOutDate:
+          type: string
+        adults:
+          type: number
+        children:
+          type: number
+        status:
+          type: string
+          enum: [pending, confirmed, checked_in, checked_out, cancelled, no_show]
+        notes:
+          type: string
+
+    # ── HOUSEKEEPING ──────────────────────────────────────────────────────────
+    HousekeepingAssignment:
+      type: object
+      required: [id, roomId, staffId, scheduledDate, status, createdAt]
+      properties:
+        id:
+          type: string
+        roomId:
+          type: string
+        roomNumber:
+          type: ["string", "null"]
+        staffId:
+          type: string
+        staffName:
+          type: ["string", "null"]
+        scheduledDate:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, in_progress, completed, inspected]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    HousekeepingInput:
+      type: object
+      required: [roomId, staffId, scheduledDate]
+      properties:
+        roomId:
+          type: string
+        staffId:
+          type: string
+        scheduledDate:
+          type: string
+        notes:
+          type: string
+
+    HousekeepingUpdate:
+      type: object
+      properties:
+        staffId:
+          type: string
+        scheduledDate:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, inspected]
+        notes:
+          type: string
+
+    HousekeepingSummary:
+      type: object
+      required: [pending, inProgress, completed, inspected, total]
+      properties:
+        pending:
+          type: number
+        inProgress:
+          type: number
+        completed:
+          type: number
+        inspected:
+          type: number
+        total:
+          type: number
+
+    # ── MAINTENANCE ───────────────────────────────────────────────────────────
+    MaintenanceRequest:
+      type: object
+      required: [id, roomId, title, priority, status, createdAt]
+      properties:
+        id:
+          type: string
+        roomId:
+          type: string
+        roomNumber:
+          type: ["string", "null"]
+        assignedToId:
+          type: ["string", "null"]
+        assignedToName:
+          type: ["string", "null"]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        resolvedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    MaintenanceInput:
+      type: object
+      required: [roomId, title, priority]
+      properties:
+        roomId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assignedToId:
+          type: string
+
+    MaintenanceUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        assignedToId:
+          type: string
+
+    # ── RESTAURANT ────────────────────────────────────────────────────────────
+    RestaurantOrder:
+      type: object
+      required: [id, tableNumber, status, totalAmount, createdAt]
+      properties:
+        id:
+          type: string
+        tableNumber:
+          type: number
+        reservationId:
+          type: ["string", "null"]
+        guestName:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        status:
+          type: string
+          enum: [pending, preparing, ready, served, cancelled]
+        totalAmount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    OrderItem:
+      type: object
+      required: [menuItemId, name, quantity, unitPrice, total]
+      properties:
+        menuItemId:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        total:
+          type: number
+
+    RestaurantOrderInput:
+      type: object
+      required: [tableNumber, items]
+      properties:
+        tableNumber:
+          type: number
+        reservationId:
+          type: string
+        guestName:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+        notes:
+          type: string
+
+    OrderItemInput:
+      type: object
+      required: [menuItemId, quantity]
+      properties:
+        menuItemId:
+          type: string
+        quantity:
+          type: number
+
+    RestaurantOrderUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, preparing, ready, served, cancelled]
+        notes:
+          type: string
+
+    MenuItem:
+      type: object
+      required: [id, name, category, price, isAvailable, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+        imageUrl:
+          type: ["string", "null"]
+        isAvailable:
+          type: boolean
+        createdAt:
+          type: string
+
+    MenuItemInput:
+      type: object
+      required: [name, category, price]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        imageUrl:
+          type: string
+
+    # ── INVENTORY ─────────────────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      required: [id, name, category, unit, currentStock, minStock, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        currentStock:
+          type: number
+        minStock:
+          type: number
+        maxStock:
+          type: ["number", "null"]
+        unitCost:
+          type: ["number", "null"]
+        supplier:
+          type: ["string", "null"]
+        isLowStock:
+          type: boolean
+        createdAt:
+          type: string
+
+    InventoryInput:
+      type: object
+      required: [name, category, unit, currentStock, minStock]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        currentStock:
+          type: number
+        minStock:
+          type: number
+        maxStock:
+          type: number
+        unitCost:
+          type: number
+        supplier:
+          type: string
+
+    InventoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        currentStock:
+          type: number
+        minStock:
+          type: number
+        maxStock:
+          type: number
+        unitCost:
+          type: number
+        supplier:
+          type: string
+
+    InventoryAlert:
+      type: object
+      required: [id, itemId, itemName, alertType, currentStock, minStock]
+      properties:
+        id:
+          type: string
+        itemId:
+          type: string
+        itemName:
+          type: string
+        alertType:
+          type: string
+          enum: [low_stock, out_of_stock]
+        currentStock:
+          type: number
+        minStock:
+          type: number
+        unit:
+          type: string
+
+    # ── INVOICE ───────────────────────────────────────────────────────────────
+    Invoice:
+      type: object
+      required: [id, invoiceNumber, guestId, totalAmount, status, createdAt]
+      properties:
+        id:
+          type: string
+        invoiceNumber:
+          type: string
+        reservationId:
+          type: ["string", "null"]
+        guestId:
+          type: string
+        guestName:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItem"
+        subtotal:
+          type: number
+        taxAmount:
+          type: number
+        totalAmount:
+          type: number
+        paidAmount:
+          type: number
+        status:
+          type: string
+          enum: [draft, issued, paid, cancelled]
+        dueDate:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    InvoiceLineItem:
+      type: object
+      required: [description, quantity, unitPrice, total]
+      properties:
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        total:
+          type: number
+
+    InvoiceListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    InvoiceInput:
+      type: object
+      required: [guestId, items]
+      properties:
+        guestId:
+          type: string
+        reservationId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItem"
+        taxAmount:
+          type: number
+        dueDate:
+          type: string
+        notes:
+          type: string
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [draft, issued, paid, cancelled]
+        notes:
+          type: string
+
+    # ── PAYMENT ───────────────────────────────────────────────────────────────
+    Payment:
+      type: object
+      required: [id, invoiceId, amount, method, createdAt]
+      properties:
+        id:
+          type: string
+        invoiceId:
+          type: string
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, card, bank_transfer, online]
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    PaymentListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaymentInput:
+      type: object
+      required: [invoiceId, amount, method]
+      properties:
+        invoiceId:
+          type: string
+        amount:
+          type: number
+        method:
+          type: string
+          enum: [cash, card, bank_transfer, online]
+        reference:
+          type: string
+        notes:
+          type: string
+
+    # ── EMPLOYEE ──────────────────────────────────────────────────────────────
+    Employee:
+      type: object
+      required: [id, firstName, lastName, email, department, position, isActive, hiredAt, createdAt]
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: ["string", "null"]
+        department:
+          type: string
+        position:
+          type: string
+        salary:
+          type: ["number", "null"]
+        userId:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        hiredAt:
+          type: string
+        createdAt:
+          type: string
+
+    EmployeeListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Employee"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    EmployeeInput:
+      type: object
+      required: [firstName, lastName, email, department, position, hiredAt]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        salary:
+          type: number
+        userId:
+          type: string
+        hiredAt:
+          type: string
+
+    EmployeeUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        salary:
+          type: number
+        isActive:
+          type: boolean
+
+    # ── DASHBOARD ─────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [totalRooms, availableRooms, occupiedRooms, reservedRooms, maintenanceRooms, cleaningRooms, occupancyRate, todayArrivals, todayDepartures, revenueToday, revenueMonth, activeGuests, pendingMaintenance, lowStockAlerts, restaurantOrdersToday]
+      properties:
+        totalRooms:
+          type: number
+        availableRooms:
+          type: number
+        occupiedRooms:
+          type: number
+        reservedRooms:
+          type: number
+        maintenanceRooms:
+          type: number
+        cleaningRooms:
+          type: number
+        occupancyRate:
+          type: number
+        todayArrivals:
+          type: number
+        todayDepartures:
+          type: number
+        revenueToday:
+          type: number
+        revenueMonth:
+          type: number
+        activeGuests:
+          type: number
+        pendingMaintenance:
+          type: number
+        lowStockAlerts:
+          type: number
+        restaurantOrdersToday:
+          type: number
+
+    OccupancyStats:
+      type: object
+      required: [data, averageOccupancy]
+      properties:
+        averageOccupancy:
+          type: number
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OccupancyDataPoint"
+
+    OccupancyDataPoint:
+      type: object
+      required: [date, rate, occupied, total]
+      properties:
+        date:
+          type: string
+        rate:
+          type: number
+        occupied:
+          type: number
+        total:
+          type: number
+
+    RevenueStats:
+      type: object
+      required: [data, totalRevenue]
+      properties:
+        totalRevenue:
+          type: number
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueDataPoint"
+
+    RevenueDataPoint:
+      type: object
+      required: [date, revenue, rooms, restaurant]
+      properties:
+        date:
+          type: string
+        revenue:
+          type: number
+        rooms:
+          type: number
+        restaurant:
+          type: number
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, createdAt]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [check_in, check_out, reservation, maintenance, housekeeping, payment]
+        description:
+          type: string
+        userId:
+          type: ["string", "null"]
+        userName:
+          type: ["string", "null"]
+        resourceId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    # ── AUDIT LOG ─────────────────────────────────────────────────────────────
+    AuditLog:
+      type: object
+      required: [id, action, resource, userId, createdAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        userName:
+          type: ["string", "null"]
+        action:
+          type: string
+        resource:
+          type: string
+        resourceId:
+          type: ["string", "null"]
+        changes:
+          type: ["string", "null"]
+        ipAddress:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    AuditLogListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    # ── NOTIFICATION ──────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      required: [id, type, title, message, isRead, createdAt]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, error, success]
+        title:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        resourceType:
+          type: ["string", "null"]
+        resourceId:
+          type: ["string", "null"]
+        createdAt:
+          type: string

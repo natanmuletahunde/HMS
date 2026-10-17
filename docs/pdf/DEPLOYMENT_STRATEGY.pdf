@@ -1,0 +1,289 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4337 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS DEPLOYMENT STRATEGY) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 689.89 487.28 94 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS Deployment Strategy) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 716.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 649.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 643.89 m 130 643.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- Document type: Deployment and operations guide) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 560.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 525.89 Tm (1. Deployment principles) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 519.89 m 130 519.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 499.89 Tm (Deploy the API, web application, PostgreSQL database, Redis realtime backplane, and file storage as) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 485.89 Tm (separate operational concerns. Keep environment secrets outside source control. Build once, promote) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (the same verified artifact between environments, and run database changes before enabling code that) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 457.89 Tm (depends on them.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 436.89 Tm (The current repository includes managed development workflows for the API and web application. Docker) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 422.89 Tm (and Kubernetes are recommended production packaging strategies, but their manifests should be treated) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 408.89 Tm (as release engineering deliverables and reviewed against the current repository before use.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 373.89 Tm (2. Environment model) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 367.89 m 130 367.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 347.89 Tm (- Development: local or Replit workspace, seeded data, verbose operational feedback, no) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 333.89 Tm (  production credentials.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (- Staging: production-like database version, representative data shape, masked data, full) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 298.89 Tm (  smoke and authorization testing.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 277.89 Tm (- Production: isolated database and secret scope, restricted network access, backups,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 263.89 Tm (  monitoring, and controlled releases.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 242.89 Tm (Do not point development or staging code at a production database. Use a separate `DATABASE_URL` for) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 228.89 Tm (every environment.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 193.89 Tm (3. Required configuration) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 187.89 m 130 187.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 167.89 Tm (Variable | Purpose | Guidance) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 148.89 Tm (DATABASE_URL | PostgreSQL connection | Use a private, TLS-capable production connection) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 129.89 Tm (SESSION_SECRET | JWT and MFA key material | Generate a long random value and store it in a secret) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 115.89 Tm (manager) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 96.89 Tm (REDIS_PASSWORD | Included Redis service authentication | Required by Compose and Kubernetes Redis;) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 82.89 Tm (store it as a secret) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Environment, release, and operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 5355 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS DEPLOYMENT STRATEGY) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 775.89 Tm (REDIS_URL | Redis 7 connection for the Socket.IO adapter | Required in production; include the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 761.89 Tm (matching credential and store the complete URL as a secret) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 742.89 Tm (PORT | API listen port | Use the platform-provided port; current development API defaults to 8080) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 723.89 Tm (NODE_ENV | Runtime behavior | Set `production` for production) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 58.00 704.89 Tm (NEXT_PUBLIC_API_URL | Browser API origin | Use the public API origin or same-origin proxy path) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 685.89 Tm (The application must start with `SESSION_SECRET` set because MFA encryption intentionally fails) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 671.89 Tm (closed without it. A production API also fails startup when `REDIS_URL` is absent, because Redis is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 657.89 Tm (required for cross-replica Socket.IO delivery. For a real production environment, prefer a managed) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 643.89 Tm (Redis service on a private network with TLS and use a credential-bearing `rediss://` URL. The) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 629.89 Tm (included internal Redis deployment uses password authentication but does not enable TLS. CORS) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 615.89 Tm (origins, ingress rules, and metrics access should be narrowed in production.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 580.89 Tm (4. Local deployment) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 574.89 m 130 574.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 554.89 Tm (1. Install Node.js and pnpm versions supported by the workspace.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 533.89 Tm (2. Run `pnpm install`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 512.89 Tm (3. Configure `DATABASE_URL` and `SESSION_SECRET` in the local environment. When exercising) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 498.89 Tm (the Redis-backed Socket.IO adapter, configure matching `REDIS_PASSWORD` and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 484.89 Tm (credential-bearing `REDIS_URL` values.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 463.89 Tm (4. Build the shared database package with `pnpm run typecheck:libs` or the database package) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 449.89 Tm (build command.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 428.89 Tm (5. Apply the approved SQL migrations to the development database.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 407.89 Tm (6. Run the seed scripts appropriate to the desired data set.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 386.89 Tm (7. Start the API with `pnpm --filter @workspace/api-server run dev`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 365.89 Tm (8. Start the web app with `pnpm --filter @workspace/hotel-management run dev`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 344.89 Tm (9. Verify `GET /api/health`, `GET /api/metrics`, login, and a representative protected) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 330.89 Tm (request.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 309.89 Tm (The API health response should be machine-readable with status `ok`. The metrics endpoint is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 295.89 Tm (intentionally unauthenticated; do not expose it publicly outside development.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 260.89 Tm (5. Replit workflow deployment) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 254.89 m 130 254.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 234.89 Tm (Use the existing managed workflows rather than creating duplicate servers. Confirm the API workflow) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 220.89 Tm (binds to the configured port and that the web workflow points to the intended API route. After code,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 206.89 Tm (package, or run-command changes:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 185.89 Tm (1. Restart the affected workflow.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 164.89 Tm (2. Check workflow and browser console logs.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 143.89 Tm (3. Verify the health endpoint and the browser preview.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 122.89 Tm (4. Run the changed user flow through a real browser smoke test.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 101.89 Tm (Keep environment variables and secrets in the workspace's environment configuration. Never commit) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 87.89 Tm (`.env` files or paste secret values into tickets.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Environment, release, and operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4802 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS DEPLOYMENT STRATEGY) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 761.89 Tm (6. Container strategy) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 755.89 m 130 755.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 727.89 Tm (API image) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 708.89 Tm (Use a multi-stage Node image. The build stage installs workspace dependencies, compiles the shared) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 694.89 Tm (database package, and builds the API. The runtime stage contains production dependencies and compiled) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 680.89 Tm (output only. Run `node dist/main.js`, expose the configured API port, and use a non-root user where) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 666.89 Tm (the base image policy permits.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 637.89 Tm (Web image) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 618.89 Tm (Build the Next.js application with the configured standalone output when enabled. The runtime image) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 604.89 Tm (should contain the standalone server and static assets only. Expose the web port and pass the API) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 590.89 Tm (origin through deployment configuration rather than baking a development URL into source.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 561.89 Tm (Compose) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 542.89 Tm (The Compose stacks include PostgreSQL where appropriate, Redis 7, API, and web services with health) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 528.89 Tm (checks, restart behavior, and a private service network. Redis starts with `--requirepass`;) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 514.89 Tm (`REDIS_PASSWORD` and the password in the API's `REDIS_URL` must match. Redis health checks) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 500.89 Tm (authenticate. Redis provides the Socket.IO backplane only: cache and EventEmitter2 remain) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 486.89 Tm (process-local, and uploads remain on the local Compose volume. These internal Compose connections use) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 472.89 Tm (`redis://`, not TLS, and are not the recommended Redis topology for real production.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 451.89 Tm (The API container smoke gate starts PostgreSQL 16 and password-protected Redis 7, authenticates the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 437.89 Tm (Redis readiness check, starts two production API containers with credential-bearing Redis URLs,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 423.89 Tm (checks `/api/health` on both, and verifies that uid 1000 can write to the shared mounted upload) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 409.89 Tm (volume.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 374.89 Tm (7. Kubernetes strategy) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 368.89 m 130 368.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 348.89 Tm (Use a namespace per environment or a clearly isolated release boundary. Recommended resources:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 327.89 Tm (- API Deployment with three replicas and an HPA ranging from two to ten replicas.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 306.89 Tm (- Web Deployment with at least two replicas for workstation availability.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 285.89 Tm (- Redis 7 Deployment and ClusterIP Service for the Socket.IO adapter.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 264.89 Tm (- ClusterIP Services for API and web.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 243.89 Tm (- Ingress with TLS and an approved hostname.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 222.89 Tm (- Readiness and liveness probes on `/api/health`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 201.89 Tm (- CPU and memory requests and limits.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 180.89 Tm (- HPA based on CPU plus application metrics where appropriate.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 159.89 Tm (- Secret objects or an external secret provider for `DATABASE_URL` and `SESSION_SECRET`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 138.89 Tm (- A 10Gi ReadWriteOnce uploads PVC.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Environment, release, and operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 5169 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS DEPLOYMENT STRATEGY) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (The Redis Deployment requires `REDIS_PASSWORD`, and the API reads its credential-bearing `REDIS_URL`) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (from the Kubernetes Secret rather than the ConfigMap. A NetworkPolicy permits Redis ingress only from) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 747.89 Tm (API pods on TCP 6379, and a second policy denies all Redis egress. Redis and web containers) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 733.89 Tm (explicitly run as non-root, disallow privilege escalation, and drop all Linux capabilities; Redis) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (also uses a read-only root filesystem.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 698.89 Tm (The Redis adapter provides cross-replica Socket.IO delivery. The current API Deployment also has) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 684.89 Tm (required pod affinity that co-locates all API pods on one node so they can mount the 10Gi) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 670.89 Tm (ReadWriteOnce uploads PVC. This preserves the three-replica/HPA template within a single-node storage) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 656.89 Tm (boundary, but it limits node-failure resilience and scheduling capacity. Multi-node API placement) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 642.89 Tm (requires shared filesystem storage with a suitable access mode or object storage. The process-local) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 628.89 Tm (cache and EventEmitter2 event bus do not synchronize state between replicas; Redis is neither their) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 614.89 Tm (shared cache nor a durable EventBus.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 579.89 Tm (8. Database migration and release order) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 573.89 m 130 573.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 553.89 Tm (1. Take or verify a database backup.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 532.89 Tm (2. Apply additive migrations in staging.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 511.89 Tm (3. Run schema and API builds.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 490.89 Tm (4. Run authorization, MFA, mobile, metrics, and critical reservation smoke tests.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 469.89 Tm (5. Apply the migration to production during the approved window.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 448.89 Tm (6. Deploy the compatible API and web artifacts.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 427.89 Tm (7. Verify health, metrics, login, MFA, and one representative workflow.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 406.89 Tm (8. Monitor errors and latency before announcing completion.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 385.89 Tm (Do not run destructive schema changes in the same release as an unverified application change. Prefer) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 371.89 Tm (expand, backfill, verify, migrate, and contract sequencing.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 336.89 Tm (9. Networking and security controls) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 330.89 m 130 330.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 310.89 Tm (- Terminate TLS at the approved edge or ingress.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 289.89 Tm (- Allow database traffic only from the API runtime.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 268.89 Tm (- Allow Redis traffic only from API pods and deny Redis egress.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 247.89 Tm (- Restrict `/api/metrics` to the monitoring network.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 226.89 Tm (- Configure CORS to approved web origins.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 205.89 Tm (- Use network-level IP rules as a second layer; application IP restrictions are not a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 191.89 Tm (  substitute for a firewall.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 170.89 Tm (- Rotate credentials through the secret manager, with a documented token and session) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 156.89 Tm (  invalidation plan.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 135.89 Tm (- Prefer managed Redis over the included internal deployment for real production, keep it) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 121.89 Tm (  private, require authentication and TLS, and use `rediss://`. Do not claim TLS for the) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 107.89 Tm (  included Redis manifests.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Environment, release, and operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 4969 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS DEPLOYMENT STRATEGY) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 761.89 Tm (10. Monitoring, backups, and rollback) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 755.89 m 130 755.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 735.89 Tm (Monitor health checks, request totals and duration, active WebSocket connections, cache hit/miss) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 721.89 Tm (ratios, database pool pressure, application errors, and authentication failures. Back up PostgreSQL) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 707.89 Tm (on a schedule aligned with the hotel recovery point objective and test restoration.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 686.89 Tm (For rollback, stop promotion of the current artifact, deploy the last verified application image, and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 672.89 Tm (only roll back the database when the migration is explicitly reversible and the data impact is) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 658.89 Tm (understood. If the database migration is additive, prefer a forward-compatible application rollback) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 644.89 Tm (rather than destructive reversal.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 609.89 Tm (11. Production checklist) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 603.89 m 130 603.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 583.89 Tm (- [ ] Production `SESSION_SECRET` is set and not reused from another environment.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 562.89 Tm (- [ ] `REDIS_PASSWORD` and the credential-bearing `REDIS_URL` are consistent and stored as) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 548.89 Tm (  secrets.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 527.89 Tm (- [ ] Real production Redis is managed/private with TLS and the API uses `rediss://`, or an) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 513.89 Tm (  explicitly approved equivalent control is documented.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 492.89 Tm (- [ ] Redis NetworkPolicies restrict ingress to API pods and deny Redis egress.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (- [ ] Redis and web pods run non-root without privilege escalation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 450.89 Tm (- [ ] Database backups and restore owner are documented.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 429.89 Tm (- [ ] CORS and metrics ingress are restricted.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 408.89 Tm (- [ ] Health and metrics checks are monitored.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 387.89 Tm (- [ ] At least one admin and one operational user have been verified.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 366.89 Tm (- [ ] MFA enrollment and backup-code recovery have been tested.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 345.89 Tm (- [ ] Cross-replica Socket.IO delivery through Redis has been verified.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 324.89 Tm (- [ ] Required API pod affinity is retained while the ReadWriteOnce uploads PVC is used.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 303.89 Tm (- [ ] File storage backup and retention are configured.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 282.89 Tm (- [ ] Shared or object storage is implemented before API pods are distributed across nodes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 261.89 Tm (- [ ] Tenant isolation limitations are accepted by the release owner.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 240.89 Tm (- [ ] Rollback artifact and migration plan are recorded.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 205.89 Tm (12. Known deployment boundaries) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 199.89 m 130 199.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 179.89 Tm (Phase 7B uses Redis 7 for the implemented Socket.IO multi-replica backplane. It still deliberately) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 165.89 Tm (uses an in-memory process-local cache, an in-process EventEmitter2 bus, PostgreSQL ILIKE search,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 151.89 Tm (local filesystem storage, and stored-but-not-delivered push tokens. The Kubernetes template keeps API) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 137.89 Tm (replicas on one node for its 10Gi ReadWriteOnce upload volume; shared or object storage is required) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 123.89 Tm (before multi-node or multi-region API operation.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Environment, release, and operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+xref
+0 16
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000148 00000 n 
+0000000218 00000 n 
+0000000293 00000 n 
+0000000361 00000 n 
+0000004750 00000 n 
+0000004902 00000 n 
+0000010309 00000 n 
+0000010461 00000 n 
+0000015316 00000 n 
+0000015470 00000 n 
+0000020692 00000 n 
+0000020846 00000 n 
+0000025868 00000 n 
+trailer
+<< /Size 16 /Root 1 0 R >>
+startxref
+26022
+%%EOF

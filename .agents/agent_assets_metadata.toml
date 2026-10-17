@@ -1,0 +1,44 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "YX7eVjMAjwIIdQLgoLgzR"
+uri = "file://docs/pdf/FUNCTIONAL_REQUIREMENTS.pdf"
+type = "pdf"
+title = "Nexus HMS Functional Requirements"
+description = "Functional requirements specification for the Phase 7B Enterprise Hotel Management System."
+
+[[outputs]]
+id = "0Rj5wJhLJ_OFxtsb_0NUn"
+uri = "file://docs/pdf/NON_FUNCTIONAL_REQUIREMENTS.pdf"
+type = "pdf"
+title = "Nexus HMS Non-Functional Requirements"
+description = "Quality, security, availability, performance, and operational requirements."
+
+[[outputs]]
+id = "s9BUqOEGxdOAh7xWjBWqx"
+uri = "file://docs/pdf/HANDS_ON_USER_MANUAL.pdf"
+type = "pdf"
+title = "Nexus HMS Hands-On User Manual"
+description = "Practical operating guide for reservations, hotel operations, finance, BI, security, and mobile workflows."
+
+[[outputs]]
+id = "vRoSNXtshAVica_6MoGPX"
+uri = "file://docs/pdf/DEPLOYMENT_STRATEGY.pdf"
+type = "pdf"
+title = "Nexus HMS Deployment Strategy"
+description = "Environment, release, database migration, monitoring, backup, and rollback guidance."
+
+[[outputs]]
+id = "CT99ILO9CA-v1rX3_A7PM"
+uri = "file://docs/pdf/TECHNOLOGIES_USED.pdf"
+type = "pdf"
+title = "Nexus HMS Technologies Used"
+description = "Technology stack, architecture, Phase 7B runtime components, and integration boundaries."
+
+[[outputs]]
+id = "uRr6WzCar3uV8XpvkF7L8"
+uri = "file://docs/pdf/USER_MANAGEMENT_AND_SECURITY.pdf"
+type = "pdf"
+title = "Nexus HMS User Management and Security Guide"
+description = "Administrator guide for users, roles, MFA, password policy, IP restrictions, devices, tenants, and incident response."

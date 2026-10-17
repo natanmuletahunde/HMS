@@ -1,0 +1,11 @@
+- [NestJS + lib/db CJS build](nestjs-lib-db-cjs.md) — lib/db must be compiled to CJS before NestJS can require it; tsconfig path alias must point to dist, not source
+- [Drizzle table spread in select](drizzle-table-spread.md) — spreading a full Drizzle table in db.select() is invalid TypeScript; use getTableColumns() instead
+- [Phase 4 schema additions](phase4-schema.md) — new tables added in Phase 4; migration approach and key column names
+- [Phase 5 schema additions](phase5-schema.md) — new tables added in Phase 5 (inventory, procurement, financial, conference, transport, hr) and expanded employees
+- [Phase 6 schema additions](phase6-schema.md) — new tables added in Phase 6 (complaints, complaint_comments, documents, notification_templates); compression CJS fix
+- [compression CJS fix](compression-cjs.md) — `import compression from 'compression'` fails at runtime; use `const compression = require('compression')` instead
+- [Phase 7A schema additions](phase7a-schema.md) — new tables for multi-tenant SaaS core (tenants, orgs, subscriptions, workflows, module_configs, plugins)
+- [NestJS guard import path](nestjs-guard-path.md) — JwtAuthGuard lives at src/common/guards/jwt-auth.guard.ts; modules import as `../../common/guards/jwt-auth.guard`
+- [Validated .replit updates](dot-replit-validation.md) — workspace configuration changes must use the validated replacement flow rather than direct edits
+- [Alpine web native packages](alpine-web-native-packages.md) — Node Alpine builds need pinned pnpm and x64-musl Tailwind/Lightning CSS optional binaries
+- [pnpm API production layout](pnpm-api-production-layout.md) — filtered production installs must preserve workspace links; validate images by starting them, not only building

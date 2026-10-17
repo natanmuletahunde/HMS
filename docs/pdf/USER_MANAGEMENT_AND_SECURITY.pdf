@@ -1,0 +1,267 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R] /Count 5 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 3688 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS USER MANAGEMENT AND SECURITY GUIDE) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+0.08 0.16 0.27 rg 54 667.89 487.28 116 re f
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 739.89 Tm (Nexus HMS User Management and) Tj ET
+BT 1 1 1 rg /F2 20 Tf 1 0 0 1 72.00 717.89 Tm (Security Guide) Tj ET
+BT 0.78 0.88 0.96 rg /F1 10 Tf 1 0 0 1 72.00 694.89 Tm (Nexus HMS Enterprise Edition) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 627.89 Tm (Document control) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 621.89 m 130 621.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 601.89 Tm (- Product: Nexus HMS Enterprise Hotel Management System) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 580.89 Tm (- Release baseline: Phase 7B Enterprise Platform) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 559.89 Tm (- Document type: Administrator and security operations guide) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 538.89 Tm (- Date: 27 August 2026) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 503.89 Tm (1. Administrative model) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 497.89 m 130 497.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 477.89 Tm (Nexus HMS separates platform scope from tenant scope. A platform administrator has a null tenant) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 463.89 Tm (context and may manage platform-wide configuration. A tenant administrator operates inside one tenant) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 449.89 Tm (and may manage users, records, and security rules allowed by that tenant. Hotel roles should be) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 435.89 Tm (assigned according to least privilege.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 414.89 Tm (The client interface may hide modules based on role, but the server guards are the final) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 400.89 Tm (authorization boundary. Never rely on a hidden navigation item to protect data.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 365.89 Tm (2. User lifecycle) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 359.89 m 130 359.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 331.89 Tm (Provision) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 312.89 Tm (1. Confirm the user's employment, department, tenant, and required access.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 291.89 Tm (2. Create the account with the minimum role needed.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 270.89 Tm (3. Confirm the email and contact information through the approved onboarding process.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 249.89 Tm (4. Give the user a first-login instruction through a secure channel.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 228.89 Tm (5. Require MFA for administrators and any role that handles sensitive guest, financial, or) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 214.89 Tm (security information.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 185.89 Tm (Change) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 166.89 Tm (Review role, tenant, department, and active status when the user changes duties. Remove access that) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 152.89 Tm (is no longer needed before granting new access.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 123.89 Tm (Suspend and remove) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Administrator and security operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 5245 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS USER MANAGEMENT AND SECURITY GUIDE) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (Deactivate users promptly when employment ends, access is compromised, or a device is lost. Revoke) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (active mobile devices. Preserve audit records according to hotel retention policy rather than) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 747.89 Tm (deleting evidence.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 712.89 Tm (3. Roles and least privilege) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 706.89 m 130 706.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 686.89 Tm (Use role names that map to real responsibilities:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 665.89 Tm (- Platform admin: tenants, subscriptions, modules, plugins, global password policy, and global) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 651.89 Tm (  security.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 630.89 Tm (- Tenant admin: tenant users, local IP rules, hotel configuration, and permitted workflows.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 609.89 Tm (- Manager: approvals, dashboards, reports, and operational oversight.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 588.89 Tm (- Front desk: guests, reservations, check-in, stay, and checkout.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 567.89 Tm (- Department operator: only the operational module needed by the department.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 546.89 Tm (- Finance or HR specialist: sensitive finance or personnel operations.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 525.89 Tm (- Read-only/reporting: view and export only what policy permits.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 504.89 Tm (Review role assignments at least quarterly and after every organizational change. Avoid giving) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 490.89 Tm (platform scope to a user who only needs one property's operational access.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 455.89 Tm (4. Authentication controls) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 449.89 m 130 449.89 l S
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 421.89 Tm (Access and refresh tokens) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 402.89 Tm (Access tokens authenticate normal API requests. Refresh tokens are separately signed and should be) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 388.89 Tm (stored only in an appropriately protected client store. On logout, the client must remove stored) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 374.89 Tm (tokens. If a refresh token is suspected to be compromised, follow the session invalidation and secret) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 360.89 Tm (rotation procedure.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 339.89 Tm (Production operations must provide matching `REDIS_PASSWORD` and credential-bearing `REDIS_URL`) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 325.89 Tm (secrets for the cross-replica Socket.IO adapter. The Kubernetes API reads `REDIS_URL` from a Secret,) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 311.89 Tm (while Redis reads `REDIS_PASSWORD` from the same Secret. NetworkPolicies permit Redis ingress only) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 297.89 Tm (from API pods and deny Redis egress. Redis and web pods run explicitly as non-root without privilege) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 283.89 Tm (escalation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 262.89 Tm (For real production, prefer managed Redis on a private network with TLS and use `rediss://`. The) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 248.89 Tm (Redis service included with Compose and Kubernetes requires authentication but does not enable TLS;) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 234.89 Tm (do not treat its internal `redis://` connection as encrypted. Redis supports realtime packet delivery) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 220.89 Tm (only; authorization remains enforced by the API and Redis is not a shared authorization cache or) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 206.89 Tm (durable audit/event store.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 177.89 Tm (MFA enrollment) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 158.89 Tm (1. The user opens Security and chooses MFA setup.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 137.89 Tm (2. The server generates a TOTP secret and eight backup codes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 116.89 Tm (3. The QR data and codes are returned for one-time enrollment display.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 95.89 Tm (4. The database stores encrypted values, not plaintext secrets.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Administrator and security operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4548 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS USER MANAGEMENT AND SECURITY GUIDE) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (5. The user enters a six-digit code.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (6. A successful verification changes the MFA configuration to enabled.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 733.89 Tm (Administrators should confirm that backup codes were stored safely without requesting that a user) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 719.89 Tm (send them to support.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 690.89 Tm (MFA recovery) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 671.89 Tm (An unused backup code can complete the MFA login step once. A consumed code cannot be reused. If all) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 657.89 Tm (codes are lost, follow the organization's identity-verification and administrator-assisted recovery) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 643.89 Tm (process. Do not manually edit encrypted MFA database values.) Tj ET
+BT 0.12 0.39 0.65 rg /F2 11.5 Tf 1 0 0 1 54.00 614.89 Tm (Disablement) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 595.89 Tm (Disabling MFA requires the current TOTP code. This protects against a session being used to silently) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (remove a second factor. If a user cannot produce the code, use the approved recovery process rather) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 567.89 Tm (than bypassing the endpoint.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 532.89 Tm (5. Password policy) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 526.89 m 130 526.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 506.89 Tm (Password policy is platform-wide and can be modified only by a platform administrator. Supported) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 492.89 Tm (controls include:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 471.89 Tm (- Minimum length, between 6 and 128 characters.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 450.89 Tm (- Uppercase requirement.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 429.89 Tm (- Number requirement.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 408.89 Tm (- Symbol requirement.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 387.89 Tm (- Expiry days, from no expiry through the configured maximum.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 366.89 Tm (- Number of previous passwords to prevent reusing.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 345.89 Tm (Choose policy values that match the organization's risk assessment. Avoid policy changes during a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 331.89 Tm (login incident unless the change is part of the incident plan. A policy update should be recorded and) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 317.89 Tm (communicated to administrators.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 282.89 Tm (6. IP restrictions) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 276.89 m 130 276.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 256.89 Tm (IP rules support:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 235.89 Tm (- Allowlist entries for an IPv4 address or IPv4 CIDR, such as `10.0.0.0/8`.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 214.89 Tm (- Blocklist entries for an IPv4 address or IPv4 CIDR.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 193.89 Tm (- A label to explain the business purpose.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 172.89 Tm (- Global rules managed at platform scope.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 151.89 Tm (- Tenant rules managed within tenant scope by an administrator.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 130.89 Tm (Before adding an allowlist rule, confirm the administrator's current source IP and keep a tested) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 116.89 Tm (recovery route. Invalid formats, IPv6 values, and malformed CIDR prefixes are rejected. When a rule) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 102.89 Tm (changes, affected cached rules are invalidated.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Administrator and security operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4497 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS USER MANAGEMENT AND SECURITY GUIDE) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (Use network firewalls or private ingress controls as the primary perimeter. Application IP rules are) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 761.89 Tm (a second layer and should not be the only protection for administrative access.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 726.89 Tm (7. Device management) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 720.89 m 130 720.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 700.89 Tm (The Active Devices view lists active mobile sessions for the current user. Each device should have a) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 686.89 Tm (recognizable name and platform. When a device is lost, replaced, or shared outside policy:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 665.89 Tm (1. Revoke the device immediately.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 644.89 Tm (2. Ask the user to change credentials if compromise is possible.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 623.89 Tm (3. Check audit activity and recent login behavior.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (4. Re-register only the verified replacement device.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 567.89 Tm (8. Tenant and organization administration) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 561.89 m 130 561.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 541.89 Tm (Create a tenant for a customer boundary and organizations or branches according to the operating) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 527.89 Tm (model. Validate tenant association before assigning users. Subscription and module configuration) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 513.89 Tm (should be reviewed before exposing features to an end user.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 492.89 Tm (Important current boundary: legacy core hotel tables do not yet include complete tenant_id row) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 478.89 Tm (isolation. Tenant-aware BI and mobile services deliberately limit responses where a safe filter) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 464.89 Tm (cannot be applied. Do not enable unrestricted cross-tenant operational access until the core-table) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 450.89 Tm (migration is complete and verified.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 415.89 Tm (9. Audit and incident response) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 409.89 m 130 409.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 389.89 Tm (Review audit logs for:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 368.89 Tm (- Repeated failed logins or MFA failures.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 347.89 Tm (- Role, tenant, or user status changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 326.89 Tm (- MFA enrollment or disablement.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 305.89 Tm (- IP rule mutations.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 284.89 Tm (- Device registration and revocation.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 263.89 Tm (- Password-policy changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 242.89 Tm (- Cache flushes and unusual administrative actions.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 221.89 Tm (For suspected compromise:) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 200.89 Tm (1. Deactivate the affected user or revoke the device.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 179.89 Tm (2. Preserve audit and application logs.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 158.89 Tm (3. Check active sessions, IP rules, and recent changes.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 137.89 Tm (4. Rotate affected secrets using the environment secret process.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 116.89 Tm (5. Determine whether MFA secrets, refresh tokens, Redis credentials, or database data were) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 102.89 Tm (exposed.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Administrator and security operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 3012 >>
+stream
+BT 0.28 0.33 0.39 rg /F2 7.4 Tf 1 0 0 1 54.00 807.89 Tm (NEXUS HMS USER MANAGEMENT AND SECURITY GUIDE) Tj ET
+0.12 0.39 0.65 RG 1 w 54 798.89 m 541.28 798.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 775.89 Tm (6. Restore service only after verifying the new control state.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 754.89 Tm (Do not include tokens, secrets, backup codes, or raw credentials in incident tickets.) Tj ET
+BT 0.08 0.16 0.27 rg /F2 15 Tf 1 0 0 1 54.00 719.89 Tm (10. Security administration checklist) Tj ET
+0.12 0.39 0.65 RG 1.3 w 54 713.89 m 130 713.89 l S
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 693.89 Tm (- [ ] Platform and tenant administrators are documented.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 672.89 Tm (- [ ] Production `SESSION_SECRET`, `REDIS_PASSWORD`, and the credential-bearing `REDIS_URL`) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 658.89 Tm (  are held in the environment secret store.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 637.89 Tm (- [ ] Redis password and URL credentials match, and readiness/smoke checks authenticate.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 616.89 Tm (- [ ] Redis is private, reachable by every API replica, restricted to API-only ingress with) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 602.89 Tm (  denied egress, and used only for the Socket.IO backplane.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 581.89 Tm (- [ ] Real production uses managed/private TLS Redis with `rediss://`, or an approved) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 567.89 Tm (  equivalent; the included internal Redis is not claimed to provide TLS.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 546.89 Tm (- [ ] Administrator MFA is enabled and recovery ownership is known.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 525.89 Tm (- [ ] Password policy has an approved owner and review date.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 504.89 Tm (- [ ] Global and tenant IP rules have labels and recovery testing.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 483.89 Tm (- [ ] Device revocation is part of offboarding.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 462.89 Tm (- [ ] Metrics access is restricted at the network boundary.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 441.89 Tm (- [ ] CORS origins are restricted in production.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 420.89 Tm (- [ ] Backups are encrypted and restoration is tested.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 399.89 Tm (- [ ] Audit logs are retained according to policy.) Tj ET
+BT 0.15 0.17 0.2 rg /F1 9.4 Tf 1 0 0 1 54.00 378.89 Tm (- [ ] Core-table tenant isolation limitations are acknowledged.) Tj ET
+0.78 0.81 0.84 RG 0.5 w 54 38 m 541.28 38 l S
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 54.00 24.00 Tm (Nexus HMS  |  Administrator and security operations guide) Tj ET
+BT 0.28 0.33 0.39 rg /F1 7.2 Tf 1 0 0 1 503.28 24.00 Tm (Page 5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+xref
+0 16
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000148 00000 n 
+0000000218 00000 n 
+0000000293 00000 n 
+0000000361 00000 n 
+0000004101 00000 n 
+0000004253 00000 n 
+0000009550 00000 n 
+0000009702 00000 n 
+0000014303 00000 n 
+0000014457 00000 n 
+0000019007 00000 n 
+0000019161 00000 n 
+0000022226 00000 n 
+trailer
+<< /Size 16 /Root 1 0 R >>
+startxref
+22380
+%%EOF

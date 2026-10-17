@@ -1,0 +1,877 @@
+Continue the Enterprise Hotel Management System implementation.
+
+Phase 1 (Foundation), Phase 2 (Hotel Core), Phase 3 (Reservation & Front Office), and Phase 4 (Hotel Operations) have been completed successfully.
+
+Implement ONLY Phase 5.
+
+====================================================
+PHASE 5 – BUSINESS MANAGEMENT
+====================================================
+
+Implement the following modules completely.
+
+1. Inventory Management
+
+2. Procurement Management
+
+3. Financial Transaction Management
+
+4. Conference & Event Management
+
+5. Transport Management
+
+6. Human Resource Management
+
+Integrate all modules with the existing Hotel, Room, Reservation, Restaurant, POS, Housekeeping, Maintenance and Room Service modules.
+
+Do NOT implement Customer Service, Reports, Notifications, Audit Trail, AI, or External Integrations in this phase.
+
+====================================================
+ARCHITECTURE
+====================================================
+
+Continue using the existing architecture.
+
+Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- ShadCN UI
+- React Hook Form
+- Zod
+- TanStack Query
+- Zustand
+
+Backend
+
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- Repository Pattern
+- Service Layer
+- DTO Validation
+- JWT
+- RBAC
+- Swagger
+
+====================================================
+DATABASE
+====================================================
+
+Create normalized PostgreSQL schema.
+
+Every table must include
+
+id
+createdAt
+updatedAt
+deletedAt
+createdBy
+updatedBy
+isActive
+
+Use UUID primary keys.
+
+Use foreign keys.
+
+Create indexes.
+
+Create constraints.
+
+Generate Prisma migrations.
+
+====================================================
+INVENTORY MANAGEMENT
+====================================================
+
+Inventory Categories
+
+Food
+
+Beverages
+
+Cleaning Materials
+
+Linen
+
+Towels
+
+Toiletries
+
+Furniture
+
+Equipment
+
+Office Supplies
+
+Electrical Items
+
+Kitchen Supplies
+
+Spare Parts
+
+Inventory Item
+
+Item Code
+
+Barcode
+
+Name
+
+Category
+
+Unit
+
+Current Stock
+
+Minimum Stock
+
+Maximum Stock
+
+Reorder Level
+
+Purchase Price
+
+Selling Price
+
+Storage Location
+
+Supplier
+
+Status
+
+Inventory Operations
+
+Stock In
+
+Stock Out
+
+Stock Transfer
+
+Stock Adjustment
+
+Stock Return
+
+Damaged Items
+
+Expired Items
+
+Inventory Count
+
+Cycle Count
+
+Inventory Alerts
+
+Low Stock
+
+Out of Stock
+
+Expired
+
+Near Expiry
+
+Inventory History
+
+Stock Ledger
+
+Movement History
+
+====================================================
+PROCUREMENT MANAGEMENT
+====================================================
+
+Supplier
+
+Supplier Code
+
+Company Name
+
+Contact Person
+
+Phone
+
+Email
+
+Address
+
+TIN
+
+Bank Information
+
+Status
+
+Purchase Request
+
+Request Number
+
+Department
+
+Requested By
+
+Priority
+
+Required Date
+
+Status
+
+Purchase Order
+
+PO Number
+
+Supplier
+
+Items
+
+Approval
+
+Delivery Date
+
+Status
+
+Goods Receipt
+
+Receive Items
+
+Partial Receipt
+
+Quality Inspection
+
+Reject Items
+
+Return Items
+
+Supplier Performance
+
+Delivery Performance
+
+Quality Score
+
+Purchase History
+
+====================================================
+FINANCIAL TRANSACTION MANAGEMENT
+====================================================
+
+This module records every financial transaction.
+
+Revenue Sources
+
+Room Charges
+
+Restaurant Sales
+
+POS Sales
+
+Room Service
+
+Laundry
+
+Spa
+
+Conference Hall
+
+Transport
+
+Mini Bar
+
+Other Services
+
+Expense Categories
+
+Purchases
+
+Maintenance
+
+Payroll
+
+Utilities
+
+Fuel
+
+Office Expenses
+
+Other Expenses
+
+Transaction Types
+
+Revenue
+
+Expense
+
+Deposit
+
+Refund
+
+Transfer
+
+Adjustment
+
+Payment Methods
+
+Cash
+
+Credit Card
+
+Debit Card
+
+Bank Transfer
+
+Mobile Money
+
+Online Payment
+
+Voucher
+
+Gift Card
+
+Entities
+
+Invoice
+
+Invoice Item
+
+Receipt
+
+Payment
+
+Refund
+
+Credit Note
+
+Debit Note
+
+Transaction
+
+Cash Register
+
+Cash Shift
+
+Cashier Session
+
+Daily Cash Closing
+
+Revenue Summary
+
+Expense Summary
+
+Business Rules
+
+Support Partial Payments
+
+Multiple Payment Methods
+
+Multiple Currencies
+
+Taxes
+
+Discounts
+
+Service Charges
+
+====================================================
+CONFERENCE & EVENT MANAGEMENT
+====================================================
+
+Conference Hall
+
+Hall Name
+
+Capacity
+
+Location
+
+Equipment
+
+Pricing
+
+Status
+
+Booking
+
+Customer
+
+Reservation Link
+
+Booking Date
+
+Start Time
+
+End Time
+
+Hall Layout
+
+Equipment Allocation
+
+Projector
+
+Sound System
+
+Microphone
+
+Stage
+
+LED Display
+
+Whiteboard
+
+Catering
+
+Coffee Break
+
+Lunch
+
+Dinner
+
+Refreshments
+
+Event Schedule
+
+Booking Calendar
+
+Availability Calendar
+
+====================================================
+TRANSPORT MANAGEMENT
+====================================================
+
+Vehicles
+
+Vehicle Number
+
+Vehicle Type
+
+Model
+
+Capacity
+
+Status
+
+Drivers
+
+Driver Profile
+
+License
+
+Phone
+
+Availability
+
+Trips
+
+Airport Pickup
+
+Airport Drop-off
+
+Hotel Shuttle
+
+City Tour
+
+Custom Trip
+
+Trip Status
+
+Scheduled
+
+Assigned
+
+Started
+
+Completed
+
+Cancelled
+
+Trip Scheduling
+
+Vehicle Assignment
+
+Driver Assignment
+
+Trip History
+
+====================================================
+HUMAN RESOURCE MANAGEMENT
+====================================================
+
+Employee
+
+Employee Code
+
+Personal Information
+
+Department
+
+Position
+
+Employment Type
+
+Salary Grade
+
+Supervisor
+
+Employment Date
+
+Status
+
+Departments
+
+Front Office
+
+Housekeeping
+
+Restaurant
+
+Kitchen
+
+Maintenance
+
+Finance
+
+HR
+
+Security
+
+Administration
+
+Attendance
+
+Clock In
+
+Clock Out
+
+Late Arrival
+
+Overtime
+
+Leave Management
+
+Annual Leave
+
+Sick Leave
+
+Maternity Leave
+
+Emergency Leave
+
+Shift Management
+
+Morning
+
+Evening
+
+Night
+
+Split Shift
+
+Performance Evaluation
+
+Goals
+
+KPIs
+
+Evaluation History
+
+Training
+
+Certificates
+
+Documents
+
+Payroll Placeholder
+
+====================================================
+AUTOMATION
+====================================================
+
+Inventory decreases automatically after
+
+Restaurant Sales
+
+POS Sales
+
+Room Service
+
+Automatically create Purchase Request when
+
+Stock below Reorder Level
+
+Conference Booking automatically reserves
+
+Hall
+
+Equipment
+
+Transport Booking automatically schedules
+
+Vehicle
+
+Driver
+
+Employee attendance updates productivity reports
+
+====================================================
+FRONTEND PAGES
+====================================================
+
+Inventory Dashboard
+
+Inventory Items
+
+Stock Movements
+
+Suppliers
+
+Purchase Requests
+
+Purchase Orders
+
+Goods Receipt
+
+Financial Dashboard
+
+Invoices
+
+Payments
+
+Transactions
+
+Cash Register
+
+Conference Dashboard
+
+Conference Halls
+
+Conference Bookings
+
+Transport Dashboard
+
+Vehicles
+
+Drivers
+
+Trips
+
+HR Dashboard
+
+Employees
+
+Departments
+
+Attendance
+
+Leaves
+
+Shifts
+
+Performance
+
+Each page must include
+
+Responsive UI
+
+Professional Tables
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Dialogs
+
+Forms
+
+Validation
+
+Loading State
+
+Empty State
+
+Error State
+
+====================================================
+API ENDPOINTS
+====================================================
+
+Generate complete REST APIs.
+
+Inventory
+
+Procurement
+
+Financial Transactions
+
+Conference
+
+Transport
+
+HR
+
+Swagger documentation required.
+
+====================================================
+RBAC
+====================================================
+
+Administrator
+
+Full Access
+
+Hotel Manager
+
+Business Management
+
+Storekeeper
+
+Inventory
+
+Procurement
+
+Accountant
+
+Financial Transactions
+
+Conference Manager
+
+Conference Module
+
+Transport Manager
+
+Transport Module
+
+HR Manager
+
+HR Module
+
+Cashier
+
+Payments
+
+Read-only access for other departments where applicable.
+
+====================================================
+REPORT PLACEHOLDERS
+====================================================
+
+Create backend services and frontend placeholders for
+
+Inventory Valuation
+
+Stock Movement
+
+Purchase Analysis
+
+Supplier Performance
+
+Revenue Summary
+
+Expense Summary
+
+Cash Summary
+
+Conference Utilization
+
+Vehicle Utilization
+
+Attendance Summary
+
+Leave Summary
+
+Employee Performance
+
+These will be expanded in Phase 6.
+
+====================================================
+SEED DATA
+====================================================
+
+Generate realistic data
+
+1,000 Inventory Items
+
+100 Suppliers
+
+300 Purchase Orders
+
+2,000 Financial Transactions
+
+10 Conference Halls
+
+300 Conference Bookings
+
+30 Vehicles
+
+50 Drivers
+
+1,000 Trips
+
+300 Employees
+
+Attendance Records
+
+Leave Requests
+
+Performance Reviews
+
+====================================================
+CODING STANDARDS
+====================================================
+
+Follow SOLID Principles.
+
+Use Repository Pattern.
+
+Use Service Layer.
+
+Strong Typing.
+
+Reusable Components.
+
+DTO Validation.
+
+Centralized Exception Handling.
+
+Audit-ready architecture.
+
+No Business Logic inside Controllers.
+
+Generate Complete Swagger Documentation.
+
+====================================================
+STOP CONDITION
+====================================================
+
+Complete ONLY
+
+Inventory
+
+Procurement
+
+Financial Transactions
+
+Conference
+
+Transport
+
+Human Resource
+
+Do NOT implement
+
+Customer Service
+
+Reports
+
+Executive Dashboard
+
+Notifications
+
+Audit Trail
+
+AI Features
+
+External Integrations
+
+These will be implemented in Phase 6.

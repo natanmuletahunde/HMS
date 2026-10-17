@@ -1,0 +1,592 @@
+You are a Senior Software Architect and Full Stack Engineer.
+
+Develop a production-ready Enterprise Hotel Management System (HMS) using modern software engineering best practices.
+
+==================================================
+GENERAL ARCHITECTURE
+==================================================
+
+Architecture:
+- Modular Monolithic Architecture
+- Domain Driven Design (DDD)
+- Clean Architecture
+- Repository Pattern
+- Service Layer
+- Dependency Injection
+- DTO Pattern
+- REST API
+- API Versioning
+- RBAC Authorization
+
+The architecture must be easily convertible into Microservices in the future.
+
+==================================================
+FRONTEND
+==================================================
+
+Technology
+
+- Next.js (Latest App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- React Hook Form
+- Zod Validation
+- TanStack Query
+- Zustand
+- Axios
+
+Frontend Folder Structure
+
+src/
+
+app/
+
+components/
+
+layouts/
+
+hooks/
+
+services/
+
+types/
+
+utils/
+
+styles/
+
+middleware/
+
+Each module should contain
+
+pages
+
+components
+
+forms
+
+tables
+
+dialogs
+
+api
+
+hooks
+
+==================================================
+BACKEND
+==================================================
+
+Technology
+
+NestJS
+
+TypeScript
+
+Prisma ORM
+
+REST API
+
+JWT Authentication
+
+Refresh Tokens
+
+Swagger
+
+Class Validator
+
+Class Transformer
+
+bcrypt
+
+Helmet
+
+CORS
+
+Rate Limiting
+
+Backend Folder Structure
+
+src/
+
+modules/
+
+common/
+
+config/
+
+database/
+
+middlewares/
+
+filters/
+
+guards/
+
+interceptors/
+
+decorators/
+
+jobs/
+
+events/
+
+storage/
+
+Each module must contain
+
+controller
+
+service
+
+repository
+
+dto
+
+entity/model
+
+mapper
+
+interfaces
+
+enums
+
+validators
+
+==================================================
+DATABASE
+==================================================
+
+Database
+
+PostgreSQL
+
+Use Prisma ORM.
+
+Use UUID as primary key.
+
+Every table should include
+
+id
+
+createdAt
+
+updatedAt
+
+deletedAt
+
+createdBy
+
+updatedBy
+
+isActive
+
+Use proper
+
+Primary Keys
+
+Foreign Keys
+
+Indexes
+
+Unique Constraints
+
+Cascade Rules
+
+Transactions
+
+==================================================
+AUTHENTICATION
+==================================================
+
+Implement
+
+User Registration
+
+Login
+
+Logout
+
+Password Reset
+
+JWT
+
+Refresh Token
+
+Session Management
+
+RBAC
+
+Permissions
+
+Audit Logging
+
+User Profile
+
+Role Management
+
+Permission Management
+
+==================================================
+USER ROLES
+==================================================
+
+System Administrator
+
+Hotel Manager
+
+Reservation Officer
+
+Front Desk Receptionist
+
+Cashier
+
+Housekeeping Staff
+
+Restaurant Manager
+
+Restaurant Waiter
+
+Kitchen Staff
+
+Storekeeper
+
+Accountant
+
+Maintenance Staff
+
+Employee
+
+Guest
+
+Corporate Client
+
+Travel Agency
+
+==================================================
+MODULES
+==================================================
+
+Create the project with the following independent modules.
+
+Authentication
+
+Users
+
+Roles
+
+Permissions
+
+Hotel Configuration
+
+Room Management
+
+Reservation
+
+Guest
+
+Front Office
+
+Housekeeping
+
+Maintenance
+
+Restaurant
+
+POS
+
+Inventory
+
+Procurement
+
+Financial Transactions
+
+Conference
+
+Transport
+
+Human Resource
+
+Customer Service
+
+Reports
+
+Dashboard
+
+Audit Trail
+
+Notification
+
+Integration
+
+AI
+
+Each module must have
+
+Controller
+
+Service
+
+Repository
+
+DTO
+
+Validation
+
+REST Endpoints
+
+Swagger Documentation
+
+==================================================
+DATABASE DESIGN
+==================================================
+
+Design a normalized PostgreSQL database.
+
+Create relationships.
+
+Generate Prisma Schema.
+
+Generate Migration.
+
+Create Seed Data.
+
+Include
+
+Users
+
+Roles
+
+Permissions
+
+Hotels
+
+Branches
+
+Buildings
+
+Floors
+
+Rooms
+
+RoomTypes
+
+Amenities
+
+Guests
+
+Reservations
+
+ReservationRooms
+
+CheckIns
+
+CheckOuts
+
+HousekeepingAssignments
+
+MaintenanceRequests
+
+RestaurantOrders
+
+POS
+
+Inventory
+
+Suppliers
+
+Purchases
+
+Invoices
+
+Payments
+
+Transactions
+
+Employees
+
+Complaints
+
+Notifications
+
+AuditLogs
+
+==================================================
+UI
+==================================================
+
+Create a professional Admin Dashboard.
+
+Use
+
+Responsive Layout
+
+Dark Mode
+
+Sidebar Navigation
+
+Top Navigation
+
+Dashboard Cards
+
+Charts
+
+Data Tables
+
+Dialogs
+
+Forms
+
+Pagination
+
+Search
+
+Sorting
+
+Filtering
+
+Breadcrumbs
+
+==================================================
+DASHBOARD
+==================================================
+
+Display
+
+Occupancy Rate
+
+Revenue
+
+Today's Check-ins
+
+Today's Check-outs
+
+Available Rooms
+
+Reserved Rooms
+
+Occupied Rooms
+
+Maintenance Rooms
+
+Restaurant Sales
+
+Inventory Alerts
+
+Cleaning Progress
+
+==================================================
+CODING STANDARDS
+==================================================
+
+Follow SOLID Principles.
+
+Follow Clean Code.
+
+Use reusable components.
+
+Avoid duplicate code.
+
+Use interfaces.
+
+Use dependency injection.
+
+No business logic inside controllers.
+
+Every endpoint must return standard API responses.
+
+Implement centralized exception handling.
+
+Implement validation.
+
+Implement logging.
+
+Implement audit trail.
+
+==================================================
+SECURITY
+==================================================
+
+Implement
+
+JWT
+
+RBAC
+
+Permission Guards
+
+Rate Limiting
+
+Helmet
+
+Password Hashing
+
+Input Validation
+
+SQL Injection Protection
+
+XSS Protection
+
+CSRF Ready
+
+==================================================
+DELIVERABLES
+==================================================
+
+Generate
+
+Complete folder structure
+
+Prisma Schema
+
+Migration Files
+
+Seed Data
+
+NestJS Backend
+
+Next.js Frontend
+
+Authentication
+
+Swagger
+
+Docker
+
+Docker Compose
+
+Environment Variables
+
+README
+
+API Documentation
+
+==================================================
+IMPLEMENTATION STRATEGY
+==================================================
+
+Do NOT generate everything at once.
+
+Implement module by module.
+
+Finish one module completely before moving to the next.
+
+Each completed module must include
+
+Backend
+
+Frontend
+
+Database
+
+API
+
+Validation
+
+Testing
+
+Documentation
+
+After completing one module, continue automatically with the next module until the Hotel Management System is complete.

@@ -1,0 +1,679 @@
+Continue the Enterprise Hotel Management System implementation.
+
+The project foundation (Authentication, Users, RBAC, Dashboard, Database, Docker, API, Layout) has already been completed.
+
+Now implement ONLY Phase 2.
+
+====================================================
+PHASE 2 – HOTEL CORE MANAGEMENT
+====================================================
+
+Implement the following modules completely.
+
+1. Hotel Configuration
+
+2. Branch Management
+
+3. Building Management
+
+4. Floor Management
+
+5. Room Type Management
+
+6. Room Category Management
+
+7. Bed Type Management
+
+8. Room Amenities Management
+
+9. Room Pricing Management
+
+10. Room Management
+
+Do not implement Reservation or Front Office yet.
+
+====================================================
+ARCHITECTURE
+====================================================
+
+Follow the existing architecture.
+
+Frontend
+
+Next.js
+
+React
+
+TypeScript
+
+Tailwind CSS
+
+ShadCN
+
+React Hook Form
+
+TanStack Query
+
+Axios
+
+Backend
+
+NestJS
+
+Prisma ORM
+
+PostgreSQL
+
+REST API
+
+Swagger
+
+Repository Pattern
+
+Service Layer
+
+DTO Validation
+
+RBAC
+
+====================================================
+DATABASE
+====================================================
+
+Create normalized database tables.
+
+Every table must include
+
+id UUID
+
+createdAt
+
+updatedAt
+
+deletedAt
+
+createdBy
+
+updatedBy
+
+isActive
+
+----------------------------------------------------
+HOTEL
+----------------------------------------------------
+
+Hotel
+
+id
+
+hotelName
+
+legalName
+
+hotelCode
+
+logo
+
+email
+
+phone
+
+website
+
+country
+
+region
+
+city
+
+subCity
+
+address
+
+postalCode
+
+latitude
+
+longitude
+
+description
+
+timezone
+
+currencyId
+
+taxNumber
+
+licenseNumber
+
+starRating
+
+checkInTime
+
+checkOutTime
+
+status
+
+Relationships
+
+Hotel
+
+1 → Many Branches
+
+----------------------------------------------------
+BRANCH
+----------------------------------------------------
+
+Branch
+
+hotelId
+
+branchName
+
+branchCode
+
+manager
+
+email
+
+phone
+
+address
+
+description
+
+Relationships
+
+Branch
+
+1 → Many Buildings
+
+----------------------------------------------------
+BUILDING
+----------------------------------------------------
+
+Building
+
+branchId
+
+buildingName
+
+buildingCode
+
+numberOfFloors
+
+description
+
+Relationships
+
+Building
+
+1 → Many Floors
+
+----------------------------------------------------
+FLOOR
+----------------------------------------------------
+
+Floor
+
+buildingId
+
+floorName
+
+floorNumber
+
+description
+
+Relationships
+
+Floor
+
+1 → Many Rooms
+
+----------------------------------------------------
+ROOM TYPE
+----------------------------------------------------
+
+RoomType
+
+typeName
+
+description
+
+maximumAdults
+
+maximumChildren
+
+basePrice
+
+====================================================
+ROOM CATEGORY
+====================================================
+
+Standard
+
+Deluxe
+
+Executive
+
+Superior
+
+Premium
+
+Suite
+
+Family
+
+Presidential
+
+Allow CRUD.
+
+====================================================
+BED TYPE
+====================================================
+
+Single
+
+Twin
+
+Double
+
+Queen
+
+King
+
+Bunk
+
+Sofa Bed
+
+Allow CRUD.
+
+====================================================
+ROOM AMENITIES
+====================================================
+
+Television
+
+WiFi
+
+Air Conditioner
+
+Mini Bar
+
+Balcony
+
+Bathtub
+
+Hair Dryer
+
+Coffee Machine
+
+Telephone
+
+Safe Box
+
+Iron
+
+Kitchen
+
+Microwave
+
+Refrigerator
+
+Ocean View
+
+City View
+
+Garden View
+
+Swimming Pool Access
+
+Parking
+
+Allow administrator to create unlimited amenities.
+
+====================================================
+ROOM PRICING
+====================================================
+
+Support
+
+Base Price
+
+Weekend Price
+
+Holiday Price
+
+Seasonal Price
+
+Corporate Price
+
+Travel Agency Price
+
+VIP Price
+
+Discount
+
+Tax
+
+Effective Date
+
+Expiration Date
+
+====================================================
+ROOM MANAGEMENT
+====================================================
+
+Each room contains
+
+Room Number
+
+Room Name
+
+Room Type
+
+Room Category
+
+Bed Type
+
+Building
+
+Floor
+
+Capacity Adults
+
+Capacity Children
+
+Size
+
+View
+
+Smoking Allowed
+
+Description
+
+Current Price
+
+Status
+
+Images
+
+Amenities
+
+====================================================
+ROOM STATUS
+====================================================
+
+Available
+
+Reserved
+
+Occupied
+
+Dirty
+
+Cleaning
+
+Ready
+
+Blocked
+
+Under Maintenance
+
+Out of Service
+
+====================================================
+ROOM OPERATIONS
+====================================================
+
+Create Room
+
+Update Room
+
+Delete Room
+
+Activate Room
+
+Deactivate Room
+
+Block Room
+
+Unblock Room
+
+Change Status
+
+Assign Amenities
+
+Upload Images
+
+Bulk Import Rooms
+
+Export Rooms
+
+Search Rooms
+
+Filter Rooms
+
+====================================================
+VALIDATION
+====================================================
+
+Room Number must be unique.
+
+Room Code must be unique.
+
+Branch Code unique.
+
+Building Code unique.
+
+Hotel Code unique.
+
+Prevent deleting a room that is referenced by another module.
+
+====================================================
+FRONTEND
+====================================================
+
+Create responsive pages.
+
+Hotel
+
+Branch
+
+Building
+
+Floor
+
+Room Type
+
+Room Category
+
+Bed Type
+
+Amenities
+
+Pricing
+
+Rooms
+
+Each page must include
+
+Professional Table
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Create Dialog
+
+Edit Dialog
+
+Delete Confirmation
+
+Status Badge
+
+Action Menu
+
+Breadcrumb
+
+Loading State
+
+Empty State
+
+Error State
+
+====================================================
+ROOM DETAILS PAGE
+====================================================
+
+Display
+
+Gallery
+
+Basic Information
+
+Amenities
+
+Pricing
+
+Room Status
+
+Location
+
+Building
+
+Floor
+
+Capacity
+
+Room History Placeholder
+
+====================================================
+DASHBOARD
+====================================================
+
+Add widgets
+
+Total Hotels
+
+Total Branches
+
+Total Buildings
+
+Total Floors
+
+Total Rooms
+
+Rooms Available
+
+Rooms Occupied
+
+Rooms Under Maintenance
+
+Rooms Out of Service
+
+====================================================
+BACKEND API
+====================================================
+
+Generate REST APIs.
+
+GET
+
+POST
+
+PUT
+
+PATCH
+
+DELETE
+
+Document every endpoint using Swagger.
+
+====================================================
+DATABASE
+====================================================
+
+Generate
+
+Prisma Schema
+
+Migration
+
+Indexes
+
+Foreign Keys
+
+Seed Data
+
+====================================================
+SEED DATA
+====================================================
+
+Generate
+
+1 Hotel
+
+2 Branches
+
+3 Buildings
+
+10 Floors
+
+6 Room Types
+
+8 Room Categories
+
+7 Bed Types
+
+20 Amenities
+
+120 Rooms
+
+Generate realistic Ethiopian hotel sample data.
+
+====================================================
+SECURITY
+====================================================
+
+Protect all endpoints using JWT.
+
+Use RBAC.
+
+Only Administrator and Hotel Manager can modify hotel configuration.
+
+Read permission for Reservation Officer and Front Desk.
+
+====================================================
+CODING STANDARDS
+====================================================
+
+Follow SOLID.
+
+Clean Code.
+
+Repository Pattern.
+
+No business logic in controllers.
+
+Reusable components.
+
+Strong typing.
+
+Centralized exception handling.
+
+DTO validation.
+
+Audit logging.
+
+====================================================
+STOP CONDITION
+====================================================
+
+Complete this phase fully before moving to Reservation Management.
+
+Do NOT implement Reservation, Guest, Check-in, Check-out, Housekeeping, or Billing yet.
