@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (token: string, rawUser: any) => {
-    const role = rawUser.role || rawUser.roleName || "Admin";
+    const role = rawUser.roleName || rawUser.role || "Staff";
     const name = rawUser.name || `${rawUser.firstName || ''} ${rawUser.lastName || ''}`.trim() || rawUser.email;
     const normalized: User = {
       ...rawUser,

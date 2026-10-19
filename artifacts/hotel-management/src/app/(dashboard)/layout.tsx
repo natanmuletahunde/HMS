@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <div className="min-h-screen bg-bg" />;
   }
 
-  const currentRole = user?.role || (user as any)?.roleName || "Admin";
+  const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const authorized = isRouteAuthorized(currentRole, pathname);
 
   return (

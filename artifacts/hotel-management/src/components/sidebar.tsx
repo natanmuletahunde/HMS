@@ -16,7 +16,7 @@ import {
 import { Search as SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
-import { isRouteAuthorized } from "@/lib/rbac";
+import { isRouteAuthorized, getRoleInfo } from "@/lib/rbac";
 
 const NAV_GROUPS = [
   {
@@ -130,7 +130,8 @@ const NAV_GROUPS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const currentRole = user?.role || (user as any)?.roleName || "Admin";
+  const currentRole = user?.role || (user as any)?.roleName || "Staff";
+  const roleInfo = getRoleInfo(currentRole);
 
   // Filter navigation groups and items based on role authorization
   const filteredNavGroups = NAV_GROUPS.map((group) => {
@@ -151,8 +152,8 @@ export function Sidebar() {
           <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
         </div>
         <div className="mt-2 flex items-center">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-            {currentRole} Portal
+          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border", roleInfo.badgeClass)}>
+            {roleInfo.badge}
           </span>
         </div>
       </div>

@@ -10,7 +10,8 @@ import {
   BedDouble, Users, CalendarCheck, DollarSign, Wrench, Package, 
   UtensilsCrossed, Building2, GitBranch, Building, Layers,
   LogIn, LogOut, Sparkles, CheckCircle2, Clock, AlertTriangle, 
-  ArrowRight, ShoppingCart, ConciergeBell, CalendarDays, ShieldCheck
+  ArrowRight, ShoppingCart, ConciergeBell, CalendarDays, ShieldCheck,
+  BarChart2, TrendingUp, Users2
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#8b
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const currentRole = user?.role || (user as any)?.roleName || "Admin";
+  const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const roleCategory = normalizeRole(currentRole);
 
   if (roleCategory === "receptionist") {
@@ -44,8 +45,23 @@ export default function DashboardPage() {
     return <CashierDashboard currentRole={currentRole} />;
   }
 
-  // Admin and General Manager View
-  return <ExecutiveDashboard currentRole={currentRole} />;
+  if (roleCategory === "manager") {
+    return <ManagerDashboard currentRole={currentRole} />;
+  }
+
+  if (roleCategory === "accountant") {
+    return <AccountantDashboard currentRole={currentRole} />;
+  }
+
+  if (roleCategory === "storekeeper") {
+    return <StorekeeperDashboard currentRole={currentRole} />;
+  }
+
+  if (roleCategory === "admin") {
+    return <ExecutiveDashboard currentRole={currentRole} />;
+  }
+
+  return <StaffDashboard currentRole={currentRole} />;
 }
 
 // ============================================================================
@@ -608,7 +624,472 @@ function CashierDashboard({ currentRole }: { currentRole: string }) {
 }
 
 // ============================================================================
-// 5. EXECUTIVE / ADMIN / MANAGER DASHBOARD
+// 5. HOTEL GENERAL MANAGER DASHBOARD
+// ============================================================================
+function ManagerDashboard({ currentRole }: { currentRole: string }) {
+  const { data: arrivals = [] } = useQuery<any[]>({
+    queryKey: ["manager-arrivals"],
+    queryFn: () => apiFetch<any[]>("/reservations/today-arrivals").catch(() => []),
+  });
+
+  const { data: departures = [] } = useQuery<any[]>({
+    queryKey: ["manager-departures"],
+    queryFn: () => apiFetch<any[]>("/reservations/today-departures").catch(() => []),
+  });
+
+  const { data: inHouse = [] } = useQuery<any[]>({
+    queryKey: ["manager-inhouse"],
+    queryFn: () => apiFetch<any[]>("/reservations/in-house").catch(() => []),
+  });
+
+  const { data: roomsRes, isLoading: roomsLoading } = useQuery<any>({
+    queryKey: ["manager-rooms"],
+    queryFn: () => apiFetch<any>("/rooms?limit=150").catch(() => ({ data: [] })),
+  });
+
+  const { data: invoicesRes, isLoading: invLoading } = useQuery<any>({
+    queryKey: ["manager-invoices"],
+    queryFn: () => apiFetch<any>("/invoices?limit=50").catch(() => ({ data: [] })),
+  });
+
+  const { data: tickets = [] } = useQuery<any[]>({
+    queryKey: ["manager-tickets"],
+    queryFn: () => apiFetch<any[]>("/maintenance").catch(() => []),
+  });
+
+  const allRooms: any[] = roomsRes?.data || [];
+  const readyRooms = allRooms.filter((r) => r.status === "available" || r.status === "ready");
+  const dirtyRooms = allRooms.filter((r) => r.status === "dirty" || r.status === "cleaning");
+  const maintenanceRooms = allRooms.filter((r) => r.status === "maintenance" || r.status === "under_maintenance");
+  const occupiedRooms = allRooms.filter((r) => r.status === "occupied");
+
+  const totalRoomsCount = allRooms.length || 1;
+  const occupancyRate = Math.min(100, Math.round(((occupiedRooms.length || inHouse.length) / totalRoomsCount) * 100));
+
+  const allInvoices: any[] = invoicesRes?.data || [];
+  const paidTodayTotal = allInvoices
+    .filter((inv) => inv.status === "paid")
+    .reduce((sum, inv) => sum + (Number(inv.totalAmount) || Number(inv.total) || 0), 0);
+
+  const openTickets = tickets.filter((t) => t.status !== "completed" && t.status !== "closed");
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-text">Hotel General Management</h1>
+            <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/30">{currentRole}</Badge>
+          </div>
+          <p className="text-sm text-text-muted mt-1">
+            Real-time property occupancy, revenue generation, operational readiness, and departmental health.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="outline" className="gap-2">
+            <Link href="/reports">
+              <BarChart2 className="w-4 h-4" /> Reports & Audits
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="gap-2">
+            <Link href="/financial">
+              <DollarSign className="w-4 h-4" /> Financial Shifts
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Primary Management KPIs */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-indigo-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Property Occupancy Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            {roomsLoading ? <Skeleton className="h-8 w-16" /> : (
+              <div className="text-2xl font-bold text-text">{occupancyRate}%</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">{occupiedRooms.length || inHouse.length} of {allRooms.length} rooms occupied</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Settled Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            {invLoading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="text-2xl font-bold text-emerald-400">{paidTodayTotal.toLocaleString()} ETB</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">Collected from folios and billing</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-cyan-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Clean & Ready Inventory</CardTitle>
+            <Sparkles className="h-4 w-4 text-cyan-500" />
+          </CardHeader>
+          <CardContent>
+            {roomsLoading ? <Skeleton className="h-8 w-16" /> : (
+              <div className="text-2xl font-bold text-text">{readyRooms.length} Rooms</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">{dirtyRooms.length} in turnover, {maintenanceRooms.length} blocked</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Maintenance Work Orders</CardTitle>
+            <Wrench className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-text">{openTickets.length}</div>
+            <p className="text-xs text-text-muted mt-1">Active engineering interventions</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Department Quick Navigation */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {[
+          { title: "Front Office", desc: "Arrivals & Check-Ins", href: "/front-office", icon: Users },
+          { title: "Housekeeping", desc: "Room Turnaround", href: "/housekeeping", icon: Sparkles },
+          { title: "Maintenance", desc: "Work Order Queue", href: "/maintenance", icon: Wrench },
+          { title: "F&B & POS", desc: "Dining & Orders", href: "/restaurant", icon: UtensilsCrossed },
+          { title: "Financial Shift", desc: "Cash & Ledger", href: "/financial", icon: DollarSign },
+          { title: "Staff Roster", desc: "Employees & Shifts", href: "/employees", icon: Users2 },
+        ].map((item, i) => (
+          <Link key={i} href={item.href} className="p-3.5 rounded-xl border border-border bg-surface hover:border-primary/50 transition-all shadow-sm group">
+            <item.icon className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
+            <h3 className="font-semibold text-xs text-text">{item.title}</h3>
+            <p className="text-[11px] text-text-muted mt-0.5">{item.desc}</p>
+          </Link>
+        ))}
+      </div>
+
+      {/* Departmental Operational Status Matrix */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-surface border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              <span>Front Desk</span>
+              <Users className="w-4 h-4 text-emerald-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Expected Arrivals</span>
+              <span className="font-semibold">{arrivals.length}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Expected Departures</span>
+              <span className="font-semibold">{departures.length}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-text-muted">In-House Stays</span>
+              <span className="font-semibold text-emerald-400">{inHouse.length}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-surface border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              <span>Housekeeping</span>
+              <Sparkles className="w-4 h-4 text-cyan-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Clean & Inspected</span>
+              <span className="font-semibold text-success">{readyRooms.length}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Turnover Dirty</span>
+              <span className="font-semibold text-warning">{dirtyRooms.length}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-text-muted">Under Repair</span>
+              <span className="font-semibold text-destructive">{maintenanceRooms.length}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-surface border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              <span>Engineering</span>
+              <Wrench className="w-4 h-4 text-amber-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Open Tickets</span>
+              <span className="font-semibold">{openTickets.length}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Urgent Priority</span>
+              <span className="font-semibold text-destructive">{openTickets.filter(t => t.priority === "high").length}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-text-muted">Rooms Out of Service</span>
+              <span className="font-semibold">{maintenanceRooms.length}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-surface border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              <span>Finance & Shifts</span>
+              <DollarSign className="w-4 h-4 text-indigo-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-xs">
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Invoices Issued</span>
+              <span className="font-semibold">{allInvoices.length}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-border/50">
+              <span className="text-text-muted">Unsettled Folios</span>
+              <span className="font-semibold text-warning">{allInvoices.filter(i => i.status !== 'paid').length}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-text-muted">Collected Total</span>
+              <span className="font-semibold text-success">{paidTodayTotal.toLocaleString()} ETB</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 6. ACCOUNTANT & FINANCE DASHBOARD
+// ============================================================================
+function AccountantDashboard({ currentRole }: { currentRole: string }) {
+  const { data: invoicesRes, isLoading: invLoading } = useQuery<any>({
+    queryKey: ["accountant-invoices"],
+    queryFn: () => apiFetch<any>("/invoices?limit=50").catch(() => ({ data: [] })),
+  });
+
+  const invoices: any[] = invoicesRes?.data || [];
+  const paidInvoices = invoices.filter((i) => i.status === "paid");
+  const unpaidInvoices = invoices.filter((i) => i.status !== "paid");
+  const totalBilled = invoices.reduce((s, i) => s + (Number(i.totalAmount) || Number(i.total) || 0), 0);
+  const totalPaid = paidInvoices.reduce((s, i) => s + (Number(i.totalAmount) || Number(i.total) || 0), 0);
+  const totalOutstanding = unpaidInvoices.reduce((s, i) => s + (Number(i.totalAmount) || Number(i.total) || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-text">Finance & Accounting</h1>
+            <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">{currentRole}</Badge>
+          </div>
+          <p className="text-sm text-text-muted mt-1">General ledger, folio receivables, payment reconciliation, and tax auditing.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm">
+            <Link href="/financial">General Ledger</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/invoices">Invoices & Folios</Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-blue-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Total Invoiced</CardTitle>
+            <DollarSign className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            {invLoading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="text-2xl font-bold text-text">{totalBilled.toLocaleString()} ETB</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">{invoices.length} total guest folios</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Collected Revenue</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            {invLoading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="text-2xl font-bold text-emerald-400">{totalPaid.toLocaleString()} ETB</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">Paid in full ({paidInvoices.length} folios)</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-warning/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Outstanding Receivables</CardTitle>
+            <Clock className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            {invLoading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="text-2xl font-bold text-warning">{totalOutstanding.toLocaleString()} ETB</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">{unpaidInvoices.length} unpaid / pending folios</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">VAT Collected (15%)</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {invLoading ? <Skeleton className="h-8 w-24" /> : (
+              <div className="text-2xl font-bold text-text">{Math.round(totalPaid * 0.15).toLocaleString()} ETB</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">ERCA tax compliance buffer</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { title: "General Ledger", desc: "Shift closures, cash floats and ledger audit", href: "/financial", icon: DollarSign },
+          { title: "Folio Management", desc: "Guest billing, tax splits and line-item corrections", href: "/invoices", icon: BarChart2 },
+          { title: "Procurement Requisitions", desc: "Purchase order payments and vendor balances", href: "/procurement", icon: Package },
+        ].map((item, i) => (
+          <Link key={i} href={item.href} className="p-4 rounded-xl border border-border bg-surface hover:border-primary/50 transition-all shadow-sm group">
+            <item.icon className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
+            <h3 className="font-semibold text-sm text-text">{item.title}</h3>
+            <p className="text-xs text-text-muted mt-0.5">{item.desc}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 7. STOREKEEPER & INVENTORY DASHBOARD
+// ============================================================================
+function StorekeeperDashboard({ currentRole }: { currentRole: string }) {
+  const { data: alerts = [], isLoading } = useQuery<any[]>({
+    queryKey: ["storekeeper-alerts"],
+    queryFn: () => apiFetch<any[]>("/inventory/alerts").catch(() => []),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-text">Stores & Inventory Hub</h1>
+            <Badge className="bg-teal-500/10 text-teal-400 border-teal-500/30">{currentRole}</Badge>
+          </div>
+          <p className="text-sm text-text-muted mt-1">Stock levels, reorder thresholds, warehouse items, and purchase orders.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm">
+            <Link href="/inventory">Inventory Registry</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/procurement">Purchase Orders</Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-warning/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Low Stock Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-8 w-16" /> : (
+              <div className="text-2xl font-bold text-warning">{alerts.length} Items</div>
+            )}
+            <p className="text-xs text-text-muted mt-1">Below minimum par stock level</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-teal-500/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Inventory Master</CardTitle>
+            <Package className="h-4 w-4 text-teal-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-text">Stock Catalog</div>
+            <p className="text-xs text-text-muted mt-1">Housekeeping, F&B, Maintenance spares</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20 bg-surface">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-text-muted">Purchase Requisitions</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-text">Procurement</div>
+            <p className="text-xs text-text-muted mt-1">Supplier purchase orders queue</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 8. GENERAL STAFF DASHBOARD
+// ============================================================================
+function StaffDashboard({ currentRole }: { currentRole: string }) {
+  const { user } = useAuth();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-text">Staff Member Portal</h1>
+            <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/30">{currentRole}</Badge>
+          </div>
+          <p className="text-sm text-text-muted mt-1">
+            Welcome to Nexus HMS, {user?.name || "Staff Member"}. Your shift and active assignments.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="bg-surface border-border p-6">
+          <h3 className="font-semibold text-text mb-2">Staff Presence</h3>
+          <p className="text-sm text-text-muted mb-4">
+            Toggle your on-duty presence in the top navigation bar to let your supervisors know you are active on shift.
+          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Duty presence logging active (SRS Section 3.1.1)
+          </div>
+        </Card>
+
+        <Card className="bg-surface border-border p-6">
+          <h3 className="font-semibold text-text mb-2">Role Permissions Scope</h3>
+          <p className="text-sm text-text-muted">
+            You are signed in under the <span className="font-semibold text-primary">{currentRole}</span> role. You only have access to modules authorized for your responsibilities.
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 9. SYSTEM ADMINISTRATOR EXECUTIVE DASHBOARD
 // ============================================================================
 function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
   const today = new Date();
