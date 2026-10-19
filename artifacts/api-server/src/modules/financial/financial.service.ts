@@ -299,4 +299,66 @@ export class FinancialService {
 
     return rows.map((r) => ({ ...r, total: parseFloat(r.total) }));
   }
+
+  // ── Task 2.4: General Ledger & Standard Chart of Accounts ────────────────
+  async getGeneralLedger() {
+    const rows = await db
+      .select({
+        category: transactionsTable.category,
+        type: transactionsTable.transactionType,
+        total: sql<string>`coalesce(sum(amount), 0)`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(transactionsTable)
+      .where(eq(transactionsTable.isActive, true))
+      .groupBy(transactionsTable.category, transactionsTable.transactionType);
+
+    // Standard HMS Chart of Accounts (Task 2.4)
+    const accounts = [
+      { code: '1010', name: 'Operating Cash & Till', type: 'Asset', normalBalance: 'Debit', balance: 0 },
+      { code: '1020', name: 'Bank Account (CBE / Telebirr)', type: 'Asset', normalBalance: 'Debit', balance: 0 },
+      { code: '1200', name: 'Accounts Receivable (Guest Folios)', type: 'Asset', normalBalance: 'Debit', balance: 0 },
+      { code: '2020', name: 'Output VAT Payable (15%)', type: 'Liability', normalBalance: 'Credit', balance: 0 },
+      { code: '2050', name: 'Guest Deposits Held', type: 'Liability', normalBalance: 'Credit', balance: 0 },
+      { code: '4010', name: 'Room Accommodation Revenue', type: 'Revenue', normalBalance: 'Credit', balance: 0 },
+      { code: '4020', name: 'Food & Beverage Revenue (Restaurant/POS)', type: 'Revenue', normalBalance: 'Credit', balance: 0 },
+      { code: '4030', name: 'Room Service & Minibar Revenue', type: 'Revenue', normalBalance: 'Credit', balance: 0 },
+      { code: '4040', name: 'Conference & Events Revenue', type: 'Revenue', normalBalance: 'Credit', balance: 0 },
+      { code: '5010', name: 'Inventory & Consumable Expenses', type: 'Expense', normalBalance: 'Debit', balance: 0 },
+      { code: '5020', name: 'Maintenance & Repairs Expenses', type: 'Expense', normalBalance: 'Debit', balance: 0 },
+      { code: '5030', name: 'Staff Payroll & Operations Expenses', type: 'Expense', normalBalance: 'Debit', balance: 0 },
+    ];
+
+    for (const r of rows) {
+      const amt = parseFloat(r.total);
+      if (r.category === 'room_charges' || r.category === 'room_revenue') {
+        const acc = accounts.find((a) => a.code === '4010');
+        if (acc) acc.balance += amt;
+      } else if (r.category === 'restaurant_sales' || r.category === 'pos_sales') {
+        const acc = accounts.find((a) => a.code === '4020');
+        if (acc) acc.balance += amt;
+      } else if (r.category === 'room_service') {
+        const acc = accounts.find((a) => a.code === '4030');
+        if (acc) acc.balance += amt;
+      } else if (r.category === 'conference') {
+        const acc = accounts.find((a) => a.code === '4040');
+        if (acc) acc.balance += amt;
+      } else if (r.type === 'expense' && r.category === 'maintenance') {
+        const acc = accounts.find((a) => a.code === '5020');
+        if (acc) acc.balance += amt;
+      } else if (r.type === 'expense') {
+        const acc = accounts.find((a) => a.code === '5010');
+        if (acc) acc.balance += amt;
+      }
+
+      if (r.type === 'revenue') {
+        const cashAcc = accounts.find((a) => a.code === '1010');
+        if (cashAcc) cashAcc.balance += amt * 0.85; // Net cash
+        const vatAcc = accounts.find((a) => a.code === '2020');
+        if (vatAcc) vatAcc.balance += amt * 0.15; // 15% VAT
+      }
+    }
+
+    return accounts;
+  }
 }

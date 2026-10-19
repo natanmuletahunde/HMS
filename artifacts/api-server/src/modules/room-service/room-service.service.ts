@@ -7,6 +7,9 @@ import {
   guestsTable,
   roomsTable,
   usersTable,
+  invoicesTable,
+  invoiceLineItemsTable,
+  reservationsTable,
 } from '@workspace/db';
 
 const rsCols = getTableColumns(roomServiceRequestsTable);
@@ -186,6 +189,44 @@ export class RoomServiceService {
       .where(eq(roomServiceRequestsTable.id, id))
       .returning();
     if (!req) throw new NotFoundException(`Room service request ${id} not found`);
+
+    // Automatic Folio Billing when order is completed & charged to room
+    if (req.status === 'completed' && req.chargeToRoom && parseFloat(req.chargeAmount || '0') > 0 && req.guestId) {
+      // Find open or draft invoice for guest or reservation
+      const [invoice] = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.guestId, req.guestId),
+            or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+          ),
+        )
+        .orderBy(desc(invoicesTable.createdAt))
+        .limit(1);
+
+      if (invoice) {
+        const amountToAdd = parseFloat(req.chargeAmount || '0');
+        await db.insert(invoiceLineItemsTable).values({
+          invoiceId: invoice.id,
+          description: `Room Service Order #${req.requestNumber} (${req.serviceType})`,
+          quantity: '1',
+          unitPrice: String(amountToAdd.toFixed(2)),
+          total: String(amountToAdd.toFixed(2)),
+        });
+
+        const newSubtotal = parseFloat(invoice.subtotal || '0') + amountToAdd;
+        const newTotal = parseFloat(invoice.totalAmount || '0') + amountToAdd;
+
+        await db
+          .update(invoicesTable)
+          .set({
+            subtotal: String(newSubtotal.toFixed(2)),
+            totalAmount: String(newTotal.toFixed(2)),
+          })
+          .where(eq(invoicesTable.id, invoice.id));
+      }
+    }
 
     const [row] = await base().where(eq(roomServiceRequestsTable.id, id));
     return fmt(row);

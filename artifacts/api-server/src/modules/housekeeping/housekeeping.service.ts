@@ -125,8 +125,14 @@ export class HousekeepingService {
       .returning();
     if (!h) throw new NotFoundException(`Housekeeping task ${id} not found`);
 
-    if ((h.status === 'completed' || (h.status as string) === 'inspected') && h.roomId) {
-      await db.update(roomsTable).set({ status: 'available' }).where(eq(roomsTable.id, h.roomId));
+    if (h.roomId) {
+      if (h.status === 'in_progress') {
+        await db.update(roomsTable).set({ status: 'cleaning' }).where(eq(roomsTable.id, h.roomId));
+      } else if (h.status === 'ready_for_inspection') {
+        await db.update(roomsTable).set({ status: 'ready' }).where(eq(roomsTable.id, h.roomId));
+      } else if (h.status === 'completed' || (h.status as string) === 'inspected') {
+        await db.update(roomsTable).set({ status: 'available' }).where(eq(roomsTable.id, h.roomId));
+      }
     }
 
     const [row] = await base().where(eq(housekeepingAssignmentsTable.id, id));

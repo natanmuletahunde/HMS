@@ -69,7 +69,7 @@ const TXN_TYPE_BADGE: Record<string, string> = {
   transfer: "secondary",
 };
 
-type TabType = "dashboard" | "transactions" | "registers" | "credit-notes";
+type TabType = "dashboard" | "transactions" | "registers" | "credit-notes" | "ledger";
 
 export default function FinancialPage() {
   const { toast } = useToast();
@@ -97,6 +97,22 @@ export default function FinancialPage() {
     queryFn: () => apiFetch<FinancialDashboard>("/financial/dashboard"),
     enabled: tab === "dashboard",
   });
+
+  const { data: ledgerAccounts = [], isLoading: ledgerLoading } = useQuery<
+    Array<{ code: string; name: string; type: string; normalBalance: string; balance: number }>
+  >({
+    queryKey: ["general-ledger"],
+    queryFn: () => apiFetch<any>("/financial/general-ledger"),
+    enabled: tab === "ledger",
+  });
+
+  const TABS: { key: TabType; label: string }[] = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "ledger", label: "General Ledger (COA)" },
+    { key: "transactions", label: "Transactions" },
+    { key: "registers", label: "Cash Registers" },
+    { key: "credit-notes", label: "Credit Notes" },
+  ];
 
   const txnParams = new URLSearchParams();
   if (txnType !== "all") txnParams.set("transactionType", txnType);
@@ -156,13 +172,6 @@ export default function FinancialPage() {
     onSuccess: () => { invalidate(["credit-notes"]); setIsNewCNOpen(false); toast({ title: "Credit note created" }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
-
-  const TABS: { key: TabType; label: string }[] = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "transactions", label: "Transactions" },
-    { key: "registers", label: "Cash Registers" },
-    { key: "credit-notes", label: "Credit Notes" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -282,6 +291,77 @@ export default function FinancialPage() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* GENERAL LEDGER TAB (TASK 2.4) */}
+      {tab === "ledger" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Standard Hotel Chart of Accounts & General Ledger (SRS §3.13 / §4.6)</CardTitle>
+              <p className="text-xs text-text-muted">
+                Real-time posting verifying double-entry rules: Room Accommodation (4010), F&B (4020), Operating Cash (1010), and 15% Output VAT (2020).
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[120px]">Account Code</TableHead>
+                    <TableHead>Account Name</TableHead>
+                    <TableHead>Classification</TableHead>
+                    <TableHead>Normal Balance</TableHead>
+                    <TableHead className="text-right">Current Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ledgerLoading ? (
+                    [...Array(6)].map((_, i) => (
+                      <TableRow key={i}>
+                        {[...Array(5)].map((__, j) => (
+                          <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : ledgerAccounts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-text-muted">
+                        No general ledger accounts found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ledgerAccounts.map((acc) => (
+                      <TableRow key={acc.code} className="hover:bg-muted/30">
+                        <TableCell className="font-mono font-semibold text-primary">{acc.code}</TableCell>
+                        <TableCell className="font-medium">{acc.name}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              acc.type === "Asset"
+                                ? "info"
+                                : acc.type === "Revenue"
+                                ? "success"
+                                : acc.type === "Expense"
+                                ? "danger"
+                                : "outline"
+                            }
+                            className="text-[10px] uppercase"
+                          >
+                            {acc.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-text-muted">{acc.normalBalance}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          ${Number(acc.balance).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 

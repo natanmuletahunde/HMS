@@ -250,6 +250,49 @@ export class ProcurementService {
     if (b.status === 'confirmed' && b.approvedBy) u.approvedAt = new Date();
     const [order] = await db.update(purchaseOrdersTable).set(u).where(eq(purchaseOrdersTable.id, id)).returning();
     if (!order) throw new NotFoundException(`Purchase order ${id} not found`);
+
+    // Auto-receive goods into inventory if PO is marked as completed or received
+    if (['completed', 'received'].includes(b.status)) {
+      const orderItems = await db
+        .select()
+        .from(purchaseOrderItemsTable)
+        .where(eq(purchaseOrderItemsTable.orderId, id));
+
+      for (const item of orderItems) {
+        const qty = parseFloat(item.quantityOrdered as string);
+        if (item.itemId && qty > 0) {
+          const [invItem] = await db
+            .select()
+            .from(inventoryItemsTable)
+            .where(eq(inventoryItemsTable.id, item.itemId));
+
+          if (invItem) {
+            const prevStock = parseFloat(invItem.currentStock as string);
+            const newStock = prevStock + qty;
+            const reorderLevel = parseFloat(invItem.reorderLevel ?? '0');
+            const status = newStock <= 0 ? 'out_of_stock' : newStock <= reorderLevel ? 'low_stock' : 'active';
+
+            await db.insert(stockMovementsTable).values({
+              itemId: item.itemId,
+              movementType: 'stock_in',
+              quantity: String(qty),
+              previousStock: String(prevStock),
+              newStock: String(newStock),
+              unitCost: item.unitPrice ? String(item.unitPrice) : null,
+              referenceType: 'purchase_order',
+              referenceId: order.id,
+              notes: `Auto stock-in from PO ${order.poNumber}`,
+            });
+
+            await db
+              .update(inventoryItemsTable)
+              .set({ currentStock: String(newStock), status })
+              .where(eq(inventoryItemsTable.id, item.itemId));
+          }
+        }
+      }
+    }
+
     return {
       ...order,
       subtotal: parseFloat(order.subtotal ?? '0'),

@@ -45,4 +45,7 @@ export class FinancialController {
 
   @Get('expense-summary')
   getExpenseSummary(@Query() q: any) { return this.svc.getExpenseSummary(q); }
+
+  @Get('general-ledger')
+  getGeneralLedger() { return this.svc.getGeneralLedger(); }
 }
