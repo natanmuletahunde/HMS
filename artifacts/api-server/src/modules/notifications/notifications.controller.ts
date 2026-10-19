@@ -59,4 +59,16 @@ export class NotificationsController {
   markRead(@Param('id') id: string) {
     return this.svc.markRead(id);
   }
+
+  @Post('send-sms')
+  @HttpCode(200)
+  sendSms(@Body() b: any) {
+    return this.svc.sendSms(b);
+  }
+
+  @Post('send-email')
+  @HttpCode(200)
+  sendEmail(@Body() b: any) {
+    return this.svc.sendEmail(b);
+  }
 }

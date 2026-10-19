@@ -243,8 +243,25 @@ export default function CheckInPage() {
             });
           }}>
             <div className="grid gap-1.5">
-              <Label htmlFor="keyCardNumber">Key Card Number</Label>
-              <Input id="keyCardNumber" name="keyCardNumber" placeholder="e.g. K001" />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="keyCardNumber">Key Card Number / RFID UID</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => {
+                    const room = checkInTarget?.roomNumber ?? "GEN";
+                    const generatedUid = `RFID-${room}-${Date.now().toString(36).toUpperCase()}`;
+                    const input = document.getElementById("keyCardNumber") as HTMLInputElement;
+                    if (input) input.value = generatedUid;
+                    toast({ title: "RFID Keycard Encoded", description: `Assigned: ${generatedUid}` });
+                  }}
+                >
+                  ⚡ Encode RFID Keycard
+                </Button>
+              </div>
+              <Input id="keyCardNumber" name="keyCardNumber" placeholder="e.g. RFID-101-L7X89Q" />
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">

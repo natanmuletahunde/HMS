@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { CheckinService } from './checkin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -24,5 +24,10 @@ export class CheckinController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any) {
     return this.svc.update(id, body);
+  }
+
+  @Post(':id/encode-keycard')
+  encodeKeycard(@Param('id') id: string, @Body() body: any) {
+    return this.svc.encodeKeycard(id, body ?? {});
   }
 }

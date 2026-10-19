@@ -88,8 +88,31 @@ export default function InvoicesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{new Date(inv.dueDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon">
+                  <TableCell className="flex items-center gap-1 justify-end">
+                    {inv.status !== 'paid' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={async () => {
+                          const res = await apiFetch<any>("/payments/initialize", {
+                            method: "POST",
+                            body: JSON.stringify({
+                              invoiceId: inv.id,
+                              amount: inv.total - inv.paid,
+                              email: "guest@example.com",
+                              firstName: inv.guestName?.split(" ")[0] || "Guest",
+                              lastName: inv.guestName?.split(" ")[1] || "Stay",
+                              paymentMethod: "telebirr",
+                            }),
+                          });
+                          window.open(res.checkoutUrl, "_blank");
+                        }}
+                      >
+                        Pay Online
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
                       <Download className="h-4 w-4" />
                     </Button>
                   </TableCell>
