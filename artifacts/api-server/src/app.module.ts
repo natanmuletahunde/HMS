@@ -79,7 +79,7 @@ import { BiModule } from './modules/bi/bi.module';
   ],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: process.env.RATE_LIMIT ? parseInt(process.env.RATE_LIMIT, 10) : 10000 }]),
     HealthModule,
     AuthModule,
     UsersModule,
