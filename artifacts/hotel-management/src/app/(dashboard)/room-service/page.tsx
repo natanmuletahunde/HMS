@@ -103,6 +103,11 @@ export default function RoomServicePage() {
   const [cancelRequest, setCancelRequest] = useState<RoomServiceRequest | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
+  const [formRoom, setFormRoom] = useState("");
+  const [formGuest, setFormGuest] = useState("");
+  const [formAmount, setFormAmount] = useState("750");
+  const [formDesc, setFormDesc] = useState("Traditional Doro Wat Feast + Mineral Water");
+
   const queryParams = new URLSearchParams({
     ...(statusTab !== "all" ? { status: statusTab } : {}),
     ...(search ? { search } : {}),
@@ -113,6 +118,11 @@ export default function RoomServicePage() {
   const { data: dashboard, isLoading: dashLoading } = useQuery<RoomServiceDashboard>({
     queryKey: ["room-service-dashboard"],
     queryFn: () => apiFetch<RoomServiceDashboard>("/room-service/dashboard"),
+  });
+
+  const { data: inHouseGuests = [] } = useQuery<any[]>({
+    queryKey: ["room-service-inhouse-guests"],
+    queryFn: () => apiFetch<any[]>("/reservations/in-house").catch(() => []),
   });
 
   const { data: requests = [], isLoading } = useQuery<RoomServiceRequest[]>({
@@ -249,7 +259,22 @@ export default function RoomServicePage() {
               ))
             ) : requests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-text-muted">No requests found.</TableCell>
+                <TableCell colSpan={9} className="h-28 text-center text-text-muted">
+                  <div className="flex flex-col items-center justify-center gap-2 py-4">
+                    <p className="text-sm">{search ? `No room service orders found matching "${search}".` : "No room service orders found."}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => {
+                        if (search) setFormRoom(search);
+                        setIsNewOpen(true);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Place Order {search ? `for Room ${search}` : ""}
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ) : (
               requests.map((req) => (
@@ -324,19 +349,64 @@ export default function RoomServicePage() {
             if (body.chargeAmount) body.chargeAmount = Number(body.chargeAmount);
             createMutation.mutate(body);
           }}>
+            {/* Quick Pick In-House Active Guest */}
+            {inHouseGuests.length > 0 && (
+              <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg space-y-1.5">
+                <Label className="text-xs font-semibold text-primary">⚡ Quick Fill From Checked-In Guest:</Label>
+                <select
+                  className="w-full h-9 rounded-md border border-border bg-surface px-2.5 text-xs font-medium"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const sel = inHouseGuests.find((g: any) => (g.roomNumber || g.roomName) === e.target.value);
+                    if (sel) {
+                      const rNum = (sel.roomNumber || sel.roomName || '').replace(/[^0-9]/g, '');
+                      setFormRoom(rNum);
+                      const gName = (sel.guestFirstName && sel.guestLastName) 
+                        ? `${sel.guestFirstName} ${sel.guestLastName}`.trim() 
+                        : (sel.guestName || "Dr. Dawit Alene");
+                      setFormGuest(gName);
+                    }
+                  }}
+                >
+                  <option value="">-- Click to select active in-house guest --</option>
+                  {inHouseGuests.map((g: any) => {
+                    const rNum = g.roomNumber || g.roomName || "102";
+                    const gName = (g.guestFirstName && g.guestLastName) 
+                      ? `${g.guestFirstName} ${g.guestLastName}`.trim() 
+                      : (g.guestName || "Guest");
+                    return (
+                      <option key={g.id} value={rNum}>
+                        Room {rNum} — {gName} (Checked-In)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label>Room Number *</Label>
-                <Input name="roomNumber" required placeholder="e.g. 101" />
+                <Input 
+                  name="roomNumber" 
+                  required 
+                  placeholder="e.g. 102" 
+                  value={formRoom} 
+                  onChange={(e) => setFormRoom(e.target.value)} 
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label>Guest Name</Label>
-                <Input name="guestName" placeholder="Guest name" />
+                <Input 
+                  name="guestName" 
+                  placeholder="Dr. Dawit Alene" 
+                  value={formGuest} 
+                  onChange={(e) => setFormGuest(e.target.value)} 
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label>Service Type *</Label>
-                <select name="serviceType" required className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                  <option value="">Select type</option>
+                <select name="serviceType" defaultValue="food" required className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
                   {SERVICE_TYPES.map((st) => (
                     <option key={st.value} value={st.value}>{st.emoji} {st.label}</option>
                   ))}
@@ -352,25 +422,38 @@ export default function RoomServicePage() {
                 </select>
               </div>
               <div className="grid gap-1.5 col-span-2">
-                <Label>Description</Label>
-                <textarea name="description" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+                <Label>Order Description</Label>
+                <textarea 
+                  name="description" 
+                  rows={2} 
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" 
+                />
               </div>
               <div className="grid gap-1.5 col-span-2">
                 <Label>Special Instructions</Label>
-                <textarea name="specialInstructions" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+                <textarea name="specialInstructions" placeholder="Deliver warm to room" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
               </div>
               <div className="grid gap-1.5">
-                <Label>Charge Amount</Label>
-                <Input name="chargeAmount" type="number" step="0.01" placeholder="0.00" />
+                <Label>Charge Amount (ETB)</Label>
+                <Input 
+                  name="chargeAmount" 
+                  type="number" 
+                  step="0.01" 
+                  placeholder="750.00" 
+                  value={formAmount}
+                  onChange={(e) => setFormAmount(e.target.value)}
+                />
               </div>
               <div className="flex items-center gap-2 pt-6">
-                <input type="checkbox" id="chargeToRoom" name="chargeToRoom" className="h-4 w-4" />
-                <label htmlFor="chargeToRoom" className="text-sm">Charge to Room</label>
+                <input type="checkbox" id="chargeToRoom" name="chargeToRoom" defaultChecked className="h-4 w-4" />
+                <label htmlFor="chargeToRoom" className="text-sm font-medium">Charge to Room Folio</label>
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Request
+              Create Room Service Request
             </Button>
           </form>
         </DialogContent>
