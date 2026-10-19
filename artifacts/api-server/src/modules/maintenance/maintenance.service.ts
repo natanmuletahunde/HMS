@@ -56,13 +56,14 @@ export class MaintenanceService {
       .from(maintenanceRequestsTable)
       .groupBy(maintenanceRequestsTable.priority);
 
-    const s: any = { total: 0, pending: 0, approved: 0, assigned: 0, inProgress: 0, waitingParts: 0, completed: 0 };
+    const s: any = { total: 0, pending: 0, approved: 0, assigned: 0, inProgress: 0, waitingParts: 0, underInspection: 0, completed: 0 };
     for (const r of statusRows) {
       if (r.status === 'pending') s.pending = r.count;
       else if (r.status === 'approved') s.approved = r.count;
       else if (r.status === 'assigned') s.assigned = r.count;
       else if (r.status === 'in_progress') s.inProgress = r.count;
       else if (r.status === 'waiting_parts') s.waitingParts = r.count;
+      else if (r.status === 'under_inspection' || r.status === 'inspected') s.underInspection = (s.underInspection || 0) + r.count;
       else if (r.status === 'completed') s.completed = r.count;
       s.total += r.count;
     }
@@ -163,8 +164,12 @@ export class MaintenanceService {
       .returning();
     if (!m) throw new NotFoundException(`Maintenance request ${id} not found`);
 
-    if ((m.status === 'completed' || m.status === 'cancelled') && m.roomId) {
-      await db.update(roomsTable).set({ status: 'available' }).where(eq(roomsTable.id, m.roomId));
+    if (m.roomId) {
+      if (['approved', 'assigned', 'in_progress', 'under_inspection'].includes(m.status)) {
+        await db.update(roomsTable).set({ status: 'maintenance' }).where(eq(roomsTable.id, m.roomId));
+      } else if (['completed', 'cancelled'].includes(m.status)) {
+        await db.update(roomsTable).set({ status: 'available' }).where(eq(roomsTable.id, m.roomId));
+      }
     }
 
     const [row] = await base().where(eq(maintenanceRequestsTable.id, id));

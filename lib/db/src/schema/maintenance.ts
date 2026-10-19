@@ -18,7 +18,7 @@ export type MaintenancePriority = (typeof maintenancePriorityEnum)[number];
 
 export const maintenanceStatusEnum = [
   "pending","approved","assigned","in_progress","waiting_parts",
-  "completed","rejected","cancelled",
+  "under_inspection","inspected","completed","rejected","cancelled",
 ] as const;
 export type MaintenanceStatus = (typeof maintenanceStatusEnum)[number];
 

@@ -29,6 +29,7 @@ type User = {
   role?: string;
   roleName?: string | null;
   isActive: boolean;
+  isOnDuty?: boolean;
 };
 
 type Role = {
@@ -157,20 +158,21 @@ export default function UsersPage() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Duty Status</TableHead>
+              <TableHead>Account Status</TableHead>
               <TableHead className="w-[80px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" />
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-text-muted">
+                <TableCell colSpan={6} className="h-24 text-center text-text-muted">
                   No users found. Click "Add User" to create one.
                 </TableCell>
               </TableRow>
@@ -178,6 +180,7 @@ export default function UsersPage() {
               filtered.map((user) => {
                 const displayName = user.name || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email;
                 const displayRole = user.roleName || user.role || "Staff";
+                const isOnDuty = user.isOnDuty !== false;
 
                 return (
                   <TableRow key={user.id}>
@@ -187,6 +190,20 @@ export default function UsersPage() {
                       <Badge variant="outline" className="capitalize">
                         {displayRole}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusMutation.mutate({ id: user.id, isActive: user.isActive, ...({ isOnDuty: !isOnDuty } as any) })}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                          isOnDuty
+                            ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-slate-500/15 text-slate-400 border-slate-500/30 hover:bg-slate-500/25"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${isOnDuty ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                        {isOnDuty ? "ON DUTY" : "OFF DUTY"}
+                      </button>
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.isActive ? 'success' : 'muted'} className="uppercase text-[10px]">

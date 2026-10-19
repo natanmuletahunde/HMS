@@ -63,7 +63,7 @@ export class UsersService {
 
   async update(id: string, body: any) {
     const updates: any = {};
-    for (const k of ['firstName', 'lastName', 'phone', 'roleId', 'isActive']) {
+    for (const k of ['firstName', 'lastName', 'phone', 'roleId', 'isActive', 'isOnDuty']) {
       if (body[k] !== undefined) updates[k] = body[k];
     }
     // Enforce password policy if password is being changed

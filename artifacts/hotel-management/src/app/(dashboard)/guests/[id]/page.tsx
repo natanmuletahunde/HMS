@@ -147,7 +147,7 @@ export default function GuestProfilePage() {
             <InfoRow label="ID Type" value={guest.idType} />
             <InfoRow label="ID Number" value={guest.idNumber} />
             <InfoRow label="Passport Number" value={guest.passportNumber} />
-            <InfoRow label="National ID" value={guest.nationalId} />
+            <InfoRow label="National ID / Fayida ID" value={guest.nationalId} />
             <InfoRow label="Visa Number" value={guest.visaNumber} />
           </CardContent>
         </Card>

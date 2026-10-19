@@ -9,12 +9,14 @@ type User = {
   name: string;
   email: string;
   role: string;
+  isOnDuty?: boolean;
 };
 
 type AuthContextType = {
   user: User | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  toggleOnDuty: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 };
@@ -56,8 +58,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
+  const toggleOnDuty = () => {
+    if (!user) return;
+    const nextState = user.isOnDuty === false ? true : false;
+    const updated = { ...user, isOnDuty: nextState };
+    localStorage.setItem("hms_user", JSON.stringify(updated));
+    setUser(updated);
+    if (user.id) {
+      apiFetch(`/users/${user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isOnDuty: nextState }),
+      }).catch(() => {});
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, toggleOnDuty, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

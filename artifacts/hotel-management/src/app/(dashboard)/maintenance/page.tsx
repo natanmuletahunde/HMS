@@ -44,14 +44,15 @@ type MaintenanceDashboard = {
 type MaintenanceCategory = { id: string; name: string };
 type Room = { id: string; roomNumber?: string; number?: string; roomName?: string };
 
-const STATUS_TABS = ["all", "pending", "approved", "in_progress", "waiting_parts", "completed"] as const;
+const STATUS_TABS = ["all", "pending", "approved", "assigned", "in_progress", "under_inspection", "completed"] as const;
 const STATUS_TAB_LABELS: Record<string, string> = {
   all: "All",
-  pending: "Pending",
-  approved: "Approved",
-  in_progress: "In Progress",
-  waiting_parts: "Waiting Parts",
-  completed: "Completed",
+  pending: "1. Requested / Pending",
+  approved: "2. Approved",
+  assigned: "3. Assigned",
+  in_progress: "4. In Repair",
+  under_inspection: "5. Inspection",
+  completed: "6. Completed",
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -60,6 +61,8 @@ const STATUS_BADGE: Record<string, string> = {
   assigned: "secondary",
   in_progress: "warning",
   waiting_parts: "info",
+  under_inspection: "info",
+  inspected: "info",
   completed: "success",
   rejected: "danger",
   cancelled: "danger",
@@ -84,6 +87,8 @@ export default function MaintenancePage() {
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [rejectItem, setRejectItem] = useState<MaintenanceRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [inspectItem, setInspectItem] = useState<MaintenanceRequest | null>(null);
+  const [inspectNotes, setInspectNotes] = useState("");
 
   const queryParams = new URLSearchParams({
     ...(statusTab !== "all" ? { status: statusTab } : {}),
@@ -126,6 +131,21 @@ export default function MaintenancePage() {
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       apiFetch(`/maintenance/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => { invalidate(); toast({ title: "Request updated" }); },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const inspectMutation = useMutation({
+    mutationFn: ({ requestId, result, notes }: { requestId: string; result: "passed" | "failed"; notes?: string }) =>
+      apiFetch(`/maintenance/inspections`, {
+        method: "POST",
+        body: JSON.stringify({ requestId, result, notes }),
+      }),
+    onSuccess: () => {
+      invalidate();
+      setInspectItem(null);
+      setInspectNotes("");
+      toast({ title: "Inspection recorded successfully" });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -280,24 +300,27 @@ export default function MaintenancePage() {
                         <DropdownMenuContent align="end">
                           {req.status === "pending" && (
                             <>
-                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "approved" } })}>Approve</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "approved" } })}>1→2. Approve Request</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setRejectItem(req)}>Reject</DropdownMenuItem>
                             </>
                           )}
                           {req.status === "approved" && (
-                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "assigned" } })}>Assign Technician</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "assigned" } })}>2→3. Assign Technician</DropdownMenuItem>
                           )}
                           {req.status === "assigned" && (
-                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>Start Repair</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>3→4. Start Repair</DropdownMenuItem>
                           )}
                           {req.status === "in_progress" && (
                             <>
-                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "completed" } })}>Mark Completed</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "under_inspection" } })}>4→5. Submit for Inspection</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "waiting_parts" } })}>Waiting Parts</DropdownMenuItem>
                             </>
                           )}
                           {req.status === "waiting_parts" && (
-                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>Resume</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>Resume Repair</DropdownMenuItem>
+                          )}
+                          {req.status === "under_inspection" && (
+                            <DropdownMenuItem onClick={() => { setInspectItem(req); setInspectNotes(""); }}>5→6. Conduct Inspection</DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -392,6 +415,64 @@ export default function MaintenancePage() {
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setRejectItem(null)}>Cancel</Button>
               <Button variant="destructive" className="flex-1" onClick={handleRejectSubmit}>Reject</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 6-Stage Pipeline: Inspection Sign-off Dialog */}
+      <Dialog open={!!inspectItem} onOpenChange={(o) => !o && setInspectItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Stage 5 &bull; Quality Inspection Sign-off</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-text-muted">
+              Request: <span className="font-semibold text-text">{inspectItem?.title}</span> (#{inspectItem?.requestNumber})
+              <br />
+              Room: <span className="font-semibold text-text">{inspectItem?.roomNumber ?? "General Facility"}</span>
+            </p>
+            <div className="grid gap-1.5">
+              <Label>Supervisor / Inspector Findings</Label>
+              <textarea
+                rows={3}
+                value={inspectNotes}
+                onChange={(e) => setInspectNotes(e.target.value)}
+                placeholder="Notes regarding repair quality, test run, or parts replaced..."
+                className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-warning/50 text-warning hover:bg-warning/10"
+                disabled={inspectMutation.isPending}
+                onClick={() => {
+                  if (!inspectItem) return;
+                  inspectMutation.mutate({
+                    requestId: inspectItem.id,
+                    result: "failed",
+                    notes: inspectNotes || "Failed inspection - rework required",
+                  });
+                }}
+              >
+                Failed (Return to Repair)
+              </Button>
+              <Button
+                className="flex-1 bg-success hover:bg-success/90 text-white"
+                disabled={inspectMutation.isPending}
+                onClick={() => {
+                  if (!inspectItem) return;
+                  inspectMutation.mutate({
+                    requestId: inspectItem.id,
+                    result: "passed",
+                    notes: inspectNotes || "Passed inspection - approved for room release",
+                  });
+                }}
+              >
+                {inspectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Pass & Complete (Stage 6)
+              </Button>
             </div>
           </div>
         </DialogContent>

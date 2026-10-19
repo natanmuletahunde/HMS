@@ -22,7 +22,7 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: any }[] = [
 ];
 
 export function Topbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, toggleOnDuty } = useAuth();
   const { locale, setLocale } = useLocaleContext();
   const [currentTheme, setCurrentThemeState] = useState<Theme>(() =>
     typeof window !== "undefined" ? getStoredTheme() : "dark"
@@ -36,11 +36,29 @@ export function Topbar() {
   const currentLocale = LOCALES.find(l => l.code === locale);
   const currentThemeOpt = THEME_OPTIONS.find(t => t.value === currentTheme) ?? THEME_OPTIONS[0];
   const ThemeIcon = currentThemeOpt.icon;
+  const isOnDuty = user?.isOnDuty !== false;
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-surface border-b border-border sticky top-0 z-10">
       <div className="flex items-center gap-4">
-        {/* Breadcrumbs / search placeholder */}
+        {/* Staff Working Presence ON/OFF Indicator */}
+        <button
+          type="button"
+          onClick={toggleOnDuty}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+            isOnDuty
+              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+              : "bg-slate-500/10 text-slate-400 border-slate-500/30 hover:bg-slate-500/20"
+          }`}
+          title="Click to toggle staff presence (SRS 3.1.1)"
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              isOnDuty ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+            }`}
+          />
+          <span>{isOnDuty ? "ON DUTY" : "OFF DUTY"}</span>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">

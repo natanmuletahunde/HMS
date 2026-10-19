@@ -15,6 +15,7 @@ export const checkinsTable = pgTable("checkins", {
   depositAmount: numeric("deposit_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   keyCardNumber: text("key_card_number"),
   registrationCardGenerated: boolean("registration_card_generated").notNull().default(false),
+  digitalSignature: text("digital_signature"),
   // Personnel
   checkedInBy: text("checked_in_by"),
   notes: text("notes"),

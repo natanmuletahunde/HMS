@@ -97,7 +97,7 @@ export class CheckinService {
   }
 
   async update(id: string, body: any) {
-    const allowed = ['keyCardNumber', 'identityVerified', 'depositCollected', 'depositAmount', 'registrationCardGenerated', 'checkedInBy', 'notes'];
+    const allowed = ['keyCardNumber', 'identityVerified', 'depositCollected', 'depositAmount', 'registrationCardGenerated', 'digitalSignature', 'checkedInBy', 'notes'];
     const u: any = {};
     for (const k of allowed) if (body[k] !== undefined) u[k] = body[k];
     const [c] = await db.update(checkinsTable).set(u).where(eq(checkinsTable.id, id)).returning();

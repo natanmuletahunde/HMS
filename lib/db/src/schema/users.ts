@@ -14,6 +14,7 @@ export const usersTable = pgTable("users", {
   roleId: text("role_id").notNull().references(() => rolesTable.id),
   // null = platform admin (can access all tenants)
   tenantId: text("tenant_id"),
+  isOnDuty: boolean("is_on_duty").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

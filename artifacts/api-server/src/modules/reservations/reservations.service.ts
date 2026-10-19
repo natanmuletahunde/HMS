@@ -252,6 +252,8 @@ export class ReservationsService {
       depositCollected?: boolean;
       depositAmount?: number;
       identityVerified?: boolean;
+      registrationCardGenerated?: boolean;
+      digitalSignature?: string;
       checkedInBy?: string;
       notes?: string;
     },
@@ -281,6 +283,8 @@ export class ReservationsService {
       depositCollected: body.depositCollected ?? false,
       depositAmount: body.depositAmount != null ? String(body.depositAmount) : '0',
       identityVerified: body.identityVerified ?? false,
+      registrationCardGenerated: body.registrationCardGenerated ?? false,
+      digitalSignature: body.digitalSignature,
       checkedInBy: body.checkedInBy,
       notes: body.notes,
     });

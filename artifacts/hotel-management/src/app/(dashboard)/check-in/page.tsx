@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { DigitalSignaturePad } from "@/components/digital-signature-pad";
 
 type Reservation = {
   id: string;
@@ -32,6 +33,7 @@ type CheckInRecord = {
   identityVerified?: boolean;
   depositAmount?: number;
   keyCardNumber?: string;
+  digitalSignature?: string | null;
   createdAt?: string;
 };
 
@@ -53,6 +55,7 @@ export default function CheckInPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"arrivals" | "records">("arrivals");
   const [checkInTarget, setCheckInTarget] = useState<Reservation | null>(null);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
 
   const { data: arrivals = [], isLoading: arrivalsLoading } = useQuery<Reservation[]>({
     queryKey: ["today-arrivals"],
@@ -72,6 +75,7 @@ export default function CheckInPage() {
       queryClient.invalidateQueries({ queryKey: ["today-arrivals"] });
       queryClient.invalidateQueries({ queryKey: ["checkin-records"] });
       setCheckInTarget(null);
+      setSignatureData(null);
       toast({ title: "Guest checked in successfully" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -165,6 +169,7 @@ export default function CheckInPage() {
                 <TableHead>Identity Verified</TableHead>
                 <TableHead>Deposit</TableHead>
                 <TableHead>Key Card</TableHead>
+                <TableHead>Signature</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
@@ -172,12 +177,12 @@ export default function CheckInPage() {
               {recordsLoading ? (
                 [...Array(4)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(7)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
+                    {[...Array(8)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                   </TableRow>
                 ))
               ) : records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-text-muted">No check-in records.</TableCell>
+                  <TableCell colSpan={8} className="h-24 text-center text-text-muted">No check-in records.</TableCell>
                 </TableRow>
               ) : records.map((r) => (
                 <TableRow key={r.id}>
@@ -191,6 +196,17 @@ export default function CheckInPage() {
                   </TableCell>
                   <TableCell>${Number(r.depositAmount ?? 0).toFixed(2)}</TableCell>
                   <TableCell>{r.keyCardNumber ?? "—"}</TableCell>
+                  <TableCell>
+                    {r.digitalSignature ? (
+                      <img
+                        src={r.digitalSignature}
+                        alt="Signature"
+                        className="h-7 max-w-[80px] object-contain rounded border border-border/50 bg-white p-0.5"
+                      />
+                    ) : (
+                      <span className="text-xs text-text-muted italic">None</span>
+                    )}
+                  </TableCell>
                   <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}</TableCell>
                 </TableRow>
               ))}
@@ -200,8 +216,8 @@ export default function CheckInPage() {
       )}
 
       {/* Check-in Dialog */}
-      <Dialog open={!!checkInTarget} onOpenChange={(o) => !o && setCheckInTarget(null)}>
-        <DialogContent>
+      <Dialog open={!!checkInTarget} onOpenChange={(o) => { if (!o) { setCheckInTarget(null); setSignatureData(null); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Check In — {checkInTarget?.guestName}</DialogTitle>
           </DialogHeader>
@@ -220,6 +236,7 @@ export default function CheckInPage() {
                 depositAmount: fd.get("depositAmount") ? Number(fd.get("depositAmount")) : undefined,
                 identityVerified: fd.get("identityVerified") === "on",
                 registrationCardGenerated: fd.get("registrationCardGenerated") === "on",
+                digitalSignature: signatureData || undefined,
                 checkedInBy: fd.get("checkedInBy") || undefined,
                 notes: fd.get("notes") || undefined,
               },
@@ -232,7 +249,7 @@ export default function CheckInPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="identityVerified" name="identityVerified" className="h-4 w-4" defaultChecked />
-                <label htmlFor="identityVerified" className="text-sm">Identity Verified</label>
+                <label htmlFor="identityVerified" className="text-sm">Identity Verified (Fayida / National ID / Passport)</label>
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="depositCollected" name="depositCollected" className="h-4 w-4" />
@@ -251,9 +268,16 @@ export default function CheckInPage() {
               <Label htmlFor="checkedInBy">Checked In By</Label>
               <Input id="checkedInBy" name="checkedInBy" placeholder="Staff name" />
             </div>
+
+            {/* Digital Signature Component */}
+            <div className="grid gap-1.5">
+              <Label>Guest Digital Signature</Label>
+              <DigitalSignaturePad onSave={(sig) => setSignatureData(sig)} />
+            </div>
+
             <div className="grid gap-1.5">
               <Label htmlFor="notes">Notes</Label>
-              <textarea name="notes" rows={3} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+              <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
             </div>
             <Button type="submit" className="w-full" disabled={checkInMutation.isPending}>
               {checkInMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

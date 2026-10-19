@@ -188,29 +188,30 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> }) 
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Identity</h3>
+        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Identity (Fayida / National ID)</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="idType">ID Type</Label>
             <select name="idType" defaultValue={defaultValues?.idType ?? ""} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
               <option value="">Select</option>
-              <option value="passport">Passport</option>
+              <option value="fayida_id">Fayida ID (Ethiopian National ID)</option>
               <option value="national_id">National ID</option>
+              <option value="passport">Passport</option>
               <option value="driver_license">Driver License</option>
               <option value="visa">Visa</option>
             </select>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="idNumber">ID Number</Label>
-            <Input id="idNumber" name="idNumber" defaultValue={defaultValues?.idNumber} />
+            <Label htmlFor="idNumber">ID / Document Number</Label>
+            <Input id="idNumber" name="idNumber" defaultValue={defaultValues?.idNumber} placeholder="Document ID" />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="passportNumber">Passport Number</Label>
             <Input id="passportNumber" name="passportNumber" defaultValue={defaultValues?.passportNumber} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="nationalId">National ID</Label>
-            <Input id="nationalId" name="nationalId" defaultValue={defaultValues?.nationalId} />
+            <Label htmlFor="nationalId">National ID / Fayida ID (FIN / FAN)</Label>
+            <Input id="nationalId" name="nationalId" defaultValue={defaultValues?.nationalId} placeholder="e.g. FIN-12345678" />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="visaNumber">Visa Number</Label>
