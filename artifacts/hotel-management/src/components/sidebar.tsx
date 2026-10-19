@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Search as SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth-provider";
+import { isRouteAuthorized } from "@/lib/rbac";
 
 const NAV_GROUPS = [
   {
@@ -124,18 +126,39 @@ const NAV_GROUPS = [
   },
 ];
 
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const currentRole = user?.role || (user as any)?.roleName || "Admin";
+
+  // Filter navigation groups and items based on role authorization
+  const filteredNavGroups = NAV_GROUPS.map((group) => {
+    const authorizedItems = group.items.filter((item) =>
+      isRouteAuthorized(currentRole, item.href)
+    );
+    return {
+      ...group,
+      items: authorizedItems,
+    };
+  }).filter((group) => group.items.length > 0);
 
   return (
     <aside className="w-64 flex flex-col bg-surface border-r border-border h-screen sticky top-0 overflow-y-auto">
-      <div className="flex h-16 shrink-0 items-center px-6 border-b border-border">
-        <BedDouble className="h-6 w-6 text-primary mr-3" />
-        <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
+      <div className="flex flex-col justify-center px-6 py-4 border-b border-border">
+        <div className="flex items-center">
+          <BedDouble className="h-6 w-6 text-primary mr-3" />
+          <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
+        </div>
+        <div className="mt-2 flex items-center">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+            {currentRole} Portal
+          </span>
+        </div>
       </div>
       
       <div className="flex-1 py-6 px-4 space-y-8">
-        {NAV_GROUPS.map((group) => (
+        {filteredNavGroups.map((group) => (
           <div key={group.title}>
             <h4 className="px-2 mb-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
               {group.title}

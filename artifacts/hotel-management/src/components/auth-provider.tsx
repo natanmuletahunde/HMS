@@ -44,10 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (token: string, user: User) => {
+  const login = (token: string, rawUser: any) => {
+    const role = rawUser.role || rawUser.roleName || "Admin";
+    const name = rawUser.name || `${rawUser.firstName || ''} ${rawUser.lastName || ''}`.trim() || rawUser.email;
+    const normalized: User = {
+      ...rawUser,
+      role,
+      roleName: role,
+      name,
+    };
     localStorage.setItem("hms_token", token);
-    localStorage.setItem("hms_user", JSON.stringify(user));
-    setUser(user);
+    localStorage.setItem("hms_user", JSON.stringify(normalized));
+    setUser(normalized);
     router.push("/dashboard");
   };
 
