@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, MoreHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Employee = {
   id: string;
@@ -88,6 +89,20 @@ export default function EmployeesPage() {
     queryKey: ["employees", search, deptFilter, empTypeFilter],
     queryFn: () => apiFetch<Employee[]>(`/employees?${params}`),
   });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedEmployees,
+    onPrev,
+    onNext,
+    setCurrentPage,
+  } = usePagination(employees, 5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, deptFilter, empTypeFilter, setCurrentPage]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -316,41 +331,51 @@ export default function EmployeesPage() {
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center text-text-muted">No employees found.</TableCell>
               </TableRow>
-            ) : employees.map((emp) => (
-              <TableRow key={emp.id} className="hover:bg-muted/30">
-                <TableCell className="font-mono text-xs">{emp.employeeCode ?? "—"}</TableCell>
-                <TableCell className="font-medium">{getFullName(emp)}</TableCell>
-                <TableCell>{emp.department ?? "—"}</TableCell>
-                <TableCell>{emp.position ?? "—"}</TableCell>
-                <TableCell className="capitalize text-xs">{emp.employmentType?.replace(/_/g, " ") ?? "—"}</TableCell>
-                <TableCell>{emp.phone ?? "—"}</TableCell>
-                <TableCell className="text-xs text-text-muted">
-                  {emp.hiredAt ? new Date(emp.hiredAt).toLocaleDateString() : "—"}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={(EMP_STATUS_BADGE[emp.status ?? ""] ?? "muted") as any} className="text-[10px] uppercase">
-                    {(emp.status ?? "—").replace(/_/g, " ")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setEditEmployee(emp)}>Edit</DropdownMenuItem>
-                      {emp.status !== "inactive" && (
-                        <DropdownMenuItem className="text-danger" onClick={() => deactivateMutation.mutate(emp.id)}>Deactivate</DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+            ) : (
+              paginatedEmployees.map((emp) => (
+                <TableRow key={emp.id} className="hover:bg-muted/30">
+                  <TableCell className="font-mono text-xs">{emp.employeeCode ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{getFullName(emp)}</TableCell>
+                  <TableCell>{emp.department ?? "—"}</TableCell>
+                  <TableCell>{emp.position ?? "—"}</TableCell>
+                  <TableCell className="capitalize text-xs">{emp.employmentType?.replace(/_/g, " ") ?? "—"}</TableCell>
+                  <TableCell>{emp.phone ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-text-muted">
+                    {emp.hiredAt ? new Date(emp.hiredAt).toLocaleDateString() : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={(EMP_STATUS_BADGE[emp.status ?? ""] ?? "muted") as any} className="text-[10px] uppercase">
+                      {(emp.status ?? "—").replace(/_/g, " ")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditEmployee(emp)}>Edit</DropdownMenuItem>
+                        {emp.status !== "inactive" && (
+                          <DropdownMenuItem className="text-danger" onClick={() => deactivateMutation.mutate(emp.id)}>Deactivate</DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* Add Employee Dialog */}

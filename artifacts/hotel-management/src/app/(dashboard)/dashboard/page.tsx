@@ -16,11 +16,12 @@ import {
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { normalizeRole } from "@/lib/rbac";
+import { usePagination } from "@/hooks/use-pagination";
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#8b5cf6','#14b8a6'];
 
@@ -90,6 +91,7 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
 
   const allRooms = roomsRes?.data || [];
   const availableRooms = allRooms.filter((r: any) => r.status === "available" || r.status === "ready");
+  const arrivalsPagination = usePagination(arrivals, 5);
 
   return (
     <div className="space-y-6">
@@ -204,36 +206,39 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
               No pending arrivals remaining for today. All guests checked in or advance bookings scheduled.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Guest Name</TableHead>
-                  <TableHead>Assigned Room</TableHead>
-                  <TableHead>Stay Window</TableHead>
-                  <TableHead>Deposit</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {arrivals.map((res: any) => (
-                  <TableRow key={res.id}>
-                    <TableCell className="font-medium">{res.guestName || "Guest"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">Room {res.roomNumber || res.roomId || "Unassigned"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-text-muted">
-                      {res.checkInDate} to {res.checkOutDate}
-                    </TableCell>
-                    <TableCell className="text-xs">{res.totalAmount ? `${res.totalAmount} ETB` : "Guaranteed"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href="/check-in">Check In</Link>
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Guest Name</TableHead>
+                    <TableHead>Assigned Room</TableHead>
+                    <TableHead>Stay Window</TableHead>
+                    <TableHead>Deposit</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {arrivalsPagination.paginatedItems.map((res: any) => (
+                    <TableRow key={res.id}>
+                      <TableCell className="font-medium">{res.guestName || "Guest"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">Room {res.roomNumber || res.roomId || "Unassigned"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-text-muted">
+                        {res.checkInDate} to {res.checkOutDate}
+                      </TableCell>
+                      <TableCell className="text-xs">{res.totalAmount ? `${res.totalAmount} ETB` : "Guaranteed"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href="/check-in">Check In</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination {...arrivalsPagination} pageSize={5} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -255,6 +260,7 @@ function HousekeepingDashboard({ currentRole }: { currentRole: string }) {
   const inProgressRooms = rooms.filter((r) => r.status === "cleaning");
   const readyRooms = rooms.filter((r) => r.status === "available" || r.status === "ready");
   const maintenanceRooms = rooms.filter((r) => r.status === "maintenance" || r.status === "under_maintenance");
+  const dirtyPagination = usePagination(dirtyRooms, 5);
 
   return (
     <div className="space-y-6">
@@ -340,34 +346,37 @@ function HousekeepingDashboard({ currentRole }: { currentRole: string }) {
               All guest rooms are sanitized and ready. No pending dirty turnarounds.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Room Number</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Current Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dirtyRooms.slice(0, 6).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-bold text-primary">Room {r.number}</TableCell>
-                    <TableCell>{r.roomTypeName || "Standard"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-destructive border-destructive/20">
-                        {r.status.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild size="sm">
-                        <Link href="/housekeeping">Start Cleaning</Link>
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Room Number</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Current Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {dirtyPagination.paginatedItems.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-bold text-primary">Room {r.number}</TableCell>
+                      <TableCell>{r.roomTypeName || "Standard"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-destructive border-destructive/20">
+                          {r.status.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm">
+                          <Link href="/housekeeping">Start Cleaning</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination {...dirtyPagination} pageSize={5} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -388,6 +397,7 @@ function MaintenanceDashboard({ currentRole }: { currentRole: string }) {
   const inProgress = tickets.filter((t) => t.status === "assigned" || t.status === "in_progress");
   const highPriority = tickets.filter((t) => t.priority === "high" || t.priority === "critical");
   const verified = tickets.filter((t) => t.status === "verified" || t.status === "completed");
+  const ticketsPagination = usePagination(tickets, 5);
 
   return (
     <div className="space-y-6">
@@ -473,40 +483,43 @@ function MaintenanceDashboard({ currentRole }: { currentRole: string }) {
               All hotel equipment and rooms in peak condition. Zero open maintenance tickets.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Location / Room</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tickets.slice(0, 6).map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="font-semibold">{t.roomNumber ? `Room ${t.roomNumber}` : "General Area"}</TableCell>
-                    <TableCell>{t.title}</TableCell>
-                    <TableCell className="uppercase text-xs">{t.category}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={t.priority === "high" ? "text-destructive border-destructive/20" : ""}>
-                        {t.priority}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="muted">{t.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href="/maintenance">Inspect</Link>
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Location / Room</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {ticketsPagination.paginatedItems.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-semibold">{t.roomNumber ? `Room ${t.roomNumber}` : "General Area"}</TableCell>
+                      <TableCell>{t.title}</TableCell>
+                      <TableCell className="uppercase text-xs">{t.category}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={t.priority === "high" ? "text-destructive border-destructive/20" : ""}>
+                          {t.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="muted">{t.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href="/maintenance">Inspect</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination {...ticketsPagination} pageSize={5} />
+            </>
           )}
         </CardContent>
       </Card>

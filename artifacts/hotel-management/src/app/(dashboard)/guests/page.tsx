@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -270,7 +270,7 @@ export default function GuestsPage() {
   const [guestType, setGuestType] = useState("all");
   const [vipOnly, setVipOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const limit = 20;
+  const limit = 5;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
@@ -494,19 +494,14 @@ export default function GuestsPage() {
       </div>
 
       {/* Pagination */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-text-muted">
-          <span>Page {meta.page} of {meta.totalPages} ({meta.total} total)</span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page <= 1}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= (meta.totalPages ?? 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        currentPage={page}
+        totalPages={meta?.totalPages || 1}
+        totalItems={meta?.total}
+        pageSize={5}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(meta?.totalPages || 1, p + 1))}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={!!editGuest} onOpenChange={(o) => !o && setEditGuest(null)}>

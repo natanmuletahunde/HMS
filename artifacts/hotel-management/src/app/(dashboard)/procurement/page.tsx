@@ -7,13 +7,14 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Supplier = {
   id: string;
@@ -196,6 +197,11 @@ export default function ProcurementPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const suppliersPagination = usePagination(suppliers, 5);
+  const requestsPagination = usePagination(purchaseRequests, 5);
+  const ordersPagination = usePagination(purchaseOrders, 5);
+  const receiptsPagination = usePagination(goodsReceipts, 5);
+
   const TABS: { key: TabType; label: string }[] = [
     { key: "suppliers", label: "Suppliers" },
     { key: "requests", label: "Purchase Requests" },
@@ -315,7 +321,7 @@ export default function ProcurementPage() {
                   ))
                 ) : suppliers.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="h-24 text-center text-text-muted">No suppliers found.</TableCell></TableRow>
-                ) : suppliers.map((s) => (
+                ) : suppliersPagination.paginatedItems.map((s) => (
                   <TableRow key={s.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{s.supplierCode}</TableCell>
                     <TableCell className="font-medium">{s.companyName}</TableCell>
@@ -350,6 +356,7 @@ export default function ProcurementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...suppliersPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -391,7 +398,7 @@ export default function ProcurementPage() {
                   ))
                 ) : purchaseRequests.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="h-24 text-center text-text-muted">No requests found.</TableCell></TableRow>
-                ) : purchaseRequests.map((pr) => (
+                ) : requestsPagination.paginatedItems.map((pr) => (
                   <TableRow key={pr.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{pr.requestNumber}</TableCell>
                     <TableCell>{pr.department ?? "—"}</TableCell>
@@ -435,6 +442,7 @@ export default function ProcurementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...requestsPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -476,7 +484,7 @@ export default function ProcurementPage() {
                   ))
                 ) : purchaseOrders.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="h-24 text-center text-text-muted">No orders found.</TableCell></TableRow>
-                ) : purchaseOrders.map((po) => (
+                ) : ordersPagination.paginatedItems.map((po) => (
                   <TableRow key={po.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{po.orderNumber}</TableCell>
                     <TableCell>{po.supplierName ?? "—"}</TableCell>
@@ -515,6 +523,7 @@ export default function ProcurementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...ordersPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -540,7 +549,7 @@ export default function ProcurementPage() {
                 ))
               ) : goodsReceipts.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="h-24 text-center text-text-muted">No receipts found.</TableCell></TableRow>
-              ) : goodsReceipts.map((gr) => (
+              ) : receiptsPagination.paginatedItems.map((gr) => (
                 <TableRow key={gr.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{gr.receiptNumber}</TableCell>
                   <TableCell className="font-mono text-xs">{gr.orderNumber ?? "—"}</TableCell>
@@ -558,6 +567,7 @@ export default function ProcurementPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination {...receiptsPagination} pageSize={5} />
         </div>
       )}
 

@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Notification = {
   id: string;
@@ -90,6 +91,8 @@ export default function NotificationsPage() {
     queryFn: () => apiFetch<NotificationTemplate[]>("/notifications/templates"),
     enabled: tab === "templates",
   });
+
+  const templatesPagination = usePagination(templates, 5);
 
   const markAllReadMutation = useMutation({
     mutationFn: () => apiFetch("/notifications/read-all", { method: "PATCH", body: JSON.stringify({ userId }) }),
@@ -270,7 +273,7 @@ export default function NotificationsPage() {
                 ))
               ) : templates.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="h-24 text-center text-text-muted">No templates found.</TableCell></TableRow>
-              ) : templates.map((t) => (
+              ) : templatesPagination.paginatedItems.map((t) => (
                 <TableRow key={t.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{t.code ?? "—"}</TableCell>
                   <TableCell className="font-medium">{t.name ?? "—"}</TableCell>
@@ -288,6 +291,7 @@ export default function NotificationsPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination {...templatesPagination} pageSize={5} />
         </div>
       )}
 

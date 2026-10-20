@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination 
 } from "@/components/ui/table";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Invoice = {
   id: string;
@@ -34,6 +35,15 @@ export default function InvoicesPage() {
     (i.invoiceNo ?? '').toLowerCase().includes(search.toLowerCase()) || 
     (i.guestName ?? '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const {
+    paginatedItems: paginatedInvoices,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(filtered, 5);
 
   return (
     <div className="space-y-6">
@@ -76,7 +86,7 @@ export default function InvoicesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((inv) => (
+              paginatedInvoices.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell className="font-mono text-xs font-medium">{inv.invoiceNo}</TableCell>
                   <TableCell>{inv.guestName}</TableCell>
@@ -121,6 +131,14 @@ export default function InvoicesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

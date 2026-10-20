@@ -6,12 +6,13 @@ import { Plus, MoreHorizontal, Loader2, BedDouble } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function RoomTypesPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -23,6 +24,15 @@ export default function RoomTypesPage() {
     queryKey: ["room-types"],
     queryFn: () => apiFetch<any[]>("/room-types"),
   });
+
+  const {
+    paginatedItems: paginatedTypes,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(types, 5);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -136,7 +146,7 @@ export default function RoomTypesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              types.map((type) => (
+              paginatedTypes.map((type) => (
                 <TableRow key={type.id}>
                   <TableCell className="font-medium">{type.name}</TableCell>
                   <TableCell>{type.maximumAdults || type.capacity}</TableCell>
@@ -161,6 +171,14 @@ export default function RoomTypesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

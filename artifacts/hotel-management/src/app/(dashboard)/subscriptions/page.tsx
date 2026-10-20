@@ -2,6 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { CreditCard, Check, Zap, Building2, Users, BedDouble, HardDrive } from "lucide-react";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const PLAN_ICONS: Record<string, string> = { trial: "🧪", basic: "⭐", professional: "🚀", enterprise: "🏢" };
 const PLAN_COLORS: Record<string, string> = {
@@ -33,6 +35,7 @@ export default function SubscriptionsPage() {
   const { data: plans = [] } = useQuery<any[]>({ queryKey: ["subscription-plans"], queryFn: () => apiFetch("/subscriptions/plans") as Promise<any[]> });
   const { data: current } = useQuery<any>({ queryKey: ["subscription-current"], queryFn: () => apiFetch("/subscriptions/current") as Promise<any> });
   const { data: history = [] } = useQuery<any[]>({ queryKey: ["subscription-history"], queryFn: () => apiFetch("/subscriptions/history") as Promise<any[]> });
+  const pagination = usePagination(history, 5);
 
   const activate = useMutation({
     mutationFn: (planCode: string) => apiFetch("/subscriptions/activate", {
@@ -140,7 +143,7 @@ export default function SubscriptionsPage() {
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {history.map((h: any) => (
+              {pagination.paginatedItems.map((h: any) => (
                 <tr key={h.subscription?.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3 font-medium">{h.plan?.name}</td>
                   <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-primary/15 text-primary">{h.subscription?.status}</span></td>
@@ -151,6 +154,7 @@ export default function SubscriptionsPage() {
               ))}
             </tbody>
           </table>
+          <TablePagination {...pagination} pageSize={5} />
         </div>
       )}
     </div>

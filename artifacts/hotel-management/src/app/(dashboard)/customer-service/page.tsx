@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -147,6 +148,10 @@ export default function CustomerServicePage() {
     enabled: !!viewComplaint?.id,
   });
 
+  const recentOpenPagination = usePagination(dashboard?.recentOpen ?? [], 5);
+  const categoryBreakdownPagination = usePagination(dashboard?.categoryBreakdown ?? [], 5);
+  const complaintsPagination = usePagination(complaints, 5);
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["cs-complaints"] });
     queryClient.invalidateQueries({ queryKey: ["cs-dashboard"] });
@@ -261,7 +266,7 @@ export default function CustomerServicePage() {
                     ))
                   ) : (dashboard?.recentOpen ?? []).length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="h-16 text-center text-text-muted">No open complaints</TableCell></TableRow>
-                  ) : (dashboard?.recentOpen ?? []).map((c) => (
+                  ) : recentOpenPagination.paginatedItems.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono text-xs">{c.complaintNumber ?? c.id.slice(0, 8)}</TableCell>
                       <TableCell>{c.guestName ?? "—"}</TableCell>
@@ -277,6 +282,14 @@ export default function CustomerServicePage() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={recentOpenPagination.currentPage}
+                totalPages={recentOpenPagination.totalPages}
+                totalItems={recentOpenPagination.totalItems}
+                pageSize={5}
+                onPrev={recentOpenPagination.onPrev}
+                onNext={recentOpenPagination.onNext}
+              />
             </CardContent>
           </Card>
 
@@ -292,7 +305,7 @@ export default function CustomerServicePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(dashboard?.categoryBreakdown ?? []).map((c, i) => (
+                    {categoryBreakdownPagination.paginatedItems.map((c, i) => (
                       <TableRow key={i}>
                         <TableCell className="capitalize">{c.category?.replace(/_/g, " ")}</TableCell>
                         <TableCell className="text-right font-bold">{c.count}</TableCell>
@@ -300,6 +313,14 @@ export default function CustomerServicePage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  currentPage={categoryBreakdownPagination.currentPage}
+                  totalPages={categoryBreakdownPagination.totalPages}
+                  totalItems={categoryBreakdownPagination.totalItems}
+                  pageSize={5}
+                  onPrev={categoryBreakdownPagination.onPrev}
+                  onNext={categoryBreakdownPagination.onNext}
+                />
               </CardContent>
             </Card>
           )}
@@ -369,7 +390,7 @@ export default function CustomerServicePage() {
                   ))
                 ) : complaints.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="h-24 text-center text-text-muted">No complaints found.</TableCell></TableRow>
-                ) : complaints.map((c) => (
+                ) : complaintsPagination.paginatedItems.map((c) => (
                   <TableRow key={c.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{c.complaintNumber ?? c.id.slice(0, 8)}</TableCell>
                     <TableCell>{c.guestName ?? "—"}</TableCell>
@@ -401,6 +422,14 @@ export default function CustomerServicePage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={complaintsPagination.currentPage}
+              totalPages={complaintsPagination.totalPages}
+              totalItems={complaintsPagination.totalItems}
+              pageSize={5}
+              onPrev={complaintsPagination.onPrev}
+              onNext={complaintsPagination.onNext}
+            />
           </div>
         </div>
       )}

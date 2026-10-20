@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type ConferenceDashboard = {
   totalHalls: number;
@@ -181,6 +182,10 @@ export default function ConferencePage() {
     ? calendarData.find(c => c.date === selectedCalDay)?.bookings ?? []
     : [];
 
+  const upcomingBookingsPagination = usePagination(dashboard?.upcomingBookings ?? [], 5);
+  const bookingsPagination = usePagination(bookings, 5);
+  const selectedDayBookingsPagination = usePagination(selectedDayBookings, 5);
+
   const TABS: { key: TabType; label: string }[] = [
     { key: "dashboard", label: "Dashboard" },
     { key: "halls", label: "Halls" },
@@ -255,7 +260,7 @@ export default function ConferencePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboard.upcomingBookings.slice(0, 5).map((b) => (
+                    {upcomingBookingsPagination.paginatedItems.map((b) => (
                       <TableRow key={b.id}>
                         <TableCell className="font-mono text-xs">{b.bookingNumber}</TableCell>
                         <TableCell>{b.hallName ?? "—"}</TableCell>
@@ -271,6 +276,14 @@ export default function ConferencePage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  currentPage={upcomingBookingsPagination.currentPage}
+                  totalPages={upcomingBookingsPagination.totalPages}
+                  totalItems={upcomingBookingsPagination.totalItems}
+                  pageSize={5}
+                  onPrev={upcomingBookingsPagination.onPrev}
+                  onNext={upcomingBookingsPagination.onNext}
+                />
               </CardContent>
             </Card>
           )}
@@ -357,7 +370,7 @@ export default function ConferencePage() {
                   ))
                 ) : bookings.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="h-24 text-center text-text-muted">No bookings found.</TableCell></TableRow>
-                ) : bookings.map((b) => (
+                ) : bookingsPagination.paginatedItems.map((b) => (
                   <TableRow key={b.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{b.bookingNumber}</TableCell>
                     <TableCell>{b.hallName ?? "—"}</TableCell>
@@ -391,6 +404,14 @@ export default function ConferencePage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={bookingsPagination.currentPage}
+              totalPages={bookingsPagination.totalPages}
+              totalItems={bookingsPagination.totalItems}
+              pageSize={5}
+              onPrev={bookingsPagination.onPrev}
+              onNext={bookingsPagination.onNext}
+            />
           </div>
         </div>
       )}
@@ -443,34 +464,44 @@ export default function ConferencePage() {
                     {selectedDayBookings.length === 0 ? (
                       <p className="p-4 text-sm text-text-muted">No events on this day.</p>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Booking #</TableHead>
-                            <TableHead>Hall</TableHead>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Event</TableHead>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedDayBookings.map((b) => (
-                            <TableRow key={b.id}>
-                              <TableCell className="font-mono text-xs">{b.bookingNumber}</TableCell>
-                              <TableCell>{b.hallName ?? "—"}</TableCell>
-                              <TableCell>{b.customerName ?? "—"}</TableCell>
-                              <TableCell>{b.eventName ?? "—"}</TableCell>
-                              <TableCell className="text-xs">{b.startTime ?? "—"}</TableCell>
-                              <TableCell>
-                                <Badge variant={(BOOKING_STATUS_BADGE[b.status] ?? "muted") as any} className="text-[10px] capitalize">
-                                  {b.status}
-                                </Badge>
-                              </TableCell>
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Booking #</TableHead>
+                              <TableHead>Hall</TableHead>
+                              <TableHead>Customer</TableHead>
+                              <TableHead>Event</TableHead>
+                              <TableHead>Time</TableHead>
+                              <TableHead>Status</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedDayBookingsPagination.paginatedItems.map((b) => (
+                              <TableRow key={b.id}>
+                                <TableCell className="font-mono text-xs">{b.bookingNumber}</TableCell>
+                                <TableCell>{b.hallName ?? "—"}</TableCell>
+                                <TableCell>{b.customerName ?? "—"}</TableCell>
+                                <TableCell>{b.eventName ?? "—"}</TableCell>
+                                <TableCell className="text-xs">{b.startTime ?? "—"}</TableCell>
+                                <TableCell>
+                                  <Badge variant={(BOOKING_STATUS_BADGE[b.status] ?? "muted") as any} className="text-[10px] capitalize">
+                                    {b.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <TablePagination
+                          currentPage={selectedDayBookingsPagination.currentPage}
+                          totalPages={selectedDayBookingsPagination.totalPages}
+                          totalItems={selectedDayBookingsPagination.totalItems}
+                          pageSize={5}
+                          onPrev={selectedDayBookingsPagination.onPrev}
+                          onNext={selectedDayBookingsPagination.onNext}
+                        />
+                      </>
                     )}
                   </CardContent>
                 </Card>

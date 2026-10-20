@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type HRDashboard = {
   totalEmployees: number;
@@ -203,6 +204,14 @@ export default function HRPage() {
     return e.name ?? (`${e.firstName ?? ""} ${e.lastName ?? ""}`.trim() || (e.employeeCode ?? e.id));
   }
 
+  const deptList = dashboard?.departmentBreakdown ?? departments.map(d => ({ department: d.name, count: d.employeeCount ?? 0, manager: d.manager }));
+  const deptBreakdownPagination = usePagination(deptList, 5);
+  const attendancePagination = usePagination(attendance, 5);
+  const leavesPagination = usePagination(leaves, 5);
+  const shiftsPagination = usePagination(shifts, 5);
+  const shiftAssignmentsPagination = usePagination(shiftAssignments, 5);
+  const reviewsPagination = usePagination(performanceReviews, 5);
+
   function invalidate(keys: string[]) {
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   }
@@ -341,7 +350,7 @@ export default function HRPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(dashboard?.departmentBreakdown ?? departments.map(d => ({ department: d.name, count: d.employeeCount ?? 0, manager: d.manager }))).map((d, i) => (
+                  {deptBreakdownPagination.paginatedItems.map((d, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-medium">{d.department}</TableCell>
                       <TableCell className="text-right">{d.count}</TableCell>
@@ -350,6 +359,14 @@ export default function HRPage() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={deptBreakdownPagination.currentPage}
+                totalPages={deptBreakdownPagination.totalPages}
+                totalItems={deptBreakdownPagination.totalItems}
+                pageSize={5}
+                onPrev={deptBreakdownPagination.onPrev}
+                onNext={deptBreakdownPagination.onNext}
+              />
             </CardContent>
           </Card>
         </div>
@@ -405,7 +422,7 @@ export default function HRPage() {
                   ))
                 ) : attendance.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="h-24 text-center text-text-muted">No attendance records found.</TableCell></TableRow>
-                ) : attendance.map((rec) => (
+                ) : attendancePagination.paginatedItems.map((rec) => (
                   <TableRow key={rec.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">{rec.employeeName ?? rec.employeeId}</TableCell>
                     <TableCell className="text-xs text-text-muted">{rec.date ? new Date(rec.date).toLocaleDateString() : "—"}</TableCell>
@@ -429,6 +446,14 @@ export default function HRPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={attendancePagination.currentPage}
+              totalPages={attendancePagination.totalPages}
+              totalItems={attendancePagination.totalItems}
+              pageSize={5}
+              onPrev={attendancePagination.onPrev}
+              onNext={attendancePagination.onNext}
+            />
           </div>
         </div>
       )}
@@ -470,7 +495,7 @@ export default function HRPage() {
                   ))
                 ) : leaves.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="h-24 text-center text-text-muted">No leave requests found.</TableCell></TableRow>
-                ) : leaves.map((leave) => (
+                ) : leavesPagination.paginatedItems.map((leave) => (
                   <TableRow key={leave.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{leave.leaveNumber ?? "—"}</TableCell>
                     <TableCell className="font-medium">{leave.employeeName ?? leave.employeeId}</TableCell>
@@ -500,6 +525,7 @@ export default function HRPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...leavesPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -532,7 +558,7 @@ export default function HRPage() {
                   ))
                 ) : shifts.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="h-24 text-center text-text-muted">No shifts defined.</TableCell></TableRow>
-                ) : shifts.map((s) => (
+                ) : shiftsPagination.paginatedItems.map((s) => (
                   <TableRow key={s.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">{s.name}</TableCell>
                     <TableCell>{s.startTime}</TableCell>
@@ -546,6 +572,7 @@ export default function HRPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...shiftsPagination} pageSize={5} />
           </div>
 
           <div className="flex items-center justify-between">
@@ -573,7 +600,7 @@ export default function HRPage() {
                   ))
                 ) : shiftAssignments.length === 0 ? (
                   <TableRow><TableCell colSpan={3} className="h-16 text-center text-text-muted">No assignments found.</TableCell></TableRow>
-                ) : shiftAssignments.map((sa) => (
+                ) : shiftAssignmentsPagination.paginatedItems.map((sa) => (
                   <TableRow key={sa.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">{sa.employeeName ?? sa.employeeId}</TableCell>
                     <TableCell>{sa.shiftName ?? sa.shiftId}</TableCell>
@@ -582,6 +609,7 @@ export default function HRPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...shiftAssignmentsPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -634,7 +662,7 @@ export default function HRPage() {
                 ))
               ) : performanceReviews.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="h-24 text-center text-text-muted">No reviews found.</TableCell></TableRow>
-              ) : performanceReviews.map((rev) => (
+              ) : reviewsPagination.paginatedItems.map((rev) => (
                 <TableRow key={rev.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{rev.employeeName ?? rev.employeeId}</TableCell>
                   <TableCell>{rev.reviewPeriod ?? "—"}</TableCell>
@@ -651,6 +679,7 @@ export default function HRPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination {...reviewsPagination} pageSize={5} />
         </div>
       )}
 

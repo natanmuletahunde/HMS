@@ -6,12 +6,13 @@ import { Plus, MoreHorizontal, Loader2, BedSingle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function BedTypesPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -23,6 +24,16 @@ export default function BedTypesPage() {
     queryKey: ["bed-types"],
     queryFn: () => apiFetch<any[]>("/bed-types"),
   });
+
+  const sortedBeds = [...bedTypes].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedBeds,
+    onPrev,
+    onNext,
+  } = usePagination(sortedBeds, 5);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -121,7 +132,7 @@ export default function BedTypesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              [...bedTypes].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((bed) => (
+              paginatedBeds.map((bed) => (
                 <TableRow key={bed.id}>
                   <TableCell className="font-medium">{bed.name}</TableCell>
                   <TableCell>{bed.capacity} Persons</TableCell>
@@ -146,6 +157,14 @@ export default function BedTypesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

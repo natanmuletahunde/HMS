@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { Plus, GitMerge, Play, CheckCircle, XCircle, Clock, ChevronRight, Trash2, ArrowRight } from "lucide-react";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-400",
@@ -155,6 +157,7 @@ export default function WorkflowsPage() {
 
   const { data: workflows = [], isLoading: wfLoading } = useQuery<any[]>({ queryKey: ["workflows"], queryFn: () => apiFetch("/workflows") as Promise<any[]> });
   const { data: instances = [], isLoading: instLoading } = useQuery<any[]>({ queryKey: ["workflow-instances"], queryFn: () => apiFetch("/workflows/instances") as Promise<any[]> });
+  const instPagination = usePagination(instances, 5);
 
   const advance = useMutation({
     mutationFn: ({ id, action }: { id: string; action: string }) =>
@@ -259,7 +262,7 @@ export default function WorkflowsPage() {
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-text-muted">Loading...</td></tr>
               ) : instances.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-text-muted">No workflow instances yet.</td></tr>
-              ) : instances.map((inst: any) => (
+              ) : instPagination.paginatedItems.map((inst: any) => (
                 <tr key={inst.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <p className="font-medium">{inst.entityLabel || inst.entityId}</p>
@@ -293,6 +296,7 @@ export default function WorkflowsPage() {
               ))}
             </tbody>
           </table>
+          <TablePagination {...instPagination} pageSize={5} />
         </div>
       )}
 

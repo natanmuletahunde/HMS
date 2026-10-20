@@ -7,8 +7,9 @@ import { apiFetch } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination 
 } from "@/components/ui/table";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Payment = {
   id: string;
@@ -32,6 +33,15 @@ export default function PaymentsPage() {
     (p.invoiceNo ?? '').toLowerCase().includes(search.toLowerCase()) || 
     (p.reference ?? '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const {
+    paginatedItems: paginatedPayments,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(filtered, 5);
 
   return (
     <div className="space-y-6">
@@ -72,7 +82,7 @@ export default function PaymentsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((payment) => (
+              paginatedPayments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>{new Date(payment.date).toLocaleString()}</TableCell>
                   <TableCell className="font-mono text-xs">{payment.invoiceNo}</TableCell>
@@ -88,6 +98,14 @@ export default function PaymentsPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

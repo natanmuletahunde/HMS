@@ -7,11 +7,12 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Reservation = {
   id: string;
@@ -71,6 +72,9 @@ export default function CheckOutPage() {
 
   const records = recordsData?.data ?? [];
 
+  const departuresPagination = usePagination(departures, 5);
+  const recordsPagination = usePagination(records, 5);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -118,32 +122,42 @@ export default function CheckOutPage() {
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center text-text-muted">No departures today.</TableCell>
                 </TableRow>
-              ) : departures.map((res) => (
-                <TableRow key={res.id}>
-                  <TableCell className="font-medium">{res.guestName ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
-                  <TableCell>{res.roomNumber ?? "—"}</TableCell>
-                  <TableCell>{res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}</TableCell>
-                  <TableCell>{res.nights ?? "—"}</TableCell>
-                  <TableCell>${Number(res.totalAmount ?? 0).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={res.status === "checked_in" ? "success" : "muted"} className="text-[10px] uppercase">
-                      {(res.status ?? "").replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {res.status === "checked_in" ? (
-                      <Button size="sm" onClick={() => setCheckOutTarget(res)} className="gap-1">
-                        <LogOut className="h-3.5 w-3.5" /> Check Out
-                      </Button>
-                    ) : (
-                      <Badge variant="muted" className="text-xs">Done</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+              ) : (
+                departuresPagination.paginatedItems.map((res) => (
+                  <TableRow key={res.id}>
+                    <TableCell className="font-medium">{res.guestName ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
+                    <TableCell>{res.roomNumber ?? "—"}</TableCell>
+                    <TableCell>{res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell>{res.nights ?? "—"}</TableCell>
+                    <TableCell>${Number(res.totalAmount ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={res.status === "checked_in" ? "success" : "muted"} className="text-[10px] uppercase">
+                        {(res.status ?? "").replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {res.status === "checked_in" ? (
+                        <Button size="sm" onClick={() => setCheckOutTarget(res)} className="gap-1">
+                          <LogOut className="h-3.5 w-3.5" /> Check Out
+                        </Button>
+                      ) : (
+                        <Badge variant="muted" className="text-xs">Done</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
+          <TablePagination
+            currentPage={departuresPagination.currentPage}
+            totalPages={departuresPagination.totalPages}
+            totalItems={departuresPagination.totalItems}
+            pageSize={5}
+            onPrev={departuresPagination.onPrev}
+            onNext={departuresPagination.onNext}
+          />
         </div>
       )}
 
@@ -172,19 +186,29 @@ export default function CheckOutPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-text-muted">No check-out records.</TableCell>
                 </TableRow>
-              ) : records.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.checkOutNumber ?? r.id.slice(0, 8)}</TableCell>
-                  <TableCell className="font-medium">{r.guestName ?? "—"}</TableCell>
-                  <TableCell>{r.roomNumber ?? "—"}</TableCell>
-                  <TableCell>${Number(r.lateCheckoutFee ?? 0).toFixed(2)}</TableCell>
-                  <TableCell>${Number(r.totalCharges ?? 0).toFixed(2)}</TableCell>
-                  <TableCell>{r.feedbackRating ? `${r.feedbackRating}/5 ⭐` : "—"}</TableCell>
-                  <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}</TableCell>
-                </TableRow>
-              ))}
+              ) : (
+                recordsPagination.paginatedItems.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-mono text-xs">{r.checkOutNumber ?? r.id.slice(0, 8)}</TableCell>
+                    <TableCell className="font-medium">{r.guestName ?? "—"}</TableCell>
+                    <TableCell>{r.roomNumber ?? "—"}</TableCell>
+                    <TableCell>${Number(r.lateCheckoutFee ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>${Number(r.totalCharges ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>{r.feedbackRating ? `${r.feedbackRating}/5 ⭐` : "—"}</TableCell>
+                    <TableCell>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
+          <TablePagination
+            currentPage={recordsPagination.currentPage}
+            totalPages={recordsPagination.totalPages}
+            totalItems={recordsPagination.totalItems}
+            pageSize={5}
+            onPrev={recordsPagination.onPrev}
+            onNext={recordsPagination.onNext}
+          />
         </div>
       )}
 

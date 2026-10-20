@@ -6,13 +6,14 @@ import { Plus, MoreHorizontal, Loader2, Building } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function BuildingsPage() {
   const [search, setSearch] = useState("");
@@ -32,6 +33,20 @@ export default function BuildingsPage() {
     queryFn: () => apiFetch<any>(`/buildings?search=${debouncedSearch}`),
   });
   const buildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedBuildings,
+    onPrev,
+    onNext,
+    setCurrentPage,
+  } = usePagination(buildings, 5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, setCurrentPage]);
 
   const { data: rawBranches } = useQuery({
     queryKey: ["branches"],
@@ -151,7 +166,7 @@ export default function BuildingsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              buildings.map((b) => (
+              paginatedBuildings.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell className="font-medium">{b.buildingName}</TableCell>
                   <TableCell>{b.buildingCode}</TableCell>
@@ -176,6 +191,14 @@ export default function BuildingsPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

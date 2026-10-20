@@ -6,12 +6,13 @@ import { Plus, MoreHorizontal, Loader2, Tag } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 const DEFAULT_CATEGORIES = ["Standard", "Deluxe", "Executive", "Superior", "Premium", "Suite", "Family", "Presidential"];
 
@@ -25,6 +26,16 @@ export default function RoomCategoriesPage() {
     queryKey: ["room-categories"],
     queryFn: () => apiFetch<any[]>("/room-categories"),
   });
+
+  const sortedCategories = [...categories].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const {
+    paginatedItems: paginatedCategories,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(sortedCategories, 5);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -129,7 +140,7 @@ export default function RoomCategoriesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              [...categories].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((cat) => (
+              paginatedCategories.map((cat) => (
                 <TableRow key={cat.id}>
                   <TableCell className="font-medium">{cat.name}</TableCell>
                   <TableCell>{cat.description}</TableCell>
@@ -153,6 +164,14 @@ export default function RoomCategoriesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

@@ -6,13 +6,14 @@ import { Plus, MoreHorizontal, Loader2, Sparkles, Filter } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 const CATEGORIES = ["All", "Technology", "Comfort", "View", "Bathroom", "Food & Beverage", "Recreation", "Other"];
 
@@ -27,6 +28,16 @@ export default function RoomAmenitiesPage() {
     queryKey: ["room-amenities", activeCategory],
     queryFn: () => apiFetch<any[]>(activeCategory === "All" ? "/room-amenities" : `/room-amenities?category=${activeCategory}`),
   });
+
+  const sortedAmenities = [...amenities].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const {
+    paginatedItems: paginatedAmenities,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(sortedAmenities, 5);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -150,7 +161,7 @@ export default function RoomAmenitiesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              [...amenities].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((amenity) => (
+              paginatedAmenities.map((amenity) => (
                 <TableRow key={amenity.id}>
                   <TableCell className="font-medium">{amenity.name}</TableCell>
                   <TableCell><Badge variant="outline">{amenity.category}</Badge></TableCell>
@@ -175,6 +186,14 @@ export default function RoomAmenitiesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

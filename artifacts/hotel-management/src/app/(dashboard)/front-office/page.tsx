@@ -10,8 +10,9 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePagination } from "@/hooks/use-pagination";
 
 type FrontOfficeStats = {
   todayArrivals: number;
@@ -64,6 +65,9 @@ export default function FrontOfficePage() {
     queryKey: ["today-departures"],
     queryFn: () => apiFetch<Reservation[]>("/reservations/today-departures"),
   });
+
+  const arrivalsPagination = usePagination(arrivals, 5);
+  const departuresPagination = usePagination(departures, 5);
 
   const kpiRow1 = [
     { label: "Today's Arrivals", value: stats?.todayArrivals, icon: CalendarCheck, color: "text-info" },
@@ -174,7 +178,7 @@ export default function FrontOfficePage() {
                   ))
                 ) : arrivals.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="h-16 text-center text-text-muted text-sm">No arrivals today</TableCell></TableRow>
-                ) : arrivals.slice(0, 8).map((res) => (
+                ) : arrivalsPagination.paginatedItems.map((res) => (
                   <TableRow key={res.id}>
                     <TableCell className="font-medium text-sm">{res.guestName ?? "—"}</TableCell>
                     <TableCell className="text-sm">{res.roomTypeName ?? "—"}</TableCell>
@@ -192,6 +196,14 @@ export default function FrontOfficePage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={arrivalsPagination.currentPage}
+              totalPages={arrivalsPagination.totalPages}
+              totalItems={arrivalsPagination.totalItems}
+              pageSize={5}
+              onPrev={arrivalsPagination.onPrev}
+              onNext={arrivalsPagination.onNext}
+            />
           </CardContent>
         </Card>
 
@@ -222,7 +234,7 @@ export default function FrontOfficePage() {
                   ))
                 ) : departures.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="h-16 text-center text-text-muted text-sm">No departures today</TableCell></TableRow>
-                ) : departures.slice(0, 8).map((res) => (
+                ) : departuresPagination.paginatedItems.map((res) => (
                   <TableRow key={res.id}>
                     <TableCell className="font-medium text-sm">{res.guestName ?? "—"}</TableCell>
                     <TableCell className="text-sm">{res.roomNumber ?? "—"}</TableCell>
@@ -240,6 +252,14 @@ export default function FrontOfficePage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={departuresPagination.currentPage}
+              totalPages={departuresPagination.totalPages}
+              totalItems={departuresPagination.totalItems}
+              pageSize={5}
+              onPrev={departuresPagination.onPrev}
+              onNext={departuresPagination.onNext}
+            />
           </CardContent>
         </Card>
       </div>

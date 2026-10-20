@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type FinancialDashboard = {
   todayRevenue: number;
@@ -138,6 +139,12 @@ export default function FinancialPage() {
     enabled: tab === "credit-notes",
   });
 
+  const revenueByCategoryPagination = usePagination(dashboard?.revenueByCategory ?? [], 5);
+  const recentTxnPagination = usePagination(dashboard?.recentTransactions ?? [], 5);
+  const ledgerPagination = usePagination(ledgerAccounts, 5);
+  const transactionsPagination = usePagination(transactions, 5);
+  const creditNotesPagination = usePagination(creditNotes, 5);
+
   function invalidate(keys: string[]) {
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   }
@@ -242,7 +249,7 @@ export default function FinancialPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboard.revenueByCategory.map((c) => (
+                    {revenueByCategoryPagination.paginatedItems.map((c) => (
                       <TableRow key={c.category}>
                         <TableCell className="capitalize">{c.category}</TableCell>
                         <TableCell className="text-right font-medium">${Number(c.amount).toFixed(2)}</TableCell>
@@ -250,6 +257,14 @@ export default function FinancialPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  currentPage={revenueByCategoryPagination.currentPage}
+                  totalPages={revenueByCategoryPagination.totalPages}
+                  totalItems={revenueByCategoryPagination.totalItems}
+                  pageSize={5}
+                  onPrev={revenueByCategoryPagination.onPrev}
+                  onNext={revenueByCategoryPagination.onNext}
+                />
               </CardContent>
             </Card>
           )}
@@ -270,7 +285,7 @@ export default function FinancialPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboard.recentTransactions.slice(0, 10).map((txn) => (
+                    {recentTxnPagination.paginatedItems.map((txn) => (
                       <TableRow key={txn.id}>
                         <TableCell className="font-mono text-xs">{txn.transactionNumber ?? "—"}</TableCell>
                         <TableCell>
@@ -288,6 +303,14 @@ export default function FinancialPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  currentPage={recentTxnPagination.currentPage}
+                  totalPages={recentTxnPagination.totalPages}
+                  totalItems={recentTxnPagination.totalItems}
+                  pageSize={5}
+                  onPrev={recentTxnPagination.onPrev}
+                  onNext={recentTxnPagination.onNext}
+                />
               </CardContent>
             </Card>
           )}
@@ -331,20 +354,20 @@ export default function FinancialPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    ledgerAccounts.map((acc) => (
+                    ledgerPagination.paginatedItems.map((acc) => (
                       <TableRow key={acc.code} className="hover:bg-muted/30">
                         <TableCell className="font-mono font-semibold text-primary">{acc.code}</TableCell>
                         <TableCell className="font-medium">{acc.name}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
-                              acc.type === "Asset"
+                              (acc.type === "Asset"
                                 ? "info"
                                 : acc.type === "Revenue"
                                 ? "success"
                                 : acc.type === "Expense"
-                                ? "danger"
-                                : "outline"
+                                ? "destructive"
+                                : "outline") as any
                             }
                             className="text-[10px] uppercase"
                           >
@@ -360,6 +383,14 @@ export default function FinancialPage() {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={ledgerPagination.currentPage}
+                totalPages={ledgerPagination.totalPages}
+                totalItems={ledgerPagination.totalItems}
+                pageSize={5}
+                onPrev={ledgerPagination.onPrev}
+                onNext={ledgerPagination.onNext}
+              />
             </CardContent>
           </Card>
         </div>
@@ -419,7 +450,7 @@ export default function FinancialPage() {
                   ))
                 ) : transactions.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="h-24 text-center text-text-muted">No transactions found.</TableCell></TableRow>
-                ) : transactions.map((txn) => (
+                ) : transactionsPagination.paginatedItems.map((txn) => (
                   <TableRow key={txn.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{txn.transactionNumber ?? "—"}</TableCell>
                     <TableCell>
@@ -444,6 +475,14 @@ export default function FinancialPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={transactionsPagination.currentPage}
+              totalPages={transactionsPagination.totalPages}
+              totalItems={transactionsPagination.totalItems}
+              pageSize={5}
+              onPrev={transactionsPagination.onPrev}
+              onNext={transactionsPagination.onNext}
+            />
           </div>
         </div>
       )}
@@ -512,7 +551,7 @@ export default function FinancialPage() {
                 ))
               ) : creditNotes.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="h-24 text-center text-text-muted">No credit notes found.</TableCell></TableRow>
-              ) : creditNotes.map((cn) => (
+              ) : creditNotesPagination.paginatedItems.map((cn) => (
                 <TableRow key={cn.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{cn.noteNumber ?? "—"}</TableCell>
                   <TableCell>
@@ -535,6 +574,14 @@ export default function FinancialPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            currentPage={creditNotesPagination.currentPage}
+            totalPages={creditNotesPagination.totalPages}
+            totalItems={creditNotesPagination.totalItems}
+            pageSize={5}
+            onPrev={creditNotesPagination.onPrev}
+            onNext={creditNotesPagination.onNext}
+          />
         </div>
       )}
 

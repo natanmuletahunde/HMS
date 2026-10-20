@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type HousekeepingTask = {
   id: string;
@@ -99,6 +100,15 @@ export default function HousekeepingPage() {
     queryKey: ["housekeeping", statusTab, search, dateFilter, cleaningType, priority],
     queryFn: () => apiFetch<HousekeepingTask[]>(`/housekeeping?${queryParams}`),
   });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedTasks,
+    onPrev,
+    onNext,
+  } = usePagination(tasks, 5);
 
   const { data: rawRooms } = useQuery<any>({
     queryKey: ["rooms-list"],
@@ -254,7 +264,7 @@ export default function HousekeepingPage() {
                 <TableCell colSpan={9} className="h-24 text-center text-text-muted">No tasks found.</TableCell>
               </TableRow>
             ) : (
-              tasks.map((task) => (
+              paginatedTasks.map((task) => (
                 <TableRow key={task.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{task.taskNumber}</TableCell>
                   <TableCell>{task.roomNumber ?? "—"}</TableCell>
@@ -307,6 +317,14 @@ export default function HousekeepingPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* New Task Dialog */}

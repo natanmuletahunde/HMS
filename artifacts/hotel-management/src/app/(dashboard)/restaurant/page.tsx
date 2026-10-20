@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 // Types
 type RestaurantDashboard = {
@@ -192,6 +193,8 @@ export default function RestaurantPage() {
   });
 
   const activeOrders = orders.filter(o => ["pending", "preparing", "ready"].includes(o.status));
+  const activeOrdersPagination = usePagination(activeOrders, 5);
+  const allOrdersPagination = usePagination(orders, 5);
 
   const pendingKitchen = kitchenOrders.filter(o => o.status === "pending");
   const preparingKitchen = kitchenOrders.filter(o => o.status === "preparing");
@@ -281,7 +284,7 @@ export default function RestaurantPage() {
                 <TableBody>
                   {activeOrders.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="h-16 text-center text-text-muted">No active orders</TableCell></TableRow>
-                  ) : activeOrders.slice(0, 10).map((order) => (
+                  ) : activeOrdersPagination.paginatedItems.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
                       <TableCell>{order.tableNumber ?? "—"}</TableCell>
@@ -297,6 +300,14 @@ export default function RestaurantPage() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={activeOrdersPagination.currentPage}
+                totalPages={activeOrdersPagination.totalPages}
+                totalItems={activeOrdersPagination.totalItems}
+                pageSize={5}
+                onPrev={activeOrdersPagination.onPrev}
+                onNext={activeOrdersPagination.onNext}
+              />
             </CardContent>
           </Card>
         </div>
@@ -456,7 +467,7 @@ export default function RestaurantPage() {
                   <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center text-text-muted">No orders found.</TableCell>
                   </TableRow>
-                ) : orders.map((order) => (
+                ) : allOrdersPagination.paginatedItems.map((order) => (
                   <TableRow key={order.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
                     <TableCell className="capitalize text-xs">{(order.orderType ?? "").replace(/_/g, " ")}</TableCell>
@@ -492,6 +503,14 @@ export default function RestaurantPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={allOrdersPagination.currentPage}
+              totalPages={allOrdersPagination.totalPages}
+              totalItems={allOrdersPagination.totalItems}
+              pageSize={5}
+              onPrev={allOrdersPagination.onPrev}
+              onNext={allOrdersPagination.onNext}
+            />
           </div>
         </div>
       )}

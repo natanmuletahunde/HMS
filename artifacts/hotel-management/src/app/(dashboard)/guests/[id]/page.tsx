@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Star, Loader2 } from "lucide-react";
@@ -8,8 +8,9 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Guest = {
   id: string;
@@ -90,6 +91,22 @@ export default function GuestProfilePage() {
     queryKey: ["guest-history", id],
     queryFn: () => apiFetch<GuestHistory>(`/guests/${id}/history`),
   });
+
+  const activeItems = useMemo(() => {
+    if (activeTab === "Reservations") return history?.reservations ?? [];
+    if (activeTab === "Check-ins") return history?.checkins ?? [];
+    if (activeTab === "Check-outs") return history?.checkouts ?? [];
+    return history?.stayChanges ?? [];
+  }, [activeTab, history]);
+
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(activeItems, 5);
 
   if (isLoading) {
     return (
@@ -241,9 +258,9 @@ export default function GuestProfilePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(history?.reservations ?? []).length === 0 ? (
+                {paginatedItems.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center text-text-muted h-16">No reservations</TableCell></TableRow>
-                ) : (history?.reservations ?? []).map((r: any) => (
+                ) : paginatedItems.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.reservationNumber}</TableCell>
                     <TableCell>{r.roomNumber ?? "—"}</TableCell>
@@ -269,9 +286,9 @@ export default function GuestProfilePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(history?.checkins ?? []).length === 0 ? (
+                {paginatedItems.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center text-text-muted h-16">No check-ins</TableCell></TableRow>
-                ) : (history?.checkins ?? []).map((c: any) => (
+                ) : paginatedItems.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.checkInNumber ?? c.id}</TableCell>
                     <TableCell>{c.roomNumber ?? "—"}</TableCell>
@@ -296,9 +313,9 @@ export default function GuestProfilePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(history?.checkouts ?? []).length === 0 ? (
+                {paginatedItems.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center text-text-muted h-16">No check-outs</TableCell></TableRow>
-                ) : (history?.checkouts ?? []).map((c: any) => (
+                ) : paginatedItems.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.checkOutNumber ?? c.id}</TableCell>
                     <TableCell>{c.roomNumber ?? "—"}</TableCell>
@@ -322,9 +339,9 @@ export default function GuestProfilePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(history?.stayChanges ?? []).length === 0 ? (
+                {paginatedItems.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center text-text-muted h-16">No stay changes</TableCell></TableRow>
-                ) : (history?.stayChanges ?? []).map((c: any) => (
+                ) : paginatedItems.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell><Badge variant="muted">{c.actionType}</Badge></TableCell>
                     <TableCell>{c.fromRoomNumber ?? "—"}</TableCell>
@@ -335,6 +352,16 @@ export default function GuestProfilePage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {!historyLoading && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={5}
+              onPrev={onPrev}
+              onNext={onNext}
+            />
           )}
         </div>
       </div>

@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { Plus, Puzzle, Code2, ToggleRight, ToggleLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-green-500/15 text-green-400",
@@ -108,6 +110,7 @@ export default function PluginsPage() {
   const [dialog, setDialog] = useState(false);
   const qc = useQueryClient();
   const { data: plugins = [], isLoading } = useQuery<any[]>({ queryKey: ["plugins"], queryFn: () => apiFetch("/plugins") as Promise<any[]> });
+  const pagination = usePagination(plugins, 5);
 
   const toggle = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -160,7 +163,7 @@ export default function PluginsPage() {
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {plugins.map((p: any) => (
+              {pagination.paginatedItems.map((p: any) => (
                 <tr key={p.id} className="hover:bg-muted/20">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -194,6 +197,7 @@ export default function PluginsPage() {
               ))}
             </tbody>
           </table>
+          <TablePagination {...pagination} pageSize={5} />
         </div>
       )}
 

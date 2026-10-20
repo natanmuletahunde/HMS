@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type MaintenanceRequest = {
   id: string;
@@ -106,6 +107,15 @@ export default function MaintenancePage() {
     queryKey: ["maintenance", statusTab, search, priority, categoryFilter],
     queryFn: () => apiFetch<MaintenanceRequest[]>(`/maintenance?${queryParams}`),
   });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedRequests,
+    onPrev,
+    onNext,
+  } = usePagination(requests, 5);
 
   const { data: categories = [] } = useQuery<MaintenanceCategory[]>({
     queryKey: ["maintenance-categories"],
@@ -269,7 +279,7 @@ export default function MaintenancePage() {
                 <TableCell colSpan={9} className="h-24 text-center text-text-muted">No requests found.</TableCell>
               </TableRow>
             ) : (
-              requests.map((req) => (
+              paginatedRequests.map((req) => (
                 <TableRow key={req.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{req.requestNumber}</TableCell>
                   <TableCell>{req.roomNumber ?? "—"}</TableCell>
@@ -331,6 +341,14 @@ export default function MaintenancePage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* New Request Dialog */}

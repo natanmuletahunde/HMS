@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Document = {
   id: string;
@@ -64,6 +65,8 @@ export default function DocumentsPage() {
     queryFn: () => apiFetch<Document[]>(`/documents?${params}`),
     enabled: tab === "all",
   });
+
+  const pagination = usePagination(documents, 5);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/documents/${id}`, { method: "DELETE" }),
@@ -167,7 +170,7 @@ export default function DocumentsPage() {
                   ))
                 ) : documents.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="h-24 text-center text-text-muted">No documents found.</TableCell></TableRow>
-                ) : documents.map((doc) => (
+                ) : pagination.paginatedItems.map((doc) => (
                   <TableRow key={doc.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium text-sm">{doc.name ?? "—"}</TableCell>
                     <TableCell>
@@ -198,6 +201,7 @@ export default function DocumentsPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...pagination} pageSize={5} />
           </div>
         </div>
       )}

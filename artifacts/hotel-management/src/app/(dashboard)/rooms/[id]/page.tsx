@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, MapPin, Users, Cigarette, Ban, DollarSign, Image as ImageIcon, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 const STATUSES = [
   "available", "occupied", "reserved", "dirty", 
@@ -45,6 +46,9 @@ export default function RoomDetailPage() {
     queryFn: () => apiFetch<any>(`/rooms/${roomId}/detail`),
     enabled: !!roomId
   });
+
+  const pricingList = room?.pricing ?? [];
+  const pricingPagination = usePagination(pricingList, 5);
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => apiFetch(`/rooms/${roomId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -239,40 +243,50 @@ export default function RoomDetailPage() {
           </CardHeader>
           <CardContent>
             {room.pricing?.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Base Rate</TableHead>
-                    <TableHead>Modifiers</TableHead>
-                    <TableHead>Final Price</TableHead>
-                    <TableHead>Valid Period</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {room.pricing.map((rule: any) => {
-                    const price = Number(rule.price ?? 0);
-                    const discount = Number(rule.discountPercent ?? 0);
-                    const tax = Number(rule.taxPercent ?? 0);
-                    const finalPrice = price * (1 - discount / 100) * (1 + tax / 100);
-                    return (
-                      <TableRow key={rule.id}>
-                        <TableCell>{getTypeBadge(rule.pricingType)}</TableCell>
-                        <TableCell>${price.toFixed(2)}</TableCell>
-                        <TableCell className="text-xs text-text-muted">
-                          {discount > 0 && <span className="text-success block">-{discount}% disc</span>}
-                          {tax > 0 && <span className="text-danger block">+{tax}% tax</span>}
-                          {!discount && !tax && <span>None</span>}
-                        </TableCell>
-                        <TableCell className="font-bold">${finalPrice.toFixed(2)}</TableCell>
-                        <TableCell className="text-sm">
-                          {rule.effectiveDate ? new Date(rule.effectiveDate).toLocaleDateString() : '—'} &rarr; {rule.expirationDate ? new Date(rule.expirationDate).toLocaleDateString() : 'Forever'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Base Rate</TableHead>
+                      <TableHead>Modifiers</TableHead>
+                      <TableHead>Final Price</TableHead>
+                      <TableHead>Valid Period</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pricingPagination.paginatedItems.map((rule: any) => {
+                      const price = Number(rule.price ?? 0);
+                      const discount = Number(rule.discountPercent ?? 0);
+                      const tax = Number(rule.taxPercent ?? 0);
+                      const finalPrice = price * (1 - discount / 100) * (1 + tax / 100);
+                      return (
+                        <TableRow key={rule.id}>
+                          <TableCell>{getTypeBadge(rule.pricingType)}</TableCell>
+                          <TableCell>${price.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs text-text-muted">
+                            {discount > 0 && <span className="text-success block">-{discount}% disc</span>}
+                            {tax > 0 && <span className="text-danger block">+{tax}% tax</span>}
+                            {!discount && !tax && <span>None</span>}
+                          </TableCell>
+                          <TableCell className="font-bold">${finalPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">
+                            {rule.effectiveDate ? new Date(rule.effectiveDate).toLocaleDateString() : '—'} &rarr; {rule.expirationDate ? new Date(rule.expirationDate).toLocaleDateString() : 'Forever'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  currentPage={pricingPagination.currentPage}
+                  totalPages={pricingPagination.totalPages}
+                  totalItems={pricingPagination.totalItems}
+                  pageSize={5}
+                  onPrev={pricingPagination.onPrev}
+                  onNext={pricingPagination.onNext}
+                />
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-32 border border-dashed rounded-lg bg-surface/50">
                 <p className="text-sm text-text-muted">No custom pricing rules applied.</p>

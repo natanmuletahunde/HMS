@@ -7,9 +7,10 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -118,6 +119,9 @@ export default function ReportsPage() {
   const netIncome = (revenueData?.totalRevenue ?? 0) - (revenueData?.totalExpenses ?? 0);
   const finNetIncome = (financialData?.revenue ?? 0) - (financialData?.expenses ?? 0);
 
+  const paymentMethodPagination = usePagination(revenueData?.byPaymentMethod ?? [], 5);
+  const finBreakdownPagination = usePagination(financialData?.breakdown ?? [], 5);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -212,11 +216,12 @@ export default function ReportsPage() {
                     <Table>
                       <TableHeader><TableRow><TableHead>Method</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                       <TableBody>
-                        {(revenueData?.byPaymentMethod ?? []).map((r: any, i: number) => (
+                        {paymentMethodPagination.paginatedItems.map((r: any, i: number) => (
                           <TableRow key={i}><TableCell className="capitalize">{r.method?.replace(/_/g, " ")}</TableCell><TableCell className="text-right">${Number(r.amount ?? 0).toLocaleString()}</TableCell></TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                    <TablePagination {...paymentMethodPagination} pageSize={5} />
                   </CardContent>
                 </Card>
               )}
@@ -415,11 +420,12 @@ export default function ReportsPage() {
                     <Table>
                       <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                       <TableBody>
-                        {(financialData?.breakdown ?? []).map((r: any, i: number) => (
+                        {finBreakdownPagination.paginatedItems.map((r: any, i: number) => (
                           <TableRow key={i}><TableCell className="capitalize">{r.category?.replace(/_/g, " ")}</TableCell><TableCell className="text-right">${Number(r.amount ?? 0).toLocaleString()}</TableCell></TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                    <TablePagination {...finBreakdownPagination} pageSize={5} />
                   </CardContent>
                 </Card>
               )}

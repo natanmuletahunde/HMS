@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination 
 } from "@/components/ui/table";
+import { usePagination } from "@/hooks/use-pagination";
+import { useEffect } from "react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
@@ -131,6 +133,20 @@ export default function UsersPage() {
     );
   });
 
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedUsers,
+    onPrev,
+    onNext,
+    setCurrentPage,
+  } = usePagination(filtered, 5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, setCurrentPage]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -177,7 +193,7 @@ export default function UsersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((user) => {
+              paginatedUsers.map((user) => {
                 const displayName = user.name || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email;
                 const displayRole = user.roleName || user.role || "Staff";
                 const isOnDuty = user.isOnDuty !== false;
@@ -233,6 +249,14 @@ export default function UsersPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* Add User Dialog */}

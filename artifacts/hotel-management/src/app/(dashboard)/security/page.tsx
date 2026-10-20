@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { Shield, Smartphone, Lock, Globe, QrCode, CheckCircle, XCircle, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 function MfaTab() {
   const qc = useQueryClient();
@@ -205,6 +207,9 @@ function IpRestrictionsTab() {
   const [form, setForm] = useState({ ipAddress: "", type: "allowlist", label: "" });
   const { data: restrictions = [] } = useQuery<any[]>({ queryKey: ["ip-restrictions"], queryFn: () => apiFetch("/security/ip-restrictions") as Promise<any[]> });
 
+  const activeRestrictions = (restrictions as any[]).filter((r: any) => r.isActive);
+  const ipPagination = usePagination(activeRestrictions, 5);
+
   const add = useMutation({
     mutationFn: () => apiFetch("/security/ip-restrictions", { method: "POST", body: JSON.stringify(form) }) as Promise<any>,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["ip-restrictions"] }); setForm({ ipAddress: "", type: "allowlist", label: "" }); },
@@ -250,8 +255,8 @@ function IpRestrictionsTab() {
               <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-text-muted">{h}</th>
             ))}</tr>
           </thead>
-          <tbody className="divide-y divide-border">
-            {(restrictions as any[]).filter((r: any) => r.isActive).map((r: any) => (
+          <tbody className="divide-y border-border">
+            {ipPagination.paginatedItems.map((r: any) => (
               <tr key={r.id} className="hover:bg-muted/20">
                 <td className="px-4 py-3 font-mono text-xs">{r.ipAddress}</td>
                 <td className="px-4 py-3">
@@ -267,11 +272,12 @@ function IpRestrictionsTab() {
                 </td>
               </tr>
             ))}
-            {!(restrictions as any[]).filter((r: any) => r.isActive).length && (
+            {!activeRestrictions.length && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-text-muted">No IP restrictions configured</td></tr>
             )}
           </tbody>
         </table>
+        <TablePagination {...ipPagination} pageSize={5} />
       </div>
     </div>
   );
@@ -280,6 +286,7 @@ function IpRestrictionsTab() {
 function DevicesTab() {
   const qc = useQueryClient();
   const { data: devices = [] } = useQuery<any[]>({ queryKey: ["devices"], queryFn: () => apiFetch("/security/devices") as Promise<any[]> });
+  const devicePagination = usePagination(devices as any[], 5);
   const revoke = useMutation({
     mutationFn: (id: string) => apiFetch(`/security/devices/${id}`, { method: "DELETE" }) as Promise<any>,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["devices"] }),
@@ -293,30 +300,33 @@ function DevicesTab() {
           <p>No registered mobile devices</p>
         </div>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="bg-muted/30 border-b border-border">
-            <tr>{["Device", "Platform", "Last Seen", "Action"].map(h => (
-              <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-text-muted">{h}</th>
-            ))}</tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {(devices as any[]).map((d: any) => (
-              <tr key={d.id} className="hover:bg-muted/20">
-                <td className="px-4 py-3">
-                  <p className="font-medium">{d.deviceName || "Unknown Device"}</p>
-                  <p className="text-xs text-text-muted font-mono">{d.deviceId}</p>
-                </td>
-                <td className="px-4 py-3 capitalize text-text-muted">{d.platform || "—"}</td>
-                <td className="px-4 py-3 text-text-muted text-xs">{d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "—"}</td>
-                <td className="px-4 py-3">
-                  <button onClick={() => revoke.mutate(d.id)} className="text-red-400 hover:text-red-300 text-xs border border-red-400/30 px-2 py-1 rounded">
-                    Revoke
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 border-b border-border">
+              <tr>{["Device", "Platform", "Last Seen", "Action"].map(h => (
+                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-text-muted">{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {devicePagination.paginatedItems.map((d: any) => (
+                <tr key={d.id} className="hover:bg-muted/20">
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{d.deviceName || "Unknown Device"}</p>
+                    <p className="text-xs text-text-muted font-mono">{d.deviceId}</p>
+                  </td>
+                  <td className="px-4 py-3 capitalize text-text-muted">{d.platform || "—"}</td>
+                  <td className="px-4 py-3 text-text-muted text-xs">{d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => revoke.mutate(d.id)} className="text-red-400 hover:text-red-300 text-xs border border-red-400/30 px-2 py-1 rounded">
+                      Revoke
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <TablePagination {...devicePagination} pageSize={5} />
+        </>
       )}
     </div>
   );

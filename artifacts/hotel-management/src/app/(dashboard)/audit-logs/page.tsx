@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,14 +40,14 @@ const ACTION_BADGE: Record<string, string> = {
   failed_login: "danger",
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 5;
 
 export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [resourceFilter, setResourceFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
 
   const params = new URLSearchParams();
   if (actionFilter !== "all") params.set("action", actionFilter);
@@ -66,7 +66,7 @@ export default function AuditLogsPage() {
   });
 
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
-  const paginated = logs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -166,22 +166,14 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Pagination */}
-      {logs.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-text-muted">
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, logs.length)} of {logs.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">Page {page + 1} of {totalPages}</span>
-            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={logs.length}
+        pageSize={PAGE_SIZE}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
     </div>
   );
 }

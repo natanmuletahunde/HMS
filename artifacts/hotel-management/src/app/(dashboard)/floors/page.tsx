@@ -6,13 +6,14 @@ import { Plus, MoreHorizontal, Loader2, Layers } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 export default function FloorsPage() {
   const [search, setSearch] = useState("");
@@ -40,6 +41,14 @@ export default function FloorsPage() {
     },
   });
   const floors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+  const {
+    paginatedItems: paginatedFloors,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(floors, 5);
 
   const { data: rawBuildings } = useQuery({
     queryKey: ["buildings"],
@@ -199,7 +208,7 @@ export default function FloorsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              floors.map((f) => (
+              paginatedFloors.map((f) => (
                 <TableRow key={f.id}>
                   <TableCell className="font-medium">{f.floorName}</TableCell>
                   <TableCell>{f.floorNumber}</TableCell>
@@ -227,6 +236,14 @@ export default function FloorsPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

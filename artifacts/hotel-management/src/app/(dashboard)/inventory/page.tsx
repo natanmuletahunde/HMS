@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type InventoryDashboard = {
   totalItems: number;
@@ -174,6 +175,11 @@ export default function InventoryPage() {
 
   const alertItems = tab === "alerts" ? alerts : items.filter(i => i.status === "low_stock" || i.status === "out_of_stock");
 
+  const categoryBreakdownPagination = usePagination(dashboard?.categoryBreakdown ?? [], 5);
+  const itemsPagination = usePagination(items, 5);
+  const movementsPagination = usePagination(movements, 5);
+  const alertsPagination = usePagination(alertItems, 5);
+
   const TABS: { key: TabType; label: string }[] = [
     { key: "dashboard", label: "Dashboard" },
     { key: "items", label: "Items" },
@@ -240,7 +246,7 @@ export default function InventoryPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboard.categoryBreakdown.map((c) => (
+                    {categoryBreakdownPagination.paginatedItems.map((c) => (
                       <TableRow key={c.category}>
                         <TableCell className="capitalize">{c.category}</TableCell>
                         <TableCell className="text-right">{c.count}</TableCell>
@@ -249,6 +255,7 @@ export default function InventoryPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination {...categoryBreakdownPagination} pageSize={5} />
               </CardContent>
             </Card>
           )}
@@ -315,7 +322,7 @@ export default function InventoryPage() {
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center text-text-muted">No items found.</TableCell>
                   </TableRow>
-                ) : items.map((item) => (
+                ) : itemsPagination.paginatedItems.map((item) => (
                   <TableRow key={item.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{item.itemCode}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
@@ -349,6 +356,7 @@ export default function InventoryPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination {...itemsPagination} pageSize={5} />
           </div>
         </div>
       )}
@@ -379,7 +387,7 @@ export default function InventoryPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-text-muted">No movements found.</TableCell>
                 </TableRow>
-              ) : movements.map((m) => (
+              ) : movementsPagination.paginatedItems.map((m) => (
                 <TableRow key={m.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{m.itemName ?? "—"}</TableCell>
                   <TableCell>
@@ -398,6 +406,7 @@ export default function InventoryPage() {
               ))}
             </TableBody>
           </Table>
+          <TablePagination {...movementsPagination} pageSize={5} />
         </div>
       )}
 
@@ -425,7 +434,7 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {alertItems.map((item) => (
+                  {alertsPagination.paginatedItems.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell className="font-mono text-xs">{item.itemCode}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
@@ -446,6 +455,7 @@ export default function InventoryPage() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination {...alertsPagination} pageSize={5} />
             </div>
           )}
         </div>

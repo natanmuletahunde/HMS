@@ -7,13 +7,14 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type InHouseReservation = {
   id: string;
@@ -92,6 +93,9 @@ export default function StayManagementPage() {
 
   const stayChanges = stayChangesData?.data ?? [];
 
+  const inHousePagination = usePagination(inHouse, 5);
+  const stayChangesPagination = usePagination(stayChanges, 5);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -128,7 +132,7 @@ export default function StayManagementPage() {
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-text-muted">No in-house guests.</TableCell>
                   </TableRow>
-                ) : inHouse.map((res) => (
+                ) : inHousePagination.paginatedItems.map((res) => (
                   <TableRow key={res.id}>
                     <TableCell className="font-medium">{res.guestName ?? "—"}</TableCell>
                     <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
@@ -147,6 +151,14 @@ export default function StayManagementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={inHousePagination.currentPage}
+              totalPages={inHousePagination.totalPages}
+              totalItems={inHousePagination.totalItems}
+              pageSize={5}
+              onPrev={inHousePagination.onPrev}
+              onNext={inHousePagination.onNext}
+            />
           </div>
         </CardContent>
       </Card>
@@ -181,7 +193,7 @@ export default function StayManagementPage() {
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-text-muted">No recent stay changes.</TableCell>
                   </TableRow>
-                ) : stayChanges.map((c) => (
+                ) : stayChangesPagination.paginatedItems.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-mono text-xs">{c.reservationNumber ?? "—"}</TableCell>
                     <TableCell className="font-medium">{c.guestName ?? "—"}</TableCell>
@@ -196,6 +208,14 @@ export default function StayManagementPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={stayChangesPagination.currentPage}
+              totalPages={stayChangesPagination.totalPages}
+              totalItems={stayChangesPagination.totalItems}
+              pageSize={5}
+              onPrev={stayChangesPagination.onPrev}
+              onNext={stayChangesPagination.onNext}
+            />
           </div>
         </CardContent>
       </Card>

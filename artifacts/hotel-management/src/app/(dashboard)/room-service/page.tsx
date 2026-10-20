@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, MoreHorizontal } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type RoomServiceRequest = {
   id: string;
@@ -103,8 +104,9 @@ export default function RoomServicePage() {
   const [cancelRequest, setCancelRequest] = useState<RoomServiceRequest | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const [formRoom, setFormRoom] = useState("");
-  const [formGuest, setFormGuest] = useState("");
+  const [selectedGuestId, setSelectedGuestId] = useState<string>("dawit-102");
+  const [formRoom, setFormRoom] = useState("102");
+  const [formGuest, setFormGuest] = useState("Dr. Dawit Alene");
   const [formAmount, setFormAmount] = useState("750");
   const [formDesc, setFormDesc] = useState("Traditional Doro Wat Feast + Mineral Water");
 
@@ -125,10 +127,69 @@ export default function RoomServicePage() {
     queryFn: () => apiFetch<any[]>("/reservations/in-house").catch(() => []),
   });
 
+  const fallbackGuests = [
+    {
+      id: "dawit-102",
+      roomNumber: "102",
+      guestName: "Dr. Dawit Alene",
+      vipStatus: "VIP",
+      label: "Dr. Dawit Alene — Room 102 (Checked-In VIP)",
+    },
+  ];
+
+  const guestOptions = inHouseGuests && inHouseGuests.length > 0
+    ? inHouseGuests.map((g: any) => {
+        const rNum = (g.roomNumber || g.roomName || "102").replace(/[^0-9]/g, "");
+        const gName = (g.guestFirstName && g.guestLastName)
+          ? `${g.guestFirstName} ${g.guestLastName}`.trim()
+          : (g.guestName || "Dr. Dawit Alene");
+        const vip = g.guestVipStatus || "In-House";
+        return {
+          id: String(g.id || `room-${rNum}`),
+          roomNumber: rNum,
+          guestName: gName,
+          vipStatus: vip,
+          label: `${gName} — Room ${rNum} (${vip.toUpperCase()})`,
+        };
+      })
+    : fallbackGuests;
+
+  useEffect(() => {
+    if (guestOptions.length > 0 && !formRoom) {
+      const first = guestOptions[0];
+      setSelectedGuestId(first.id);
+      setFormRoom(first.roomNumber);
+      setFormGuest(first.guestName);
+    }
+  }, [guestOptions, formRoom]);
+
+  function handleGuestSelect(id: string) {
+    setSelectedGuestId(id);
+    if (id === "custom") {
+      setFormRoom("");
+      setFormGuest("");
+      return;
+    }
+    const found = guestOptions.find((g) => g.id === id);
+    if (found) {
+      setFormRoom(found.roomNumber);
+      setFormGuest(found.guestName);
+    }
+  }
+
   const { data: requests = [], isLoading } = useQuery<RoomServiceRequest[]>({
     queryKey: ["room-service", statusTab, search, serviceTypeFilter, priorityFilter],
     queryFn: () => apiFetch<RoomServiceRequest[]>(`/room-service?${queryParams}`),
   });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedRequests,
+    onPrev,
+    onNext,
+  } = usePagination(requests, 5);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["room-service"] });
@@ -277,7 +338,7 @@ export default function RoomServicePage() {
                 </TableCell>
               </TableRow>
             ) : (
-              requests.map((req) => (
+              paginatedRequests.map((req) => (
                 <TableRow key={req.id} className="hover:bg-muted/30">
                   <TableCell className="font-mono text-xs">{req.requestNumber}</TableCell>
                   <TableCell>{req.roomNumber ?? "—"}</TableCell>
@@ -331,6 +392,14 @@ export default function RoomServicePage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* New Request Dialog */}
@@ -349,60 +418,46 @@ export default function RoomServicePage() {
             if (body.chargeAmount) body.chargeAmount = Number(body.chargeAmount);
             createMutation.mutate(body);
           }}>
-            {/* Quick Pick In-House Active Guest */}
-            {inHouseGuests.length > 0 && (
-              <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg space-y-1.5">
-                <Label className="text-xs font-semibold text-primary">⚡ Quick Fill From Checked-In Guest:</Label>
-                <select
-                  className="w-full h-9 rounded-md border border-border bg-surface px-2.5 text-xs font-medium"
-                  defaultValue=""
-                  onChange={(e) => {
-                    const sel = inHouseGuests.find((g: any) => (g.roomNumber || g.roomName) === e.target.value);
-                    if (sel) {
-                      const rNum = (sel.roomNumber || sel.roomName || '').replace(/[^0-9]/g, '');
-                      setFormRoom(rNum);
-                      const gName = (sel.guestFirstName && sel.guestLastName) 
-                        ? `${sel.guestFirstName} ${sel.guestLastName}`.trim() 
-                        : (sel.guestName || "Dr. Dawit Alene");
-                      setFormGuest(gName);
-                    }
-                  }}
-                >
-                  <option value="">-- Click to select active in-house guest --</option>
-                  {inHouseGuests.map((g: any) => {
-                    const rNum = g.roomNumber || g.roomName || "102";
-                    const gName = (g.guestFirstName && g.guestLastName) 
-                      ? `${g.guestFirstName} ${g.guestLastName}`.trim() 
-                      : (g.guestName || "Guest");
-                    return (
-                      <option key={g.id} value={rNum}>
-                        Room {rNum} — {gName} (Checked-In)
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Room Number *</Label>
+                <Label className="text-xs font-semibold">Room Number *</Label>
                 <Input 
                   name="roomNumber" 
                   required 
                   placeholder="e.g. 102" 
                   value={formRoom} 
                   onChange={(e) => setFormRoom(e.target.value)} 
+                  className="font-medium bg-surface"
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Guest Name</Label>
-                <Input 
-                  name="guestName" 
-                  placeholder="Dr. Dawit Alene" 
-                  value={formGuest} 
-                  onChange={(e) => setFormGuest(e.target.value)} 
-                />
+                <Label className="text-xs font-semibold flex items-center justify-between">
+                  <span>Guest Name *</span>
+                  <span className="text-[10px] text-primary font-normal">Active In-House</span>
+                </Label>
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                  value={selectedGuestId}
+                  onChange={(e) => handleGuestSelect(e.target.value)}
+                >
+                  <option value="" disabled>-- Select In-House Guest --</option>
+                  {guestOptions.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.guestName} (Room {g.roomNumber})
+                    </option>
+                  ))}
+                  <option value="custom">✍️ Type Other Guest Name...</option>
+                </select>
+                <input type="hidden" name="guestName" value={formGuest} />
+                {selectedGuestId === "custom" && (
+                  <Input 
+                    placeholder="Enter guest name..." 
+                    value={formGuest} 
+                    onChange={(e) => setFormGuest(e.target.value)} 
+                    className="mt-1 font-medium"
+                    required
+                  />
+                )}
               </div>
               <div className="grid gap-1.5">
                 <Label>Service Type *</Label>

@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 type TransportDashboard = {
   totalVehicles: number;
@@ -148,6 +149,11 @@ export default function TransportPage() {
     enabled: tab === "trips",
   });
 
+  const activeTripsPagination = usePagination(dashboard?.activeTrips ?? [], 5);
+  const vehiclesPagination = usePagination(vehicles, 5);
+  const driversPagination = usePagination(drivers, 5);
+  const tripsPagination = usePagination(trips, 5);
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["vehicles"] });
     queryClient.invalidateQueries({ queryKey: ["drivers"] });
@@ -269,7 +275,7 @@ export default function TransportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dashboard.activeTrips.map((t) => (
+                    {activeTripsPagination.paginatedItems.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.tripNumber}</TableCell>
                         <TableCell className="capitalize text-xs">{t.tripType?.replace(/_/g, " ") ?? "—"}</TableCell>
@@ -286,6 +292,14 @@ export default function TransportPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <TablePagination
+                  currentPage={activeTripsPagination.currentPage}
+                  totalPages={activeTripsPagination.totalPages}
+                  totalItems={activeTripsPagination.totalItems}
+                  pageSize={5}
+                  onPrev={activeTripsPagination.onPrev}
+                  onNext={activeTripsPagination.onNext}
+                />
               </CardContent>
             </Card>
           )}
@@ -344,7 +358,7 @@ export default function TransportPage() {
                   ))
                 ) : vehicles.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="h-24 text-center text-text-muted">No vehicles found.</TableCell></TableRow>
-                ) : vehicles.map((v) => (
+                ) : vehiclesPagination.paginatedItems.map((v) => (
                   <TableRow key={v.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{v.vehicleNumber}</TableCell>
                     <TableCell className="capitalize">{v.vehicleType}</TableCell>
@@ -374,6 +388,14 @@ export default function TransportPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={vehiclesPagination.currentPage}
+              totalPages={vehiclesPagination.totalPages}
+              totalItems={vehiclesPagination.totalItems}
+              pageSize={5}
+              onPrev={vehiclesPagination.onPrev}
+              onNext={vehiclesPagination.onNext}
+            />
           </div>
         </div>
       )}
@@ -424,7 +446,7 @@ export default function TransportPage() {
                   ))
                 ) : drivers.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="h-24 text-center text-text-muted">No drivers found.</TableCell></TableRow>
-                ) : drivers.map((d) => (
+                ) : driversPagination.paginatedItems.map((d) => (
                   <TableRow key={d.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{d.driverCode ?? "—"}</TableCell>
                     <TableCell className="font-medium">{d.firstName} {d.lastName}</TableCell>
@@ -460,6 +482,14 @@ export default function TransportPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={driversPagination.currentPage}
+              totalPages={driversPagination.totalPages}
+              totalItems={driversPagination.totalItems}
+              pageSize={5}
+              onPrev={driversPagination.onPrev}
+              onNext={driversPagination.onNext}
+            />
           </div>
         </div>
       )}
@@ -518,7 +548,7 @@ export default function TransportPage() {
                   ))
                 ) : trips.length === 0 ? (
                   <TableRow><TableCell colSpan={10} className="h-24 text-center text-text-muted">No trips found.</TableCell></TableRow>
-                ) : trips.map((trip) => (
+                ) : tripsPagination.paginatedItems.map((trip) => (
                   <TableRow key={trip.id} className="hover:bg-muted/30">
                     <TableCell className="font-mono text-xs">{trip.tripNumber}</TableCell>
                     <TableCell className="capitalize text-xs">{trip.tripType?.replace(/_/g, " ") ?? "—"}</TableCell>
@@ -560,6 +590,14 @@ export default function TransportPage() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              currentPage={tripsPagination.currentPage}
+              totalPages={tripsPagination.totalPages}
+              totalItems={tripsPagination.totalItems}
+              pageSize={5}
+              onPrev={tripsPagination.onPrev}
+              onNext={tripsPagination.onNext}
+            />
           </div>
         </div>
       )}

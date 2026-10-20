@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { Plus, Building2, Globe, Edit2, ToggleLeft, ToggleRight, Palette } from "lucide-react";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 function TenantDialog({ tenant, onClose }: { tenant?: any; onClose: () => void }) {
   const qc = useQueryClient();
@@ -73,6 +75,7 @@ export default function TenantsPage() {
     queryKey: ["tenants"],
     queryFn: () => apiFetch("/tenants") as Promise<any[]>,
   });
+  const pagination = usePagination(tenants, 5);
 
   const toggle = useMutation({
     mutationFn: (t: any) => apiFetch(`/tenants/${t.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !t.isActive }) }),
@@ -128,7 +131,7 @@ export default function TenantsPage() {
               <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">Loading...</td></tr>
             ) : tenants.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-text-muted">No tenants yet. Create your first tenant.</td></tr>
-            ) : tenants.map((t: any) => (
+            ) : pagination.paginatedItems.map((t: any) => (
               <tr key={t.id} className="hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3 font-medium">{t.name}</td>
                 <td className="px-4 py-3 text-text-muted font-mono text-xs">{t.slug}</td>
@@ -156,6 +159,7 @@ export default function TenantsPage() {
             ))}
           </tbody>
         </table>
+        <TablePagination {...pagination} pageSize={5} />
       </div>
 
       {dialog.open && <TenantDialog tenant={dialog.tenant} onClose={() => setDialog({ open: false })} />}

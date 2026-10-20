@@ -6,13 +6,14 @@ import { Plus, MoreHorizontal, Loader2, DollarSign, Filter } from "lucide-react"
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
 
 const PRICING_TYPES = [
   { value: "base", label: "Base Rate" },
@@ -35,6 +36,15 @@ export default function RoomPricingPage() {
     queryKey: ["room-pricing", selectedRoomId],
     queryFn: () => apiFetch<any[]>(selectedRoomId === "all" ? "/room-pricing" : `/room-pricing?roomId=${selectedRoomId}`),
   });
+
+  const {
+    paginatedItems: paginatedPricing,
+    currentPage,
+    totalPages,
+    totalItems,
+    onPrev,
+    onNext,
+  } = usePagination(pricing, 5);
 
   const { data: rawRooms } = useQuery({
     queryKey: ["rooms"],
@@ -202,7 +212,7 @@ export default function RoomPricingPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              pricing.map((rule) => {
+              paginatedPricing.map((rule) => {
                 const room = rooms.find(r => r.id === rule.roomId);
                 const finalPrice = Number(rule.price ?? 0) * (1 - (Number(rule.discountPercent) || 0) / 100) * (1 + (Number(rule.taxPercent) || 0) / 100);
                 return (
@@ -241,6 +251,14 @@ export default function RoomPricingPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
     </div>
   );

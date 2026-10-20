@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination 
 } from "@/components/ui/table";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
@@ -69,6 +70,15 @@ export default function RolesPage() {
     queryKey: ["roles"],
     queryFn: () => apiFetch<Role[]>("/roles"),
   });
+
+  const {
+    currentPage,
+    totalPages,
+    totalItems,
+    paginatedItems: paginatedRoles,
+    onPrev,
+    onNext,
+  } = usePagination(roles, 5);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: { name: string; description: string; permissions: string[] }) => {
@@ -191,7 +201,7 @@ export default function RolesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              roles.map((role) => {
+              paginatedRoles.map((role) => {
                 const count = Array.isArray(role.permissions) 
                   ? role.permissions.length 
                   : (role.permissionsCount ?? 0);
@@ -254,6 +264,14 @@ export default function RolesPage() {
             )}
           </TableBody>
         </Table>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={5}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
       </div>
 
       {/* Create / Edit Role Dialog */}
