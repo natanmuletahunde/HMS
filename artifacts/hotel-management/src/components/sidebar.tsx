@@ -43,14 +43,14 @@ const NAV_GROUPS = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
-      { name: "Rooms", href: "/rooms", icon: BedDouble },
+      { name: "Rooms & Availability", href: "/rooms", icon: BedDouble },
     ]
   },
   {
     title: "Front Office",
     items: [
       { name: "Front Office", href: "/front-office", icon: LayoutDashboard },
-      { name: "Availability", href: "/availability", icon: CalendarSearch },
+      { name: "Availability", href: "/rooms?tab=availability", icon: CalendarSearch },
       { name: "Walk-in", href: "/walk-in", icon: UserPlus },
       { name: "Check-in", href: "/check-in", icon: LogIn },
       { name: "Check-out", href: "/check-out", icon: LogOut },
@@ -135,9 +135,10 @@ export function Sidebar() {
 
   // Filter navigation groups and items based on role authorization
   const filteredNavGroups = NAV_GROUPS.map((group) => {
-    const authorizedItems = group.items.filter((item) =>
-      isRouteAuthorized(currentRole, item.href)
-    );
+    const authorizedItems = group.items.filter((item) => {
+      const pathOnly = item.href.split('?')[0];
+      return isRouteAuthorized(currentRole, pathOnly);
+    });
     return {
       ...group,
       items: authorizedItems,
@@ -166,11 +167,12 @@ export function Sidebar() {
             </h4>
             <div className="space-y-1">
               {group.items.map((item) => {
+                const pathOnly = item.href.split('?')[0];
                 const isActive = item.href === "/reservations/calendar"
                   ? pathname === item.href || pathname.startsWith(item.href + "/")
                   : item.href === "/reservations"
                   ? pathname === "/reservations" || (pathname.startsWith("/reservations/") && !pathname.startsWith("/reservations/calendar"))
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                  : pathname === pathOnly || pathname.startsWith(pathOnly + "/");
                 return (
                   <Link
                     key={item.href}
