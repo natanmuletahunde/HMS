@@ -11,7 +11,7 @@ import {
   UtensilsCrossed, Building2, GitBranch, Building, Layers,
   LogIn, LogOut, Sparkles, CheckCircle2, Clock, AlertTriangle, 
   ArrowRight, ShoppingCart, ConciergeBell, CalendarDays, ShieldCheck,
-  BarChart2, TrendingUp, Users2
+  BarChart2, TrendingUp, Users2, Globe
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -109,12 +109,12 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
         <div className="flex items-center gap-2">
           <Button asChild size="sm" className="gap-2">
             <Link href="/check-in">
-              <LogIn className="w-4 h-4" /> Process Check-In
+              <LogIn className="w-4 h-4" /> Check-In Records
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link href="/walk-in">
-              New Walk-In
+            <Link href="/guests">
+              Guest Registration
             </Link>
           </Button>
         </div>
@@ -220,7 +220,16 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
                 <TableBody>
                   {arrivalsPagination.paginatedItems.map((res: any) => (
                     <TableRow key={res.id}>
-                      <TableCell className="font-medium">{res.guestName || "Guest"}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{res.guestName || "Guest"}</span>
+                          {(res.reservationType === "online" || res.bookingSource === "online" || res.bookingSource === "ota") && (
+                            <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 text-[10px] gap-1 px-1.5 py-0 font-semibold">
+                              <Globe className="w-2.5 h-2.5" /> Online
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">Room {res.roomNumber || res.roomId || "Unassigned"}</Badge>
                       </TableCell>
@@ -271,7 +280,7 @@ function HousekeepingDashboard({ currentRole }: { currentRole: string }) {
             <Badge className="bg-primary/10 text-primary border-primary/20">{currentRole}</Badge>
           </div>
           <p className="text-sm text-text-muted mt-1">
-            4-Stage room turnaround pipeline: Dirty → In Progress → Clean → Ready.
+            Room turnaround pipeline: Dirty → In Progress → Available.
           </p>
         </div>
         <Button asChild size="sm" className="gap-2">
@@ -310,7 +319,7 @@ function HousekeepingDashboard({ currentRole }: { currentRole: string }) {
 
         <Card className="border-success/20 bg-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Ready & Inspected</CardTitle>
+            <CardTitle className="text-sm font-medium text-text-muted">Available & Clean</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
@@ -343,7 +352,7 @@ function HousekeepingDashboard({ currentRole }: { currentRole: string }) {
         <CardContent>
           {dirtyRooms.length === 0 ? (
             <div className="py-8 text-center text-text-muted text-sm">
-              All guest rooms are sanitized and ready. No pending dirty turnarounds.
+              All guest rooms are sanitized and available. No pending dirty turnarounds.
             </div>
           ) : (
             <>
@@ -743,7 +752,7 @@ function ManagerDashboard({ currentRole }: { currentRole: string }) {
 
         <Card className="border-cyan-500/20 bg-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Clean & Ready Inventory</CardTitle>
+            <CardTitle className="text-sm font-medium text-text-muted">Available & Clean Inventory</CardTitle>
             <Sparkles className="h-4 w-4 text-cyan-500" />
           </CardHeader>
           <CardContent>
@@ -818,7 +827,7 @@ function ManagerDashboard({ currentRole }: { currentRole: string }) {
           </CardHeader>
           <CardContent className="space-y-1.5 text-xs">
             <div className="flex justify-between py-1 border-b border-border/50">
-              <span className="text-text-muted">Clean & Inspected</span>
+              <span className="text-text-muted">Available & Clean</span>
               <span className="font-semibold text-success">{readyRooms.length}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-border/50">

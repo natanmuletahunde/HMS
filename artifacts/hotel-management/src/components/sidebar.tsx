@@ -43,15 +43,13 @@ const NAV_GROUPS = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
-      { name: "Rooms & Availability", href: "/rooms", icon: BedDouble },
+      { name: "Rooms", href: "/rooms", icon: BedDouble },
     ]
   },
   {
     title: "Front Office",
     items: [
       { name: "Front Office", href: "/front-office", icon: LayoutDashboard },
-      { name: "Availability", href: "/rooms?tab=availability", icon: CalendarSearch },
-      { name: "Walk-in", href: "/walk-in", icon: UserPlus },
       { name: "Check-in", href: "/check-in", icon: LogIn },
       { name: "Check-out", href: "/check-out", icon: LogOut },
       { name: "Stay Management", href: "/stay", icon: Bed },

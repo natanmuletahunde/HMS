@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   CalendarCheck, LogOut, Users, UserPlus, Star, AlertTriangle, Clock, Percent,
-  LogIn
+  LogIn, Globe
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ type Reservation = {
   checkInDate?: string;
   checkOutDate?: string;
   status: string;
+  reservationType?: string;
+  bookingSource?: string;
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -89,9 +91,19 @@ export default function FrontOfficePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Front Office</h1>
-        <p className="text-sm text-text-muted mt-1">{today}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Front Office</h1>
+          <p className="text-sm text-text-muted mt-1">{today}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => router.push("/guests")} className="gap-1.5">
+            <UserPlus className="h-4 w-4" /> Guest Stepper
+          </Button>
+          <Button size="sm" onClick={() => router.push("/check-in")} className="gap-1.5">
+            <LogIn className="h-4 w-4" /> Check-In Records
+          </Button>
+        </div>
       </div>
 
       {/* KPI Row 1 */}
@@ -155,7 +167,7 @@ export default function FrontOfficePage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Today's Arrivals</CardTitle>
+              <CardTitle className="text-sm">Today&apos;s Arrivals</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => router.push("/check-in")} className="text-xs">View All</Button>
             </div>
           </CardHeader>
@@ -180,7 +192,16 @@ export default function FrontOfficePage() {
                   <TableRow><TableCell colSpan={4} className="h-16 text-center text-text-muted text-sm">No arrivals today</TableCell></TableRow>
                 ) : arrivalsPagination.paginatedItems.map((res) => (
                   <TableRow key={res.id}>
-                    <TableCell className="font-medium text-sm">{res.guestName ?? "—"}</TableCell>
+                    <TableCell className="font-medium text-sm">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{res.guestName ?? "—"}</span>
+                        {(res.reservationType === "online" || res.bookingSource === "online" || res.bookingSource === "ota") && (
+                          <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 gap-1 text-[9px] px-1.5 py-0 font-semibold">
+                            <Globe className="w-2.5 h-2.5" /> Online
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm">{res.roomTypeName ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={(STATUS_BADGE[res.status] ?? "muted") as any} className="text-[10px] uppercase">
@@ -211,7 +232,7 @@ export default function FrontOfficePage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Today's Departures</CardTitle>
+              <CardTitle className="text-sm">Today&apos;s Departures</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => router.push("/check-out")} className="text-xs">View All</Button>
             </div>
           </CardHeader>
