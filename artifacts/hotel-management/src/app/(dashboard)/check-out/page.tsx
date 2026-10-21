@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, LogOut, ClipboardCheck, CheckCircle2, AlertTriangle, AlertCircle, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  LogOut,
+  ClipboardCheck,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
+  Sparkles,
+  Calculator,
+  Lock,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,12 +93,59 @@ const getGuestName = (res?: Reservation | null) => {
   return "—";
 };
 
+function computeLateCheckoutFee(checkOutDate?: string, roomTotal?: number, nights?: number) {
+  if (!checkOutDate) {
+    return { fee: 0, isLate: false, hoursLate: 0, tierLabel: "On-time" };
+  }
+
+  const now = new Date();
+  const dateStr = checkOutDate.split("T")[0];
+  const [year, month, day] = dateStr.split("-").map(Number);
+  // Standard checkout deadline is 12:00 PM local time on the scheduled departure day
+  const checkoutDeadline = new Date(year, month - 1, day, 12, 0, 0);
+
+  const diffMs = now.getTime() - checkoutDeadline.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  // If before 12:00 PM or within 30 min grace period
+  if (diffMinutes <= 30) {
+    return {
+      fee: 0,
+      isLate: false,
+      hoursLate: 0,
+      tierLabel: diffMinutes > 0 ? "Grace period (under 30 mins late)" : "On-time departure",
+    };
+  }
+
+  const hoursLate = diffMinutes / 60;
+  const numNights = nights && nights > 0 ? nights : 1;
+  const dailyRate = roomTotal && roomTotal > 0 ? roomTotal / numNights : 100;
+
+  if (hoursLate <= 3) {
+    // 1h - 3h late: standard late fee (25% of daily rate, min $25)
+    const fee = Math.max(25, Math.round(dailyRate * 0.25));
+    return { fee, isLate: true, hoursLate, tierLabel: `+${hoursLate.toFixed(1)}h late (Tier 1: 25% daily rate)` };
+  } else if (hoursLate <= 6) {
+    // 3h - 6h late: half-day rate (50% of daily rate, min $50)
+    const fee = Math.max(50, Math.round(dailyRate * 0.5));
+    return { fee, isLate: true, hoursLate, tierLabel: `+${hoursLate.toFixed(1)}h late (Tier 2: Half-day rate)` };
+  } else {
+    // Over 6h late: full night rate
+    const fee = Math.max(100, Math.round(dailyRate));
+    return { fee, isLate: true, hoursLate, tierLabel: `+${hoursLate.toFixed(1)}h late (Tier 3: Full night rate)` };
+  }
+}
+
 export default function CheckOutPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"departures" | "records">("departures");
   const [checkOutTarget, setCheckOutTarget] = useState<Reservation | null>(null);
   const [managerOverride, setManagerOverride] = useState(false);
+  const [waiveLateFee, setWaiveLateFee] = useState(false);
+  const [isManualEdit, setIsManualEdit] = useState(false);
+  const [manualLateFee, setManualLateFee] = useState("");
+  const [manualTotalCharges, setManualTotalCharges] = useState("");
 
   const { data: departures = [], isLoading: departuresLoading } = useQuery<Reservation[]>({
     queryKey: ["today-departures"],
@@ -106,6 +165,16 @@ export default function CheckOutPage() {
         apiFetch<CheckOutListResponse>("/checkout?limit=50")
       ),
   });
+
+  const { data: rawCheckins } = useQuery<any>({
+    queryKey: ["checkout-checkins"],
+    queryFn: () => apiFetch<any>("/checkins?limit=100").catch(() => apiFetch<any>("/checkin?limit=100")),
+  });
+  const checkinsList: any[] = Array.isArray(rawCheckins)
+    ? rawCheckins
+    : Array.isArray(rawCheckins?.data)
+      ? rawCheckins.data
+      : [];
 
   const requestInspectionMutation = useMutation({
     mutationFn: (body: { reservationId: string; roomId?: string; guestId?: string }) =>
@@ -147,6 +216,27 @@ export default function CheckOutPage() {
     ? inspections.find((i) => i.reservationId === checkOutTarget.id)
     : null;
   const isTargetCleared = targetInspection?.status === "cleared";
+
+  const matchingCheckin = checkinsList.find(
+    (c) => c.reservationId === checkOutTarget?.id || (c.roomNumber && c.roomNumber === checkOutTarget?.roomNumber)
+  );
+
+  const lateCalc = computeLateCheckoutFee(checkOutTarget?.checkOutDate, checkOutTarget?.totalAmount, checkOutTarget?.nights);
+  const calculatedLateFee = waiveLateFee ? 0 : lateCalc.fee;
+
+  const baseRoomTotal = Number(checkOutTarget?.totalAmount || 0);
+  const minibarTotal = Number(targetInspection?.minibarTotal || 0);
+  const damageCharges = Number(targetInspection?.damageCharges || 0);
+  const depositPaid = Number(matchingCheckin?.depositAmount || 0);
+
+  const autoTotalCharges = Math.max(0, baseRoomTotal + calculatedLateFee + minibarTotal + damageCharges);
+
+  const effectiveLateFee = isManualEdit && manualLateFee !== "" ? Number(manualLateFee) : calculatedLateFee;
+  const effectiveTotalCharges = isManualEdit && manualTotalCharges !== ""
+    ? Number(manualTotalCharges)
+    : (isManualEdit && manualLateFee !== ""
+        ? Math.max(0, baseRoomTotal + Number(manualLateFee) + minibarTotal + damageCharges)
+        : autoTotalCharges);
 
   return (
     <div className="space-y-6">
@@ -283,6 +373,10 @@ export default function CheckOutPage() {
                             onClick={() => {
                               setCheckOutTarget(res);
                               setManagerOverride(false);
+                              setWaiveLateFee(false);
+                              setIsManualEdit(false);
+                              setManualLateFee("");
+                              setManualTotalCharges("");
                             }}
                             className={`gap-1 ${insp?.status === "cleared" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
                           >
@@ -367,6 +461,10 @@ export default function CheckOutPage() {
           if (!o) {
             setCheckOutTarget(null);
             setManagerOverride(false);
+            setWaiveLateFee(false);
+            setIsManualEdit(false);
+            setManualLateFee("");
+            setManualTotalCharges("");
           }
         }}
       >
@@ -489,6 +587,107 @@ export default function CheckOutPage() {
             </div>
           )}
 
+          {/* Automated Folio Breakdown & Charges Calculator */}
+          <div className="rounded-lg border border-primary/25 bg-primary/5 p-3.5 text-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-semibold text-primary">
+                <Calculator className="h-4 w-4" />
+                <span>Automated Folio & Charges Breakdown</span>
+              </div>
+              <Badge variant="default" className="text-[10px] bg-primary/15 text-primary border-primary/30">
+                <Sparkles className="h-3 w-3 mr-1 inline" /> Auto-Calculated
+              </Badge>
+            </div>
+
+            <div className="space-y-1.5 text-text-muted divide-y divide-border/40 pt-1">
+              <div className="flex items-center justify-between pb-1">
+                <span>Base Room Charges ({checkOutTarget?.nights || 1} night{(checkOutTarget?.nights || 1) > 1 ? "s" : ""})</span>
+                <span className="font-semibold text-text">${baseRoomTotal.toFixed(2)}</span>
+              </div>
+              {minibarTotal > 0 && (
+                <div className="flex items-center justify-between py-1">
+                  <span>Minibar Consumption (Housekeeping)</span>
+                  <span className="font-semibold text-text">+${minibarTotal.toFixed(2)}</span>
+                </div>
+              )}
+              {damageCharges > 0 && (
+                <div className="flex items-center justify-between py-1">
+                  <span>Damages / Incidentals (Housekeeping)</span>
+                  <span className="font-semibold text-rose-500">+${damageCharges.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-1">
+                <div className="flex flex-col">
+                  <span>Late Checkout Fee</span>
+                  <span className="text-[10px] text-text-muted">
+                    {lateCalc.tierLabel} (Standard checkout: 12:00 PM)
+                  </span>
+                </div>
+                <div className="text-right">
+                  {waiveLateFee ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold line-through text-[11px] mr-1">
+                      ${lateCalc.fee.toFixed(2)}
+                    </span>
+                  ) : null}
+                  <span className={`font-semibold ${calculatedLateFee > 0 ? "text-amber-500" : "text-text"}`}>
+                    +${calculatedLateFee.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              {depositPaid > 0 && (
+                <div className="flex items-center justify-between py-1 text-emerald-600 dark:text-emerald-400">
+                  <span>Security Deposit on File (Check-in)</span>
+                  <span className="font-semibold">${depositPaid.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1.5 font-bold text-sm text-text">
+                <span>Net Total Charges:</span>
+                <span className="text-primary text-base">${effectiveTotalCharges.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer text-text">
+                <input
+                  type="checkbox"
+                  checked={waiveLateFee}
+                  onChange={(e) => setWaiveLateFee(e.target.checked)}
+                  disabled={!lateCalc.isLate}
+                  className="h-3.5 w-3.5 rounded border-border text-primary cursor-pointer disabled:opacity-50"
+                />
+                <span className={lateCalc.isLate ? "font-medium" : "text-text-muted"}>
+                  Waive Late Fee (VIP / Flight delay / Courtesy)
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (isManualEdit) {
+                    setIsManualEdit(false);
+                    setManualLateFee("");
+                    setManualTotalCharges("");
+                  } else {
+                    setIsManualEdit(true);
+                    setManualLateFee(String(calculatedLateFee));
+                    setManualTotalCharges(String(autoTotalCharges));
+                  }
+                }}
+                className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+              >
+                {isManualEdit ? (
+                  <>
+                    <RotateCcw className="h-3 w-3" /> Revert to Auto
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="h-3 w-3" /> Override / Edit Manually
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
           <form
             className="space-y-4 pt-1"
             onSubmit={(e) => {
@@ -498,8 +697,8 @@ export default function CheckOutPage() {
               checkOutMutation.mutate({
                 id: checkOutTarget.id,
                 body: {
-                  lateCheckoutFee: fd.get("lateCheckoutFee") ? Number(fd.get("lateCheckoutFee")) : 0,
-                  totalCharges: fd.get("totalCharges") ? Number(fd.get("totalCharges")) : undefined,
+                  lateCheckoutFee: effectiveLateFee,
+                  totalCharges: effectiveTotalCharges,
                   depositRefunded: fd.get("depositRefunded") === "on",
                   feedbackRating: fd.get("feedbackRating") ? Number(fd.get("feedbackRating")) : undefined,
                   feedbackNotes: fd.get("feedbackNotes") || undefined,
@@ -512,23 +711,66 @@ export default function CheckOutPage() {
           >
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label htmlFor="lateCheckoutFee">Late Checkout Fee</Label>
-                <Input id="lateCheckoutFee" name="lateCheckoutFee" type="number" step="0.01" defaultValue="0" />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="lateCheckoutFee">Late Checkout Fee</Label>
+                  {!isManualEdit ? (
+                    <span className="text-[10px] text-text-muted flex items-center gap-0.5">
+                      <Lock className="h-2.5 w-2.5" /> Auto-calc
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-500 font-medium">Manual edit</span>
+                  )}
+                </div>
+                <Input
+                  id="lateCheckoutFee"
+                  name="lateCheckoutFee"
+                  type="number"
+                  step="0.01"
+                  readOnly={!isManualEdit}
+                  className={!isManualEdit ? "bg-muted/50 cursor-not-allowed font-semibold text-text" : "font-semibold"}
+                  value={isManualEdit ? manualLateFee : effectiveLateFee.toFixed(2)}
+                  onChange={(e) => setManualLateFee(e.target.value)}
+                />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="totalCharges">Total Charges</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="totalCharges">Total Charges</Label>
+                  {!isManualEdit ? (
+                    <span className="text-[10px] text-text-muted flex items-center gap-0.5">
+                      <Lock className="h-2.5 w-2.5" /> Auto-calc
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-500 font-medium">Manual edit</span>
+                  )}
+                </div>
                 <Input
                   id="totalCharges"
                   name="totalCharges"
                   type="number"
                   step="0.01"
-                  defaultValue={String(checkOutTarget?.totalAmount ?? "")}
+                  readOnly={!isManualEdit}
+                  className={!isManualEdit ? "bg-muted/50 cursor-not-allowed font-semibold text-primary" : "font-semibold"}
+                  value={isManualEdit ? manualTotalCharges : effectiveTotalCharges.toFixed(2)}
+                  onChange={(e) => setManualTotalCharges(e.target.value)}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="depositRefunded" name="depositRefunded" className="h-4 w-4" />
-              <label htmlFor="depositRefunded" className="text-sm">Deposit Refunded</label>
+            <div className="flex items-center gap-2 p-2 rounded-md bg-surface border border-border/50 text-xs">
+              <input
+                type="checkbox"
+                id="depositRefunded"
+                name="depositRefunded"
+                defaultChecked={depositPaid > 0}
+                className="h-4 w-4 rounded border-border text-primary cursor-pointer"
+              />
+              <label htmlFor="depositRefunded" className="text-xs text-text cursor-pointer">
+                Deposit Refunded to Guest{" "}
+                {depositPaid > 0 ? (
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    (${depositPaid.toFixed(2)} on file)
+                  </span>
+                ) : null}
+              </label>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="feedbackRating">Guest Rating (1–5)</Label>
