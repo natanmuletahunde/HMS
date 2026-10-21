@@ -72,6 +72,11 @@ export class ReportsController {
     return this.svc.getTransportReport(q);
   }
 
+  @Get('guests')
+  getGuestsReport(@Query() q: any) {
+    return this.svc.getGuestsReport(q);
+  }
+
   @Get('executive-summary')
   getExecutiveSummary(@Query() q: any) {
     return this.svc.getExecutiveSummary(q);

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { sql, and, gte, lte, eq, desc } from 'drizzle-orm';
+import { sql, and, gte, lte, eq, desc, or, like } from 'drizzle-orm';
 import {
   db,
   roomsTable,
@@ -21,6 +21,8 @@ import {
   conferenceBookingsTable,
   tripsTable,
   guestsTable,
+  checkinsTable,
+  roomTypesTable,
 } from '@workspace/db';
 
 @Injectable()
@@ -554,6 +556,111 @@ export class ReportsService {
       lowStockItems: inventory[0]?.lowStock ?? 0,
       employeeCount: employees[0]?.count ?? 0,
       complaintResolutionRate,
+    };
+  }
+
+  async getGuestsReport(q: { startDate?: string; endDate?: string; search?: string; status?: string }) {
+    const conds: any[] = [eq(guestsTable.isActive, true)];
+    if (q.startDate) {
+      conds.push(sql`coalesce(${reservationsTable.checkInDate}, ${guestsTable.createdAt}::date::text) >= ${q.startDate}`);
+    }
+    if (q.endDate) {
+      conds.push(sql`coalesce(${reservationsTable.checkOutDate}, ${guestsTable.createdAt}::date::text) <= ${q.endDate}`);
+    }
+    if (q.status && q.status !== 'all') {
+      conds.push(eq(reservationsTable.status, q.status as any));
+    }
+    if (q.search) {
+      const s = `%${q.search}%`;
+      conds.push(
+        or(
+          like(guestsTable.firstName, s),
+          like(guestsTable.lastName, s),
+          like(guestsTable.email, s),
+          like(guestsTable.phone, s),
+          like(guestsTable.guestCode, s),
+          like(guestsTable.passportNumber, s),
+          like(guestsTable.nationalId, s),
+          like(reservationsTable.reservationNumber, s),
+          like(roomsTable.number, s)
+        )
+      );
+    }
+
+    const rows = await db
+      .select({
+        id: guestsTable.id,
+        guestCode: guestsTable.guestCode,
+        firstName: guestsTable.firstName,
+        middleName: guestsTable.middleName,
+        lastName: guestsTable.lastName,
+        email: guestsTable.email,
+        phone: guestsTable.phone,
+        nationality: guestsTable.nationality,
+        idType: guestsTable.idType,
+        idNumber: guestsTable.idNumber,
+        passportNumber: guestsTable.passportNumber,
+        nationalId: guestsTable.nationalId,
+        vipStatus: guestsTable.vipStatus,
+        guestType: guestsTable.guestType,
+        gender: guestsTable.gender,
+        dateOfBirth: guestsTable.dateOfBirth,
+        address: guestsTable.address,
+        totalStays: guestsTable.totalStays,
+        specialRequests: guestsTable.specialRequests,
+        notes: guestsTable.notes,
+        city: guestsTable.city,
+        country: guestsTable.country,
+        reservationId: reservationsTable.id,
+        reservationNumber: reservationsTable.reservationNumber,
+        reservationStatus: reservationsTable.status,
+        reservationType: reservationsTable.reservationType,
+        bookingSource: reservationsTable.bookingSource,
+        checkInDate: reservationsTable.checkInDate,
+        checkOutDate: reservationsTable.checkOutDate,
+        adults: reservationsTable.adults,
+        children: reservationsTable.children,
+        totalAmount: reservationsTable.totalAmount,
+        roomNumber: roomsTable.number,
+        roomTypeName: roomTypesTable.name,
+        basePrice: roomTypesTable.basePrice,
+        checkinId: checkinsTable.id,
+        checkinNumber: checkinsTable.checkinNumber,
+        identityVerified: checkinsTable.identityVerified,
+        depositCollected: checkinsTable.depositCollected,
+        depositAmount: checkinsTable.depositAmount,
+        keyCardNumber: checkinsTable.keyCardNumber,
+        registrationCardGenerated: checkinsTable.registrationCardGenerated,
+        checkedInBy: checkinsTable.checkedInBy,
+        checkinNotes: checkinsTable.notes,
+        checkinTime: checkinsTable.createdAt,
+        createdAt: guestsTable.createdAt,
+      })
+      .from(guestsTable)
+      .leftJoin(reservationsTable, and(eq(reservationsTable.guestId, guestsTable.id), eq(reservationsTable.isActive, true)))
+      .leftJoin(roomsTable, eq(reservationsTable.roomId, roomsTable.id))
+      .leftJoin(roomTypesTable, eq(reservationsTable.roomTypeId, roomTypesTable.id))
+      .leftJoin(checkinsTable, eq(checkinsTable.reservationId, reservationsTable.id))
+      .where(and(...conds))
+      .orderBy(desc(guestsTable.createdAt));
+
+    const totalGuests = rows.length;
+    const inHouseCheckedIn = rows.filter((r) => r.reservationStatus === 'checked_in' || r.checkinId != null).length;
+    const vipCount = rows.filter((r) => r.vipStatus).length;
+    const verifiedCount = rows.filter((r) => r.identityVerified || !!r.idNumber || !!r.passportNumber || !!r.nationalId).length;
+    const totalStayRevenue = rows.reduce((sum, r) => sum + (r.totalAmount ? parseFloat(r.totalAmount) : 0), 0);
+    const totalDeposits = rows.reduce((sum, r) => sum + (r.depositAmount ? parseFloat(r.depositAmount) : 0), 0);
+
+    return {
+      summary: {
+        totalGuests,
+        inHouseCheckedIn,
+        vipCount,
+        verifiedCount,
+        totalStayRevenue,
+        totalDeposits,
+      },
+      data: rows,
     };
   }
 }

@@ -196,6 +196,7 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/transport',
       '/documents',
       '/customer-service',
+      '/reports',
     ];
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }

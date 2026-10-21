@@ -13,7 +13,6 @@ import {
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
   TrendingUp, ShieldCheck,
 } from "lucide-react";
-import { Search as SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { isRouteAuthorized, getRoleInfo } from "@/lib/rbac";
@@ -49,16 +48,13 @@ const NAV_GROUPS = [
   {
     title: "Front Office",
     items: [
-      { name: "Front Office", href: "/front-office", icon: LayoutDashboard },
-      { name: "Check-in", href: "/check-in", icon: LogIn },
       { name: "Check-out", href: "/check-out", icon: LogOut },
-      { name: "Stay Management", href: "/stay", icon: Bed },
+      { name: "Stay & Room Services", href: "/stay", icon: Bed },
     ]
   },
   {
     title: "Reservations",
     items: [
-      { name: "Reservations", href: "/reservations", icon: CalendarCheck },
       { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
     ]
   },
@@ -69,7 +65,6 @@ const NAV_GROUPS = [
       { name: "Maintenance", href: "/maintenance", icon: Wrench },
       { name: "Restaurant", href: "/restaurant", icon: UtensilsCrossed },
       { name: "POS", href: "/pos", icon: ShoppingCart },
-      { name: "Room Service", href: "/room-service", icon: ConciergeBell },
     ]
   },
   {
@@ -86,7 +81,6 @@ const NAV_GROUPS = [
       { name: "Procurement", href: "/procurement", icon: ShoppingBag },
       { name: "Financial", href: "/financial", icon: DollarSign },
       { name: "Conference", href: "/conference", icon: Building2 },
-      { name: "Transport", href: "/transport", icon: Car },
     ]
   },
   {
@@ -103,9 +97,6 @@ const NAV_GROUPS = [
     title: "Enterprise",
     items: [
       { name: "Customer Service", href: "/customer-service", icon: MessageSquare },
-      { name: "Reports", href: "/reports", icon: BarChart2 },
-      { name: "Search", href: "/search", icon: SearchIcon },
-      { name: "Documents", href: "/documents", icon: FolderOpen },
       { name: "Notifications", href: "/notifications", icon: Bell },
       { name: "BI Dashboard", href: "/bi", icon: TrendingUp },
       { name: "Security", href: "/security", icon: ShieldCheck },
@@ -120,6 +111,12 @@ const NAV_GROUPS = [
       { name: "Workflows", href: "/workflows", icon: GitMerge },
       { name: "Modules", href: "/module-config", icon: Cpu },
       { name: "Plugins", href: "/plugins", icon: Puzzle },
+    ]
+  },
+  {
+    title: "Reports",
+    items: [
+      { name: "Reports Document", href: "/reports", icon: BarChart2 },
     ]
   },
 ];
