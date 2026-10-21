@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn, Globe, UserPlus } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,13 @@ type Reservation = {
   guestName?: string;
   roomTypeName?: string;
   roomNumber?: string;
+  roomId?: string;
+  roomTypeId?: string;
   checkInDate: string;
   adults?: number;
   status: string;
+  reservationType?: string;
+  bookingSource?: string;
 };
 
 type CheckInRecord = {
@@ -51,6 +55,13 @@ const STATUS_BADGE: Record<string, string> = {
   cancelled: "danger",
 };
 
+const isOnlineBooking = (res?: Reservation | null) => {
+  if (!res) return false;
+  const t = (res.reservationType || "").toLowerCase();
+  const s = (res.bookingSource || "").toLowerCase();
+  return t === "online" || s === "online" || s === "ota" || s === "website";
+};
+
 export default function CheckInPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -65,7 +76,7 @@ export default function CheckInPage() {
 
   const { data: recordsData, isLoading: recordsLoading } = useQuery<CheckInListResponse>({
     queryKey: ["checkin-records"],
-    queryFn: () => apiFetch<CheckInListResponse>("/checkin?limit=50"),
+    queryFn: () => apiFetch<CheckInListResponse>("/checkins?limit=50"),
     enabled: activeTab === "records",
   });
 
@@ -114,6 +125,7 @@ export default function CheckInPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Guest Name</TableHead>
+                <TableHead>Channel</TableHead>
                 <TableHead>Res #</TableHead>
                 <TableHead>Room Type</TableHead>
                 <TableHead>Check-in Date</TableHead>
@@ -126,17 +138,32 @@ export default function CheckInPage() {
               {arrivalsLoading ? (
                 [...Array(4)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(7)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
+                    {[...Array(8)].map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                   </TableRow>
                 ))
               ) : arrivals.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-text-muted">No arrivals today.</TableCell>
+                  <TableCell colSpan={8} className="h-24 text-center text-text-muted">No arrivals today.</TableCell>
                 </TableRow>
               ) : (
                 arrivalsPagination.paginatedItems.map((res) => (
                   <TableRow key={res.id}>
                     <TableCell className="font-medium">{res.guestName ?? "—"}</TableCell>
+                    <TableCell>
+                      {isOnlineBooking(res) ? (
+                        <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 gap-1 text-[11px] font-semibold py-0.5">
+                          <Globe className="w-3 h-3 text-sky-400" /> Online
+                        </Badge>
+                      ) : res.reservationType === "walk_in" || res.bookingSource === "walk_in" ? (
+                        <Badge variant="outline" className="text-text-muted gap-1 text-[11px] py-0.5">
+                          <UserPlus className="w-3 h-3" /> Walk-In
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-text-muted text-[11px] capitalize py-0.5">
+                          {(res.bookingSource || res.reservationType || "Direct").replace("_", " ")}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
                     <TableCell>{res.roomTypeName ?? "—"}</TableCell>
                     <TableCell>{res.checkInDate ? new Date(res.checkInDate).toLocaleDateString() : "—"}</TableCell>
@@ -201,8 +228,10 @@ export default function CheckInPage() {
               ) : (
                 recordsPagination.paginatedItems.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-mono text-xs">{r.checkInNumber ?? r.id.slice(0, 8)}</TableCell>
-                    <TableCell className="font-medium">{r.guestName ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.checkInNumber ?? (r as any).checkinNumber ?? r.id.slice(0, 8)}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.guestName ?? ((r as any).guestFirstName ? `${(r as any).guestFirstName} ${(r as any).guestLastName ?? ''}`.trim() : "—")}
+                    </TableCell>
                     <TableCell>{r.roomNumber ?? "—"}</TableCell>
                     <TableCell>
                       {r.identityVerified
@@ -240,7 +269,15 @@ export default function CheckInPage() {
       )}
 
       {/* Check-in Dialog */}
-      <Dialog open={!!checkInTarget} onOpenChange={(o) => { if (!o) { setCheckInTarget(null); setSignatureData(null); } }}>
+      <Dialog
+        open={!!checkInTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCheckInTarget(null);
+            setSignatureData(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Check In — {checkInTarget?.guestName}</DialogTitle>
@@ -248,6 +285,18 @@ export default function CheckInPage() {
           <p className="text-sm text-text-muted mb-2">
             Reservation #{checkInTarget?.reservationNumber} &bull; Room: {checkInTarget?.roomNumber ?? "TBD"}
           </p>
+
+          {isOnlineBooking(checkInTarget) && (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs mb-3">
+              <Globe className="w-4 h-4 mt-0.5 shrink-0 text-sky-400" />
+              <div>
+                <p className="font-semibold text-sky-200">Online Reservation Guest</p>
+                <p className="text-sky-300/90 text-[11px] mt-0.5">
+                  This guest booked via an online channel. Please verify their physical ID / Passport against the booking details before issuing their keycard.
+                </p>
+              </div>
+            </div>
+          )}
           <form className="space-y-4" onSubmit={(e) => {
             e.preventDefault();
             if (!checkInTarget) return;
@@ -275,7 +324,7 @@ export default function CheckInPage() {
                   size="sm"
                   className="h-6 px-2 text-xs"
                   onClick={() => {
-                    const room = checkInTarget?.roomNumber ?? "GEN";
+                    const room = checkInTarget?.roomNumber && checkInTarget.roomNumber !== "TBD" ? checkInTarget.roomNumber : "GEN";
                     const generatedUid = `RFID-${room}-${Date.now().toString(36).toUpperCase()}`;
                     const input = document.getElementById("keyCardNumber") as HTMLInputElement;
                     if (input) input.value = generatedUid;
@@ -302,8 +351,20 @@ export default function CheckInPage() {
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="depositAmount">Deposit Amount</Label>
-              <Input id="depositAmount" name="depositAmount" type="number" step="0.01" placeholder="0.00" />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="depositAmount">Deposit Amount</Label>
+                <span className="text-xs text-text-muted font-normal">(Optional)</span>
+              </div>
+              <Input
+                id="depositAmount"
+                name="depositAmount"
+                type="number"
+                step="0.01"
+                placeholder="0.00 (Optional — guest can pay full balance on departure)"
+              />
+              <p className="text-[11px] text-text-muted">
+                Leave blank or 0.00 if the guest will settle room and incidental charges upon check-out / departure.
+              </p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="checkedInBy">Checked In By</Label>
@@ -312,13 +373,28 @@ export default function CheckInPage() {
 
             {/* Digital Signature Component */}
             <div className="grid gap-1.5">
-              <Label>Guest Digital Signature</Label>
+              <div className="flex items-center justify-between">
+                <Label>Guest Digital Signature</Label>
+                <span className="text-xs text-text-muted font-normal">(Optional)</span>
+              </div>
               <DigitalSignaturePad onSave={(sig) => setSignatureData(sig)} />
+              <p className="text-[11px] text-text-muted">
+                Optional: Guest may sign digitally or skip for express counter check-in.
+              </p>
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="notes">Notes</Label>
-              <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notes">Notes</Label>
+                <span className="text-xs text-text-muted font-normal">(Optional)</span>
+              </div>
+              <textarea
+                id="notes"
+                name="notes"
+                rows={2}
+                placeholder="Optional arrival notes, payment arrangement (e.g. paying on departure), or special requests..."
+                className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+              />
             </div>
             <Button type="submit" className="w-full" disabled={checkInMutation.isPending}>
               {checkInMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

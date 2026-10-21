@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { CheckinService } from './checkin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@Controller('checkins')
+@Controller(['checkins', 'checkin'])
 @UseGuards(JwtAuthGuard)
 export class CheckinController {
   constructor(private readonly svc: CheckinService) {}

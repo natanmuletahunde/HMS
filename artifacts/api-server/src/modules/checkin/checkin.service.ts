@@ -12,6 +12,10 @@ const fmtDate = (v: any) => (v instanceof Date ? v.toISOString() : v ?? null);
 
 const fmtCheckin = (c: any) => ({
   ...c,
+  checkInNumber: c.checkInNumber ?? c.checkinNumber,
+  guestName:
+    c.guestName ??
+    ([c.guestFirstName, c.guestLastName].filter(Boolean).join(' ') || 'Guest'),
   depositAmount: c.depositAmount != null ? parseFloat(c.depositAmount) : null,
   createdAt: fmtDate(c.createdAt),
   updatedAt: fmtDate(c.updatedAt),
