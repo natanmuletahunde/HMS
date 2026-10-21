@@ -648,7 +648,7 @@ function RoomsContent() {
                         </div>
                         <Button
                           className="w-full"
-                          onClick={() => router.push(`/reservations?roomId=${room.id}&checkIn=${checkIn}&checkOut=${checkOut}&roomTypeId=${room.roomTypeId ?? ""}`)}
+                          onClick={() => router.push(`/guests?action=reserve&roomId=${room.id}&checkIn=${checkIn}&checkOut=${checkOut}&roomTypeId=${room.roomTypeId ?? ""}`)}
                         >
                           Reserve Now
                         </Button>

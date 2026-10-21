@@ -1,16 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2, Eye, CheckCircle, LogIn, LogOut, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Eye,
+  CheckCircle,
+  XCircle,
+  LogOut,
+  Loader2,
+  Globe,
+  UserPlus,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TablePagination,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -19,40 +46,41 @@ type Reservation = {
   id: string;
   reservationNumber: string;
   confirmationNumber?: string;
-  guestId: string;
   guestName?: string;
+  guestId?: string;
   roomNumber?: string;
+  roomId?: string;
   roomTypeName?: string;
+  roomTypeId?: string;
   checkInDate: string;
   checkOutDate: string;
   nights?: number;
-  adults?: number;
-  children?: number;
+  totalAmount?: number;
+  status: string;
   reservationType?: string;
   bookingSource?: string;
-  totalAmount?: number;
-  paidAmount?: number;
-  status: string;
-  specialRequests?: string;
 };
-
-type RoomType = { id: string; name: string; basePrice: number };
 
 type ReservationListResponse = {
   data: Reservation[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 };
 
-const STATUS_TABS = ["all", "pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"] as const;
+const STATUS_TABS = ["all", "pending", "confirmed", "checked_in", "checked_out", "cancelled"] as const;
 const STATUS_LABELS: Record<string, string> = {
   all: "All",
   pending: "Pending",
   confirmed: "Confirmed",
-  checked_in: "Checked-in",
-  checked_out: "Checked-out",
+  checked_in: "Checked In",
+  checked_out: "Checked Out",
   cancelled: "Cancelled",
-  no_show: "No-show",
 };
+
 const STATUS_BADGE: Record<string, string> = {
   pending: "warning",
   confirmed: "info",
@@ -62,7 +90,7 @@ const STATUS_BADGE: Record<string, string> = {
   no_show: "danger",
 };
 
-export default function ReservationsPage() {
+function ReservationsContent() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -75,10 +103,8 @@ export default function ReservationsPage() {
   const [page, setPage] = useState(1);
   const limit = 5;
 
-  const [isNewOpen, setIsNewOpen] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
-  const [checkInRes, setCheckInRes] = useState<Reservation | null>(null);
   const [checkOutRes, setCheckOutRes] = useState<Reservation | null>(null);
 
   const queryParams = new URLSearchParams({
@@ -96,11 +122,6 @@ export default function ReservationsPage() {
     queryFn: () => apiFetch<ReservationListResponse>(`/reservations?${queryParams}`),
   });
 
-  const { data: roomTypes = [] } = useQuery<RoomType[]>({
-    queryKey: ["room-types"],
-    queryFn: () => apiFetch<RoomType[]>("/room-types"),
-  });
-
   const reservations = listData?.data ?? [];
   const meta = listData?.meta;
 
@@ -110,126 +131,45 @@ export default function ReservationsPage() {
 
   const confirmMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/reservations/${id}/confirm`, { method: "POST" }),
-    onSuccess: () => { invalidate(); setConfirmId(null); toast({ title: "Reservation confirmed" }); },
+    onSuccess: () => {
+      invalidate();
+      setConfirmId(null);
+      toast({ title: "Reservation confirmed" });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => apiFetch(`/reservations/${id}`, { method: "DELETE", body: JSON.stringify({ reason: "Cancelled by staff" }) }),
-    onSuccess: () => { invalidate(); setCancelId(null); toast({ title: "Reservation cancelled" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const checkInMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
-      apiFetch(`/reservations/${id}/check-in`, { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { invalidate(); setCheckInRes(null); toast({ title: "Guest checked in successfully" }); },
+    onSuccess: () => {
+      invalidate();
+      setCancelId(null);
+      toast({ title: "Reservation cancelled" });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const checkOutMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       apiFetch(`/reservations/${id}/check-out`, { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { invalidate(); setCheckOutRes(null); toast({ title: "Guest checked out successfully" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const newResMutation = useMutation({
-    mutationFn: (body: Record<string, unknown>) => apiFetch("/reservations", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { invalidate(); setIsNewOpen(false); toast({ title: "Reservation created" }); },
+    onSuccess: () => {
+      invalidate();
+      setCheckOutRes(null);
+      toast({ title: "Guest checked out successfully" });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Reservations</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Reservation Records</h1>
+          <p className="text-sm text-text-muted">View and manage all guest booking records across the property.</p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/reservations/calendar")}>Calendar View</Button>
-          <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" />New Reservation</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>New Reservation</DialogTitle></DialogHeader>
-              <form className="space-y-4" onSubmit={(e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                const body: Record<string, unknown> = {};
-                fd.forEach((v, k) => { if (v !== "") body[k] = v; });
-                if (body.adults) body.adults = Number(body.adults);
-                if (body.children) body.children = Number(body.children);
-                newResMutation.mutate(body);
-              }}>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="guestId">Guest ID *</Label>
-                  <Input id="guestId" name="guestId" required placeholder="Enter guest ID" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="checkInDate">Check-in Date *</Label>
-                    <Input id="checkInDate" name="checkInDate" type="date" required />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="checkOutDate">Check-out Date *</Label>
-                    <Input id="checkOutDate" name="checkOutDate" type="date" required />
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="roomTypeId">Room Type</Label>
-                  <select name="roomTypeId" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                    <option value="">Any Room Type</option>
-                    {roomTypes.map((rt) => (
-                      <option key={rt.id} value={rt.id}>{rt.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="adults">Adults</Label>
-                    <Input id="adults" name="adults" type="number" min="1" defaultValue="1" />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="children">Children</Label>
-                    <Input id="children" name="children" type="number" min="0" defaultValue="0" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="reservationType">Reservation Type</Label>
-                    <select name="reservationType" defaultValue="standard" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                      <option value="standard">Standard</option>
-                      <option value="walk_in">Walk-in</option>
-                      <option value="group">Group</option>
-                      <option value="corporate">Corporate</option>
-                      <option value="online">Online</option>
-                    </select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="bookingSource">Booking Source</Label>
-                    <select name="bookingSource" defaultValue="direct" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                      <option value="direct">Direct</option>
-                      <option value="online">Online</option>
-                      <option value="agent">Agent</option>
-                      <option value="walk_in">Walk-in</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="specialRequests">Special Requests</Label>
-                  <textarea name="specialRequests" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="notes">Notes</Label>
-                  <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-                </div>
-                <Button type="submit" className="w-full" disabled={newResMutation.isPending}>
-                  {newResMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Reservation
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -288,7 +228,7 @@ export default function ReservationsPage() {
               <TableHead>Nights</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[120px]">Actions</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -308,8 +248,26 @@ export default function ReservationsPage() {
                   <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
                   <TableCell className="font-mono text-xs text-text-muted">{res.confirmationNumber ?? "—"}</TableCell>
                   <TableCell className="font-medium">{res.guestName ?? "—"}</TableCell>
-                  <TableCell>{res.roomNumber ?? "—"}</TableCell>
-                  <TableCell className="text-xs capitalize">{(res.reservationType ?? "").replace("_", " ") || "—"}</TableCell>
+                  <TableCell>
+                    {res.roomNumber ? (
+                      <span className="font-semibold">Room {res.roomNumber}</span>
+                    ) : (
+                      <span className="text-text-muted text-xs italic">Unassigned</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(res.reservationType === "online" || res.bookingSource === "online" || res.bookingSource === "ota") ? (
+                      <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 gap-1 text-[11px] font-semibold py-0.5">
+                        <Globe className="w-3 h-3 text-sky-400" /> Online
+                      </Badge>
+                    ) : (res.reservationType === "walk_in" || res.bookingSource === "walk_in") ? (
+                      <Badge variant="outline" className="text-text-muted gap-1 text-[11px] py-0.5">
+                        <UserPlus className="w-3 h-3" /> Walk-In
+                      </Badge>
+                    ) : (
+                      <span className="text-xs capitalize">{(res.reservationType ?? res.bookingSource ?? "standard").replace("_", " ")}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{res.checkInDate ? new Date(res.checkInDate).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>{res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>{res.nights ?? "—"}</TableCell>
@@ -321,17 +279,12 @@ export default function ReservationsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View" onClick={() => router.push(`/reservations/${res.id}`)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View Details" onClick={() => router.push(`/reservations/${res.id}`)}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       {res.status === "pending" && (
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-info" title="Confirm" onClick={() => setConfirmId(res.id)}>
                           <CheckCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {(res.status === "confirmed" || res.status === "pending") && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-success" title="Check-in" onClick={() => setCheckInRes(res)}>
-                          <LogIn className="h-3.5 w-3.5" />
                         </Button>
                       )}
                       {res.status === "checked_in" && (
@@ -393,58 +346,6 @@ export default function ReservationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Check-in Dialog */}
-      <Dialog open={!!checkInRes} onOpenChange={(o) => !o && setCheckInRes(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Check In — {checkInRes?.guestName}</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => {
-            e.preventDefault();
-            if (!checkInRes) return;
-            const fd = new FormData(e.currentTarget);
-            checkInMutation.mutate({
-              id: checkInRes.id,
-              body: {
-                keyCardNumber: fd.get("keyCardNumber") || undefined,
-                depositCollected: fd.get("depositCollected") === "on",
-                depositAmount: fd.get("depositAmount") ? Number(fd.get("depositAmount")) : undefined,
-                identityVerified: fd.get("identityVerified") === "on",
-                checkedInBy: fd.get("checkedInBy") || undefined,
-                notes: fd.get("notes") || undefined,
-              },
-            });
-          }}>
-            <div className="grid gap-1.5">
-              <Label htmlFor="keyCardNumber">Key Card Number</Label>
-              <Input id="keyCardNumber" name="keyCardNumber" placeholder="e.g. K001" />
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="identityVerified" name="identityVerified" className="h-4 w-4" defaultChecked />
-              <label htmlFor="identityVerified" className="text-sm">Identity Verified</label>
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="depositCollected" name="depositCollected" className="h-4 w-4" />
-              <label htmlFor="depositCollected" className="text-sm">Deposit Collected</label>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="depositAmount">Deposit Amount</Label>
-              <Input id="depositAmount" name="depositAmount" type="number" step="0.01" placeholder="0.00" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="checkedInBy">Checked In By</Label>
-              <Input id="checkedInBy" name="checkedInBy" placeholder="Staff name" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="notes">Notes</Label>
-              <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-            </div>
-            <Button type="submit" className="w-full" disabled={checkInMutation.isPending}>
-              {checkInMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Complete Check-in
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Check-out Dialog */}
       <Dialog open={!!checkOutRes} onOpenChange={(o) => !o && setCheckOutRes(null)}>
         <DialogContent>
@@ -456,44 +357,29 @@ export default function ReservationsPage() {
             checkOutMutation.mutate({
               id: checkOutRes.id,
               body: {
-                lateCheckoutFee: fd.get("lateCheckoutFee") ? Number(fd.get("lateCheckoutFee")) : 0,
-                totalCharges: fd.get("totalCharges") ? Number(fd.get("totalCharges")) : undefined,
+                lateCheckoutFee: fd.get("lateCheckoutFee") ? Number(fd.get("lateCheckoutFee")) : undefined,
                 depositRefunded: fd.get("depositRefunded") === "on",
                 feedbackRating: fd.get("feedbackRating") ? Number(fd.get("feedbackRating")) : undefined,
                 feedbackNotes: fd.get("feedbackNotes") || undefined,
-                checkedOutBy: fd.get("checkedOutBy") || undefined,
                 notes: fd.get("notes") || undefined,
               },
             });
           }}>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="lateCheckoutFee">Late Checkout Fee</Label>
-                <Input id="lateCheckoutFee" name="lateCheckoutFee" type="number" step="0.01" defaultValue="0" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="totalCharges">Total Charges</Label>
-                <Input id="totalCharges" name="totalCharges" type="number" step="0.01" defaultValue={checkOutRes?.totalAmount ?? ""} />
-              </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="lateCheckoutFee">Late Checkout Fee ($)</Label>
+              <Input id="lateCheckoutFee" name="lateCheckoutFee" type="number" step="0.01" defaultValue="0" />
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="depositRefunded" name="depositRefunded" className="h-4 w-4" />
+              <input type="checkbox" id="depositRefunded" name="depositRefunded" className="h-4 w-4" defaultChecked />
               <label htmlFor="depositRefunded" className="text-sm">Deposit Refunded</label>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="feedbackRating">Guest Rating (1–5)</Label>
-              <select name="feedbackRating" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                <option value="">No Rating</option>
-                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} Star{n>1?"s":""}</option>)}
-              </select>
+              <Label htmlFor="feedbackRating">Guest Rating (1-5)</Label>
+              <Input id="feedbackRating" name="feedbackRating" type="number" min={1} max={5} defaultValue="5" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="feedbackNotes">Feedback Notes</Label>
-              <textarea name="feedbackNotes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="checkedOutBy">Checked Out By</Label>
-              <Input id="checkedOutBy" name="checkedOutBy" placeholder="Staff name" />
+              <Label htmlFor="feedbackNotes">Guest Feedback</Label>
+              <Input id="feedbackNotes" name="feedbackNotes" placeholder="Guest comments on stay" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="notes">Notes</Label>
@@ -507,5 +393,13 @@ export default function ReservationsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function ReservationsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-text-muted">Loading reservations...</div>}>
+      <ReservationsContent />
+    </Suspense>
   );
 }
