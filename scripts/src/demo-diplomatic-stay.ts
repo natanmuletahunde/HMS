@@ -268,7 +268,7 @@ export async function runDiplomaticStayDemo() {
   });
 
   // STEP 8: Housekeeping Room Turnaround Matrix
-  await step('PHASE 8: Housekeeping Turnaround (Dirty -> Cleaning -> Ready)', async () => {
+  await step('PHASE 8: Housekeeping Turnaround (Dirty -> Cleaning -> Available)', async () => {
     // Verify room status transitioned to cleaning
     const roomCheck = await fetch(`${BASE_URL}/api/rooms/${roomId}`, { headers });
     const rData: any = await roomCheck.json();
@@ -279,9 +279,9 @@ export async function runDiplomaticStayDemo() {
     await fetch(`${BASE_URL}/api/rooms/${roomId}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status: 'ready', isClean: true }),
+      body: JSON.stringify({ status: 'available', isClean: true }),
     });
-    console.log(`   Housekeeper cleaned & supervisor inspected -> Status: READY for next guest!`);
+    console.log(`   Housekeeper cleaned & supervisor inspected -> Status: AVAILABLE for next guest!`);
   });
 
   // STEP 9: General Ledger Reconciliation

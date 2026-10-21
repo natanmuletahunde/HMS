@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -38,6 +38,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { FaydaScanner } from "@/components/fayda-scanner";
+import type { ParsedFaydaGuest } from "@/lib/fayda";
+import {
+  COUNTRIES,
+  ADDIS_ABABA_SUB_CITIES,
+  ETHIOPIAN_MAJOR_CITIES,
+  ERITREAN_MAJOR_CITIES,
+  INTERNATIONAL_CITIES,
+} from "@/lib/geo-data";
 
 type RoomType = {
   id: string;
@@ -177,11 +186,32 @@ function guestTypeBadge(type?: string) {
   );
 }
 
-function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> }) {
+function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & Record<string, any> }) {
+  const dobFormatted = defaultValues?.dateOfBirth ? String(defaultValues.dateOfBirth).split("T")[0] : "";
+  const initialCountry = defaultValues?.country || "Ethiopia";
+  const [selectedCountry, setSelectedCountry] = useState(initialCountry);
+
+  const initialCity = defaultValues?.city || "Bole";
+  const [cityInput, setCityInput] = useState(initialCity);
+
+  useEffect(() => {
+    if (defaultValues?.country !== undefined) {
+      setSelectedCountry(defaultValues.country || "Ethiopia");
+    }
+    if (defaultValues?.city !== undefined) {
+      setCityInput(defaultValues.city || "");
+    }
+  }, [defaultValues?.country, defaultValues?.city]);
+
+  const countryNormalized = (selectedCountry || "").trim().toLowerCase();
+  const isEritrea = countryNormalized.includes("eritrea");
+  const isKenya = countryNormalized.includes("kenya");
+  const isEthiopia = countryNormalized === "" || countryNormalized.includes("ethiopia");
+
   return (
     <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
       <div>
-        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Personal</h3>
+        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Personal Details</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="firstName">First Name *</Label>
@@ -196,6 +226,14 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> }) 
             <Input id="lastName" name="lastName" required defaultValue={defaultValues?.lastName} />
           </div>
           <div className="grid gap-1.5">
+            <Label htmlFor="phone">Phone Number *</Label>
+            <Input id="phone" name="phone" required defaultValue={defaultValues?.phone} placeholder="+251 9..." />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nationalId">National ID / Fayda FAN</Label>
+            <Input id="nationalId" name="nationalId" defaultValue={defaultValues?.nationalId || defaultValues?.idNumber} placeholder="e.g. 6140 1234 1234 1234" />
+          </div>
+          <div className="grid gap-1.5">
             <Label htmlFor="gender">Gender</Label>
             <select name="gender" defaultValue={defaultValues?.gender ?? ""} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
               <option value="">Select</option>
@@ -203,6 +241,14 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> }) 
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="dateOfBirth">Date of Birth</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={dobFormatted} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nationality">Nationality</Label>
+            <Input id="nationality" name="nationality" defaultValue={defaultValues?.nationality ?? "Ethiopian"} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="guestType">Guest Type</Label>
@@ -224,43 +270,174 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> }) 
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Contact</h3>
+        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Contact & Location</h3>
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="phone">Phone Number *</Label>
-            <Input id="phone" name="phone" defaultValue={defaultValues?.phone} placeholder="+251 ..." />
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" defaultValue={defaultValues?.email} placeholder="guest@example.com" />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="country">Country</Label>
-            <Input id="country" name="country" defaultValue={defaultValues?.country ?? "Ethiopia"} />
-          </div>
-        </div>
-      </div>
 
-      <div>
-        <h3 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Identity (Fayida / National ID)</h3>
-        <div className="grid grid-cols-2 gap-3">
+          {/* Typeable Country with Autocomplete & 1-Click Common Chips */}
           <div className="grid gap-1.5">
-            <Label htmlFor="idType">ID Type</Label>
-            <select name="idType" defaultValue={defaultValues?.idType ?? ""} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-              <option value="">Select</option>
-              <option value="fayida_id">Fayida ID (Ethiopian National ID)</option>
-              <option value="national_id">National ID</option>
-              <option value="passport">Passport</option>
-              <option value="driver_license">Driver License</option>
-            </select>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="country">Country *</Label>
+              <span className="text-[11px] text-primary font-medium">Type freely or select</span>
+            </div>
+            <Input
+              id="country"
+              name="country"
+              list="countries-datalist"
+              required
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              placeholder="Type country (e.g. Eritrea, Ethiopia, Kenya, USA)..."
+              className="bg-surface font-medium"
+            />
+            <datalist id="countries-datalist">
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+
+            {/* Quick Country Click Pills */}
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              {[
+                { name: "Ethiopia", label: "🇪🇹 Ethiopia" },
+                { name: "Eritrea", label: "🇪🇷 Eritrea" },
+                { name: "Kenya", label: "🇰🇪 Kenya" },
+                { name: "Djibouti", label: "🇩🇯 Djibouti" },
+                { name: "Somalia", label: "🇸🇴 Somalia" },
+                { name: "Sudan", label: "🇸🇩 Sudan" },
+                { name: "United States", label: "🇺🇸 USA" },
+                { name: "United Kingdom", label: "🇬🇧 UK" },
+                { name: "United Arab Emirates", label: "🇦🇪 UAE" },
+              ].map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCountry(p.name);
+                    if (p.name === "Ethiopia" && (!cityInput || cityInput === "Asmara")) setCityInput("Bole");
+                    if (p.name === "Eritrea" && (!cityInput || cityInput === "Bole")) setCityInput("Asmara");
+                    if (p.name === "Kenya" && (!cityInput || cityInput === "Bole")) setCityInput("Nairobi");
+                  }}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                    countryNormalized === p.name.toLowerCase()
+                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                      : "bg-muted/50 text-text-muted hover:bg-muted border-border hover:text-text"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="idNumber">ID / Document Number</Label>
-            <Input id="idNumber" name="idNumber" defaultValue={defaultValues?.idNumber} placeholder="Document ID" />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="passportNumber">Passport Number</Label>
-            <Input id="passportNumber" name="passportNumber" defaultValue={defaultValues?.passportNumber} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="nationalId">National ID / Fayida ID (FIN / FAN)</Label>
-            <Input id="nationalId" name="nationalId" defaultValue={defaultValues?.nationalId} placeholder="e.g. FIN-12345678" />
+
+          {/* Typeable City / Region with Autocomplete & Dynamic Suggestions */}
+          <div className="grid gap-1.5 col-span-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="city">
+                {isEthiopia ? "City / Sub-City / Region *" : "City / Region *"}
+              </Label>
+              <span className="text-[11px] text-primary font-medium">Type any city, woreda, or zone</span>
+            </div>
+            <Input
+              id="city"
+              name="city"
+              list="cities-datalist"
+              required
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              placeholder={
+                isEthiopia
+                  ? "Type sub-city or town (e.g. Bole, Kazanchis, Hawassa, Adama, Woreda 03)..."
+                  : isEritrea
+                  ? "Type city or region (e.g. Asmara, Keren, Massawa, Mendefera)..."
+                  : isKenya
+                  ? "Type city (e.g. Nairobi, Mombasa, Kisumu)..."
+                  : "Type city or region (e.g. London, Dubai, New York, Frankfurt)..."
+              }
+              className="bg-surface font-medium"
+            />
+            <datalist id="cities-datalist">
+              {isEritrea ? (
+                <>
+                  {ERITREAN_MAJOR_CITIES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                  {INTERNATIONAL_CITIES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </>
+              ) : isEthiopia ? (
+                <>
+                  {ADDIS_ABABA_SUB_CITIES.map((sub) => (
+                    <option key={sub} value={sub} />
+                  ))}
+                  <option value="Kazanchis" />
+                  <option value="Piazza" />
+                  <option value="Megenagna" />
+                  <option value="Sarbet" />
+                  <option value="CMC" />
+                  <option value="Ayat" />
+                  <option value="Gerji" />
+                  <option value="Gotera" />
+                  {ETHIOPIAN_MAJOR_CITIES.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {INTERNATIONAL_CITIES.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                  {ADDIS_ABABA_SUB_CITIES.map((sub) => (
+                    <option key={sub} value={sub} />
+                  ))}
+                  {ETHIOPIAN_MAJOR_CITIES.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </>
+              )}
+            </datalist>
+
+            {/* Quick Fill Pills */}
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              <span className="text-[10px] text-text-muted mr-1">Quick Suggestions:</span>
+              {(isEritrea
+                ? ["Asmara", "Keren", "Massawa", "Mendefera", "Assab", "Dekemhare"]
+                : isKenya
+                ? ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"]
+                : !isEthiopia && countryNormalized !== ""
+                ? ["London", "Dubai", "Nairobi", "New York", "Washington D.C.", "Frankfurt"]
+                : [
+                    "Bole",
+                    "Kazanchis",
+                    "Kirkos",
+                    "Yeka",
+                    "Arada",
+                    "Lideta",
+                    "Hawassa",
+                    "Adama",
+                    "Bahir Dar",
+                    "Dire Dawa",
+                    "Bishoftu",
+                  ]
+              ).map((city) => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => setCityInput(city)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                    cityInput.toLowerCase() === city.toLowerCase()
+                      ? "bg-primary/15 text-primary border-primary/40 font-semibold"
+                      : "bg-muted/40 text-text-muted hover:bg-muted border-border hover:text-text"
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -311,10 +488,60 @@ export default function GuestsPage() {
   const [checkedInBy, setCheckedInBy] = useState("");
   const [checkInNotes, setCheckInNotes] = useState("");
 
+  // Fayda National ID Decoder state
+  const [faydaGuest, setFaydaGuest] = useState<ParsedFaydaGuest | null>(null);
+  const [faydaFormDefaults, setFaydaFormDefaults] = useState<Record<string, any> | null>(null);
+  const [formKey, setFormKey] = useState(0);
+
+  function handleFaydaDecoded(data: ParsedFaydaGuest) {
+    setFaydaGuest(data);
+
+    // Normalize date of birth to YYYY-MM-DD for HTML5 date picker
+    let dob = (data.dateOfBirth || "").trim();
+    if (dob.includes("/")) {
+      const parts = dob.split("/");
+      if (parts.length === 3) {
+        if (parts[2].length === 4) {
+          dob = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+        } else if (parts[0].length === 4) {
+          dob = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+        }
+      }
+    } else if (dob.includes("T")) {
+      dob = dob.split("T")[0];
+    }
+
+    const gLower = (data.gender || "").toLowerCase();
+    const normalizedGender = gLower.startsWith("m") ? "male" : gLower.startsWith("f") ? "female" : "other";
+
+    setFaydaFormDefaults((prev) => ({
+      ...prev,
+      firstName: data.firstName || prev?.firstName || "",
+      middleName: data.middleName || prev?.middleName || "",
+      lastName: data.lastName || prev?.lastName || "",
+      gender: normalizedGender,
+      dateOfBirth: dob,
+      nationality: data.nationality || "Ethiopian",
+      country: data.country || "Ethiopia",
+      city: prev?.city || "Bole",
+      idType: "fayida_id",
+      idNumber: data.fan,
+      nationalId: data.fan,
+    }));
+    setFormKey((k) => k + 1);
+    toast({
+      title: "🇪🇹 Fayda National ID Verified",
+      description: `Autofilled credentials for ${data.fullName} (FAN: ${data.fan})`,
+    });
+  }
+
   function resetStepper() {
     setCurrentStep(1);
     setActiveGuest(null);
     setActiveReservation(null);
+    setFaydaGuest(null);
+    setFaydaFormDefaults(null);
+    setFormKey(0);
     setResRoomId("");
     setResRoomTypeId("");
     setResCheckIn(new Date().toISOString().split("T")[0]);
@@ -361,15 +588,25 @@ export default function GuestsPage() {
     queryFn: () => apiFetch<GuestStats>("/guests/stats"),
   });
 
-  const { data: roomTypes = [] } = useQuery<RoomType[]>({
+  const { data: rawRoomTypes } = useQuery<any>({
     queryKey: ["room-types"],
-    queryFn: () => apiFetch<RoomType[]>("/room-types"),
+    queryFn: () => apiFetch<any>("/room-types"),
   });
+  const roomTypes: RoomType[] = Array.isArray(rawRoomTypes)
+    ? rawRoomTypes
+    : Array.isArray(rawRoomTypes?.data)
+      ? rawRoomTypes.data
+      : [];
 
-  const { data: availableRooms = [], refetch: refetchAvailableRooms } = useQuery<AvailableRoom[]>({
+  const { data: rawAvailableRooms, refetch: refetchAvailableRooms } = useQuery<any>({
     queryKey: ["available-rooms"],
-    queryFn: () => apiFetch<AvailableRoom[]>("/rooms/availability"),
+    queryFn: () => apiFetch<any>("/rooms/availability"),
   });
+  const availableRooms: AvailableRoom[] = Array.isArray(rawAvailableRooms)
+    ? rawAvailableRooms
+    : Array.isArray(rawAvailableRooms?.data)
+      ? rawAvailableRooms.data
+      : [];
 
   const [mainTab, setMainTab] = useState<"guests" | "reservations" | "checkin">("guests");
   const [resSearch, setResSearch] = useState("");
@@ -429,7 +666,11 @@ export default function GuestsPage() {
     );
   });
 
-  const guests = listData?.data ?? [];
+  const guests: Guest[] = Array.isArray(listData?.data)
+    ? listData.data
+    : Array.isArray(listData)
+      ? (listData as any)
+      : [];
   const meta = listData?.meta;
 
   const resPageSize = 5;
@@ -503,6 +744,10 @@ export default function GuestsPage() {
       else if (val !== "") obj[key] = val;
     });
     if (!fd.has("vipStatus")) obj["vipStatus"] = false;
+    if (obj["nationalId"]) {
+      if (!obj["idType"]) obj["idType"] = "fayida_id";
+      if (!obj["idNumber"]) obj["idNumber"] = obj["nationalId"];
+    }
     return obj;
   }
 
@@ -574,7 +819,6 @@ export default function GuestsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Guests</h1>
-          <p className="text-xs text-text-muted mt-0.5">Manage guest profiles, reservations, and front desk arrivals</p>
         </div>
         <Dialog
           open={isAddOpen}
@@ -670,71 +914,84 @@ export default function GuestsPage() {
 
             {/* STEP 1: GUEST REGISTRATION FORM */}
             {currentStep === 1 && (
-              <form
-                id="guest-registration-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const data = parseFormData(new FormData(e.currentTarget));
-                  addMutation.mutate(data, {
-                    onSuccess: (newGuest) => {
-                      toast({
-                        title: "Guest Registered Successfully",
-                        description: `${newGuest.firstName} ${newGuest.lastName} (${newGuest.guestCode}) registered.`,
-                      });
-                      refetchAvailableRooms();
-                      setCurrentStep(2);
-                    },
-                  });
-                }}
-              >
-                <GuestFormFields defaultValues={activeGuest ?? undefined} />
+              <div className="space-y-4">
+                {/* Fayda Scan Component at top of guest registration */}
+                <FaydaScanner
+                  onDecoded={handleFaydaDecoded}
+                  onClear={() => {
+                    setFaydaGuest(null);
+                    setFaydaFormDefaults(null);
+                    setFormKey((k) => k + 1);
+                  }}
+                />
 
-                <div className="flex items-center justify-between gap-3 pt-4 border-t border-border mt-4">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setIsAddOpen(false);
-                      resetStepper();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <div className="flex gap-2">
+                <form
+                  id="guest-registration-form"
+                  key={`guest-reg-form-${formKey}`}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const data = parseFormData(new FormData(e.currentTarget));
+                    addMutation.mutate(data, {
+                      onSuccess: (newGuest) => {
+                        toast({
+                          title: "Guest Registered Successfully",
+                          description: `${newGuest.firstName} ${newGuest.lastName} (${newGuest.guestCode}) registered.`,
+                        });
+                        refetchAvailableRooms();
+                        setCurrentStep(2);
+                      },
+                    });
+                  }}
+                >
+                  <GuestFormFields defaultValues={faydaFormDefaults || activeGuest || undefined} />
+
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-border mt-4">
                     <Button
                       type="button"
-                      variant="outline"
-                      disabled={addMutation.isPending}
+                      variant="ghost"
                       onClick={() => {
-                        const form = document.getElementById("guest-registration-form") as HTMLFormElement;
-                        if (form) {
-                          const data = parseFormData(new FormData(form));
-                          addMutation.mutate(data, {
-                            onSuccess: (newGuest) => {
-                              toast({
-                                title: "Guest Saved",
-                                description: `${newGuest.firstName} ${newGuest.lastName} saved successfully.`,
-                              });
-                              setIsAddOpen(false);
-                              resetStepper();
-                            },
-                          });
-                        }
+                        setIsAddOpen(false);
+                        resetStepper();
                       }}
                     >
-                      Save Guest Only
+                      Cancel
                     </Button>
-                    <Button type="submit" disabled={addMutation.isPending}>
-                      {addMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <ArrowRight className="mr-2 h-4 w-4" />
-                      )}
-                      Register & Next: Reserve Room
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={addMutation.isPending}
+                        onClick={() => {
+                          const form = document.getElementById("guest-registration-form") as HTMLFormElement;
+                          if (form) {
+                            const data = parseFormData(new FormData(form));
+                            addMutation.mutate(data, {
+                              onSuccess: (newGuest) => {
+                                toast({
+                                  title: "Guest Saved",
+                                  description: `${newGuest.firstName} ${newGuest.lastName} saved successfully.`,
+                                });
+                                setIsAddOpen(false);
+                                resetStepper();
+                              },
+                            });
+                          }
+                        }}
+                      >
+                        Save Guest Only
+                      </Button>
+                      <Button type="submit" disabled={addMutation.isPending}>
+                        {addMutation.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ArrowRight className="mr-2 h-4 w-4" />
+                        )}
+                        Register & Next: Reserve Room
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              </div>
             )}
 
             {/* STEP 2: ROOM RESERVATION FORM */}
@@ -1344,16 +1601,16 @@ export default function GuestsPage() {
         </Dialog>
       </div>
 
-      {/* Stats Cards (Compact) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Stats Cards (Compact & Standardized) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map((s) => (
-          <Card key={s.label} className="bg-surface/50 border-border p-3 shadow-none">
+          <Card key={s.label} className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
             <div className="text-xs font-medium text-text-muted truncate">{s.label}</div>
-            <div className="mt-1">
+            <div className="mt-2">
               {statsLoading ? (
-                <Skeleton className="h-6 w-12" />
+                <Skeleton className="h-7 w-16" />
               ) : (
-                <div className={`text-xl font-bold ${s.color}`}>{s.value ?? 0}</div>
+                <div className={`text-2xl font-bold font-mono tracking-tight ${s.color}`}>{s.value ?? 0}</div>
               )}
             </div>
           </Card>
@@ -1361,19 +1618,10 @@ export default function GuestsPage() {
       </div>
 
       {/* ── 3-STEP NUMBERED WORKFLOW TABS ─────────────────────────────────── */}
-      <Card className="border-primary/20 shadow-sm overflow-hidden">
+      <Card className="border-primary/20 shadow-sm overflow-hidden rounded-xl">
         <CardHeader className="pb-3 border-b border-border bg-muted/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Front Desk Operational Lifecycle</CardTitle>
-              <p className="text-xs text-text-muted mt-0.5">
-                Step-by-step guest journey: Guest Records ➔ Room Reservations ➔ Completed Check-In Logs
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium bg-surface px-2.5 py-1 rounded-md border border-border">
-              <span className="h-2 w-2 rounded-full bg-success inline-block"></span>
-              Live Sync
-            </div>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold">Front Desk Operational Lifecycle</CardTitle>
           </div>
 
           {/* Stepper Buttons (1 -> 2 -> 3) */}
@@ -1505,7 +1753,7 @@ export default function GuestsPage() {
                   onClick={() => { resetStepper(); setIsAddOpen(true); }}
                   className="gap-1.5 ml-auto"
                 >
-                  <Plus className="h-4 w-4" /> + Register Guest
+                  <Plus className="h-4 w-4" /> Register Guest
                 </Button>
               </div>
 

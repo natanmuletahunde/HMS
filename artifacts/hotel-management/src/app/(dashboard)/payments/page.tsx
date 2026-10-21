@@ -27,11 +27,26 @@ export default function PaymentsPage() {
     queryKey: ["payments"],
     queryFn: () => apiFetch<any>("/payments"),
   });
-  const payments: Payment[] = Array.isArray(rawPayments) ? rawPayments : (rawPayments?.data ?? []);
+  const rawList: any[] = Array.isArray(rawPayments)
+    ? rawPayments
+    : Array.isArray(rawPayments?.data)
+      ? rawPayments.data
+      : [];
 
-  const filtered = payments.filter(p => 
-    (p.invoiceNo ?? '').toLowerCase().includes(search.toLowerCase()) || 
-    (p.reference ?? '').toLowerCase().includes(search.toLowerCase())
+  const payments: Payment[] = rawList.map((p) => ({
+    id: p.id,
+    invoiceNo: p.invoiceNo || p.invoiceNumber || p.invoiceId || "—",
+    amount: Number(p.amount ?? 0),
+    method: p.method || "card",
+    reference: p.reference || "",
+    date: p.date || p.createdAt || new Date().toISOString(),
+  }));
+
+  const filtered = payments.filter(
+    (p) =>
+      (p.invoiceNo ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.reference ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.method ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   const {

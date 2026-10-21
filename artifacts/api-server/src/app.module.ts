@@ -68,6 +68,7 @@ import { GatewayModule } from './gateways/gateway.module';
 import { SecurityModule } from './modules/security/security.module';
 import { MobileModule } from './modules/mobile/mobile.module';
 import { BiModule } from './modules/bi/bi.module';
+import { GuestPortalModule } from './modules/guest-portal/guest-portal.module';
 
 @Module({
   providers: [
@@ -141,6 +142,7 @@ import { BiModule } from './modules/bi/bi.module';
     SecurityModule,
     MobileModule,
     BiModule,
+    GuestPortalModule,
   ],
 })
 export class AppModule {}

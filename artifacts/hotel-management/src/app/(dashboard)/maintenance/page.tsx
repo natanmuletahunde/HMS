@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2, MoreHorizontal, CheckCircle } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, CheckCircle, Wrench, UserCheck, Pencil, Phone, ShieldCheck } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ type MaintenanceRequest = {
   priority: string;
   status: string;
   assignedTo?: string;
+  assignedToId?: string;
   assignedToName?: string;
   reportedBy?: string;
   notes?: string;
@@ -90,6 +91,58 @@ export default function MaintenancePage() {
   const [rejectReason, setRejectReason] = useState("");
   const [inspectItem, setInspectItem] = useState<MaintenanceRequest | null>(null);
   const [inspectNotes, setInspectNotes] = useState("");
+  const [assignItem, setAssignItem] = useState<MaintenanceRequest | null>(null);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>("9612a8e6-0b0c-48af-b5db-3c5a60486565");
+  const [assignNotes, setAssignNotes] = useState("");
+
+  const { data: rawUsers } = useQuery<any>({
+    queryKey: ["users-technicians-list"],
+    queryFn: () => apiFetch<any>("/users?limit=50").catch(() => []),
+  });
+  const usersList: any[] = Array.isArray(rawUsers)
+    ? rawUsers
+    : Array.isArray(rawUsers?.data)
+      ? rawUsers.data
+      : [];
+
+  const maintenanceStaff = usersList.filter(
+    (u: any) =>
+      u.roleName?.toLowerCase().includes("maintenance") ||
+      u.role?.toLowerCase().includes("maintenance") ||
+      u.email?.includes("tech") ||
+      u.email?.includes("maintenance")
+  );
+
+  const fallbackTechs = [
+    { id: "9612a8e6-0b0c-48af-b5db-3c5a60486565", firstName: "Dawit", lastName: "Mekonnen", email: "maintenance@nexushms.com", phone: "+251-911-500600" },
+    { id: "5962537a-02ca-4e16-921b-53da7e0bf626", firstName: "Abebe", lastName: "Kebede", email: "tech.plumber@nexushms.com", phone: "+251-911-550001" },
+    { id: "49777ffb-1b76-4ff9-b1f0-93d67da97835", firstName: "Kassahun", lastName: "Desta", email: "tech.electric@nexushms.com", phone: "+251-911-550002" },
+    { id: "14961c14-5870-427b-b1db-b8d32660b02b", firstName: "Tewodros", lastName: "Tsegaye", email: "tech.hvac@nexushms.com", phone: "+251-911-550003" },
+    { id: "155da388-e6cc-46c4-a7d5-16b2d4084bd9", firstName: "Almaz", lastName: "Haile", email: "tech.carpenter@nexushms.com", phone: "+251-911-550004" },
+  ];
+
+  const availableTechnicians = (maintenanceStaff.length > 0 ? maintenanceStaff : fallbackTechs).map((u: any) => {
+    let specialty = "Maintenance Technician";
+    if (u.email?.includes("plumber")) specialty = "Plumbing & Fixture Specialist";
+    else if (u.email?.includes("electric")) specialty = "Senior Electrical Specialist";
+    else if (u.email?.includes("hvac")) specialty = "HVAC & Air Conditioning Specialist";
+    else if (u.email?.includes("carpenter")) specialty = "Carpentry & Finishing Specialist";
+    else if (u.email?.includes("maintenance")) specialty = "Lead Maintenance Officer";
+
+    return {
+      id: u.id,
+      name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
+      role: specialty,
+      phone: u.phone || "+251-911-500000",
+      email: u.email,
+    };
+  });
+
+  function openAssignModal(req: MaintenanceRequest) {
+    setAssignItem(req);
+    setSelectedWorkerId(req.assignedToId || availableTechnicians[0]?.id || "9612a8e6-0b0c-48af-b5db-3c5a60486565");
+    setAssignNotes(req.notes || "");
+  }
 
   const queryParams = new URLSearchParams({
     ...(statusTab !== "all" ? { status: statusTab } : {}),
@@ -291,11 +344,46 @@ export default function MaintenancePage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={(STATUS_BADGE[req.status] ?? "muted") as any} className="text-[10px] uppercase">
-                      {req.status.replace(/_/g, " ")}
-                    </Badge>
+                    {req.status === "approved" ? (
+                      <Badge variant="outline" className="text-[10px] font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                        APPROVED (TO ASSIGN)
+                      </Badge>
+                    ) : (
+                      <Badge variant={(STATUS_BADGE[req.status] ?? "muted") as any} className="text-[10px] uppercase">
+                        {req.status.replace(/_/g, " ")}
+                      </Badge>
+                    )}
                   </TableCell>
-                  <TableCell>{req.assignedToName ?? req.assignedTo ?? "—"}</TableCell>
+                  <TableCell>
+                    {req.assignedToName ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-xs text-foreground flex items-center gap-1.5 bg-surface px-2 py-1 rounded border border-border">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0" />
+                          <span className="truncate max-w-[120px]">{req.assignedToName}</span>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-text-muted hover:text-foreground"
+                          title="Reassign Technician"
+                          onClick={() => openAssignModal(req)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (req.status === "approved" || req.status === "assigned" || req.status === "pending") ? (
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs px-2.5 font-medium bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-xs"
+                        onClick={() => openAssignModal(req)}
+                      >
+                        <UserCheck className="h-3.5 w-3.5" />
+                        Assign Worker
+                      </Button>
+                    ) : (
+                      <span className="text-text-muted text-xs">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>{req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>
                     {req.status === "completed" ? (
@@ -310,15 +398,26 @@ export default function MaintenancePage() {
                         <DropdownMenuContent align="end">
                           {req.status === "pending" && (
                             <>
-                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "approved" } })}>1→2. Approve Request</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openAssignModal(req)}>
+                                <UserCheck className="mr-2 h-3.5 w-3.5 text-primary" />
+                                1. Approve & Assign Technician
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "approved" } })}>
+                                Quick Approve Request
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setRejectItem(req)}>Reject</DropdownMenuItem>
                             </>
                           )}
-                          {req.status === "approved" && (
-                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "assigned" } })}>2→3. Assign Technician</DropdownMenuItem>
-                          )}
-                          {req.status === "assigned" && (
-                            <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>3→4. Start Repair</DropdownMenuItem>
+                          {(req.status === "approved" || req.status === "assigned") && (
+                            <>
+                              <DropdownMenuItem onClick={() => openAssignModal(req)}>
+                                <UserCheck className="mr-2 h-3.5 w-3.5 text-primary" />
+                                {req.assignedToName ? "Reassign Worker" : "2→3. Assign Worker"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => patchMutation.mutate({ id: req.id, body: { status: "in_progress" } })}>
+                                3→4. Start Repair
+                              </DropdownMenuItem>
+                            </>
                           )}
                           {req.status === "in_progress" && (
                             <>
@@ -493,6 +592,163 @@ export default function MaintenancePage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Worker Dialog */}
+      <Dialog open={!!assignItem} onOpenChange={(o) => !o && setAssignItem(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 text-lg font-bold">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <UserCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <div>Assign Technician to Work Order</div>
+                <p className="text-xs font-normal text-text-muted">
+                  Select a certified technician from engineering to dispatch this repair
+                </p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {assignItem && (() => {
+            const currentSelectedTech = availableTechnicians.find((t) => t.id === selectedWorkerId) || availableTechnicians[0];
+            const initials = currentSelectedTech?.name
+              ? currentSelectedTech.name
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase()
+              : "TC";
+
+            return (
+              <form
+                className="space-y-4 pt-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  patchMutation.mutate({
+                    id: assignItem.id,
+                    body: {
+                      status: "assigned",
+                      assignedToId: selectedWorkerId,
+                      notes: assignNotes
+                        ? `${assignItem.notes ? assignItem.notes + " | " : ""}${assignNotes}`
+                        : assignItem.notes,
+                    },
+                  });
+                  toast({
+                    title: "Technician Dispatched",
+                    description: `Assigned ${currentSelectedTech?.name} to Work Order ${assignItem.requestNumber}.`,
+                  });
+                  setAssignItem(null);
+                  setAssignNotes("");
+                }}
+              >
+                {/* Work Order Info Box */}
+                <div className="p-3.5 rounded-lg bg-muted/40 border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10">
+                      {assignItem.requestNumber}
+                    </span>
+                    <Badge variant={(PRIORITY_BADGE[assignItem.priority] ?? "muted") as any} className="text-[10px] uppercase">
+                      {assignItem.priority} Priority
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground">{assignItem.title}</h4>
+                    {assignItem.description && (
+                      <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{assignItem.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-text-muted pt-1 border-t border-border/60">
+                    <div>Room: <strong className="text-foreground">{assignItem.roomNumber ?? "General Facility"}</strong></div>
+                    {assignItem.categoryName && (
+                      <div>Category: <strong className="text-foreground">{assignItem.categoryName}</strong></div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Technician Dropdown Selector */}
+                <div className="grid gap-2">
+                  <Label htmlFor="technician-select" className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                    Assigned Technician / Specialist *
+                  </Label>
+                  <select
+                    id="technician-select"
+                    value={selectedWorkerId}
+                    onChange={(e) => setSelectedWorkerId(e.target.value)}
+                    className="flex h-11 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer transition-colors"
+                    required
+                  >
+                    {availableTechnicians.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} — {t.role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Live Preview Card for Selected Technician */}
+                {currentSelectedTech && (
+                  <div className="p-3 rounded-lg bg-surface border border-border flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                        {initials}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm text-foreground">{currentSelectedTech.name}</div>
+                        <div className="text-xs text-text-muted">{currentSelectedTech.role}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Available / On Duty
+                      </span>
+                      {currentSelectedTech.phone && (
+                        <div className="text-[11px] text-text-muted font-mono mt-0.5 flex items-center justify-end gap-1">
+                          <Phone className="w-3 h-3 text-text-muted" />
+                          {currentSelectedTech.phone}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Instructions Textarea */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="assignNotes" className="text-xs font-medium">
+                    Special Instructions / Tools Required (Optional)
+                  </Label>
+                  <textarea
+                    id="assignNotes"
+                    rows={3}
+                    value={assignNotes}
+                    onChange={(e) => setAssignNotes(e.target.value)}
+                    placeholder="e.g. Inspect AC sensor and carry thermal multimeter. Room keycard available at front desk."
+                    className="flex w-full rounded-md border border-input bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Modal Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setAssignItem(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1 gap-2" disabled={patchMutation.isPending}>
+                    {patchMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserCheck className="h-4 w-4" />
+                    )}
+                    Confirm & Dispatch
+                  </Button>
+                </div>
+              </form>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

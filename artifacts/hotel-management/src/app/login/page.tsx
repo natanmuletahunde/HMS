@@ -113,7 +113,7 @@ export default function LoginPage() {
         setStep("mfa");
       } else {
         // No MFA — login immediately
-        login(res.accessToken, res.user);
+        login(res.accessToken, res.user, res.refreshToken);
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in");
@@ -130,7 +130,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ mfaToken, totpCode }),
       });
-      login(res.accessToken, res.user);
+      login(res.accessToken, res.user, res.refreshToken);
     } catch (err: any) {
       setError(err.message || "Invalid code — please try again");
     } finally {

@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Plus, MoreHorizontal, Loader2, Filter, BedDouble, 
-  ArrowRight, Search, Users, CalendarSearch, Sparkles 
+  ArrowRight, Search, Users, CalendarSearch, Sparkles, CalendarDays 
 } from "lucide-react";
+import { ReservationCalendarView } from "@/components/reservation-calendar-view";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,25 +73,28 @@ type AvailRoom = {
 function RoomsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "availability" ? "availability" : "inventory";
-  const [activeTab, setActiveTab] = useState<"inventory" | "availability">(initialTab);
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
+  const [activeTab, setActiveTab] = useState<"inventory" | "availability" | "calendar">(initialTab);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Sync tab with URL search parameter if changed externally
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "availability" && activeTab !== "availability") {
+    const currentTabParam = searchParams.get("tab");
+    if (currentTabParam === "calendar" && activeTab !== "calendar") {
+      setActiveTab("calendar");
+    } else if (currentTabParam === "availability" && activeTab !== "availability") {
       setActiveTab("availability");
-    } else if (tabParam !== "availability" && activeTab === "availability" && !tabParam) {
+    } else if (!currentTabParam && activeTab !== "inventory") {
       setActiveTab("inventory");
     }
   }, [searchParams, activeTab]);
 
-  const handleTabChange = (tab: "inventory" | "availability") => {
+  const handleTabChange = (tab: "inventory" | "availability" | "calendar") => {
     setActiveTab(tab);
-    const url = tab === "availability" ? "/rooms?tab=availability" : "/rooms";
+    const url = tab === "calendar" ? "/rooms?tab=calendar" : tab === "availability" ? "/rooms?tab=availability" : "/rooms";
     router.replace(url, { scroll: false });
   };
 
@@ -250,6 +254,17 @@ function RoomsContent() {
         >
           <CalendarSearch className="h-4 w-4" />
           <span>Date Availability & Booking</span>
+        </button>
+        <button
+          onClick={() => handleTabChange("calendar")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === "calendar"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-muted hover:text-text"
+          }`}
+        >
+          <CalendarDays className="h-4 w-4" />
+          <span>Reservation Calendar</span>
         </button>
       </div>
 
@@ -646,12 +661,6 @@ function RoomsContent() {
                             </span>
                           )}
                         </div>
-                        <Button
-                          className="w-full"
-                          onClick={() => router.push(`/guests?action=reserve&roomId=${room.id}&checkIn=${checkIn}&checkOut=${checkOut}&roomTypeId=${room.roomTypeId ?? ""}`)}
-                        >
-                          Reserve Now
-                        </Button>
                       </CardContent>
                     </Card>
                   );
@@ -670,6 +679,39 @@ function RoomsContent() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* TAB 3: RESERVATION CALENDAR CONTENT                             */}
+      {/* ================================================================= */}
+      {activeTab === "calendar" && (
+        <div className="space-y-4 pt-2">
+          <ReservationCalendarView showTitle={true} />
+        </div>
+      )}
+
+      {/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
+      {activeTab === "inventory" && (
+        <div className="pt-8 border-t border-border mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                Reservation Calendar & Room Schedule
+              </h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Live room booking schedule, check-in dates, and occupancy timeline
+              </p>
+            </div>
+            <Link href="/reservations/calendar">
+              <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                Open Full Screen Calendar &rarr;
+              </Button>
+            </Link>
+          </div>
+
+          <ReservationCalendarView showTitle={false} />
         </div>
       )}
     </div>

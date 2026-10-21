@@ -6,25 +6,27 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface TablePaginationProps {
-  currentPage: number;
-  totalPages: number;
+  currentPage?: number;
+  totalPages?: number;
   totalItems?: number;
   pageSize?: number;
-  onPrev: () => void;
-  onNext: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
   onPageChange?: (page: number) => void;
   className?: string;
+  pagination?: any;
 }
 
-export function TablePagination({
-  currentPage,
-  totalPages,
-  totalItems,
-  pageSize = 5,
-  onPrev,
-  onNext,
-  className,
-}: TablePaginationProps) {
+export function TablePagination(props: TablePaginationProps) {
+  const p = props.pagination || props;
+  const currentPage = p.currentPage ?? 1;
+  const totalPages = p.totalPages ?? 1;
+  const totalItems = p.totalItems;
+  const pageSize = p.pageSize ?? 5;
+  const onPrev = p.onPrev ?? (() => {});
+  const onNext = p.onNext ?? (() => {});
+  const className = props.className;
+
   // If explicitly 0 items, don't show pagination
   if (totalItems !== undefined && totalItems === 0) return null;
 

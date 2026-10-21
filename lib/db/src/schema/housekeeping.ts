@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, date, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, date, integer, numeric } from "drizzle-orm/pg-core";
 import { roomsTable } from "./rooms";
 import { usersTable } from "./users";
 
@@ -78,3 +78,31 @@ export const cleaningInspectionsTable = pgTable("cleaning_inspections", {
 export type HousekeepingAssignment = typeof housekeepingAssignmentsTable.$inferSelect;
 export type CleaningArea          = typeof cleaningAreasTable.$inferSelect;
 export type CleaningInspection    = typeof cleaningInspectionsTable.$inferSelect;
+
+// ─── Pre-Checkout Room Clearance Inspections ────────────────────────────────
+export const preCheckoutInspectionsTable = pgTable("pre_checkout_inspections", {
+  id:               text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  inspectionNumber: text("inspection_number").notNull().unique().$defaultFn(() => `PCI-${Date.now()}`),
+  reservationId:    text("reservation_id").notNull(),
+  roomId:           text("room_id").notNull(),
+  guestId:          text("guest_id").notNull(),
+  status:           text("status").notNull().default("pending"), // pending | in_progress | cleared | issues_reported
+  minibarItems:     text("minibar_items"), // JSON stringified array [{ name, quantity, unitPrice, total }]
+  minibarTotal:     numeric("minibar_total", { precision: 10, scale: 2 }).notNull().default("0"),
+  damageCharges:    numeric("damage_charges", { precision: 10, scale: 2 }).notNull().default("0"),
+  damageNotes:      text("damage_notes"),
+  assetsIntact:     boolean("assets_intact").notNull().default(true),
+  lostAndFoundFound: boolean("lost_and_found_found").notNull().default(false),
+  lostAndFoundNotes: text("lost_and_found_notes"),
+  inspectedBy:      text("inspected_by"),
+  inspectedById:    text("inspected_by_id"),
+  inspectedAt:      timestamp("inspected_at", { withTimezone: true }),
+  notes:            text("notes"),
+  isActive:         boolean("is_active").notNull().default(true),
+  createdAt:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type PreCheckoutInspection       = typeof preCheckoutInspectionsTable.$inferSelect;
+export type InsertPreCheckoutInspection = typeof preCheckoutInspectionsTable.$inferInsert;
+

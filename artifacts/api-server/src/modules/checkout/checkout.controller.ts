@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
-@Controller('checkouts')
+@Controller(['checkouts', 'checkout'])
 @UseGuards(JwtAuthGuard)
 export class CheckoutController {
   constructor(private readonly svc: CheckoutService) {}

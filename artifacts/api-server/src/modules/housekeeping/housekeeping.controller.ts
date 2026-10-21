@@ -32,6 +32,28 @@ export class HousekeepingController {
     return this.svc.createInspection(b);
   }
 
+  // ─── Pre-Checkout Inspections ───
+
+  @Post('pre-checkout/request')
+  requestPreCheckoutInspection(@Body() b: any) {
+    return this.svc.requestPreCheckoutInspection(b);
+  }
+
+  @Get('pre-checkout')
+  getPreCheckoutInspections(@Query() q: any) {
+    return this.svc.getPreCheckoutInspections(q);
+  }
+
+  @Get('pre-checkout/reservation/:reservationId')
+  getPreCheckoutInspectionByReservation(@Param('reservationId') reservationId: string) {
+    return this.svc.getPreCheckoutInspectionByReservation(reservationId);
+  }
+
+  @Patch('pre-checkout/:id/submit')
+  submitPreCheckoutInspection(@Param('id') id: string, @Body() b: any) {
+    return this.svc.submitPreCheckoutInspection(id, b);
+  }
+
   @Get()
   findAll(@Query() q: any) {
     return this.svc.findAll(q);

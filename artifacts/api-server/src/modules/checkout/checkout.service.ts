@@ -10,13 +10,26 @@ import {
 
 const fmtDate = (v: any) => (v instanceof Date ? v.toISOString() : v ?? null);
 
-const fmtCheckout = (c: any) => ({
-  ...c,
-  lateCheckoutFee: c.lateCheckoutFee != null ? parseFloat(c.lateCheckoutFee) : null,
-  totalCharges: c.totalCharges != null ? parseFloat(c.totalCharges) : null,
-  createdAt: fmtDate(c.createdAt),
-  updatedAt: fmtDate(c.updatedAt),
-});
+const fmtCheckout = (c: any) => {
+  const gName =
+    c.guestName ||
+    [c.guestFirstName, c.guestLastName]
+      .filter(Boolean)
+      .map((s: string) => String(s).trim())
+      .filter(Boolean)
+      .join(' ') ||
+    null;
+
+  return {
+    ...c,
+    guestName: gName,
+    checkOutNumber: c.checkoutNumber ?? c.checkOutNumber ?? null,
+    lateCheckoutFee: c.lateCheckoutFee != null ? parseFloat(c.lateCheckoutFee) : null,
+    totalCharges: c.totalCharges != null ? parseFloat(c.totalCharges) : null,
+    createdAt: fmtDate(c.createdAt),
+    updatedAt: fmtDate(c.updatedAt),
+  };
+};
 
 @Injectable()
 export class CheckoutService {

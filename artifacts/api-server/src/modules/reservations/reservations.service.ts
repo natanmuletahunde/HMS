@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq, and, or, like, sql, gte, lte, ne, not, inArray, getTableColumns, desc } from 'drizzle-orm';
+import { eq, and, or, like, sql, gte, lte, ne, not, inArray, isNotNull, getTableColumns, desc } from 'drizzle-orm';
 import {
   db,
   guestsTable,
@@ -8,26 +8,44 @@ import {
   checkoutsTable,
   roomsTable,
   roomTypesTable,
+  housekeepingAssignmentsTable,
+  paymentsTable,
+  invoicesTable,
+  notificationsTable,
+  preCheckoutInspectionsTable,
+  usersTable,
 } from '@workspace/db';
 import { EventBusService } from '../event-bus/event-bus.service';
 
 const fmtDate = (v: any) => (v instanceof Date ? v.toISOString() : v ?? null);
 
-const fmtReservation = (r: any) => ({
-  ...r,
-  totalAmount: r.totalAmount != null ? parseFloat(r.totalAmount) : null,
-  paidAmount: r.paidAmount != null ? parseFloat(r.paidAmount) : null,
-  discountAmount: r.discountAmount != null ? parseFloat(r.discountAmount) : null,
-  taxAmount: r.taxAmount != null ? parseFloat(r.taxAmount) : null,
-  serviceCharge: r.serviceCharge != null ? parseFloat(r.serviceCharge) : null,
-  depositRequired: r.depositRequired != null ? parseFloat(r.depositRequired) : null,
-  depositPaid: r.depositPaid != null ? parseFloat(r.depositPaid) : null,
-  actualCheckIn: fmtDate(r.actualCheckIn),
-  actualCheckOut: fmtDate(r.actualCheckOut),
-  cancelledAt: fmtDate(r.cancelledAt),
-  createdAt: fmtDate(r.createdAt),
-  updatedAt: fmtDate(r.updatedAt),
-});
+const fmtReservation = (r: any) => {
+  const gName =
+    r.guestName ||
+    [r.guestFirstName, r.guestLastName]
+      .filter(Boolean)
+      .map((s: string) => String(s).trim())
+      .filter(Boolean)
+      .join(' ') ||
+    (r.guestEmail ? String(r.guestEmail).split('@')[0] : null);
+
+  return {
+    ...r,
+    guestName: gName,
+    totalAmount: r.totalAmount != null ? parseFloat(r.totalAmount) : null,
+    paidAmount: r.paidAmount != null ? parseFloat(r.paidAmount) : null,
+    discountAmount: r.discountAmount != null ? parseFloat(r.discountAmount) : null,
+    taxAmount: r.taxAmount != null ? parseFloat(r.taxAmount) : null,
+    serviceCharge: r.serviceCharge != null ? parseFloat(r.serviceCharge) : null,
+    depositRequired: r.depositRequired != null ? parseFloat(r.depositRequired) : null,
+    depositPaid: r.depositPaid != null ? parseFloat(r.depositPaid) : null,
+    actualCheckIn: fmtDate(r.actualCheckIn),
+    actualCheckOut: fmtDate(r.actualCheckOut),
+    cancelledAt: fmtDate(r.cancelledAt),
+    createdAt: fmtDate(r.createdAt),
+    updatedAt: fmtDate(r.updatedAt),
+  };
+};
 
 const resCols = getTableColumns(reservationsTable);
 
@@ -130,12 +148,31 @@ export class ReservationsService {
   }) {
     const nights = calcNights(body.checkInDate, body.checkOutDate);
 
-    const [rt] = await db
-      .select({ basePrice: roomTypesTable.basePrice })
-      .from(roomTypesTable)
-      .where(eq(roomTypesTable.id, body.roomTypeId));
+    if (!body.roomTypeId && body.roomId) {
+      const [rm] = await db
+        .select({ roomTypeId: roomsTable.roomTypeId })
+        .from(roomsTable)
+        .where(eq(roomsTable.id, body.roomId));
+      if (rm?.roomTypeId) {
+        body.roomTypeId = rm.roomTypeId;
+      }
+    }
 
-    const basePrice = rt ? parseFloat(rt.basePrice as string) : 0;
+    let basePrice = 0;
+    if (body.roomTypeId) {
+      const [rt] = await db
+        .select({ basePrice: roomTypesTable.basePrice })
+        .from(roomTypesTable)
+        .where(eq(roomTypesTable.id, body.roomTypeId));
+      if (rt?.basePrice) basePrice = parseFloat(rt.basePrice as string);
+    } else if (body.roomId) {
+      const [rm] = await db
+        .select({ currentPrice: roomsTable.currentPrice })
+        .from(roomsTable)
+        .where(eq(roomsTable.id, body.roomId));
+      if (rm?.currentPrice) basePrice = parseFloat(rm.currentPrice as string);
+    }
+
     const discount = body.discountAmount ?? 0;
     const tax = body.taxAmount ?? 0;
     const service = body.serviceCharge ?? 0;
@@ -174,6 +211,28 @@ export class ReservationsService {
     const [row] = await baseQuery().where(eq(reservationsTable.id, res.id));
     const result = fmtReservation(row);
     this.eventBus.publish('reservation.created', result);
+
+    if (body.reservationType === 'online' || body.bookingSource === 'online' || body.bookingSource === 'ota') {
+      try {
+        const staffUsers = await db.select({ id: usersTable.id }).from(usersTable);
+        if (staffUsers.length > 0) {
+          const guestName = result.guestName || 'Online Guest';
+          await db.insert(notificationsTable).values(
+            staffUsers.map((u) => ({
+              userId: u.id,
+              type: 'info',
+              title: '🌐 New Online Reservation',
+              message: `Online booking ${res.reservationNumber} received for ${guestName} (${res.checkInDate} to ${res.checkOutDate}).`,
+              resourceType: 'reservation',
+              resourceId: res.id,
+            }))
+          );
+        }
+      } catch {
+        // Notification creation is non-blocking
+      }
+    }
+
     return result;
   }
 
@@ -248,6 +307,7 @@ export class ReservationsService {
   async checkIn(
     id: string,
     body: {
+      roomId?: string;
       keyCardNumber?: string;
       depositCollected?: boolean;
       depositAmount?: number;
@@ -263,22 +323,61 @@ export class ReservationsService {
     if (!['confirmed', 'pending', 'guaranteed'].includes(existing.status)) {
       throw new BadRequestException(`Cannot check-in reservation with status: ${existing.status}`);
     }
-    if (!existing.roomId) {
-      throw new BadRequestException('Reservation must have a room assigned before check-in');
+
+    let assignedRoomId = body.roomId || existing.roomId;
+    if (!assignedRoomId) {
+      const [avail] = await db
+        .select({ id: roomsTable.id })
+        .from(roomsTable)
+        .where(
+          and(
+            eq(roomsTable.status, 'available'),
+            eq(roomsTable.isActive, true),
+            existing.roomTypeId ? eq(roomsTable.roomTypeId, existing.roomTypeId) : sql`true`,
+          ),
+        )
+        .limit(1);
+
+      if (avail) {
+        assignedRoomId = avail.id;
+      } else {
+        const [anyAvail] = await db
+          .select({ id: roomsTable.id })
+          .from(roomsTable)
+          .where(and(eq(roomsTable.status, 'available'), eq(roomsTable.isActive, true)))
+          .limit(1);
+        if (anyAvail) assignedRoomId = anyAvail.id;
+      }
+    }
+
+    if (!assignedRoomId) {
+      throw new BadRequestException('No available rooms in the hotel to complete check-in. Please ensure a room is cleaned and available.');
+    }
+
+    const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, assignedRoomId));
+    if (!room) {
+      throw new BadRequestException('Selected room does not exist');
+    }
+    if (room.status !== 'available' && room.id !== existing.roomId) {
+      throw new BadRequestException(`Room ${room.number} is currently ${room.status}. Please choose an available room.`);
     }
 
     const [res] = await db
       .update(reservationsTable)
-      .set({ status: 'checked_in', actualCheckIn: new Date() })
+      .set({
+        roomId: assignedRoomId,
+        status: 'checked_in',
+        actualCheckIn: new Date(),
+      })
       .where(eq(reservationsTable.id, id))
       .returning();
 
-    await db.update(roomsTable).set({ status: 'occupied' }).where(eq(roomsTable.id, existing.roomId));
+    await db.update(roomsTable).set({ status: 'occupied' }).where(eq(roomsTable.id, assignedRoomId));
 
     await db.insert(checkinsTable).values({
       reservationId: id,
       guestId: existing.guestId,
-      roomId: existing.roomId,
+      roomId: assignedRoomId,
       keyCardNumber: body.keyCardNumber,
       depositCollected: body.depositCollected ?? false,
       depositAmount: body.depositAmount != null ? String(body.depositAmount) : '0',
@@ -308,12 +407,40 @@ export class ReservationsService {
       feedbackNotes?: string;
       checkedOutBy?: string;
       notes?: string;
+      overrideInspection?: boolean;
     },
   ) {
     const [existing] = await db.select().from(reservationsTable).where(eq(reservationsTable.id, id));
     if (!existing) throw new NotFoundException(`Reservation ${id} not found`);
     if (existing.status !== 'checked_in') {
       throw new BadRequestException(`Cannot check-out reservation with status: ${existing.status}`);
+    }
+
+    // Verify Housekeeping Pre-Checkout clearance
+    if (!body.overrideInspection) {
+      const [inspection] = await db
+        .select()
+        .from(preCheckoutInspectionsTable)
+        .where(
+          and(
+            eq(preCheckoutInspectionsTable.reservationId, id),
+            eq(preCheckoutInspectionsTable.isActive, true),
+          ),
+        )
+        .orderBy(desc(preCheckoutInspectionsTable.createdAt))
+        .limit(1);
+
+      if (!inspection) {
+        throw new BadRequestException(
+          'Pre-checkout housekeeping inspection is required before checking out. Please request an inspection from Housekeeping first.',
+        );
+      }
+
+      if (inspection.status !== 'cleared') {
+        throw new BadRequestException(
+          `Room inspection has not been cleared (Current status: "${inspection.status}"). Housekeeping must inspect the room amenities, minibar, and equipment before guest checkout.`,
+        );
+      }
     }
 
     await db
@@ -323,6 +450,17 @@ export class ReservationsService {
 
     if (existing.roomId) {
       await db.update(roomsTable).set({ status: 'cleaning' }).where(eq(roomsTable.id, existing.roomId));
+      const taskNumber = 'HK-' + Date.now().toString(36).toUpperCase();
+      await db.insert(housekeepingAssignmentsTable).values({
+        taskNumber,
+        roomId: existing.roomId,
+        areaType: 'guest_room',
+        cleaningType: 'checkout',
+        priority: 'high',
+        status: 'pending',
+        scheduledDate: new Date().toISOString().slice(0, 10),
+        notes: `Turnover cleaning after checkout for reservation ${existing.reservationNumber}`,
+      });
     }
 
     await db.insert(checkoutsTable).values({
@@ -337,6 +475,33 @@ export class ReservationsService {
       checkedOutBy: body.checkedOutBy,
       notes: body.notes,
     });
+
+    // Auto-record payment transaction if an active invoice exists for this reservation
+    try {
+      const [inv] = await db
+        .select()
+        .from(invoicesTable)
+        .where(eq(invoicesTable.reservationId, id));
+      if (inv) {
+        const payAmount = Number(inv.totalAmount || body.totalCharges || 0);
+        if (payAmount > 0) {
+          const ref = 'PAY-CHK-' + Math.floor(100000 + Math.random() * 900000);
+          await db.insert(paymentsTable).values({
+            invoiceId: inv.id,
+            amount: String(payAmount.toFixed(2)),
+            method: 'card',
+            reference: ref,
+            notes: `Folio settled in full at checkout (${existing.reservationNumber})`,
+          });
+          await db
+            .update(invoicesTable)
+            .set({ paidAmount: String(payAmount.toFixed(2)), status: 'paid' })
+            .where(eq(invoicesTable.id, inv.id));
+        }
+      }
+    } catch {
+      // Continue checkout gracefully even if payment insert encounters an edge case
+    }
 
     const [row] = await baseQuery().where(eq(reservationsTable.id, id));
     return fmtReservation(row);
@@ -396,6 +561,7 @@ export class ReservationsService {
       .from(reservationsTable)
       .where(
         and(
+          isNotNull(reservationsTable.roomId),
           not(inArray(reservationsTable.status, ['cancelled', 'checked_out', 'no_show'])),
           lte(reservationsTable.checkInDate, checkOut),
           gte(reservationsTable.checkOutDate, checkIn),
@@ -420,12 +586,19 @@ export class ReservationsService {
       })
       .from(roomsTable)
       .leftJoin(roomTypesTable, eq(roomsTable.roomTypeId, roomTypesTable.id))
-      .where(and(...conds));
+      .where(and(...conds))
+      .orderBy(roomsTable.number);
 
-    return rows.map((r) => ({
-      ...r,
-      currentPrice: r.currentPrice != null ? parseFloat(r.currentPrice as string) : null,
-      basePrice: r.basePrice != null ? parseFloat(r.basePrice as string) : null,
-    }));
+    return rows.map((r) => {
+      const bPrice = r.basePrice != null ? parseFloat(r.basePrice as string) : 100;
+      const cPrice = r.currentPrice != null ? parseFloat(r.currentPrice as string) : bPrice;
+      return {
+        ...r,
+        currentPrice: cPrice,
+        basePrice: bPrice,
+        maxAdults: r.capacityAdults ?? r.maximumAdults ?? 2,
+        maxChildren: r.capacityChildren ?? r.maximumChildren ?? 1,
+      };
+    });
   }
 }

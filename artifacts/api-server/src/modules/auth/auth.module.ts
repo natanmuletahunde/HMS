@@ -11,7 +11,7 @@ import { requireSessionSecret } from '../../common/config/runtime-secrets';
     PassportModule,
     JwtModule.register({
       secret: requireSessionSecret(),
-      signOptions: { expiresIn: '24h' },
+      signOptions: { expiresIn: '30d' },
     }),
   ],
   controllers: [AuthController],

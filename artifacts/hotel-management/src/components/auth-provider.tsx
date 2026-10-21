@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, isTokenExpired, attemptTokenRecovery } from "@/lib/api";
 
 type User = {
   id: string;
@@ -14,7 +14,7 @@ type User = {
 
 type AuthContextType = {
   user: User | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   toggleOnDuty: () => void;
   isAuthenticated: boolean;
@@ -35,16 +35,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (token && savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        if (isTokenExpired(token)) {
+          // Attempt silent renewal in background
+          attemptTokenRecovery().then((recovered) => {
+            if (recovered) {
+              setUser(parsed);
+            } else {
+              localStorage.removeItem("hms_token");
+              localStorage.removeItem("hms_user");
+              localStorage.removeItem("hms_refresh_token");
+              setUser(null);
+            }
+            setIsLoading(false);
+          });
+          return;
+        }
+        setUser(parsed);
       } catch (e) {
         localStorage.removeItem("hms_token");
         localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_refresh_token");
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = (token: string, rawUser: any) => {
+  const login = (token: string, rawUser: any, refreshToken?: string) => {
     const role = rawUser.roleName || rawUser.role || "Staff";
     const name = rawUser.name || `${rawUser.firstName || ''} ${rawUser.lastName || ''}`.trim() || rawUser.email;
     const normalized: User = {
@@ -55,6 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     localStorage.setItem("hms_token", token);
     localStorage.setItem("hms_user", JSON.stringify(normalized));
+    if (refreshToken) {
+      localStorage.setItem("hms_refresh_token", refreshToken);
+    }
     setUser(normalized);
     router.push("/dashboard");
   };

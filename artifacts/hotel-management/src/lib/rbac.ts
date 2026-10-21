@@ -181,6 +181,7 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
     const allowed = [
       '/dashboard',
       '/guests',
+      '/qr-codes',
       '/rooms',
       '/front-office',
       '/availability',

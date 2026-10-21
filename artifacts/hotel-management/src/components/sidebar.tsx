@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo } from "react";
 import { 
   LayoutDashboard, CalendarCheck, Users, BedDouble, 
   Sparkles, Wrench, UtensilsCrossed, FileText, 
@@ -9,13 +10,13 @@ import {
   Shield, Lock, ClipboardList,
   CalendarSearch, UserPlus, LogIn, LogOut, Bed, CalendarDays, ShoppingCart, ConciergeBell,
   ShoppingBag, Car, Users2,
-  MessageSquare, BarChart2, FolderOpen, Bell,
+  BarChart2, FolderOpen, Bell,
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
-  TrendingUp, ShieldCheck,
+  TrendingUp, ShieldCheck, QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
-import { isRouteAuthorized, getRoleInfo } from "@/lib/rbac";
+import { isRouteAuthorized } from "@/lib/rbac";
 
 const NAV_GROUPS = [
   {
@@ -43,19 +44,15 @@ const NAV_GROUPS = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
       { name: "Rooms", href: "/rooms", icon: BedDouble },
+      { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
+      { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
     ]
   },
   {
     title: "Front Office",
     items: [
+      { name: "Stay & Room Service", href: "/stay", icon: Bed },
       { name: "Check-out", href: "/check-out", icon: LogOut },
-      { name: "Stay & Room Services", href: "/stay", icon: Bed },
-    ]
-  },
-  {
-    title: "Reservations",
-    items: [
-      { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
     ]
   },
   {
@@ -96,7 +93,6 @@ const NAV_GROUPS = [
   {
     title: "Enterprise",
     items: [
-      { name: "Customer Service", href: "/customer-service", icon: MessageSquare },
       { name: "Notifications", href: "/notifications", icon: Bell },
       { name: "BI Dashboard", href: "/bi", icon: TrendingUp },
       { name: "Security", href: "/security", icon: ShieldCheck },
@@ -124,34 +120,29 @@ const NAV_GROUPS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
-  const roleInfo = getRoleInfo(currentRole);
 
-  // Filter navigation groups and items based on role authorization
-  const filteredNavGroups = NAV_GROUPS.map((group) => {
-    const authorizedItems = group.items.filter((item) => {
-      const pathOnly = item.href.split('?')[0];
-      return isRouteAuthorized(currentRole, pathOnly);
-    });
-    return {
-      ...group,
-      items: authorizedItems,
-    };
-  }).filter((group) => group.items.length > 0);
+  // Memoize filtered navigation groups based on role authorization
+  const filteredNavGroups = useMemo(() => {
+    return NAV_GROUPS.map((group) => {
+      const authorizedItems = group.items.filter((item) => {
+        const pathOnly = item.href.split('?')[0];
+        return isRouteAuthorized(currentRole, pathOnly);
+      });
+      return {
+        ...group,
+        items: authorizedItems,
+      };
+    }).filter((group) => group.items.length > 0);
+  }, [currentRole]);
 
   return (
     <aside className="w-64 flex flex-col bg-surface border-r border-border h-screen sticky top-0 overflow-y-auto">
-      <div className="flex flex-col justify-center px-6 py-4 border-b border-border">
-        <div className="flex items-center">
-          <BedDouble className="h-6 w-6 text-primary mr-3" />
-          <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
-        </div>
-        <div className="mt-2 flex items-center">
-          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border", roleInfo.badgeClass)}>
-            {roleInfo.badge}
-          </span>
-        </div>
+      <div className="flex items-center px-6 py-4 border-b border-border">
+        <BedDouble className="h-6 w-6 text-primary mr-3" />
+        <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
       </div>
       
       <div className="flex-1 py-6 px-4 space-y-8">
@@ -173,6 +164,13 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     prefetch={false}
+                    onMouseEnter={() => {
+                      try {
+                        router.prefetch(item.href);
+                      } catch {
+                        // ignore
+                      }
+                    }}
                     className={cn(
                       "flex items-center px-2 py-2 text-sm font-medium rounded-md group transition-colors",
                       isActive 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { eq, and, or, like, sql, getTableColumns, desc } from 'drizzle-orm';
 import {
   db,
@@ -106,44 +106,62 @@ export class GuestsService {
   }
 
   async create(body: any) {
+    if (!body.firstName || typeof body.firstName !== 'string' || !body.firstName.trim()) {
+      throw new BadRequestException('First name is required');
+    }
+    if (!body.lastName || typeof body.lastName !== 'string' || !body.lastName.trim()) {
+      throw new BadRequestException('Last name is required');
+    }
+
     const guestCode = 'GST-' + crypto.randomUUID().slice(0, 8).toUpperCase();
-    const [g] = await db
-      .insert(guestsTable)
-      .values({
-        guestCode,
-        firstName: body.firstName,
-        middleName: body.middleName,
-        lastName: body.lastName,
-        gender: body.gender,
-        dateOfBirth: body.dateOfBirth,
-        nationality: body.nationality,
-        idType: body.idType,
-        idNumber: body.idNumber,
-        passportNumber: body.passportNumber,
-        nationalId: body.nationalId,
-        visaNumber: body.visaNumber,
-        phone: body.phone,
-        alternativePhone: body.alternativePhone,
-        email: body.email,
-        country: body.country,
-        region: body.region,
-        city: body.city,
-        address: body.address,
-        emergencyContactName: body.emergencyContactName,
-        emergencyContactPhone: body.emergencyContactPhone,
-        vipStatus: body.vipStatus ?? false,
-        guestType: body.guestType ?? 'individual',
-        smokingPreference: body.smokingPreference,
-        bedPreference: body.bedPreference,
-        floorPreference: body.floorPreference,
-        foodPreference: body.foodPreference,
-        specialRequests: body.specialRequests,
-        profilePhoto: body.profilePhoto,
-        remarks: body.remarks,
-        notes: body.notes,
-      })
-      .returning();
-    return fmtGuest(g);
+    const normalizedEmail = body.email && typeof body.email === 'string' && body.email.trim()
+      ? body.email.trim().toLowerCase()
+      : null;
+
+    try {
+      const [g] = await db
+        .insert(guestsTable)
+        .values({
+          guestCode,
+          firstName: body.firstName.trim(),
+          middleName: body.middleName?.trim() || null,
+          lastName: body.lastName.trim(),
+          gender: body.gender || null,
+          dateOfBirth: body.dateOfBirth || null,
+          nationality: body.nationality?.trim() || null,
+          idType: body.idType || null,
+          idNumber: body.idNumber?.trim() || null,
+          passportNumber: body.passportNumber?.trim() || null,
+          nationalId: body.nationalId?.trim() || null,
+          visaNumber: body.visaNumber?.trim() || null,
+          phone: body.phone?.trim() || null,
+          alternativePhone: body.alternativePhone?.trim() || null,
+          email: normalizedEmail,
+          country: body.country?.trim() || null,
+          region: body.region?.trim() || null,
+          city: body.city?.trim() || null,
+          address: body.address?.trim() || null,
+          emergencyContactName: body.emergencyContactName?.trim() || null,
+          emergencyContactPhone: body.emergencyContactPhone?.trim() || null,
+          vipStatus: body.vipStatus ?? false,
+          guestType: body.guestType ?? 'individual',
+          smokingPreference: body.smokingPreference || null,
+          bedPreference: body.bedPreference || null,
+          floorPreference: body.floorPreference || null,
+          foodPreference: body.foodPreference || null,
+          specialRequests: body.specialRequests?.trim() || null,
+          profilePhoto: body.profilePhoto || null,
+          remarks: body.remarks?.trim() || null,
+          notes: body.notes?.trim() || null,
+        })
+        .returning();
+      return fmtGuest(g);
+    } catch (err: any) {
+      if (err.code === '23505') {
+        throw new BadRequestException('A guest with this code or document already exists');
+      }
+      throw new BadRequestException(err.message || 'Failed to register guest');
+    }
   }
 
   async findOne(id: string) {
@@ -163,10 +181,27 @@ export class GuestsService {
       'remarks', 'notes', 'isActive',
     ];
     const u: any = {};
-    for (const k of allowed) if (body[k] !== undefined) u[k] = body[k];
-    const [g] = await db.update(guestsTable).set(u).where(eq(guestsTable.id, id)).returning();
-    if (!g) throw new NotFoundException(`Guest ${id} not found`);
-    return fmtGuest(g);
+    for (const k of allowed) {
+      if (body[k] !== undefined) {
+        if (k === 'email') {
+          u.email = body.email && typeof body.email === 'string' && body.email.trim()
+            ? body.email.trim().toLowerCase()
+            : null;
+        } else if (typeof body[k] === 'string') {
+          u[k] = body[k].trim() || null;
+        } else {
+          u[k] = body[k];
+        }
+      }
+    }
+    try {
+      const [g] = await db.update(guestsTable).set(u).where(eq(guestsTable.id, id)).returning();
+      if (!g) throw new NotFoundException(`Guest ${id} not found`);
+      return fmtGuest(g);
+    } catch (err: any) {
+      if (err instanceof NotFoundException) throw err;
+      throw new BadRequestException(err.message || 'Failed to update guest');
+    }
   }
 
   async remove(id: string) {

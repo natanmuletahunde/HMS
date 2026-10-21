@@ -20,7 +20,7 @@ export const guestsTable = pgTable("guests", {
   // Contact
   phone: text("phone"),
   alternativePhone: text("alternative_phone"),
-  email: text("email").notNull().unique(),
+  email: text("email"),
   // Address
   country: text("country"),
   region: text("region"),

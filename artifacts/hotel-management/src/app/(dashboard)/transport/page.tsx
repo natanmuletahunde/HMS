@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2, MoreHorizontal } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, Car } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -221,6 +221,22 @@ export default function TransportPage() {
             <Plus className="mr-2 h-4 w-4" /> New Trip
           </Button>
         )}
+      </div>
+
+      {/* Integration Notice */}
+      <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-text">
+        <span className="flex items-center gap-2">
+          <Car className="h-4 w-4 text-primary shrink-0" />
+          <span>In-room guest airport transfers and chauffeur bookings are now integrated into <strong>Stay & Room Services</strong>.</span>
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 shrink-0 self-start sm:self-auto"
+          onClick={() => window.location.href = '/stay?tab=room-service'}
+        >
+          Go to Stay & Room Services
+        </Button>
       </div>
 
       {/* Tabs */}

@@ -1,21 +1,46 @@
 import { Injectable } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 import { db, paymentsTable, invoicesTable } from '@workspace/db';
-const fmt = (p: any) => ({ ...p, amount:parseFloat(p.amount), reference:p.reference??null, notes:p.notes??null, createdAt:p.createdAt.toISOString() });
+const fmt = (p: any) => ({
+  ...p,
+  amount: parseFloat(p.amount),
+  invoiceNo: p.invoiceNumber ?? p.invoiceNo ?? p.invoiceId,
+  date: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
+  reference: p.reference ?? null,
+  notes: p.notes ?? null,
+  createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt),
+});
 @Injectable()
 export class PaymentsService {
   async findAll(q: any) {
-    const {invoiceId,method,page=1,limit=20}=q;
-    const l=Math.min(+limit,100); const offset=(+page-1)*l;
+    const { invoiceId, method, page = 1, limit = 20 } = q;
+    const l = Math.min(+limit, 100);
+    const offset = (+page - 1) * l;
     const conds: any[] = [];
-    if (invoiceId) conds.push(eq(paymentsTable.invoiceId,invoiceId));
-    if (method) conds.push(eq(paymentsTable.method,method));
-    const where=conds.length>0?and(...conds):undefined;
-    const [rows,[{count}]] = await Promise.all([
-      db.select().from(paymentsTable).where(where).limit(l).offset(offset).orderBy(paymentsTable.createdAt),
-      db.select({count:sql<number>`count(*)::int`}).from(paymentsTable).where(where),
+    if (invoiceId) conds.push(eq(paymentsTable.invoiceId, invoiceId));
+    if (method) conds.push(eq(paymentsTable.method, method));
+    const where = conds.length > 0 ? and(...conds) : undefined;
+    const [rows, [{ count }]] = await Promise.all([
+      db
+        .select({
+          id: paymentsTable.id,
+          invoiceId: paymentsTable.invoiceId,
+          amount: paymentsTable.amount,
+          method: paymentsTable.method,
+          reference: paymentsTable.reference,
+          notes: paymentsTable.notes,
+          createdAt: paymentsTable.createdAt,
+          invoiceNumber: invoicesTable.invoiceNumber,
+        })
+        .from(paymentsTable)
+        .leftJoin(invoicesTable, eq(paymentsTable.invoiceId, invoicesTable.id))
+        .where(where)
+        .limit(l)
+        .offset(offset)
+        .orderBy(sql`${paymentsTable.createdAt} DESC`),
+      db.select({ count: sql<number>`count(*)::int` }).from(paymentsTable).where(where),
     ]);
-    return { data:rows.map(fmt), meta:{total:count,page:+page,limit:l,totalPages:Math.ceil(count/l)} };
+    return { data: rows.map(fmt), meta: { total: count, page: +page, limit: l, totalPages: Math.ceil(count / l) } };
   }
   async create(b: any) {
     const [payment] = await db.insert(paymentsTable).values({ invoiceId:b.invoiceId, amount:String(b.amount), method:b.method, reference:b.reference, notes:b.notes }).returning();

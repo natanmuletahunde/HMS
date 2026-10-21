@@ -40,11 +40,11 @@ export class DashboardService {
       totalHotels: hotels[0].count, totalBranches: branches[0].count,
       totalBuildings: buildings[0].count, totalFloors: floors[0].count,
       // Rooms
-      totalRooms, availableRooms: byStatus['available'] ?? 0, occupiedRooms,
+      totalRooms, availableRooms: (byStatus['available'] ?? 0) + (byStatus['ready'] ?? 0), occupiedRooms,
       reservedRooms: byStatus['reserved'] ?? 0,
       maintenanceRooms: (byStatus['maintenance'] ?? 0) + (byStatus['under_maintenance'] ?? 0),
       cleaningRooms: (byStatus['cleaning'] ?? 0) + (byStatus['dirty'] ?? 0),
-      blockedRooms: byStatus['blocked'] ?? 0, readyRooms: byStatus['ready'] ?? 0,
+      blockedRooms: byStatus['blocked'] ?? 0, readyRooms: (byStatus['available'] ?? 0) + (byStatus['ready'] ?? 0),
       outOfServiceRooms: byStatus['out_of_service'] ?? 0,
       occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0,
       // Operations

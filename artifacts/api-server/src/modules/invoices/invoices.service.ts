@@ -10,7 +10,22 @@ const joinedFields = {
 const base = () => db.select(joinedFields).from(invoicesTable).leftJoin(guestsTable, eq(invoicesTable.guestId, guestsTable.id));
 const fmtInv = async (inv: any) => {
   const items = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, inv.id));
-  return { ...inv, guestName: inv.guestName ?? null, reservationId: inv.reservationId ?? null, notes: inv.notes ?? null, dueDate: inv.dueDate ?? null, subtotal: parseFloat(inv.subtotal), taxAmount: parseFloat(inv.taxAmount), totalAmount: parseFloat(inv.totalAmount), paidAmount: parseFloat(inv.paidAmount), items: items.map(i => ({ ...i, quantity: parseFloat(i.quantity), unitPrice: parseFloat(i.unitPrice), total: parseFloat(i.total) })), createdAt: inv.createdAt.toISOString() };
+  return {
+    ...inv,
+    invoiceNo: inv.invoiceNumber,
+    guestName: inv.guestName ?? null,
+    total: parseFloat(inv.totalAmount ?? '0'),
+    paid: parseFloat(inv.paidAmount ?? '0'),
+    reservationId: inv.reservationId ?? null,
+    notes: inv.notes ?? null,
+    dueDate: inv.dueDate ?? (inv.createdAt instanceof Date ? inv.createdAt.toISOString().slice(0, 10) : String(inv.createdAt || '').slice(0, 10)),
+    subtotal: parseFloat(inv.subtotal ?? '0'),
+    taxAmount: parseFloat(inv.taxAmount ?? '0'),
+    totalAmount: parseFloat(inv.totalAmount ?? '0'),
+    paidAmount: parseFloat(inv.paidAmount ?? '0'),
+    items: items.map(i => ({ ...i, quantity: parseFloat(i.quantity), unitPrice: parseFloat(i.unitPrice), total: parseFloat(i.total) })),
+    createdAt: inv.createdAt instanceof Date ? inv.createdAt.toISOString() : String(inv.createdAt),
+  };
 };
 
 @Injectable()

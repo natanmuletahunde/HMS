@@ -16,7 +16,7 @@ import { usePagination } from "@/hooks/use-pagination";
 
 const STATUSES = [
   "available", "occupied", "reserved", "dirty", 
-  "cleaning", "ready", "blocked", "under_maintenance", "out_of_service"
+  "cleaning", "blocked", "under_maintenance", "out_of_service"
 ];
 
 const getStatusBadge = (status: string) => {
@@ -31,7 +31,8 @@ const getStatusBadge = (status: string) => {
     under_maintenance: "warning",
     out_of_service: "danger"
   };
-  return <Badge variant={(map[status] || "default") as any} className="uppercase px-3 py-1 text-xs">{status.replace(/_/g, ' ')}</Badge>;
+  const label = status === "ready" ? "available" : status.replace(/_/g, ' ');
+  return <Badge variant={(map[status] || "default") as any} className="uppercase px-3 py-1 text-xs">{label}</Badge>;
 };
 
 export default function RoomDetailPage() {

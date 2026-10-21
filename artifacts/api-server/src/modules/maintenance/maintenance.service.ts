@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, and, sql, getTableColumns, desc } from 'drizzle-orm';
+import { eq, and, sql, getTableColumns, desc, inArray } from 'drizzle-orm';
 import {
   db,
   maintenanceRequestsTable,
@@ -100,7 +100,13 @@ export class MaintenanceService {
 
   async findAll(q: any) {
     const conds: any[] = [];
-    if (q.status) conds.push(eq(maintenanceRequestsTable.status, q.status));
+    if (q.status) {
+      if (q.status === 'assigned') {
+        conds.push(inArray(maintenanceRequestsTable.status, ['approved', 'assigned']));
+      } else {
+        conds.push(eq(maintenanceRequestsTable.status, q.status));
+      }
+    }
     if (q.priority) conds.push(eq(maintenanceRequestsTable.priority, q.priority));
     if (q.categoryId) conds.push(eq(maintenanceRequestsTable.categoryId, q.categoryId));
     if (q.roomId) conds.push(eq(maintenanceRequestsTable.roomId, q.roomId));

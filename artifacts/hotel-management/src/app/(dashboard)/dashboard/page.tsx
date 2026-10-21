@@ -11,7 +11,7 @@ import {
   UtensilsCrossed, Building2, GitBranch, Building, Layers,
   LogIn, LogOut, Sparkles, CheckCircle2, Clock, AlertTriangle, 
   ArrowRight, ShoppingCart, ConciergeBell, CalendarDays, ShieldCheck,
-  BarChart2, TrendingUp, Users2, Globe
+  BarChart2, TrendingUp, Users2, Globe, Star, Percent, UserPlus
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -89,9 +89,19 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
     queryFn: () => apiFetch<any>("/rooms?limit=100").catch(() => ({ data: [] })),
   });
 
+  const { data: foStats, isLoading: foStatsLoading } = useQuery<any>({
+    queryKey: ["front-office-stats"],
+    queryFn: () => apiFetch<any>("/front-office").catch(() => null),
+  });
+
   const allRooms = roomsRes?.data || [];
   const availableRooms = allRooms.filter((r: any) => r.status === "available" || r.status === "ready");
-  const arrivalsPagination = usePagination(arrivals, 5);
+
+  const totalRooms = foStats?.totalRooms ?? allRooms.length;
+  const occupiedRooms = foStats?.occupiedRooms ?? inHouse.length;
+  const occupancyPct = foStats?.occupancyRate != null 
+    ? Number(foStats.occupancyRate) 
+    : (totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0);
 
   return (
     <div className="space-y-6">
@@ -102,154 +112,82 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
             <h1 className="text-2xl font-bold tracking-tight text-text">Front Desk Operations</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20">{currentRole}</Badge>
           </div>
-          <p className="text-sm text-text-muted mt-1">
-            Real-time guest arrivals, room allocations, check-ins, and stay management.
-          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="gap-2">
-            <Link href="/check-in">
-              <LogIn className="w-4 h-4" /> Check-In Records
-            </Link>
-          </Button>
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link href="/guests">
-              Guest Registration
+              <UserPlus className="w-4 h-4" /> Register Guest
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Front Desk KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-primary/20 bg-surface">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Today's Expected Arrivals</CardTitle>
-            <LogIn className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {arrLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold text-text">{arrivals.length}</div>
+      {/* Front Desk KPIs (Standardized) */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
+          <div className="text-xs font-medium text-text-muted truncate">Today's Arrivals</div>
+          <div className="mt-2">
+            {arrLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-2xl font-bold font-mono tracking-tight text-primary">{arrivals.length}</div>
             )}
-            <p className="text-xs text-text-muted mt-1">Pending front desk check-in</p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-warning/20 bg-surface">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Today's Departures</CardTitle>
-            <LogOut className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            {depLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold text-text">{departures.length}</div>
+        <Card className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
+          <div className="text-xs font-medium text-text-muted truncate">Today's Departures</div>
+          <div className="mt-2">
+            {depLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-2xl font-bold font-mono tracking-tight text-amber-500">{departures.length}</div>
             )}
-            <p className="text-xs text-text-muted mt-1">Due for folio settlement</p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-info/20 bg-surface">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Active In-House Guests</CardTitle>
-            <Users className="h-4 w-4 text-info" />
-          </CardHeader>
-          <CardContent>
-            {inHouseLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold text-text">{inHouse.length}</div>
+        <Card className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
+          <div className="text-xs font-medium text-text-muted truncate">In-House Guests</div>
+          <div className="mt-2">
+            {inHouseLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-2xl font-bold font-mono tracking-tight text-sky-500">{inHouse.length}</div>
             )}
-            <p className="text-xs text-text-muted mt-1">Currently staying on property</p>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-success/20 bg-surface">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-text-muted">Available Clean Rooms</CardTitle>
-            <BedDouble className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            {roomsLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold text-text">{availableRooms.length} / {allRooms.length}</div>
+        <Card className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
+          <div className="text-xs font-medium text-text-muted truncate">Available Rooms</div>
+          <div className="mt-2">
+            {roomsLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-2xl font-bold font-mono tracking-tight text-emerald-500">
+                {availableRooms.length} / {allRooms.length}
+              </div>
             )}
-            <p className="text-xs text-text-muted mt-1">Ready for immediate assignment</p>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
-      {/* Quick Action Navigation Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { title: "Guest Check-In", desc: "Digital signature & keycard", href: "/check-in", icon: LogIn },
-          { title: "Guest CRM Directory", desc: "Fayida IDs & VIP profiles", href: "/guests", icon: Users },
-          { title: "Reservation Calendar", desc: "Visual date occupancy", href: "/reservations/calendar", icon: CalendarDays },
-          { title: "Room Availability", desc: "Dynamic inventory matrix", href: "/availability", icon: BedDouble },
-        ].map((action, i) => (
-          <Link key={i} href={action.href} className="group p-4 rounded-xl border border-border bg-surface hover:border-primary/50 transition-all shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <action.icon className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-              <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary transition-colors" />
-            </div>
-            <h3 className="font-semibold text-text text-sm">{action.title}</h3>
-            <p className="text-xs text-text-muted mt-0.5">{action.desc}</p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Today's Arrival Schedule Table */}
-      <Card className="border-border bg-surface">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Today's Expected Guest Arrivals</CardTitle>
-          <CardDescription>Front desk check-in schedule with room assignments and identification status</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {arrivals.length === 0 ? (
-            <div className="py-8 text-center text-text-muted text-sm">
-              No pending arrivals remaining for today. All guests checked in or advance bookings scheduled.
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Guest Name</TableHead>
-                    <TableHead>Assigned Room</TableHead>
-                    <TableHead>Stay Window</TableHead>
-                    <TableHead>Deposit</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {arrivalsPagination.paginatedItems.map((res: any) => (
-                    <TableRow key={res.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <span>{res.guestName || "Guest"}</span>
-                          {(res.reservationType === "online" || res.bookingSource === "online" || res.bookingSource === "ota") && (
-                            <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 text-[10px] gap-1 px-1.5 py-0 font-semibold">
-                              <Globe className="w-2.5 h-2.5" /> Online
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">Room {res.roomNumber || res.roomId || "Unassigned"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-text-muted">
-                        {res.checkInDate} to {res.checkOutDate}
-                      </TableCell>
-                      <TableCell className="text-xs">{res.totalAmount ? `${res.totalAmount} ETB` : "Guaranteed"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href="/check-in">Check In</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <TablePagination {...arrivalsPagination} pageSize={5} />
-            </>
-          )}
-        </CardContent>
+      {/* Room Occupancy Visual Progress Bar */}
+      <Card className="border-border bg-surface/50 rounded-xl shadow-none p-4">
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="font-semibold text-text">Live Room Occupancy</span>
+          <span className="text-text-muted font-medium text-xs font-mono">{occupiedRooms} of {totalRooms} rooms occupied</span>
+        </div>
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(occupancyPct, 100)}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-text-muted mt-2 font-medium">
+          <span>0%</span>
+          <span className="font-bold text-primary font-mono">{occupancyPct.toFixed(1)}% Occupied</span>
+          <span>100% Full</span>
+        </div>
       </Card>
     </div>
   );
@@ -778,7 +716,7 @@ function ManagerDashboard({ currentRole }: { currentRole: string }) {
       {/* Department Quick Navigation */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {[
-          { title: "Front Office", desc: "Arrivals & Check-Ins", href: "/front-office", icon: Users },
+          { title: "Front Desk & Check-In", desc: "Arrivals & Check-Ins", href: "/check-in", icon: LogIn },
           { title: "Housekeeping", desc: "Room Turnaround", href: "/housekeeping", icon: Sparkles },
           { title: "Maintenance", desc: "Work Order Queue", href: "/maintenance", icon: Wrench },
           { title: "F&B & POS", desc: "Dining & Orders", href: "/restaurant", icon: UtensilsCrossed },
