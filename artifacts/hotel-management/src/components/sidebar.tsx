@@ -8,7 +8,7 @@ import {
   Sparkles, Wrench, UtensilsCrossed, FileText, 
   CreditCard, Package, UserCog, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
   Shield, Lock, ClipboardList,
-  CalendarSearch, UserPlus, LogIn, LogOut, Bed, CalendarDays, ShoppingCart, ConciergeBell,
+  CalendarSearch, UserPlus, LogIn, LogOut, Bed, ShoppingCart, ConciergeBell,
   ShoppingBag, Car, Users2,
   BarChart2, FolderOpen, Bell,
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
@@ -44,7 +44,6 @@ const NAV_GROUPS = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
       { name: "Rooms", href: "/rooms", icon: BedDouble },
-      { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
       { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
     ]
   },
@@ -154,10 +153,8 @@ export function Sidebar() {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const pathOnly = item.href.split('?')[0];
-                const isActive = item.href === "/reservations/calendar"
-                  ? pathname === item.href || pathname.startsWith(item.href + "/")
-                  : item.href === "/reservations"
-                  ? pathname === "/reservations" || (pathname.startsWith("/reservations/") && !pathname.startsWith("/reservations/calendar"))
+                const isActive = item.href === "/reservations"
+                  ? pathname === "/reservations" || pathname.startsWith("/reservations/")
                   : pathname === pathOnly || pathname.startsWith(pathOnly + "/");
                 return (
                   <Link

@@ -33,6 +33,12 @@ import {
   Loader2,
   AlertTriangle,
   ClipboardCheck,
+  Wrench,
+  Tv,
+  Droplets,
+  Wind,
+  Zap,
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +75,17 @@ interface CartItem {
   quantity: number;
 }
 
+const MAINTENANCE_EQUIPMENT = [
+  { id: "tv", label: "TV & Entertainment", icon: Tv, desc: "Remote not working, cable signal down, smart screen issue" },
+  { id: "shower", label: "Shower & Hot Water", icon: Droplets, desc: "No hot water, low pressure, showerhead leak, drainage" },
+  { id: "ac", label: "AC / Climate Control", icon: Wind, desc: "Not cooling, heating issue, abnormal noise, thermostat error" },
+  { id: "lighting", label: "Lighting & Power", icon: Zap, desc: "Bedside lamp, bathroom bulb out, faulty electrical socket" },
+  { id: "lock", label: "Door Lock & Keycard", icon: Key, desc: "RFID card reader failing, door handle latch sticky, safe box" },
+  { id: "plumbing", label: "Plumbing & Toilet", icon: Droplets, desc: "Toilet flush running, sink clogged, water leakage" },
+  { id: "wifi", label: "Wi-Fi & Room Phone", icon: Wifi, desc: "No internet connectivity, weak signal, phone dial tone issue" },
+  { id: "other", label: "Other In-Room Defect", icon: Wrench, desc: "Furniture, mini-fridge, window latch, curtain motor, etc." },
+];
+
 export default function GuestPortalPage() {
   const router = useRouter();
   const [session, setSession] = useState<GuestSession | null>(null);
@@ -83,7 +100,15 @@ export default function GuestPortalPage() {
   }>({ dining: [], amenities: [], services: [], transport: [] });
 
   // Navigation tab
-  const [activePortalTab, setActivePortalTab] = useState<"dining" | "transport" | "amenities" | "services" | "orders">("dining");
+  const [activePortalTab, setActivePortalTab] = useState<"dining" | "transport" | "amenities" | "services" | "maintenance" | "orders">("dining");
+
+  // In-Room Maintenance & Defect Alert State
+  const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+  const [maintenanceItem, setMaintenanceItem] = useState("TV & Entertainment");
+  const [maintenanceTitle, setMaintenanceTitle] = useState("");
+  const [maintenanceDescription, setMaintenanceDescription] = useState("");
+  const [maintenancePriority, setMaintenancePriority] = useState<"normal" | "urgent">("normal");
+  const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
 
   // Cart for Dining
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -199,6 +224,9 @@ export default function GuestPortalPage() {
     setCart([]);
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("nexus_guest_session");
+      sessionStorage.removeItem("nexus_guest_token");
+      localStorage.removeItem("nexus_guest_session");
+      localStorage.removeItem("nexus_guest_token");
     }
     router.push("/guest-portal/login");
   };
@@ -431,6 +459,45 @@ export default function GuestPortalPage() {
     }
   };
 
+  // Submit In-Room Maintenance Alert
+  const submitMaintenanceAlert = async () => {
+    if (!session) return;
+    if (!maintenanceDescription.trim() && !maintenanceTitle.trim()) {
+      alert(`Please describe what is malfunctioning with the ${maintenanceItem}.`);
+      return;
+    }
+    setMaintenanceSubmitting(true);
+    try {
+      const res = await fetch("/api/guest-portal/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomNumber: session.room.number,
+          guestName: session.guest.fullName || `${session.guest.firstName} ${session.guest.lastName}`.trim(),
+          guestId: session.guest.id,
+          reservationId: session.reservation?.id,
+          item: maintenanceItem,
+          title: maintenanceTitle.trim() || `${maintenanceItem} issue in Room ${session.room.number}`,
+          description: maintenanceDescription.trim() || `${maintenanceItem} malfunction reported by guest.`,
+          priority: maintenancePriority,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit maintenance alert");
+      setOrderSuccessMsg(`🛠️ Maintenance alert sent! Our engineering team has been notified for ${maintenanceItem} in Room ${session.room.number}.`);
+      setMaintenanceModalOpen(false);
+      setMaintenanceTitle("");
+      setMaintenanceDescription("");
+      setMaintenancePriority("normal");
+      refreshRoomData(session);
+      setTimeout(() => setOrderSuccessMsg(""), 8000);
+    } catch (e: any) {
+      alert("Failed to submit maintenance alert: " + e.message);
+    } finally {
+      setMaintenanceSubmitting(false);
+    }
+  };
+
   // Status badge styling
   const renderStatusBadge = (status: string) => {
     switch (status) {
@@ -571,6 +638,18 @@ export default function GuestPortalPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="text-xs border-rose-500/40 text-rose-300 hover:bg-rose-500/10 gap-1.5"
+                onClick={() => {
+                  setMaintenanceItem("TV & Entertainment");
+                  setMaintenanceModalOpen(true);
+                }}
+              >
+                <Wrench className="h-3.5 w-3.5 text-rose-400" />
+                Report Room Issue
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className={`text-xs gap-1.5 ${
                   checkoutStatus?.status === "cleared"
                     ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
@@ -638,12 +717,12 @@ export default function GuestPortalPage() {
           </div>
         )}
 
-        {/* Guest Portal Custom Tab Switcher (5 Tabs including Transport) */}
-        <div className="grid grid-cols-5 bg-slate-900 p-1 border border-slate-800 rounded-xl h-12">
+        {/* Guest Portal Custom Tab Switcher (6 Tabs including Maintenance) */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 bg-slate-900 p-1 border border-slate-800 rounded-xl gap-1">
           <button
             type="button"
             onClick={() => setActivePortalTab("dining")}
-            className={`text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
               activePortalTab === "dining" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -652,7 +731,7 @@ export default function GuestPortalPage() {
           <button
             type="button"
             onClick={() => setActivePortalTab("transport")}
-            className={`text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
               activePortalTab === "transport" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -661,7 +740,7 @@ export default function GuestPortalPage() {
           <button
             type="button"
             onClick={() => setActivePortalTab("amenities")}
-            className={`text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
               activePortalTab === "amenities" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -670,7 +749,7 @@ export default function GuestPortalPage() {
           <button
             type="button"
             onClick={() => setActivePortalTab("services")}
-            className={`text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
               activePortalTab === "services" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -678,8 +757,17 @@ export default function GuestPortalPage() {
           </button>
           <button
             type="button"
+            onClick={() => setActivePortalTab("maintenance")}
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+              activePortalTab === "maintenance" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            🛠️ <span className="hidden sm:inline">Room Issue</span><span className="sm:hidden">Issue</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActivePortalTab("orders")}
-            className={`text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 relative ${
+            className={`text-xs font-semibold py-2 px-1 rounded-lg transition-all flex items-center justify-center gap-1 relative ${
               activePortalTab === "orders" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"
             }`}
           >
@@ -929,7 +1017,135 @@ export default function GuestPortalPage() {
           </div>
         )}
 
-        {/* TAB 5: MY ORDERS & FOLIO */}
+        {/* TAB 5: ROOM DEFECTS & MAINTENANCE ALERTS */}
+        {activePortalTab === "maintenance" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-amber-400" />
+                  In-Room Equipment & Maintenance Alerts
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Notice an issue with TV, shower, AC, lights, or locks in Room {session.room.number}? Alert our 24/7 engineering team.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs gap-1.5 shrink-0 shadow-lg shadow-amber-500/20"
+                onClick={() => {
+                  setMaintenanceItem("TV & Entertainment");
+                  setMaintenanceTitle(`TV malfunction in Room ${session.room.number}`);
+                  setMaintenanceModalOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" /> Report New Issue
+              </Button>
+            </div>
+
+            {/* Quick Equipment Tiles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {MAINTENANCE_EQUIPMENT.map((eq) => {
+                const IconComponent = eq.icon;
+                return (
+                  <Card
+                    key={eq.id}
+                    className="border-slate-800 bg-slate-900/60 hover:border-amber-500/40 hover:bg-slate-900/90 transition-all cursor-pointer group"
+                    onClick={() => {
+                      setMaintenanceItem(eq.label);
+                      setMaintenanceTitle(`${eq.label} malfunction in Room ${session.room.number}`);
+                      setMaintenanceModalOpen(true);
+                    }}
+                  >
+                    <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                          <IconComponent className="h-4 w-4" />
+                        </div>
+                        <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">
+                          24/7 Fix
+                        </Badge>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-white group-hover:text-amber-300 transition-colors">
+                          {eq.label}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">{eq.desc}</p>
+                      </div>
+                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-amber-400 font-medium">
+                        <span>Report Alert</span>
+                        <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Active Maintenance Tickets in this Room */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-slate-400" />
+                  Your Reported Room Issues
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-slate-400 hover:text-white gap-1"
+                  onClick={() => refreshRoomData(session)}
+                  disabled={loadingOrders}
+                >
+                  <RefreshCw className={`h-3 w-3 ${loadingOrders ? "animate-spin" : ""}`} /> Refresh
+                </Button>
+              </div>
+
+              {myOrders.filter((o) => o.serviceType === "maintenance" || o.department === "maintenance").length === 0 ? (
+                <Card className="border-slate-800 bg-slate-900/40 text-center py-6">
+                  <CardContent className="space-y-1">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-400 mx-auto" />
+                    <p className="text-xs text-slate-300 font-medium">All room appliances & equipment are in good order</p>
+                    <p className="text-[11px] text-slate-500">Click any equipment card above if you need any assistance.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2.5">
+                  {myOrders
+                    .filter((o) => o.serviceType === "maintenance" || o.department === "maintenance")
+                    .map((item) => (
+                      <Card key={item.id} className="border-slate-800 bg-slate-900/70">
+                        <CardContent className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-slate-400 font-bold">{item.requestNumber}</span>
+                              {renderStatusBadge(item.status)}
+                              {item.priority === "urgent" && (
+                                <Badge variant="danger" className="text-[10px]">
+                                  🚨 Urgent
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold text-white">{item.description}</p>
+                            {item.specialInstructions && (
+                              <p className="text-xs text-amber-300/80 italic">"{item.specialInstructions}"</p>
+                            )}
+                            <p className="text-[11px] text-slate-500">
+                              Logged: {new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300 self-start sm:self-center">
+                            Engineering Dispatched
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: MY ORDERS & FOLIO */}
         {activePortalTab === "orders" && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
@@ -1460,6 +1676,138 @@ export default function GuestPortalPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* IN-ROOM MAINTENANCE DEFECT ALERT MODAL */}
+      <Dialog open={maintenanceModalOpen} onOpenChange={setMaintenanceModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-slate-900 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-amber-400" />
+              Report Defect in Room {session?.room?.number}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Alert the maintenance & engineering team directly. We resolve in-room issues promptly.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-xs">
+            {/* Quick Equipment Selector Pills */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Select Equipment / Appliance *</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {MAINTENANCE_EQUIPMENT.map((eq) => {
+                  const isSelected = maintenanceItem === eq.label;
+                  const Icon = eq.icon;
+                  return (
+                    <button
+                      key={eq.id}
+                      type="button"
+                      onClick={() => {
+                        setMaintenanceItem(eq.label);
+                        if (!maintenanceTitle || maintenanceTitle.includes("Issue in Room") || maintenanceTitle.includes("malfunction in Room")) {
+                          setMaintenanceTitle(`${eq.label} malfunction in Room ${session?.room?.number}`);
+                        }
+                      }}
+                      className={`flex items-center gap-1.5 p-2 rounded-lg border text-left text-xs transition-all ${
+                        isSelected
+                          ? "border-amber-500 bg-amber-500/15 text-white font-semibold"
+                          : "border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700"
+                      }`}
+                    >
+                      <Icon className={`h-3.5 w-3.5 ${isSelected ? "text-amber-400" : "text-slate-400"}`} />
+                      <span className="truncate">{eq.label.split(" ")[0]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Urgency Priority */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Urgency Level</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMaintenancePriority("normal")}
+                  className={`p-2.5 rounded-lg border text-left text-xs transition-all ${
+                    maintenancePriority === "normal"
+                      ? "border-blue-500 bg-blue-500/15 text-blue-200 font-semibold"
+                      : "border-slate-800 bg-slate-950 text-slate-400"
+                  }`}
+                >
+                  <p className="font-semibold text-white">Standard Priority</p>
+                  <p className="text-[11px] text-slate-400">Technician visits within 30-45 minutes</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMaintenancePriority("urgent")}
+                  className={`p-2.5 rounded-lg border text-left text-xs transition-all ${
+                    maintenancePriority === "urgent"
+                      ? "border-rose-500 bg-rose-500/15 text-rose-200 font-semibold"
+                      : "border-slate-800 bg-slate-950 text-slate-400"
+                  }`}
+                >
+                  <p className="font-semibold text-rose-300 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5 text-rose-400" /> Urgent (Immediate)
+                  </p>
+                  <p className="text-[11px] text-slate-400">Critical water leak, power failure, or lock issue</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Issue Title */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Issue Summary</Label>
+              <Input
+                value={maintenanceTitle}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaintenanceTitle(e.target.value)}
+                placeholder="e.g. TV remote unresponsive, no hot water from shower..."
+                className="bg-slate-950 border-slate-700 text-white text-xs h-9"
+              />
+            </div>
+
+            {/* Issue Description */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">
+                Detailed Defect Description *
+              </Label>
+              <textarea
+                rows={3}
+                value={maintenanceDescription}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMaintenanceDescription(e.target.value)}
+                placeholder="Describe what is happening (e.g. 'The TV remote is not responding and display shows No Signal', or 'Hot water knob in shower produces cold water only')..."
+                className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMaintenanceModalOpen(false)}
+              className="text-slate-400 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs gap-1.5 shadow-lg shadow-amber-500/20"
+              disabled={maintenanceSubmitting || (!maintenanceDescription && !maintenanceTitle)}
+              onClick={submitMaintenanceAlert}
+            >
+              {maintenanceSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Dispatching Alert...
+                </>
+              ) : (
+                <>
+                  <Wrench className="h-3.5 w-3.5" /> Dispatch Engineering Alert
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

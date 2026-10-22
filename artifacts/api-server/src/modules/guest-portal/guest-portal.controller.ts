@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Headers } from '@nestjs/common';
 import { GuestPortalService } from './guest-portal.service';
 import { Public } from '../../common/decorators/public.decorator';
 
@@ -6,6 +6,11 @@ import { Public } from '../../common/decorators/public.decorator';
 @Public()
 export class GuestPortalController {
   constructor(private readonly svc: GuestPortalService) {}
+
+  @Get('me')
+  getMe(@Headers('authorization') authHeader?: string) {
+    return this.svc.validateTokenHeader(authHeader);
+  }
 
   @Post('login')
   login(@Body() body: { roomNumber: string; accessCode?: string }) {
@@ -17,20 +22,54 @@ export class GuestPortalController {
     @Body()
     body: {
       firstName: string;
+      middleName?: string;
       lastName: string;
+      gender?: string;
+      dateOfBirth?: string;
       phone?: string;
+      alternativePhone?: string;
       email?: string;
       roomNumber: string;
+      country?: string;
+      region?: string;
+      city?: string;
+      address?: string;
       nationality?: string;
       idType?: string;
       idNumber?: string;
+      passportNumber?: string;
+      nationalId?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
       foodPreference?: string;
       bedPreference?: string;
       smokingPreference?: string;
       specialRequests?: string;
+      fullName?: string;
     },
   ) {
     return this.svc.register(body);
+  }
+
+  @Post('reserve')
+  createOnlineReservation(
+    @Body()
+    body: {
+      guestId: string;
+      roomId?: string;
+      roomTypeId?: string;
+      checkInDate: string;
+      checkOutDate: string;
+      adults?: number;
+      children?: number;
+      specialRequests?: string;
+      paymentMethod: string;
+      paymentReference?: string;
+      paidAmount?: number;
+      totalAmount?: number;
+    },
+  ) {
+    return this.svc.createOnlineReservation(body);
   }
 
   @Get('qr-code')
@@ -78,6 +117,23 @@ export class GuestPortalController {
     },
   ) {
     return this.svc.requestStayChange(body);
+  }
+
+  @Post('maintenance')
+  reportMaintenance(
+    @Body()
+    body: {
+      roomNumber: string;
+      guestName: string;
+      guestId?: string;
+      reservationId?: string;
+      item: string;
+      title?: string;
+      description: string;
+      priority?: string;
+    },
+  ) {
+    return this.svc.reportMaintenance(body);
   }
 
   @Get('my-orders')

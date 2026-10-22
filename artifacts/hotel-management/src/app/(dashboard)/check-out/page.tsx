@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -139,6 +140,8 @@ function computeLateCheckoutFee(checkOutDate?: string, roomTotal?: number, night
 export default function CheckOutPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const currentStaffName = user?.name || user?.email || "Staff";
   const [activeTab, setActiveTab] = useState<"departures" | "records">("departures");
   const [checkOutTarget, setCheckOutTarget] = useState<Reservation | null>(null);
   const [managerOverride, setManagerOverride] = useState(false);
@@ -702,7 +705,7 @@ export default function CheckOutPage() {
                   depositRefunded: fd.get("depositRefunded") === "on",
                   feedbackRating: fd.get("feedbackRating") ? Number(fd.get("feedbackRating")) : undefined,
                   feedbackNotes: fd.get("feedbackNotes") || undefined,
-                  checkedOutBy: fd.get("checkedOutBy") || undefined,
+                  checkedOutBy: currentStaffName,
                   notes: fd.get("notes") || undefined,
                   overrideInspection: managerOverride,
                 },
@@ -788,8 +791,21 @@ export default function CheckOutPage() {
               <textarea name="feedbackNotes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="checkedOutBy">Checked Out By</Label>
-              <Input id="checkedOutBy" name="checkedOutBy" placeholder="Staff name" />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="checkedOutBy">Checked Out By</Label>
+                <span className="text-[10px] text-text-muted flex items-center gap-0.5 font-medium">
+                  <Lock className="h-2.5 w-2.5" /> Auto-assigned
+                </span>
+              </div>
+              <Input
+                id="checkedOutBy"
+                name="checkedOutBy"
+                readOnly
+                disabled
+                defaultValue={currentStaffName}
+                value={currentStaffName}
+                className="bg-muted/50 cursor-not-allowed font-medium text-text select-none border-border/70"
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="notes">Notes</Label>

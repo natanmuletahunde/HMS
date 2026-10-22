@@ -169,6 +169,12 @@ export function FaydaScanner({ onDecoded, onClear, className = "" }: FaydaScanne
                   <span>FAN: <strong className="text-foreground">{decodedGuest.fan}</strong></span>
                   <span>•</span>
                   <span>Gender: <strong className="text-foreground capitalize">{decodedGuest.gender}</strong></span>
+                  {decodedGuest.phone && (
+                    <>
+                      <span>•</span>
+                      <span>Phone: <strong className="text-foreground">{decodedGuest.phone}</strong></span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

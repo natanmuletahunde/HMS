@@ -690,30 +690,6 @@ function RoomsContent() {
           <ReservationCalendarView showTitle={true} />
         </div>
       )}
-
-      {/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
-      {activeTab === "inventory" && (
-        <div className="pt-8 border-t border-border mt-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Reservation Calendar & Room Schedule
-              </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Live room booking schedule, check-in dates, and occupancy timeline
-              </p>
-            </div>
-            <Link href="/reservations/calendar">
-              <Button variant="outline" size="sm" className="text-xs gap-1.5">
-                Open Full Screen Calendar &rarr;
-              </Button>
-            </Link>
-          </div>
-
-          <ReservationCalendarView showTitle={false} />
-        </div>
-      )}
     </div>
   );
 }

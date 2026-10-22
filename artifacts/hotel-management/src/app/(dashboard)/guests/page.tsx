@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -26,7 +26,10 @@ import {
   Globe,
   ShieldCheck,
   CreditCard,
+  Lock,
+  Wrench,
 } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +50,52 @@ import {
   ERITREAN_MAJOR_CITIES,
   INTERNATIONAL_CITIES,
 } from "@/lib/geo-data";
+
+const ONLINE_RESERVATION_SPECIAL_REQUESTS = [
+  {
+    category: "🍽️ In-Room Dining & Breakfast",
+    items: [
+      "Traditional Doro Wat Feast ($18.50)",
+      "Deluxe Angus Burger & Fries ($14.00)",
+      "Continental Club Sandwich ($11.50)",
+      "Fresh Seasonal Fruit Platter ($8.00)",
+      "Signature Ethiopian Jebena Coffee ($4.50)",
+      "Fresh Mango & Avocado Smoothie ($5.50)",
+      "Sparkling Mineral Water (750ml, $3.50)",
+    ],
+  },
+  {
+    category: "🛏️ Room Amenities & Comfort",
+    items: [
+      "Extra Feather Pillows (x2)",
+      "Extra Warm Wool Blanket",
+      "Fresh Bath Towels & Robe Set",
+      "Baby Cot / Crib Setup",
+      "Room Evening Turn-down Service",
+    ],
+  },
+  {
+    category: "🛎️ Guest & Stay Services",
+    items: [
+      "Morning Wake-up Call",
+      "Express Laundry & Pressing ($12.00)",
+      "Quiet Room / High Floor Preference",
+      "Early Check-In Request",
+      "Late Check-Out Request",
+      "AC / Climate Adjustment Assistance",
+    ],
+  },
+  {
+    category: "🚗 Airport & Chauffeur Transport",
+    items: [
+      "Airport Arrival VIP Meet & Pickup ($30.00)",
+      "Airport Chauffeur Drop-off ($25.00)",
+      "Complimentary Downtown / UNECA Shuttle",
+      "Half-Day City Tour Chauffeur ($55.00)",
+      "Luggage & Bellhop Vehicle Dispatch",
+    ],
+  },
+];
 
 type RoomType = {
   id: string;
@@ -80,6 +129,7 @@ type ReservationRecord = {
   reservationNumber: string;
   guestName?: string;
   guestId?: string;
+  guestCode?: string;
   roomTypeName?: string;
   roomNumber?: string;
   checkInDate?: string;
@@ -194,6 +244,14 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
   const initialCity = defaultValues?.city || "Bole";
   const [cityInput, setCityInput] = useState(initialCity);
 
+  const initialPhone = (defaultValues?.phone || "").replace(/\D/g, "").slice(0, 10);
+  const [phone, setPhone] = useState(initialPhone);
+  const [phoneError, setPhoneError] = useState("");
+
+  const initialFan = (defaultValues?.nationalId || defaultValues?.idNumber || "").replace(/\D/g, "").slice(0, 16);
+  const [nationalId, setNationalId] = useState(initialFan);
+  const [fanError, setFanError] = useState("");
+
   useEffect(() => {
     if (defaultValues?.country !== undefined) {
       setSelectedCountry(defaultValues.country || "Ethiopia");
@@ -202,6 +260,23 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
       setCityInput(defaultValues.city || "");
     }
   }, [defaultValues?.country, defaultValues?.city]);
+
+  useEffect(() => {
+    if (defaultValues?.phone !== undefined) {
+      const sanitized = String(defaultValues.phone || "").replace(/\D/g, "").slice(0, 10);
+      setPhone(sanitized);
+      setPhoneError("");
+    }
+  }, [defaultValues?.phone]);
+
+  useEffect(() => {
+    const rawFan = defaultValues?.nationalId || defaultValues?.idNumber;
+    if (rawFan !== undefined) {
+      const sanitized = String(rawFan || "").replace(/\D/g, "").slice(0, 16);
+      setNationalId(sanitized);
+      setFanError("");
+    }
+  }, [defaultValues?.nationalId, defaultValues?.idNumber]);
 
   const countryNormalized = (selectedCountry || "").trim().toLowerCase();
   const isEritrea = countryNormalized.includes("eritrea");
@@ -226,12 +301,97 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
             <Input id="lastName" name="lastName" required defaultValue={defaultValues?.lastName} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="phone">Phone Number *</Label>
-            <Input id="phone" name="phone" required defaultValue={defaultValues?.phone} placeholder="+251 9..." />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="phone">Phone Number *</Label>
+              <span className={`text-[10px] font-medium ${phoneError ? "text-rose-500 font-bold" : "text-text-muted"}`}>
+                {phone.length}/10 digits
+              </span>
+            </div>
+            <Input
+              id="phone"
+              name="phone"
+              required
+              maxLength={10}
+              value={phone}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                if (val.length > 10) {
+                  setPhone(val.slice(0, 10));
+                  setPhoneError("Phone number cannot exceed 10 digits");
+                  return;
+                }
+                setPhone(val);
+                if (val.length > 0 && val.length < 10) {
+                  setPhoneError(`${val.length}/10 digits (Standard phone is 10 digits)`);
+                } else {
+                  setPhoneError("");
+                }
+              }}
+              onKeyDown={(e) => {
+                if (
+                  phone.length >= 10 &&
+                  !["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight"].includes(e.key) &&
+                  !e.ctrlKey &&
+                  !e.metaKey
+                ) {
+                  if (/\d/.test(e.key)) {
+                    e.preventDefault();
+                    setPhoneError("Cannot exceed 10 digits (e.g. 0911318622)");
+                  }
+                }
+              }}
+              placeholder="0911318622"
+              className={phoneError && phone.length > 0 ? "border-rose-500/80 focus-visible:ring-rose-500 font-medium" : "font-medium"}
+            />
+            {phoneError && (
+              <p className="text-[11px] text-rose-500 font-medium -mt-0.5">{phoneError}</p>
+            )}
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="nationalId">National ID / Fayda FAN</Label>
-            <Input id="nationalId" name="nationalId" defaultValue={defaultValues?.nationalId || defaultValues?.idNumber} placeholder="e.g. 6140 1234 1234 1234" />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="nationalId">National ID / Fayda FAN</Label>
+              <span className={`text-[10px] font-medium ${fanError ? "text-rose-500 font-bold" : "text-text-muted"}`}>
+                {nationalId.length}/16 digits
+              </span>
+            </div>
+            <Input
+              id="nationalId"
+              name="nationalId"
+              maxLength={16}
+              value={nationalId}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                if (val.length > 16) {
+                  setNationalId(val.slice(0, 16));
+                  setFanError("Fayda FAN cannot exceed 16 digits");
+                  return;
+                }
+                setNationalId(val);
+                if (val.length > 0 && val.length < 16) {
+                  setFanError(`${val.length}/16 digits (Fayda FAN must be 16 digits)`);
+                } else {
+                  setFanError("");
+                }
+              }}
+              onKeyDown={(e) => {
+                if (
+                  nationalId.length >= 16 &&
+                  !["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight"].includes(e.key) &&
+                  !e.ctrlKey &&
+                  !e.metaKey
+                ) {
+                  if (/\d/.test(e.key)) {
+                    e.preventDefault();
+                    setFanError("Cannot exceed 16 digits for Fayda FAN");
+                  }
+                }
+              }}
+              placeholder="e.g. 6140123412341234"
+              className={fanError && nationalId.length > 0 ? "border-rose-500/80 focus-visible:ring-rose-500 font-mono" : "font-mono"}
+            />
+            {fanError && (
+              <p className="text-[11px] text-rose-500 font-medium -mt-0.5">{fanError}</p>
+            )}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="gender">Gender</Label>
@@ -298,39 +458,6 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
                 <option key={c} value={c} />
               ))}
             </datalist>
-
-            {/* Quick Country Click Pills */}
-            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              {[
-                { name: "Ethiopia", label: "🇪🇹 Ethiopia" },
-                { name: "Eritrea", label: "🇪🇷 Eritrea" },
-                { name: "Kenya", label: "🇰🇪 Kenya" },
-                { name: "Djibouti", label: "🇩🇯 Djibouti" },
-                { name: "Somalia", label: "🇸🇴 Somalia" },
-                { name: "Sudan", label: "🇸🇩 Sudan" },
-                { name: "United States", label: "🇺🇸 USA" },
-                { name: "United Kingdom", label: "🇬🇧 UK" },
-                { name: "United Arab Emirates", label: "🇦🇪 UAE" },
-              ].map((p) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCountry(p.name);
-                    if (p.name === "Ethiopia" && (!cityInput || cityInput === "Asmara")) setCityInput("Bole");
-                    if (p.name === "Eritrea" && (!cityInput || cityInput === "Bole")) setCityInput("Asmara");
-                    if (p.name === "Kenya" && (!cityInput || cityInput === "Bole")) setCityInput("Nairobi");
-                  }}
-                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                    countryNormalized === p.name.toLowerCase()
-                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                      : "bg-muted/50 text-text-muted hover:bg-muted border-border hover:text-text"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Typeable City / Region with Autocomplete & Dynamic Suggestions */}
@@ -400,44 +527,6 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
                 </>
               )}
             </datalist>
-
-            {/* Quick Fill Pills */}
-            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              <span className="text-[10px] text-text-muted mr-1">Quick Suggestions:</span>
-              {(isEritrea
-                ? ["Asmara", "Keren", "Massawa", "Mendefera", "Assab", "Dekemhare"]
-                : isKenya
-                ? ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"]
-                : !isEthiopia && countryNormalized !== ""
-                ? ["London", "Dubai", "Nairobi", "New York", "Washington D.C.", "Frankfurt"]
-                : [
-                    "Bole",
-                    "Kazanchis",
-                    "Kirkos",
-                    "Yeka",
-                    "Arada",
-                    "Lideta",
-                    "Hawassa",
-                    "Adama",
-                    "Bahir Dar",
-                    "Dire Dawa",
-                    "Bishoftu",
-                  ]
-              ).map((city) => (
-                <button
-                  key={city}
-                  type="button"
-                  onClick={() => setCityInput(city)}
-                  className={`text-[10px] px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
-                    cityInput.toLowerCase() === city.toLowerCase()
-                      ? "bg-primary/15 text-primary border-primary/40 font-semibold"
-                      : "bg-muted/40 text-text-muted hover:bg-muted border-border hover:text-text"
-                  }`}
-                >
-                  {city}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -449,6 +538,8 @@ export default function GuestsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const currentStaffName = user?.name || user?.email || "Front Desk Staff";
 
   const [search, setSearch] = useState("");
   const [guestType, setGuestType] = useState("all");
@@ -476,8 +567,10 @@ export default function GuestsPage() {
   const [resType, setResType] = useState("walk_in");
   const [resSpecialRequests, setResSpecialRequests] = useState("");
   const [resNotes, setResNotes] = useState("");
+  const [resMaintenanceNotes, setResMaintenanceNotes] = useState("");
 
   // Check-in Form State (Step 3)
+  const [keyIssuanceType, setKeyIssuanceType] = useState<"rfid" | "manual">("rfid");
   const [keyCardNumber, setKeyCardNumber] = useState("");
   const [identityVerified, setIdentityVerified] = useState(true);
   const [depositCollected, setDepositCollected] = useState(false);
@@ -485,8 +578,14 @@ export default function GuestsPage() {
   const [depositMethod, setDepositMethod] = useState("card");
   const [paymentStatus, setPaymentStatus] = useState("settle_on_checkout");
   const [registrationCardGenerated, setRegistrationCardGenerated] = useState(false);
-  const [checkedInBy, setCheckedInBy] = useState("");
+  const [checkedInBy, setCheckedInBy] = useState(currentStaffName);
   const [checkInNotes, setCheckInNotes] = useState("");
+
+  useEffect(() => {
+    if (user?.name || user?.email) {
+      setCheckedInBy(user.name || user.email);
+    }
+  }, [user]);
 
   // Fayda National ID Decoder state
   const [faydaGuest, setFaydaGuest] = useState<ParsedFaydaGuest | null>(null);
@@ -520,6 +619,7 @@ export default function GuestsPage() {
       middleName: data.middleName || prev?.middleName || "",
       lastName: data.lastName || prev?.lastName || "",
       gender: normalizedGender,
+      phone: data.phone || prev?.phone || "",
       dateOfBirth: dob,
       nationality: data.nationality || "Ethiopian",
       country: data.country || "Ethiopia",
@@ -551,6 +651,8 @@ export default function GuestsPage() {
     setResType("walk_in");
     setResSpecialRequests("");
     setResNotes("");
+    setResMaintenanceNotes("");
+    setKeyIssuanceType("rfid");
     setKeyCardNumber("");
     setIdentityVerified(true);
     setDepositCollected(false);
@@ -558,7 +660,7 @@ export default function GuestsPage() {
     setDepositMethod("card");
     setPaymentStatus("settle_on_checkout");
     setRegistrationCardGenerated(false);
-    setCheckedInBy("");
+    setCheckedInBy(currentStaffName);
     setCheckInNotes("");
   }
 
@@ -608,6 +710,11 @@ export default function GuestsPage() {
       ? rawAvailableRooms.data
       : [];
 
+  const filteredAvailableRooms = useMemo(() => {
+    if (!resRoomTypeId) return availableRooms;
+    return availableRooms.filter((r) => r.roomTypeId === resRoomTypeId);
+  }, [availableRooms, resRoomTypeId]);
+
   const [mainTab, setMainTab] = useState<"guests" | "reservations" | "checkin">("guests");
   const [resSearch, setResSearch] = useState("");
   const [checkinSearch, setCheckinSearch] = useState("");
@@ -616,14 +723,25 @@ export default function GuestsPage() {
 
   const { data: rawReservations, isLoading: resLoading } = useQuery<any>({
     queryKey: ["guests-page-reservations"],
-    queryFn: () => apiFetch<any>("/reservations?limit=100"),
-    enabled: mainTab === "reservations",
+    queryFn: () => apiFetch<any>("/reservations?limit=250"),
   });
   const reservationsList: ReservationRecord[] = Array.isArray(rawReservations)
     ? rawReservations
     : Array.isArray(rawReservations?.data)
       ? rawReservations.data
       : [];
+
+  const activeReservationByGuest = useMemo(() => {
+    const map = new Map<string, ReservationRecord>();
+    const activeStatuses = new Set(["pending", "confirmed", "guaranteed", "checked_in", "reserved"]);
+    for (const res of reservationsList) {
+      if (res.status && activeStatuses.has(res.status.toLowerCase())) {
+        if (res.guestId) map.set(res.guestId, res);
+        if (res.guestCode) map.set(res.guestCode, res);
+      }
+    }
+    return map;
+  }, [reservationsList]);
 
   const filteredReservations = reservationsList.filter((r) => {
     const query = resSearch.toLowerCase();
@@ -696,6 +814,7 @@ export default function GuestsPage() {
       apiFetch<CreatedReservation>("/reservations", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (newRes) => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["guests-page-reservations"] });
       queryClient.invalidateQueries({ queryKey: ["available-rooms"] });
       setActiveReservation(newRes);
       const assignedRoom = availableRooms.find((r) => r.id === (newRes.roomId || resRoomId));
@@ -773,7 +892,11 @@ export default function GuestsPage() {
     if (resRoomId) payload.roomId = resRoomId;
     if (resRoomTypeId) payload.roomTypeId = resRoomTypeId;
     if (resSpecialRequests) payload.specialRequests = resSpecialRequests;
-    if (resNotes) payload.notes = resNotes;
+    const combinedNotes = [
+      resMaintenanceNotes ? `[Maintenance & Readiness Check: ${resMaintenanceNotes}]` : null,
+      resNotes ? resNotes : null,
+    ].filter(Boolean).join("\n");
+    if (combinedNotes) payload.notes = combinedNotes;
 
     createResMutation.mutate(payload, {
       onSuccess: (newRes) => {
@@ -1025,37 +1148,6 @@ export default function GuestsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Assigned Room */}
-                  <div className="grid gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="resRoomId" className="font-medium">Assigned Room</Label>
-                      <span className="text-xs text-primary font-medium">Assigned at reservation</span>
-                    </div>
-                    <select
-                      id="resRoomId"
-                      value={resRoomId}
-                      onChange={(e) => {
-                        const rId = e.target.value;
-                        setResRoomId(rId);
-                        const found = availableRooms.find((r) => r.id === rId);
-                        if (found?.roomTypeId) {
-                          setResRoomTypeId(found.roomTypeId);
-                        }
-                      }}
-                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    >
-                      <option value="">-- Select Available Room (Assigned upon reservation) --</option>
-                      {availableRooms.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          Room {r.number} {r.roomTypeName ? `• ${r.roomTypeName}` : ""} {r.currentPrice ? `($${Number(r.currentPrice).toFixed(2)}/night)` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-text-muted">
-                      Room assignment is handled upfront so check-in can be processed instantly without re-allocating.
-                    </p>
-                  </div>
-
                   {/* Dates */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="grid gap-1.5">
@@ -1080,20 +1172,80 @@ export default function GuestsPage() {
                     </div>
                   </div>
 
-                  {/* Room Type */}
+                  {/* Room Type (ABOVE Assigned Room) */}
                   <div className="grid gap-1.5">
-                    <Label htmlFor="resRoomTypeId">Room Type</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="resRoomTypeId" className="font-semibold text-xs flex items-center gap-1.5">
+                        <BedDouble className="w-3.5 h-3.5 text-primary" /> Room Type *
+                      </Label>
+                      <span className="text-[11px] text-primary font-medium">Select type to filter available rooms</span>
+                    </div>
                     <select
                       id="resRoomTypeId"
                       value={resRoomTypeId}
-                      onChange={(e) => setResRoomTypeId(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                      onChange={(e) => {
+                        const newTypeId = e.target.value;
+                        setResRoomTypeId(newTypeId);
+                        // If current room doesn't match new type, reset room selection
+                        if (resRoomId) {
+                          const room = availableRooms.find((r) => r.id === resRoomId);
+                          if (room && room.roomTypeId !== newTypeId) {
+                            setResRoomId("");
+                          }
+                        }
+                      }}
+                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                     >
-                      <option value="">Match Assigned Room / Any Room Type</option>
+                      <option value="">-- All Room Types / Select Type --</option>
                       {roomTypes.map((rt) => (
-                        <option key={rt.id} value={rt.id}>{rt.name}</option>
+                        <option key={rt.id} value={rt.id}>
+                          {rt.name} {rt.basePrice ? `(from $${Number(rt.basePrice).toFixed(2)}/night)` : ""}
+                        </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Assigned Room (DEPENDENT on Room Type) */}
+                  <div className="grid gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="resRoomId" className="font-semibold text-xs">
+                        Assigned Room {resRoomTypeId ? `(${roomTypes.find((t) => t.id === resRoomTypeId)?.name || "Filtered"})` : ""} *
+                      </Label>
+                      <span className="text-[11px] text-text-muted">
+                        {filteredAvailableRooms.length} room{filteredAvailableRooms.length !== 1 ? "s" : ""} available
+                      </span>
+                    </div>
+                    <select
+                      id="resRoomId"
+                      value={resRoomId}
+                      onChange={(e) => {
+                        const rId = e.target.value;
+                        setResRoomId(rId);
+                        const found = availableRooms.find((r) => r.id === rId);
+                        if (found?.roomTypeId && !resRoomTypeId) {
+                          setResRoomTypeId(found.roomTypeId);
+                        }
+                      }}
+                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                    >
+                      <option value="">
+                        {filteredAvailableRooms.length === 0
+                          ? resRoomTypeId
+                            ? "-- No rooms available for this Room Type --"
+                            : "-- Select Room Type above or choose room --"
+                          : "-- Select Assigned Room --"}
+                      </option>
+                      {filteredAvailableRooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          Room {r.number} {r.roomTypeName ? `• ${r.roomTypeName}` : ""} {r.currentPrice ? `($${Number(r.currentPrice).toFixed(2)}/night)` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-text-muted">
+                      {resRoomTypeId
+                        ? "Showing only available rooms matching the selected Room Type above."
+                        : "Tip: Select a Room Type first to view only matching rooms."}
+                    </p>
                   </div>
 
                   {/* Adults, Children, and Reservation Type */}
@@ -1119,32 +1271,78 @@ export default function GuestsPage() {
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="resType">Reservation Type</Label>
-                      <select
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="resType" className="text-xs font-medium">Reservation Type</Label>
+                        <span className="text-[10px] text-text-muted flex items-center gap-0.5 font-medium">
+                          <Lock className="h-2.5 w-2.5" /> Default
+                        </span>
+                      </div>
+                      <Input
                         id="resType"
-                        value={resType}
-                        onChange={(e) => setResType(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
-                      >
-                        <option value="walk_in">Walk-in</option>
-                        <option value="standard">Standard</option>
-                        <option value="group">Group</option>
-                        <option value="corporate">Corporate</option>
-                        <option value="online">Online</option>
-                      </select>
+                        value="Walk-in"
+                        readOnly
+                        disabled
+                        className="h-10 text-sm bg-muted/50 cursor-not-allowed font-medium text-text select-none border-border/70"
+                      />
                     </div>
                   </div>
 
-                  {/* Special Requests and Notes */}
+                  {/* Special Requests (Writable Input + Online Menu Dropdown) */}
                   <div className="grid gap-1.5">
-                    <Label htmlFor="resSpecialRequests">Special Requests</Label>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <Label htmlFor="resSpecialRequests" className="flex items-center gap-1.5 font-medium text-xs">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" /> Special Requests & In-Room Services
+                      </Label>
+                      <select
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            setResSpecialRequests((prev) => {
+                              const trimmed = (prev || "").trim();
+                              return trimmed ? `${trimmed}, ${val}` : val;
+                            });
+                            e.target.value = "";
+                          }
+                        }}
+                        className="h-7 text-xs rounded border border-border bg-muted/40 px-2 text-text font-medium cursor-pointer max-w-xs focus:ring-1 focus:ring-primary"
+                        defaultValue=""
+                      >
+                        <option value="">+ Add from Online Service Menu...</option>
+                        {ONLINE_RESERVATION_SPECIAL_REQUESTS.map((cat) => (
+                          <optgroup key={cat.category} label={cat.category}>
+                            {cat.items.map((item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
                     <textarea
                       id="resSpecialRequests"
                       rows={2}
                       value={resSpecialRequests}
                       onChange={(e) => setResSpecialRequests(e.target.value)}
-                      placeholder="e.g. Quiet room, extra towels, early morning call..."
-                      className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                      placeholder="Type freely or pick items from the dropdown menu above (e.g. Traditional Doro Wat Feast, Airport Pickup, Extra Pillows)..."
+                      className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="resMaintenanceNotes" className="flex items-center gap-1.5 text-xs font-semibold text-text">
+                        <Wrench className="h-3.5 w-3.5 text-amber-500" />
+                        Room Maintenance & Operational Readiness Status
+                      </Label>
+                      <span className="text-[11px] text-muted-foreground">Pre-check-in verification</span>
+                    </div>
+                    <input
+                      id="resMaintenanceNotes"
+                      type="text"
+                      value={resMaintenanceNotes}
+                      onChange={(e) => setResMaintenanceNotes(e.target.value)}
+                      placeholder="e.g. TV & remote verified, shower hot water & pressure tested, AC fully functional..."
+                      className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -1228,12 +1426,16 @@ export default function GuestsPage() {
                     checkInMutation.mutate({
                       id: activeReservation.id,
                       body: {
-                        keyCardNumber: keyCardNumber || undefined,
+                        keyCardNumber:
+                          keyCardNumber ||
+                          (keyIssuanceType === "manual"
+                            ? `Manual Key #${roomDisplayNum}`
+                            : `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`),
                         identityVerified,
                         depositCollected,
                         depositAmount: depositAmount ? Number(depositAmount) : undefined,
                         registrationCardGenerated,
-                        checkedInBy: checkedInBy || undefined,
+                        checkedInBy: checkedInBy || currentStaffName,
                         notes: notesParts.length > 0 ? notesParts.join(" | ") : undefined,
                       },
                     });
@@ -1385,9 +1587,6 @@ export default function GuestsPage() {
                             <SelectItem value="partial_prepayment">Partial Pre-payment Received</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-[10px] text-muted-foreground">
-                          Defines when room charges & incidentals will be settled.
-                        </p>
                       </div>
 
                       {/* Deposit Payment Method */}
@@ -1404,9 +1603,6 @@ export default function GuestsPage() {
                             <SelectItem value="bank_transfer">CBE Birr / Direct Bank Transfer</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-[10px] text-muted-foreground">
-                          Preferred channel for security deposit or charges.
-                        </p>
                       </div>
                     </div>
 
@@ -1474,85 +1670,122 @@ export default function GuestsPage() {
                       )}
                     </div>
 
-                    {/* RFID Keycard UID */}
-                    <div className="grid gap-1.5 pt-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="keyCardNumber" className="text-xs font-medium flex items-center gap-1.5">
-                          <Key className="w-3.5 h-3.5 text-primary" /> Key Card Number / RFID UID
-                        </Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
+                    {/* Key Issuance Selection: RFID Generator vs Manual Key */}
+                    <div className="p-3 rounded-lg border border-border/80 bg-muted/20 space-y-2.5">
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-primary" /> Key Issuance Method
+                      </Label>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* Option 1: RFID Keycard Generator */}
+                        <div
                           onClick={() => {
-                            const generatedUid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
-                            setKeyCardNumber(generatedUid);
-                            toast({ title: "RFID Keycard Encoded", description: `Assigned: ${generatedUid}` });
+                            setKeyIssuanceType("rfid");
+                            const uid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
+                            setKeyCardNumber(uid);
                           }}
+                          className={`flex items-start gap-2.5 p-2.5 rounded-md border cursor-pointer transition-all ${
+                            keyIssuanceType === "rfid"
+                              ? "border-primary bg-primary/10 shadow-sm"
+                              : "border-border hover:border-border/80 bg-background/50"
+                          }`}
                         >
-                          ⚡ Auto-Encode RFID Keycard
-                        </Button>
+                          <input
+                            type="radio"
+                            name="keyIssuanceType"
+                            id="key_rfid"
+                            checked={keyIssuanceType === "rfid"}
+                            onChange={() => {
+                              setKeyIssuanceType("rfid");
+                              const uid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
+                              setKeyCardNumber(uid);
+                            }}
+                            className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <label htmlFor="key_rfid" className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+                              <span className="text-primary font-bold text-sm leading-none">•</span> RFID Generator
+                            </label>
+                            <p className="text-[11px] text-muted-foreground leading-tight">
+                              Generate digital RFID keycard for contactless room door lock.
+                            </p>
+                            {keyIssuanceType === "rfid" && (
+                              <div className="mt-2 flex items-center justify-between gap-1.5 p-1.5 rounded bg-background border border-primary/30">
+                                <span className="font-mono text-xs font-bold text-primary truncate">
+                                  {keyCardNumber || `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newUid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
+                                    setKeyCardNumber(newUid);
+                                    toast({ title: "RFID Keycard Generated", description: newUid });
+                                  }}
+                                >
+                                  Re-generate
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Option 2: Manual Physical Key */}
+                        <div
+                          onClick={() => {
+                            setKeyIssuanceType("manual");
+                            setKeyCardNumber(`Manual Key #${roomDisplayNum}`);
+                          }}
+                          className={`flex items-start gap-2.5 p-2.5 rounded-md border cursor-pointer transition-all ${
+                            keyIssuanceType === "manual"
+                              ? "border-primary bg-primary/10 shadow-sm"
+                              : "border-border hover:border-border/80 bg-background/50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="keyIssuanceType"
+                            id="key_manual"
+                            checked={keyIssuanceType === "manual"}
+                            onChange={() => {
+                              setKeyIssuanceType("manual");
+                              setKeyCardNumber(`Manual Key #${roomDisplayNum}`);
+                            }}
+                            className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <label htmlFor="key_manual" className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+                              <span className="text-primary font-bold text-sm leading-none">•</span> Manual Key
+                            </label>
+                            <p className="text-[11px] text-muted-foreground leading-tight">
+                              Issue traditional physical brass key from front desk cabinet.
+                            </p>
+                            {keyIssuanceType === "manual" && (
+                              <div className="mt-2 p-1.5 rounded bg-background border border-primary/30">
+                                <span className="font-mono text-xs font-semibold text-foreground">
+                                  🔑 Physical Key: Room #{roomDisplayNum}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Receptionist */}
+                    <div className="grid gap-1 pt-2 border-t border-border/60">
+                      <Label htmlFor="checkedInBy" className="text-xs font-medium">Checked In By</Label>
                       <Input
-                        id="keyCardNumber"
-                        value={keyCardNumber}
-                        onChange={(e) => setKeyCardNumber(e.target.value)}
-                        placeholder="e.g. RFID-101-L7X89Q"
-                        className="h-8 text-xs font-mono"
+                        id="checkedInBy"
+                        value={checkedInBy || currentStaffName}
+                        readOnly
+                        disabled
+                        placeholder="Signed-in staff name"
+                        className="h-8 text-xs bg-muted/50 cursor-not-allowed font-medium text-text select-none border-border/70"
                       />
-                    </div>
-
-                    {/* Verification Checkboxes */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border/60">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="identityVerified"
-                          checked={identityVerified}
-                          onChange={(e) => setIdentityVerified(e.target.checked)}
-                          className="h-4 w-4 rounded accent-primary cursor-pointer"
-                        />
-                        <label htmlFor="identityVerified" className="text-xs font-medium cursor-pointer">
-                          Identity Verified (Passport / Fayida ID)
-                        </label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="registrationCardGenerated"
-                          checked={registrationCardGenerated}
-                          onChange={(e) => setRegistrationCardGenerated(e.target.checked)}
-                          className="h-4 w-4 rounded accent-primary cursor-pointer"
-                        />
-                        <label htmlFor="registrationCardGenerated" className="text-xs font-medium cursor-pointer">
-                          Registration Card Printed & Signed
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Receptionist & Notes */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      <div className="grid gap-1">
-                        <Label htmlFor="checkedInBy" className="text-xs font-medium">Checked In By (Staff Name)</Label>
-                        <Input
-                          id="checkedInBy"
-                          value={checkedInBy}
-                          onChange={(e) => setCheckedInBy(e.target.value)}
-                          placeholder="e.g. Front Desk Officer"
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <div className="grid gap-1">
-                        <Label htmlFor="checkInNotes" className="text-xs font-medium">Arrival Notes (Optional)</Label>
-                        <Input
-                          id="checkInNotes"
-                          value={checkInNotes}
-                          onChange={(e) => setCheckInNotes(e.target.value)}
-                          placeholder="e.g. Late checkout requested, luggage in room"
-                          className="h-8 text-xs"
-                        />
-                      </div>
                     </div>
                   </div>
 
@@ -1770,7 +2003,7 @@ export default function GuestsPage() {
                       <TableHead>Email</TableHead>
                       <TableHead>Nationality</TableHead>
                       <TableHead>Stays</TableHead>
-                      <TableHead className="w-[140px] text-right">Actions</TableHead>
+                      <TableHead className="w-[160px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1787,55 +2020,76 @@ export default function GuestsPage() {
                         <TableCell colSpan={9} className="h-24 text-center text-text-muted">No guests found.</TableCell>
                       </TableRow>
                     ) : (
-                      guests.map((guest) => (
-                        <TableRow
-                          key={guest.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => router.push(`/guests/${guest.id}`)}
-                        >
-                          <TableCell className="font-mono text-xs">{guest.guestCode}</TableCell>
-                          <TableCell className="font-medium">
-                            {[guest.firstName, guest.middleName, guest.lastName].filter(Boolean).join(" ")}
-                          </TableCell>
-                          <TableCell>{guestTypeBadge(guest.guestType)}</TableCell>
-                          <TableCell>
-                            {guest.vipStatus && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
-                          </TableCell>
-                          <TableCell>{guest.phone ?? "—"}</TableCell>
-                          <TableCell className="max-w-[180px] truncate">{guest.email ?? "—"}</TableCell>
-                          <TableCell>{guest.nationality ?? "—"}</TableCell>
-                          <TableCell>{guest.totalStays ?? 0}</TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
-                                title="Reserve Room"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openReservationForGuest(guest);
-                                }}
-                              >
-                                <Calendar className="h-3.5 w-3.5" />
-                                Reserve
-                              </Button>
-                              <Button
-                                variant="ghost" size="sm" className="h-7 w-7 p-0"
-                                onClick={(e) => { e.stopPropagation(); setEditGuest(guest); }}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost" size="sm" className="h-7 w-7 p-0 text-danger hover:text-danger"
-                                onClick={(e) => { e.stopPropagation(); setDeleteGuest(guest); }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      guests.map((guest) => {
+                        const activeRes = activeReservationByGuest.get(guest.id) || activeReservationByGuest.get(guest.guestCode);
+                        const isReserved = Boolean(activeRes);
+                        return (
+                          <TableRow
+                            key={guest.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => router.push(`/guests/${guest.id}`)}
+                          >
+                            <TableCell className="font-mono text-xs">{guest.guestCode}</TableCell>
+                            <TableCell className="font-medium">
+                              {[guest.firstName, guest.middleName, guest.lastName].filter(Boolean).join(" ")}
+                            </TableCell>
+                            <TableCell>{guestTypeBadge(guest.guestType)}</TableCell>
+                            <TableCell>
+                              {guest.vipStatus && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
+                            </TableCell>
+                            <TableCell>{guest.phone ?? "—"}</TableCell>
+                            <TableCell className="max-w-[180px] truncate">{guest.email ?? "—"}</TableCell>
+                            <TableCell>{guest.nationality ?? "—"}</TableCell>
+                            <TableCell>{guest.totalStays ?? 0}</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {isReserved ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="h-7 px-2.5 text-xs font-semibold gap-1 cursor-not-allowed bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 opacity-90 disabled:opacity-90 disabled:cursor-not-allowed shadow-none"
+                                    title={
+                                      activeRes?.status === "checked_in"
+                                        ? `Checked-In • Room ${activeRes?.roomNumber || "Assigned"} (Res #${activeRes?.reservationNumber || ""})`
+                                        : `Active Reservation: ${activeRes?.reservationNumber || ""} (${(activeRes?.status ?? "").replace("_", " ")})`
+                                    }
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Reserved</span>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
+                                    title="Reserve Room"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openReservationForGuest(guest);
+                                    }}
+                                  >
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>Reserve</span>
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost" size="sm" className="h-7 w-7 p-0"
+                                  onClick={(e) => { e.stopPropagation(); setEditGuest(guest); }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost" size="sm" className="h-7 w-7 p-0 text-danger hover:text-danger"
+                                  onClick={(e) => { e.stopPropagation(); setDeleteGuest(guest); }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>

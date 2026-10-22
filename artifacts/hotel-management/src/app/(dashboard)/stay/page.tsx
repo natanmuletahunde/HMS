@@ -13,6 +13,7 @@ import {
   Search,
   Filter,
   CheckCircle2,
+  Calendar,
   Sparkles,
   UtensilsCrossed,
   Clock,
@@ -75,10 +76,13 @@ type InHouseReservation = {
   nights?: number;
   actualCheckIn?: string;
   status: string;
+  specialRequests?: string;
 };
 
 type StayChange = {
   id: string;
+  reservationId?: string;
+  guestId?: string;
   reservationNumber?: string;
   guestName?: string;
   actionType?: string;
@@ -86,6 +90,8 @@ type StayChange = {
   toRoomNumber?: string;
   createdAt?: string;
   reason?: string;
+  performedBy?: string;
+  newCheckOut?: string;
 };
 
 type StayListResponse = {
@@ -93,7 +99,7 @@ type StayListResponse = {
   meta: { total: number; page: number; limit: number; totalPages: number };
 };
 
-type Room = { id: string; number: string; status: string; roomTypeName?: string };
+type Room = { id: string; number: string; status: string; roomTypeName?: string; currentPrice?: number };
 
 type RoomServiceRequest = {
   id: string;
@@ -195,6 +201,14 @@ export default function StayManagementHubPage() {
   // ─── Stay Management State ────────────────────────────────────────────────
   const [manageTarget, setManageTarget] = useState<InHouseReservation | null>(null);
   const [actionType, setActionType] = useState("room_upgrade");
+  const [manageReason, setManageReason] = useState("");
+  const [manageNotes, setManageNotes] = useState("");
+  const [manageNewRoomId, setManageNewRoomId] = useState("");
+  const [manageNewCheckOutDate, setManageNewCheckOutDate] = useState("");
+  const [handledStayAlerts, setHandledStayAlerts] = useState<Set<string>>(new Set());
+  const [handledServiceAlerts, setHandledServiceAlerts] = useState<Set<string>>(new Set());
+  const [activeServiceRequestId, setActiveServiceRequestId] = useState<string | null>(null);
+  const [activeServiceRequestObj, setActiveServiceRequestObj] = useState<RoomServiceRequest | null>(null);
 
   // ─── Room Service State ───────────────────────────────────────────────────
   const [rsStatusTab, setRsStatusTab] = useState<RsStatusTabType>("all");
@@ -230,7 +244,7 @@ export default function StayManagementHubPage() {
   const { data: rawRooms } = useQuery<any>({
     queryKey: ["rooms"],
     queryFn: () => apiFetch<any>("/rooms"),
-    enabled: !!manageTarget && ROOM_ACTIONS.includes(actionType),
+    enabled: true,
   });
   const rooms: Room[] = Array.isArray(rawRooms) ? rawRooms : (rawRooms?.data ?? []);
 
@@ -251,6 +265,13 @@ export default function StayManagementHubPage() {
     queryFn: () => apiFetch<RoomServiceRequest[]>(`/room-service?${rsQueryParams}`),
   });
 
+  // Global query for all pending in-room / transport requests (unfiltered by Tab 2)
+  const { data: allPendingRsRequests = [] } = useQuery<RoomServiceRequest[]>({
+    queryKey: ["room-service-all-pending"],
+    queryFn: () => apiFetch<RoomServiceRequest[]>("/room-service?status=requested"),
+    refetchInterval: 4000,
+  });
+
   // ─── Mutations ────────────────────────────────────────────────────────────
   const stayMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -259,8 +280,16 @@ export default function StayManagementHubPage() {
       queryClient.invalidateQueries({ queryKey: ["stay-changes"] });
       queryClient.invalidateQueries({ queryKey: ["in-house"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      if (manageTarget) {
+        if (manageTarget.id) {
+          setHandledStayAlerts((prev) => new Set(prev).add(manageTarget.id));
+        }
+        if (manageTarget.roomNumber) {
+          setHandledStayAlerts((prev) => new Set(prev).add(manageTarget.roomNumber!));
+        }
+      }
       setManageTarget(null);
-      toast({ title: "Stay updated successfully" });
+      toast({ title: "Stay modification completed & alert cleared" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -268,12 +297,20 @@ export default function StayManagementHubPage() {
   function invalidateRs() {
     queryClient.invalidateQueries({ queryKey: ["room-service"] });
     queryClient.invalidateQueries({ queryKey: ["room-service-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["room-service-all-pending"] });
   }
 
   const patchRsMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       apiFetch(`/room-service/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      const targetReq = rsRequests.find((r) => r.id === variables.id);
+      if (targetReq?.roomNumber) {
+        setHandledServiceAlerts((prev) => new Set(prev).add(targetReq.roomNumber!));
+      }
+      if (variables.id) {
+        setHandledServiceAlerts((prev) => new Set(prev).add(variables.id));
+      }
       invalidateRs();
       toast({ title: "Room service request updated" });
     },
@@ -284,39 +321,186 @@ export default function StayManagementHubPage() {
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch("/room-service", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
+      if (activeServiceRequestId) {
+        patchRsMutation.mutate({ id: activeServiceRequestId, body: { status: "accepted" } });
+        setHandledServiceAlerts((prev) => new Set(prev).add(activeServiceRequestId));
+        setActiveServiceRequestId(null);
+        setActiveServiceRequestObj(null);
+      }
+      if (serviceRoom) {
+        setHandledServiceAlerts((prev) => new Set(prev).add(serviceRoom));
+      }
       invalidateRs();
       setIsNewServiceOpen(false);
-      toast({ title: "Room service request created successfully" });
+      toast({ title: "Room service request processed & alert cleared" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  // Helper to launch Room Service pre-filled for an in-house guest
+  function dismissStayAlert(res: InHouseReservation) {
+    if (res.id) setHandledStayAlerts((prev) => new Set(prev).add(res.id));
+    if (res.roomNumber) setHandledStayAlerts((prev) => new Set(prev).add(res.roomNumber!));
+    toast({ title: `Stay alert dismissed for Room ${res.roomNumber ?? res.reservationNumber}` });
+  }
+
+  function dismissServiceAlert(res: InHouseReservation) {
+    if (res.roomNumber) {
+      setHandledServiceAlerts((prev) => new Set(prev).add(res.roomNumber!));
+      const req = allPendingRsRequests.find(
+        (r) => (r.roomNumber === res.roomNumber || r.guestName?.toLowerCase() === res.guestName?.toLowerCase()) && r.status === "requested"
+      );
+      if (req?.id) {
+        patchRsMutation.mutate({ id: req.id, body: { status: "accepted" } });
+      }
+      toast({ title: `Order alert dismissed for Room ${res.roomNumber}` });
+    }
+  }
+
+  // Helper to launch Room Service pre-filled for an in-house guest (Auto-synced with Guest Portal)
   function openServiceForInHouseGuest(res: InHouseReservation) {
     setServiceRoom(res.roomNumber ?? "");
     setServiceGuest(res.guestName ?? "");
     setServiceGuestId(res.guestId ?? "");
     setServiceReservationId(res.id);
-    setServiceType("food");
-    setServiceAmount("");
-    setServiceDesc("");
-    setServicePriority("normal");
-    setServiceChargeToRoom(true);
+
+    // Auto-fill from guest portal active request if one exists for this room or guest
+    const existingReq =
+      allPendingRsRequests.find(
+        (r) =>
+          (r.roomNumber === res.roomNumber || r.guestName?.toLowerCase() === res.guestName?.toLowerCase()) &&
+          ["requested", "accepted", "in_progress"].includes(r.status)
+      ) ||
+      rsRequests.find(
+        (r) =>
+          (r.roomNumber === res.roomNumber || r.guestName?.toLowerCase() === res.guestName?.toLowerCase()) &&
+          ["requested", "accepted", "in_progress"].includes(r.status)
+      ) ||
+      rsRequests.find(
+        (r) => r.roomNumber === res.roomNumber || r.guestName?.toLowerCase() === res.guestName?.toLowerCase()
+      );
+
+    if (existingReq) {
+      setActiveServiceRequestId(existingReq.id);
+      setActiveServiceRequestObj(existingReq);
+      setServiceType(existingReq.serviceType || "transport");
+      setServiceAmount(
+        existingReq.chargeAmount != null && Number(existingReq.chargeAmount) > 0
+          ? String(existingReq.chargeAmount)
+          : "25.00"
+      );
+      setServiceDesc(
+        existingReq.description ||
+          (existingReq.specialInstructions ? `Special request: ${existingReq.specialInstructions}` : "") ||
+          `${existingReq.serviceType} requested by ${res.guestName}`
+      );
+      setServicePriority(existingReq.priority || "normal");
+      setServiceChargeToRoom(existingReq.chargeToRoom ?? true);
+    } else {
+      setActiveServiceRequestId(null);
+      setActiveServiceRequestObj(null);
+      // Smart default pre-fill so receptionist never sees blank inputs
+      setServiceType("food");
+      setServiceAmount("25.00");
+      setServiceDesc(`1x In-Room Chef Special Dining & Beverage for ${res.guestName || "Guest"} (Room ${res.roomNumber})`);
+      setServicePriority("normal");
+      setServiceChargeToRoom(true);
+    }
+
     setIsNewServiceOpen(true);
   }
 
-  // ─── Paginations ──────────────────────────────────────────────────────────
-  const inHousePagination = usePagination(inHouse, 5);
   const stayChanges = stayChangesData?.data ?? [];
   const stayChangesPagination = usePagination(stayChanges, 5);
+  const inHousePagination = usePagination(inHouse, 5);
   const rsPagination = usePagination(rsRequests, 5);
-  // Map of rooms with pending service requests
-  const pendingRoomsMap = new Map<string, RoomServiceRequest>();
+
+  // Map of rooms with unhandled pending service requests needing receptionist action
+  const serviceRequestMap = new Map<string, RoomServiceRequest>();
   rsRequests
-    .filter((r) => r.status === "requested")
+    .filter(
+      (r) =>
+        r.status === "requested" &&
+        (!r.roomNumber || !handledServiceAlerts.has(r.roomNumber)) &&
+        (!r.id || !handledServiceAlerts.has(r.id))
+    )
     .forEach((r) => {
-      if (r.roomNumber) pendingRoomsMap.set(r.roomNumber, r);
+      if (r.roomNumber) serviceRequestMap.set(r.roomNumber, r);
     });
+
+  // Helper to detect unhandled stay modification requests for an in-house guest
+  function getPendingStayRequest(res: InHouseReservation): StayChange | null {
+    const isHandled =
+      (res.id && handledStayAlerts.has(res.id)) ||
+      (res.roomNumber && handledStayAlerts.has(res.roomNumber));
+    if (isHandled) return null;
+
+    // 1. Look in stayChanges for guest requests
+    const guestChange = stayChanges.find(
+      (c) =>
+        (c.reservationId === res.id ||
+          c.reservationNumber === res.reservationNumber ||
+          (res.roomNumber && (c.fromRoomNumber === res.roomNumber || (c as any).roomNumber === res.roomNumber))) &&
+        (c.performedBy === "Guest Self-Service" ||
+          c.reason?.includes("[GUEST PORTAL REQUEST]") ||
+          c.reason?.toLowerCase().includes("guest requested") ||
+          c.actionType === "room_upgrade" ||
+          c.actionType === "extend_stay")
+    );
+    if (guestChange) return guestChange;
+
+    // 2. Look in reservation specialRequests
+    if (
+      res.specialRequests &&
+      /upgrade|extend|transfer|checkout|check-out|room change/i.test(res.specialRequests)
+    ) {
+      return {
+        id: `spec-${res.id}`,
+        reservationId: res.id,
+        actionType: /extend|checkout/i.test(res.specialRequests) ? "extend_stay" : "room_upgrade",
+        reason: res.specialRequests,
+        performedBy: "Guest Self-Service",
+      } as StayChange;
+    }
+
+    return null;
+  }
+
+  // Helper to launch Manage Stay pre-filled for an in-house guest (Auto-synced with Guest Portal)
+  function openManageStayForGuest(res: InHouseReservation) {
+    setManageTarget(res);
+
+    // Check if there is an existing stay-change or request from the guest portal
+    const existingChange =
+      getPendingStayRequest(res) ||
+      stayChanges.find(
+        (c) =>
+          c.reservationId === res.id ||
+          c.reservationNumber === res.reservationNumber ||
+          c.guestName?.toLowerCase() === res.guestName?.toLowerCase()
+      );
+
+    // Pick first available room from inventory that is not current room
+    const availRooms = rooms.filter((r) => r.status === "available" && r.number !== res.roomNumber);
+    const defaultRoomId = availRooms[0]?.id || "";
+    setManageNewRoomId(defaultRoomId);
+
+    // Compute sensible next checkout date (+1 day from current checkout)
+    const baseDate = res.checkOutDate ? new Date(res.checkOutDate) : new Date();
+    const nextDay = new Date(baseDate.getTime() + 86400000).toISOString().split("T")[0];
+
+    if (existingChange && existingChange.performedBy === "Guest Self-Service") {
+      const act = existingChange.actionType || "room_upgrade";
+      setActionType(act);
+      setManageReason(existingChange.reason || `Guest requested ${act.replace(/_/g, " ")} via In-Room Portal`);
+      setManageNotes(`Requested via Guest Portal for ${res.guestName}`);
+      setManageNewCheckOutDate(existingChange.newCheckOut ? existingChange.newCheckOut.split("T")[0] : nextDay);
+    } else {
+      setActionType("room_upgrade");
+      setManageReason(res.specialRequests || "");
+      setManageNotes(`Front desk routine stay adjustment for ${res.guestName || "Guest"}`);
+      setManageNewCheckOutDate(nextDay);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -494,75 +678,152 @@ export default function StayManagementHubPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    inHousePagination.paginatedItems.map((res) => (
-                      <TableRow key={res.id} className="hover:bg-muted/40">
-                        <TableCell className="font-medium">
-                          {res.guestName ?? "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
-                        <TableCell className="font-semibold text-primary">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>Room {res.roomNumber ?? "—"}</span>
-                            {res.roomNumber && pendingRoomsMap.has(res.roomNumber) && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveHubTab("room-service");
-                                  setRsStatusTab("requested");
-                                  setRsSearch(res.roomNumber ?? "");
-                                }}
-                                title={`Pending request: ${pendingRoomsMap.get(res.roomNumber)?.description || "Room service"}`}
-                              >
-                                <Badge variant="warning" className="text-[10px] py-0 px-1.5 animate-pulse cursor-pointer gap-1">
-                                  <ConciergeBell className="h-3 w-3" />
-                                  Order Alert
-                                </Badge>
-                              </button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {res.actualCheckIn
-                            ? new Date(res.actualCheckIn).toLocaleDateString()
-                            : res.checkInDate
-                            ? new Date(res.checkInDate).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="muted" className="text-xs">
-                            {nightsLeft(res.checkOutDate)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
-                              title="Order Room Service for this Guest"
-                              onClick={() => openServiceForInHouseGuest(res)}
-                            >
-                              <ConciergeBell className="h-3.5 w-3.5" />
-                              Order Service
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs gap-1"
-                              onClick={() => {
-                                setManageTarget(res);
-                                setActionType("room_upgrade");
-                              }}
-                            >
-                              <Settings className="h-3.5 w-3.5" /> Manage Stay
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    inHousePagination.paginatedItems.map((res) => {
+                      const pendingStay = getPendingStayRequest(res);
+                      const hasStay = !!pendingStay;
+                      const pendingService = allPendingRsRequests.find(
+                        (r) =>
+                          (r.roomNumber === res.roomNumber || r.guestName?.toLowerCase() === res.guestName?.toLowerCase()) &&
+                          r.status === "requested" &&
+                          (!res.roomNumber || !handledServiceAlerts.has(res.roomNumber)) &&
+                          (!r.id || !handledServiceAlerts.has(r.id))
+                      );
+                      const hasService = !!pendingService;
+                      const isTransport = pendingService?.serviceType === "transport" || pendingService?.department === "transport";
+
+                      return (
+                        <TableRow key={res.id} className="hover:bg-muted/40">
+                          <TableCell className="font-medium">
+                            {res.guestName ?? "—"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{res.reservationNumber}</TableCell>
+                          <TableCell className="font-semibold text-primary">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>Room {res.roomNumber ?? "—"}</span>
+
+                              {/* Stay Request Alert */}
+                              {hasStay && (
+                                <div className="inline-flex items-center gap-1 bg-amber-500/15 border border-amber-500/30 rounded-md px-1.5 py-0.5 animate-pulse">
+                                  <button
+                                    type="button"
+                                    onClick={() => openManageStayForGuest(res)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 hover:underline"
+                                    title={`Stay Request: ${pendingStay?.reason || "Stay modification"}`}
+                                  >
+                                    <Calendar className="h-3 w-3" />
+                                    Stay Alert
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      dismissStayAlert(res);
+                                    }}
+                                    className="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 text-xs px-0.5 rounded leading-none"
+                                    title="Dismiss stay alert"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Order / Transport Service Alert */}
+                              {hasService && (
+                                <div className="inline-flex items-center gap-1 bg-amber-500/15 border border-amber-500/30 rounded-md px-1.5 py-0.5 animate-pulse">
+                                  <button
+                                    type="button"
+                                    onClick={() => openServiceForInHouseGuest(res)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 hover:underline"
+                                    title={`Pending: ${pendingService?.description || "In-room service"}`}
+                                  >
+                                    {isTransport ? <Car className="h-3 w-3" /> : <ConciergeBell className="h-3 w-3" />}
+                                    {isTransport ? "Transport Alert" : "Order Alert"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      dismissServiceAlert(res);
+                                    }}
+                                    className="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 text-xs px-0.5 rounded leading-none"
+                                    title="Dismiss alert"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {res.actualCheckIn
+                              ? new Date(res.actualCheckIn).toLocaleDateString()
+                              : res.checkInDate
+                              ? new Date(res.checkInDate).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="muted" className="text-xs">
+                              {nightsLeft(res.checkOutDate)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* If transport or room service requested: show dedicated Fulfill button */}
+                              {hasService && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 px-2.5 text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold gap-1 shadow-xs"
+                                  title={isTransport ? "Fulfill guest transport / chauffeur request" : "Fulfill in-room service order"}
+                                  onClick={() => openServiceForInHouseGuest(res)}
+                                >
+                                  {isTransport ? <Car className="h-3.5 w-3.5" /> : <ConciergeBell className="h-3.5 w-3.5" />}
+                                  {isTransport ? "Fulfill Transport" : "Fulfill Order"}
+                                </Button>
+                              )}
+
+                              {/* If stay modification requested: show Stay button */}
+                              {hasStay && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2.5 text-xs text-primary border-primary/40 hover:bg-primary/10 gap-1 font-medium shadow-xs"
+                                  title="Handle stay modification (upgrade / extension / transfer)"
+                                  onClick={() => openManageStayForGuest(res)}
+                                >
+                                  <Settings className="h-3.5 w-3.5" />
+                                  Stay
+                                </Button>
+                              )}
+
+                              {/* Action options */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-text-muted hover:text-foreground"
+                                    title="More actions"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openServiceForInHouseGuest(res)}>
+                                    <ConciergeBell className="mr-2 h-3.5 w-3.5" /> In-Room Services
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openManageStayForGuest(res)}>
+                                    <Settings className="mr-2 h-3.5 w-3.5" /> Manage Stay (Room/Dates)
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -882,30 +1143,96 @@ export default function StayManagementHubPage() {
             Reservation #{manageTarget?.reservationNumber} &bull; Currently in Room:{" "}
             <strong className="text-primary font-bold">{manageTarget?.roomNumber ?? "—"}</strong>
           </p>
+
+          {/* Active Guest Request Banner if guest requested transport or in-room service */}
+          {manageTarget && (() => {
+            const pendingReq = allPendingRsRequests.find(
+              (r) =>
+                (r.roomNumber === manageTarget.roomNumber || r.guestName?.toLowerCase() === manageTarget.guestName?.toLowerCase()) &&
+                ["requested", "accepted", "in_progress"].includes(r.status)
+            );
+            if (!pendingReq) return null;
+            const isTransport = pendingReq.serviceType === "transport" || pendingReq.department === "transport";
+
+            return (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs space-y-2 mt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                    {isTransport ? <Car className="h-4 w-4" /> : <ConciergeBell className="h-4 w-4" />}
+                    <span>Active Request: {isTransport ? "Chauffeur & Transport" : "In-Room Service"}</span>
+                  </div>
+                  <Badge variant="warning" className="text-[10px] uppercase font-mono">
+                    {pendingReq.status}
+                  </Badge>
+                </div>
+                <div className="bg-surface/90 p-2.5 rounded border border-border/70">
+                  <p className="font-semibold text-text text-xs leading-relaxed">{pendingReq.description}</p>
+                  <div className="flex items-center justify-between text-[11px] text-text-muted mt-1.5 pt-1 border-t border-border/50">
+                    <span>Room {manageTarget.roomNumber} &bull; {manageTarget.guestName}</span>
+                    <span className="font-bold text-amber-400 font-mono">
+                      {Number(pendingReq.chargeAmount) > 0 ? `$${Number(pendingReq.chargeAmount).toFixed(2)}` : "Complimentary"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1 text-[11px]">
+                  <span className="text-text-muted">
+                    This dialog manages Room/Dates. To fulfill transport:
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs gap-1"
+                    onClick={() => {
+                      const target = manageTarget;
+                      setManageTarget(null);
+                      openServiceForInHouseGuest(target);
+                    }}
+                  >
+                    Open Transport Request &rarr;
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+
           <form
             className="space-y-4 pt-2"
             onSubmit={(e) => {
               e.preventDefault();
               if (!manageTarget) return;
-              const fd = new FormData(e.currentTarget);
               const body: Record<string, unknown> = {
                 reservationId: manageTarget.id,
                 actionType,
-                reason: fd.get("reason") || undefined,
-                notes: fd.get("notes") || undefined,
+                reason: manageReason || `Front desk stay modification for Room ${manageTarget.roomNumber}`,
+                notes: manageNotes || undefined,
               };
               if (ROOM_ACTIONS.includes(actionType)) {
-                body.newRoomId = fd.get("newRoomId") || undefined;
+                const selectedRoom = manageNewRoomId || rooms.filter((r) => r.status === "available" && r.number !== manageTarget.roomNumber)[0]?.id;
+                body.newRoomId = selectedRoom || undefined;
               }
               if (DATE_ACTIONS.includes(actionType)) {
-                body.newCheckOutDate = fd.get("newCheckOutDate") || undefined;
+                body.newCheckOutDate = manageNewCheckOutDate || undefined;
               }
               stayMutation.mutate(body);
             }}
           >
             <div className="grid gap-1.5">
               <Label className="text-xs font-semibold">Action Type</Label>
-              <Select value={actionType} onValueChange={setActionType}>
+              <Select
+                value={actionType}
+                onValueChange={(val) => {
+                  setActionType(val);
+                  if (val === "extend_stay") {
+                    setManageReason(`Stay extension (Room ${manageTarget?.roomNumber ?? ""})`);
+                  } else if (val === "room_transfer") {
+                    setManageReason(`Room transfer (Room ${manageTarget?.roomNumber ?? ""})`);
+                  } else if (val === "room_upgrade") {
+                    setManageReason(`Room upgrade (Room ${manageTarget?.roomNumber ?? ""})`);
+                  } else if (val === "shorten_stay") {
+                    setManageReason(`Early departure (Room ${manageTarget?.roomNumber ?? ""})`);
+                  }
+                }}
+              >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -922,20 +1249,25 @@ export default function StayManagementHubPage() {
 
             {ROOM_ACTIONS.includes(actionType) && (
               <div className="grid gap-1.5">
-                <Label htmlFor="newRoomId" className="text-xs font-semibold">
-                  New Available Room *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="newRoomId" className="text-xs font-semibold">
+                    New Available Room *
+                  </Label>
+                  <span className="text-[10px] text-emerald-500 font-medium">Auto-matched clean room</span>
+                </div>
                 <select
                   name="newRoomId"
+                  value={manageNewRoomId}
+                  onChange={(e) => setManageNewRoomId(e.target.value)}
                   required
-                  className="flex h-9 w-full rounded-md border border-input bg-surface px-3 py-1.5 text-xs"
+                  className="flex h-9 w-full rounded-md border border-input bg-surface px-3 py-1.5 text-xs font-semibold text-primary"
                 >
                   <option value="">Select a new available room</option>
                   {rooms
-                    .filter((r) => r.status === "available")
+                    .filter((r) => r.status === "available" && r.number !== manageTarget?.roomNumber)
                     .map((r) => (
                       <option key={r.id} value={r.id}>
-                        Room {r.number} — {r.roomTypeName ?? r.status}
+                        Room {r.number} — {r.roomTypeName ?? r.status} {r.currentPrice ? `($${r.currentPrice}/nt)` : ""}
                       </option>
                     ))}
                 </select>
@@ -944,42 +1276,58 @@ export default function StayManagementHubPage() {
 
             {DATE_ACTIONS.includes(actionType) && (
               <div className="grid gap-1.5">
-                <Label htmlFor="newCheckOutDate" className="text-xs font-semibold">
-                  New Check-out Date *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="newCheckOutDate" className="text-xs font-semibold">
+                    New Check-out Date *
+                  </Label>
+                  <span className="text-[10px] text-primary font-medium">Auto-calculated extension</span>
+                </div>
                 <Input
                   id="newCheckOutDate"
                   name="newCheckOutDate"
                   type="date"
                   required
                   min={manageTarget?.checkInDate?.split("T")[0]}
-                  defaultValue={manageTarget?.checkOutDate?.split("T")[0]}
-                  className="h-9 text-xs"
+                  value={manageNewCheckOutDate}
+                  onChange={(e) => setManageNewCheckOutDate(e.target.value)}
+                  className="h-9 text-xs font-semibold text-text"
                 />
               </div>
             )}
 
             <div className="grid gap-1.5">
-              <Label htmlFor="reason" className="text-xs font-semibold">
-                Reason *
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="reason" className="text-xs font-semibold">
+                  Reason *
+                </Label>
+                <span className="text-[10px] text-text-muted font-medium">
+                  {manageTarget && getPendingStayRequest(manageTarget) ? "Auto-filled from Guest Portal" : "Front Desk Adjustment"}
+                </span>
+              </div>
               <textarea
                 id="reason"
                 name="reason"
                 rows={2}
                 required
-                placeholder="e.g. Guest requested high floor / extended business meeting..."
-                className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-xs"
+                value={manageReason}
+                onChange={(e) => setManageReason(e.target.value)}
+                placeholder="e.g. VIP guest complimentary upgrade / room transfer..."
+                className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium"
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="notes" className="text-xs font-semibold">
-                Internal Notes (Optional)
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notes" className="text-xs font-semibold">
+                  Internal Notes (Optional)
+                </Label>
+                <span className="text-[10px] text-text-muted">Auto-tagged</span>
+              </div>
               <textarea
                 id="notes"
                 name="notes"
                 rows={2}
+                value={manageNotes}
+                onChange={(e) => setManageNotes(e.target.value)}
                 placeholder="Additional notes for front desk staff..."
                 className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-xs"
               />
@@ -993,163 +1341,284 @@ export default function StayManagementHubPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL: NEW ROOM SERVICE REQUEST ────────────────────────────── */}
-      <Dialog open={isNewServiceOpen} onOpenChange={setIsNewServiceOpen}>
+      {/* ─── MODAL: IN-ROOM SERVICE / FULFILL REQUEST ─────────────────────── */}
+      <Dialog open={isNewServiceOpen} onOpenChange={(o) => {
+        setIsNewServiceOpen(o);
+        if (!o) {
+          setActiveServiceRequestId(null);
+          setActiveServiceRequestObj(null);
+        }
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Order In-Room Service</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {activeServiceRequestObj ? (
+                <>
+                  {activeServiceRequestObj.serviceType === "transport" ? (
+                    <Car className="h-5 w-5 text-amber-400" />
+                  ) : (
+                    <ConciergeBell className="h-5 w-5 text-primary" />
+                  )}
+                  <span>
+                    Fulfill Guest Request &mdash; Room {serviceRoom} ({serviceGuest})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <ConciergeBell className="h-5 w-5 text-primary" />
+                  <span>Order In-Room Service</span>
+                </>
+              )}
+            </DialogTitle>
           </DialogHeader>
 
-          <form
-            className="space-y-4 pt-1"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!serviceRoom) {
-                toast({ title: "Room Required", description: "Please enter or select a room number", variant: "destructive" });
-                return;
-              }
+          {activeServiceRequestObj ? (
+            <div className="space-y-4 pt-1">
+              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <Badge variant="warning" className="text-xs font-bold uppercase tracking-wider">
+                    {activeServiceRequestObj.serviceType === "transport" ? "🚗 Transport Booking" : activeServiceRequestObj.serviceType}
+                  </Badge>
+                  <span className="text-xs font-mono text-text-muted">
+                    Ref: {activeServiceRequestObj.requestNumber}
+                  </span>
+                </div>
 
-              const body: Record<string, unknown> = {
-                roomNumber: serviceRoom,
-                guestName: serviceGuest || undefined,
-                guestId: serviceGuestId || undefined,
-                reservationId: serviceReservationId || undefined,
-                serviceType,
-                priority: servicePriority,
-                chargeAmount: serviceAmount ? Number(serviceAmount) : 0,
-                chargeToRoom: serviceChargeToRoom,
-                description: serviceDesc || undefined,
-              };
-
-              createRsMutation.mutate(body);
-            }}
-          >
-            {/* Quick Guest Selector / Confirmation */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Room Number *</Label>
-                <Input
-                  value={serviceRoom}
-                  onChange={(e) => setServiceRoom(e.target.value)}
-                  placeholder="e.g. 102"
-                  required
-                  className="h-9 text-xs font-bold text-primary"
-                />
+                <div className="bg-surface/90 rounded-md p-3 border border-border space-y-1.5">
+                  <div className="text-sm font-semibold text-text">
+                    {activeServiceRequestObj.description}
+                  </div>
+                  {activeServiceRequestObj.specialInstructions && (
+                    <div className="text-xs text-amber-300">
+                      <strong>Special instructions:</strong> {activeServiceRequestObj.specialInstructions}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/80 text-xs">
+                    <span className="text-text-muted">Room {activeServiceRequestObj.roomNumber} &bull; {activeServiceRequestObj.guestName}</span>
+                    <span className="text-sm font-bold font-mono text-amber-400">
+                      {Number(activeServiceRequestObj.chargeAmount) > 0
+                        ? `$${Number(activeServiceRequestObj.chargeAmount).toFixed(2)} Charged to Room`
+                        : "Complimentary"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Guest Name</Label>
-                <Input
-                  value={serviceGuest}
-                  onChange={(e) => setServiceGuest(e.target.value)}
-                  placeholder="e.g. Dr. Dawit Alene"
-                  className="h-9 text-xs"
-                />
+              <div className="bg-muted/30 p-2.5 rounded-md border border-border text-xs text-text-muted flex items-center justify-between">
+                <span>Current Status: <strong className="text-text capitalize">{activeServiceRequestObj.status.replace(/_/g, " ")}</strong></span>
+                <span>Department: <strong className="text-primary capitalize">{activeServiceRequestObj.department || "Transport"}</strong></span>
               </div>
-            </div>
 
-            {/* In-House Guest Quick Fill Banner */}
-            {inHouse.length > 0 && !serviceReservationId && (
-              <div className="p-2.5 rounded-md bg-muted/40 border border-border text-xs">
-                <span className="font-semibold text-text-muted">Quick Pick In-House Guest: </span>
-                <select
-                  className="mt-1 flex h-8 w-full rounded border border-input bg-surface px-2 text-xs"
-                  onChange={(e) => {
-                    const found = inHouse.find((g) => g.id === e.target.value);
-                    if (found) {
-                      setServiceRoom(found.roomNumber ?? "");
-                      setServiceGuest(found.guestName ?? "");
-                      setServiceGuestId(found.guestId ?? "");
-                      setServiceReservationId(found.id);
-                    }
-                  }}
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsNewServiceOpen(false)}
                 >
-                  <option value="">-- Or Choose Current In-House Guest --</option>
-                  {inHouse.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      Room {g.roomNumber} &bull; {g.guestName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                  Close
+                </Button>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Service Type *</Label>
-                <Select value={serviceType} onValueChange={setServiceType}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVICE_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.emoji} {t.label}
-                      </SelectItem>
+                {activeServiceRequestObj.status === "requested" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold gap-1.5"
+                    disabled={patchRsMutation.isPending}
+                    onClick={() => {
+                      patchRsMutation.mutate(
+                        { id: activeServiceRequestObj.id, body: { status: "accepted" } },
+                        {
+                          onSuccess: () => {
+                            setIsNewServiceOpen(false);
+                            setActiveServiceRequestId(null);
+                            setActiveServiceRequestObj(null);
+                            toast({ title: "Request Accepted", description: "Driver dispatched & guest notified via portal!" });
+                          },
+                        }
+                      );
+                    }}
+                  >
+                    {patchRsMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    <Car className="h-3.5 w-3.5" /> Accept & Dispatch Driver
+                  </Button>
+                )}
+
+                {activeServiceRequestObj.status !== "completed" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5"
+                    disabled={patchRsMutation.isPending}
+                    onClick={() => {
+                      patchRsMutation.mutate(
+                        { id: activeServiceRequestObj.id, body: { status: "completed" } },
+                        {
+                          onSuccess: () => {
+                            setIsNewServiceOpen(false);
+                            setActiveServiceRequestId(null);
+                            setActiveServiceRequestObj(null);
+                            toast({ title: "Completed & Charged", description: "Trip completed and added to guest folio." });
+                          },
+                        }
+                      );
+                    }}
+                  >
+                    {patchRsMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Mark Completed & Charge
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <form
+              className="space-y-4 pt-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!serviceRoom) {
+                  toast({ title: "Room Required", description: "Please enter or select a room number", variant: "destructive" });
+                  return;
+                }
+
+                const body: Record<string, unknown> = {
+                  roomNumber: serviceRoom,
+                  guestName: serviceGuest || undefined,
+                  guestId: serviceGuestId || undefined,
+                  reservationId: serviceReservationId || undefined,
+                  serviceType,
+                  priority: servicePriority,
+                  chargeAmount: serviceAmount ? Number(serviceAmount) : 0,
+                  chargeToRoom: serviceChargeToRoom,
+                  description: serviceDesc || undefined,
+                };
+
+                createRsMutation.mutate(body);
+              }}
+            >
+              {/* Quick Guest Selector / Confirmation */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Room Number *</Label>
+                  <Input
+                    value={serviceRoom}
+                    onChange={(e) => setServiceRoom(e.target.value)}
+                    placeholder="e.g. 102"
+                    required
+                    className="h-9 text-xs font-bold text-primary"
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Guest Name</Label>
+                  <Input
+                    value={serviceGuest}
+                    onChange={(e) => setServiceGuest(e.target.value)}
+                    placeholder="e.g. Dr. Dawit Alene"
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* In-House Guest Quick Fill Banner */}
+              {inHouse.length > 0 && !serviceReservationId && (
+                <div className="p-2.5 rounded-md bg-muted/40 border border-border text-xs">
+                  <span className="font-semibold text-text-muted">Quick Pick In-House Guest: </span>
+                  <select
+                    className="mt-1 flex h-8 w-full rounded border border-input bg-surface px-2 text-xs"
+                    onChange={(e) => {
+                      const found = inHouse.find((g) => g.id === e.target.value);
+                      if (found) {
+                        openServiceForInHouseGuest(found);
+                      }
+                    }}
+                  >
+                    <option value="">-- Or Choose Current In-House Guest --</option>
+                    {inHouse.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        Room {g.roomNumber} &bull; {g.guestName}
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Service Type *</Label>
+                  <Select value={serviceType} onValueChange={setServiceType}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SERVICE_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.emoji} {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Priority</Label>
+                  <Select value={servicePriority} onValueChange={setServicePriority}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Priority</Label>
-                <Select value={servicePriority} onValueChange={setServicePriority}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Items / Request Description</Label>
-              <textarea
-                rows={2}
-                value={serviceDesc}
-                onChange={(e) => setServiceDesc(e.target.value)}
-                placeholder="e.g. 1x Traditional Breakfast, 2x Fresh Orange Juice, extra pillows..."
-                className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-xs"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Charge Amount ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={serviceAmount}
-                  onChange={(e) => setServiceAmount(e.target.value)}
-                  placeholder="0.00 (Free if complimentary)"
-                  className="h-9 text-xs"
+                <Label className="text-xs font-semibold">Items / Request Description</Label>
+                <textarea
+                  rows={2}
+                  value={serviceDesc}
+                  onChange={(e) => setServiceDesc(e.target.value)}
+                  placeholder="e.g. 1x Traditional Breakfast, 2x Fresh Orange Juice, extra pillows..."
+                  className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-xs"
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-6">
-                <input
-                  type="checkbox"
-                  id="chargeToRoom"
-                  checked={serviceChargeToRoom}
-                  onChange={(e) => setServiceChargeToRoom(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="chargeToRoom" className="text-xs font-medium cursor-pointer">
-                  Charge to Guest Folio
-                </label>
-              </div>
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Charge Amount ($)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={serviceAmount}
+                    onChange={(e) => setServiceAmount(e.target.value)}
+                    placeholder="0.00 (Free if complimentary)"
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-            <Button type="submit" className="w-full" disabled={createRsMutation.isPending}>
-              {createRsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Send Room Service Request
-            </Button>
-          </form>
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="chargeToRoom"
+                    checked={serviceChargeToRoom}
+                    onChange={(e) => setServiceChargeToRoom(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="chargeToRoom" className="text-xs font-medium cursor-pointer">
+                    Charge to Guest Folio
+                  </label>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={createRsMutation.isPending}>
+                {createRsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Room Service Request
+              </Button>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
