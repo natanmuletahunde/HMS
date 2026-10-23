@@ -35,18 +35,20 @@ function RoomConfigsContent() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <h2 className="text-2xl font-bold tracking-tight">Room Configurations</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          Room Configurations
+        </h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-2 border-b border-[var(--border)]">
         <button
           onClick={() => handleTabChange("beds")}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
             activeTab === "beds"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
           <BedSingle className="h-4 w-4" />
@@ -56,8 +58,8 @@ function RoomConfigsContent() {
           onClick={() => handleTabChange("amenities")}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
             activeTab === "amenities"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
           <Sparkles className="h-4 w-4" />
@@ -67,8 +69,8 @@ function RoomConfigsContent() {
           onClick={() => handleTabChange("pricing")}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
             activeTab === "pricing"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
           <DollarSign className="h-4 w-4" />

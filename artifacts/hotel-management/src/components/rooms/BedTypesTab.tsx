@@ -69,36 +69,40 @@ export function BedTypesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold tracking-tight">Bed Types</h3>
+        <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Bed Types</h3>
         <Dialog open={isAddOpen} onOpenChange={(open) => {
           setIsAddOpen(open);
           if (!open) setEditItem(null);
         }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Bed Type</Button>
+            <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
+              <Plus className="mr-2 h-4 w-4" /> Add Bed Type
+            </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
             <DialogHeader>
-              <DialogTitle>{editItem ? "Edit Bed Type" : "Add Bed Type"}</DialogTitle>
+              <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+                {editItem ? "Edit Bed Type" : "Add Bed Type"}
+              </DialogTitle>
             </DialogHeader>
             <form className="space-y-4" onSubmit={onSubmit}>
               <div className="grid gap-2">
-                <Label>Name (e.g. King, Queen, Twin)</Label>
-                <Input name="name" defaultValue={editItem?.name} required />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Name (e.g. King, Queen, Twin)</Label>
+                <Input name="name" defaultValue={editItem?.name} required className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Capacity (Persons)</Label>
-                <Input name="capacity" type="number" min={1} defaultValue={editItem?.capacity || 1} required />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Capacity (Persons)</Label>
+                <Input name="capacity" type="number" min={1} defaultValue={editItem?.capacity || 1} required className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Description</Label>
-                <Input name="description" defaultValue={editItem?.description} />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Description</Label>
+                <Input name="description" defaultValue={editItem?.description} className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Sort Order</Label>
-                <Input name="sortOrder" type="number" defaultValue={editItem?.sortOrder || bedTypes.length} required />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Sort Order</Label>
+                <Input name="sortOrder" type="number" defaultValue={editItem?.sortOrder || bedTypes.length} required className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
+              <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
                 {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -107,44 +111,44 @@ export function BedTypesTab() {
         </Dialog>
       </div>
 
-      <div className="rounded-md border border-border bg-surface">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Bed Type</TableHead>
-              <TableHead>Capacity</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Sort Order</TableHead>
-              <TableHead>Status</TableHead>
+            <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Bed Type</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Capacity</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Description</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Sort Order</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : bedTypes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-text-muted">
+                <TableCell colSpan={6} className="h-48 text-center text-[var(--text-secondary)]">
                   <BedSingle className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No bed types found.</p>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedBeds.map((bed) => (
-                <TableRow key={bed.id}>
-                  <TableCell className="font-medium">{bed.name}</TableCell>
-                  <TableCell>{bed.capacity} Persons</TableCell>
-                  <TableCell>{bed.description || '-'}</TableCell>
-                  <TableCell>{bed.sortOrder}</TableCell>
+                <TableRow key={bed.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                  <TableCell className="font-semibold text-[var(--text-primary)]">{bed.name}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{bed.capacity} Persons</TableCell>
+                  <TableCell className="text-[var(--text-secondary)]">{bed.description || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{bed.sortOrder}</TableCell>
                   <TableCell>
                     <Badge variant={bed.status === 'active' ? 'success' : 'muted'}>{bed.status || 'Active'}</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
                         <DropdownMenuItem onClick={() => { setEditItem(bed); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
                         <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(bed.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>

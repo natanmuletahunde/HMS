@@ -100,12 +100,12 @@ export function PricingTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold tracking-tight">Room Pricing Rules</h3>
+        <h3 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Pricing Rules</h3>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1 bg-surface">
-            <Filter className="h-4 w-4 text-text-muted" />
+          <div className="flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-1 bg-[var(--surface)] shadow-xs">
+            <Filter className="h-4 w-4 text-[var(--text-secondary)]" />
             <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-              <SelectTrigger className="w-[180px] border-0 bg-transparent focus:ring-0 shadow-none h-8">
+              <SelectTrigger className="w-[180px] border-0 bg-transparent focus:ring-0 shadow-none h-8 text-sm">
                 <SelectValue placeholder="All Rooms" />
               </SelectTrigger>
               <SelectContent>
@@ -121,11 +121,11 @@ export function PricingTab() {
             if (!open) setEditItem(null);
           }}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Rule</Button>
+              <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs"><Plus className="mr-2 h-4 w-4" /> Add Rule</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)] shadow-xl sm:rounded-2xl">
               <DialogHeader>
-                <DialogTitle>{editItem ? "Edit Pricing Rule" : "Add Pricing Rule"}</DialogTitle>
+                <DialogTitle className="text-lg font-semibold text-[var(--text-primary)]">{editItem ? "Edit Pricing Rule" : "Add Pricing Rule"}</DialogTitle>
               </DialogHeader>
               <form className="space-y-4" onSubmit={onSubmit}>
                 <div className="grid gap-2">
@@ -178,7 +178,7 @@ export function PricingTab() {
                   <Label>Notes</Label>
                   <Input name="notes" defaultValue={editItem?.notes} />
                 </div>
-                <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
+                <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium shadow-xs" disabled={saveMutation.isPending}>
                   {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Rule
                 </Button>
@@ -188,23 +188,23 @@ export function PricingTab() {
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-surface">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Room #</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Dates</TableHead>
+            <TableRow className="bg-muted/30 border-b border-[var(--border)]">
+              <TableHead className="font-semibold text-xs tracking-wider uppercase text-[var(--text-secondary)]">Room #</TableHead>
+              <TableHead className="font-semibold text-xs tracking-wider uppercase text-[var(--text-secondary)]">Type</TableHead>
+              <TableHead className="font-semibold text-xs tracking-wider uppercase text-[var(--text-secondary)]">Price</TableHead>
+              <TableHead className="font-semibold text-xs tracking-wider uppercase text-[var(--text-secondary)]">Dates</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : pricing.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-48 text-center text-text-muted">
+                <TableCell colSpan={5} className="h-48 text-center text-[var(--text-secondary)]">
                   <DollarSign className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No pricing rules found.</p>
                 </TableCell>
@@ -214,14 +214,14 @@ export function PricingTab() {
                 const room = rooms.find(r => r.id === rule.roomId);
                 const finalPrice = Number(rule.price ?? 0) * (1 - (Number(rule.discountPercent) || 0) / 100) * (1 + (Number(rule.taxPercent) || 0) / 100);
                 return (
-                  <TableRow key={rule.id}>
-                    <TableCell className="font-medium">{room?.number || rule.roomId}</TableCell>
+                  <TableRow key={rule.id} className="border-b border-[var(--border)] hover:bg-muted/20 transition-colors">
+                    <TableCell className="font-medium text-[var(--text-primary)]">{room?.number || rule.roomId}</TableCell>
                     <TableCell>{getTypeBadge(rule.pricingType)}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-bold">${finalPrice.toFixed(2)}</span>
+                        <span className="font-bold text-[var(--text-primary)]">${finalPrice.toFixed(2)}</span>
                         {(rule.discountPercent > 0 || rule.taxPercent > 0) && (
-                          <span className="text-[10px] text-text-muted">
+                          <span className="text-[10px] text-[var(--text-secondary)]">
                             Base: ${rule.price} 
                             {rule.discountPercent > 0 ? ` (-${rule.discountPercent}%)` : ''} 
                             {rule.taxPercent > 0 ? ` (+${rule.taxPercent}%)` : ''}
@@ -229,15 +229,15 @@ export function PricingTab() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-text-muted">
+                    <TableCell className="text-sm text-[var(--text-secondary)]">
                       {new Date(rule.effectiveDate).toLocaleDateString()} &rarr; {rule.expirationDate ? new Date(rule.expirationDate).toLocaleDateString() : 'Forever'}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted/50"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="border border-[var(--border)] bg-[var(--surface)] shadow-md">
                           <DropdownMenuItem onClick={() => { setEditItem(rule); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
                           <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(rule.id)}>Delete</DropdownMenuItem>
                         </DropdownMenuContent>

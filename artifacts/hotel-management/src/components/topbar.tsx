@@ -28,15 +28,8 @@ import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 
 const ROUTE_BREADCRUMBS: Record<string, string> = {
-  "/room-types": "Room Setup / Room Types",
-  "/room-categories": "Room Setup / Room Categories",
-  "/bed-types": "Room Setup / Bed Types",
-  "/room-amenities": "Room Setup / Amenities",
-  "/room-pricing": "Room Setup / Pricing",
   "/dashboard": "Front Desk / Dashboard",
   "/guests": "Front Desk / Guests",
-  "/rooms": "Room Setup / Rooms",
-  "/room-configs": "Room Setup / Configs",
   "/reservations": "Front Desk / Reservations",
   "/stay": "Front Office / Stay Management",
   "/check-out": "Front Office / Check-out",
@@ -69,7 +62,7 @@ export function Topbar() {
     setCurrentThemeState(theme);
   };
 
-  const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
+  const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches" || pathname === "/rooms" || pathname === "/room-configs" || pathname.startsWith("/rooms/") || pathname === "/buildings" || pathname === "/floors") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-10 transition-colors select-none">

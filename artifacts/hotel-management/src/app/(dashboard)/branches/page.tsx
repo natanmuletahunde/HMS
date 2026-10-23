@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Building, Layers } from "lucide-react";
+import { BuildingsTab } from "@/components/setup/BuildingsTab";
+import { FloorsTab } from "@/components/setup/FloorsTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -49,7 +53,17 @@ type Branch = {
   isActive?: boolean;
 };
 
-export default function BranchesPage() {
+function BranchesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: "branches" | "buildings" | "floors" = 
+    tabParam === "buildings" ? "buildings" : tabParam === "floors" ? "floors" : "branches";
+
+  const handleTabChange = (tab: "branches" | "buildings" | "floors") => {
+    const url = tab === "branches" ? "/branches" : `/branches?tab=${tab}`;
+    router.replace(url, { scroll: false });
+  };
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -242,12 +256,55 @@ export default function BranchesPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Page Header with search and primary Add Branch capsule button */}
-      <PageHeader
-        title="Branches"
-        actions={
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search field */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          Branches & Properties
+        </h1>
+      </div>
+
+      {/* Main Tabs: Branches | Buildings | Floors */}
+      <div className="flex gap-2 border-b border-[var(--border)]">
+        <button
+          onClick={() => handleTabChange("branches")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "branches"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <GitBranch className="h-4 w-4" />
+          <span>Branches</span>
+        </button>
+        <button
+          onClick={() => handleTabChange("buildings")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "buildings"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <Building className="h-4 w-4" />
+          <span>Buildings</span>
+        </button>
+        <button
+          onClick={() => handleTabChange("floors")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "floors"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Floors</span>
+        </button>
+      </div>
+
+      {activeTab === "buildings" && <BuildingsTab />}
+      {activeTab === "floors" && <FloorsTab />}
+
+      {activeTab === "branches" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
               <input
@@ -259,7 +316,6 @@ export default function BranchesPage() {
               />
             </div>
 
-            {/* Primary blue-700 Add Branch Button */}
             <button
               type="button"
               onClick={handleOpenAdd}
@@ -269,32 +325,31 @@ export default function BranchesPage() {
               <span>Add Branch</span>
             </button>
           </div>
-        }
-      />
 
-      {/* Table Card */}
-      <DataTable
-        columns={columns}
-        data={paginatedBranches}
-        isLoading={isLoading}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        pageSize={5}
-        onPrev={onPrev}
-        onNext={onNext}
-        emptyTitle="No branches registered"
-        emptyDescription="Create your first property branch to begin assigning buildings, floors, and rooms."
-        emptyAction={
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
-        }
-      />
+          <DataTable
+            columns={columns}
+            data={paginatedBranches}
+            isLoading={isLoading}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={5}
+            onPrev={onPrev}
+            onNext={onNext}
+            emptyTitle="No branches registered"
+            emptyDescription="Create your first property branch to begin assigning buildings, floors, and rooms."
+            emptyAction={
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Add Branch
+              </button>
+            }
+          />
+        </div>
+      )}
 
       {/* 3. Add / Edit Branch 480px Right-Side Drawer */}
       <SideDrawer
@@ -414,5 +469,14 @@ export default function BranchesPage() {
         </form>
       </SideDrawer>
     </div>
+  );
+}
+
+
+export default function BranchesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-secondary)]">Loading branches...</div>}>
+      <BranchesContent />
+    </Suspense>
   );
 }

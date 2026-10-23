@@ -24,8 +24,6 @@ const NAV_GROUPS = [
     items: [
       { name: "Hotel Config", href: "/hotel", icon: Building2 },
       { name: "Branches", href: "/branches", icon: GitBranch },
-      { name: "Buildings", href: "/buildings", icon: Building },
-      { name: "Floors", href: "/floors", icon: Layers },
     ]
   },
   {

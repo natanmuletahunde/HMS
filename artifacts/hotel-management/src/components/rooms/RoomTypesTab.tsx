@@ -78,58 +78,65 @@ export function RoomTypesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold tracking-tight">Room Types</h3>
+        <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Room Types</h3>
         <div className="flex items-center gap-2">
           <Dialog open={isAddOpen} onOpenChange={(open) => {
             setIsAddOpen(open);
             if (!open) setEditItem(null);
           }}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Room Type</Button>
+              <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
+                <Plus className="mr-2 h-4 w-4" /> Add Room Type
+              </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md border-[var(--border)] bg-[var(--surface)]">
               <DialogHeader>
-                <DialogTitle>{editItem ? "Edit Room Type" : "Add Room Type"}</DialogTitle>
+                <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+                  {editItem ? "Edit Room Type" : "Add Room Type"}
+                </DialogTitle>
               </DialogHeader>
               <form className="space-y-4" onSubmit={onSubmit}>
+                {/* Category selection is FIRST */}
                 <div className="grid gap-2">
-                  <Label>Name</Label>
-                  <Input name="name" defaultValue={editItem?.name} required />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Category</Label>
-                  <Select name="categoryId" defaultValue={editItem?.categoryId}>
-                    <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                    <SelectContent>
+                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Category</Label>
+                  <Select name="categoryId" defaultValue={editItem?.categoryId || (categories[0]?.id)}>
+                    <SelectTrigger className="border-[var(--border)] bg-[var(--surface)]">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
                       {categories.map((c: any) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2">
+                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Name</Label>
+                  <Input name="name" defaultValue={editItem?.name} required className="border-[var(--border)] bg-[var(--surface)]" />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label>Max Adults</Label>
-                    <Input name="maximumAdults" type="number" min={1} defaultValue={editItem?.maximumAdults} required />
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Max Adults</Label>
+                    <Input name="maximumAdults" type="number" min={1} defaultValue={editItem?.maximumAdults || 2} required className="border-[var(--border)] bg-[var(--surface)]" />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Max Children</Label>
-                    <Input name="maximumChildren" type="number" min={0} defaultValue={editItem?.maximumChildren} required />
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Max Children</Label>
+                    <Input name="maximumChildren" type="number" min={0} defaultValue={editItem?.maximumChildren ?? 1} required className="border-[var(--border)] bg-[var(--surface)]" />
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Base Price ($)</Label>
-                  <Input name="basePrice" type="number" step="0.01" min={0} defaultValue={editItem?.basePrice} required />
+                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Base Price ($)</Label>
+                  <Input name="basePrice" type="number" step="0.01" min={0} defaultValue={editItem?.basePrice || 100} required className="border-[var(--border)] bg-[var(--surface)]" />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Image URL (Optional)</Label>
-                  <Input name="imageUrl" defaultValue={editItem?.imageUrl} />
+                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Image URL (Optional)</Label>
+                  <Input name="imageUrl" defaultValue={editItem?.imageUrl} className="border-[var(--border)] bg-[var(--surface)]" />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Description</Label>
-                  <Input name="description" defaultValue={editItem?.description} />
+                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Description</Label>
+                  <Input name="description" defaultValue={editItem?.description} className="border-[var(--border)] bg-[var(--surface)]" />
                 </div>
-                <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
+                <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
                   {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save
                 </Button>
@@ -139,52 +146,52 @@ export function RoomTypesTab() {
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-surface">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Type Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Max Adults</TableHead>
-              <TableHead>Max Children</TableHead>
-              <TableHead>Base Price</TableHead>
-              <TableHead>Status</TableHead>
+            <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Type Name</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Category</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Max Adults</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Max Children</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Base Price</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : types.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-48 text-center text-text-muted">
+                <TableCell colSpan={7} className="h-48 text-center text-[var(--text-secondary)]">
                   <BedDouble className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No room types found.</p>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedTypes.map((type) => (
-                <TableRow key={type.id}>
-                  <TableCell className="font-medium">{type.name}</TableCell>
+                <TableRow key={type.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                  <TableCell className="font-semibold text-[var(--text-primary)]">{type.name}</TableCell>
                   <TableCell>
                     {type.categoryName ? (
                       <Badge variant="outline">{type.categoryName}</Badge>
                     ) : (
-                      <span className="text-text-muted text-xs">-</span>
+                      <span className="text-[var(--text-secondary)] text-xs">-</span>
                     )}
                   </TableCell>
-                  <TableCell>{type.maximumAdults || type.capacity}</TableCell>
-                  <TableCell>{type.maximumChildren || 0}</TableCell>
-                  <TableCell>${Number(type.basePrice ?? 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{type.maximumAdults || type.capacity}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{type.maximumChildren || 0}</TableCell>
+                  <TableCell className="font-semibold text-[var(--text-primary)] font-mono">${Number(type.basePrice ?? 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={type.status === 'active' ? 'success' : 'muted'}>{type.status || 'Active'}</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
                         <DropdownMenuItem onClick={() => { setEditItem(type); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
                         <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(type.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>

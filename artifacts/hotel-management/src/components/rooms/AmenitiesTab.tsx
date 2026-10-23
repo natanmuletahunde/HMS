@@ -72,28 +72,34 @@ export function AmenitiesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold tracking-tight">Room Amenities</h3>
+        <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Room Amenities</h3>
         <Dialog open={isAddOpen} onOpenChange={(open) => {
           setIsAddOpen(open);
           if (!open) setEditItem(null);
         }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Amenity</Button>
+            <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
+              <Plus className="mr-2 h-4 w-4" /> Add Amenity
+            </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
             <DialogHeader>
-              <DialogTitle>{editItem ? "Edit Amenity" : "Add Amenity"}</DialogTitle>
+              <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+                {editItem ? "Edit Amenity" : "Add Amenity"}
+              </DialogTitle>
             </DialogHeader>
             <form className="space-y-4" onSubmit={onSubmit}>
               <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input name="name" defaultValue={editItem?.name} required />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Name</Label>
+                <Input name="name" defaultValue={editItem?.name} required className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Category</Label>
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Category</Label>
                 <Select name="category" defaultValue={editItem?.category || "Comfort"} required>
-                  <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="border-[var(--border)] bg-[var(--surface)]">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
                     {CATEGORIES.filter(c => c !== "All").map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
@@ -101,18 +107,18 @@ export function AmenitiesTab() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Icon (Lucide icon name or emoji)</Label>
-                <Input name="icon" defaultValue={editItem?.icon} />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Icon (Lucide icon name or emoji)</Label>
+                <Input name="icon" defaultValue={editItem?.icon} className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Description</Label>
-                <Input name="description" defaultValue={editItem?.description} />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Description</Label>
+                <Input name="description" defaultValue={editItem?.description} className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
               <div className="grid gap-2">
-                <Label>Sort Order</Label>
-                <Input name="sortOrder" type="number" defaultValue={editItem?.sortOrder || amenities.length} required />
+                <Label className="text-xs font-semibold text-[var(--text-primary)]">Sort Order</Label>
+                <Input name="sortOrder" type="number" defaultValue={editItem?.sortOrder || amenities.length} required className="border-[var(--border)] bg-[var(--surface)]" />
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
+              <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
                 {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -128,52 +134,52 @@ export function AmenitiesTab() {
             variant={activeCategory === cat ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveCategory(cat)}
-            className="whitespace-nowrap"
+            className={`whitespace-nowrap text-xs h-8 ${activeCategory === cat ? 'bg-blue-700 hover:bg-blue-800 text-white' : 'border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'}`}
           >
-            {cat === "All" && <Filter className="mr-2 h-3 w-3" />}
+            {cat === "All" && <Filter className="mr-1.5 h-3 w-3" />}
             {cat}
           </Button>
         ))}
       </div>
 
-      <div className="rounded-md border border-border bg-surface">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Amenity</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Icon</TableHead>
-              <TableHead>Sort Order</TableHead>
-              <TableHead>Status</TableHead>
+            <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Amenity</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Category</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Icon</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Sort Order</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
               <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : amenities.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-text-muted">
+                <TableCell colSpan={6} className="h-48 text-center text-[var(--text-secondary)]">
                   <Sparkles className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No amenities found.</p>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedAmenities.map((amenity) => (
-                <TableRow key={amenity.id}>
-                  <TableCell className="font-medium">{amenity.name}</TableCell>
+                <TableRow key={amenity.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                  <TableCell className="font-semibold text-[var(--text-primary)]">{amenity.name}</TableCell>
                   <TableCell><Badge variant="outline">{amenity.category}</Badge></TableCell>
-                  <TableCell className="text-xl">{amenity.icon || '✨'}</TableCell>
-                  <TableCell>{amenity.sortOrder}</TableCell>
+                  <TableCell className="text-lg">{amenity.icon || '✨'}</TableCell>
+                  <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{amenity.sortOrder}</TableCell>
                   <TableCell>
                     <Badge variant={amenity.status === 'active' ? 'success' : 'muted'}>{amenity.status || 'Active'}</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
                         <DropdownMenuItem onClick={() => { setEditItem(amenity); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
                         <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(amenity.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
