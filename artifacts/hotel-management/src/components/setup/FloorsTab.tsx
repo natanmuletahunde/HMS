@@ -178,8 +178,8 @@ export function FloorsTab() {
         <Table>
           <TableHeader>
             <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
-              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floor Name</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Building</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floor Name</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floor Number</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Description</TableHead>
               <TableHead className="w-[80px]"></TableHead>
@@ -200,8 +200,8 @@ export function FloorsTab() {
                 const bldg = buildings.find((b) => b.id === floor.buildingId);
                 return (
                   <TableRow key={floor.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
+                    <TableCell className="font-medium text-[var(--text-primary)]">{bldg?.buildingName || '-'}</TableCell>
                     <TableCell className="font-semibold text-[var(--text-primary)]">{floor.floorName}</TableCell>
-                    <TableCell className="text-[var(--text-secondary)]">{bldg?.buildingName || '-'}</TableCell>
                     <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{floor.floorNumber}</TableCell>
                     <TableCell className="text-[var(--text-secondary)]">{floor.description || '-'}</TableCell>
                     <TableCell>
