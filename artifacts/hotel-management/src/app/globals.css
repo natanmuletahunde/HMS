@@ -1,20 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Ultramarine Brand Palette */
+  --navy-950: #071039;
+  --navy-800: #0F2270;
+  --blue-700: #1A3BB0;
+  --blue-600: #2563EB;
+  --blue-400: #60A5FA;
+  --blue-200: #BFDBFE;
+  --blue-50:  #EFF6FF;
+
+  /* Neutrals (Light Mode - Crisp, High-Contrast) */
+  --bg-page: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-hover: #F1F5F9;
+  --border: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --text-primary: #0A0F1D;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+
+  /* Status Colors */
+  --status-success-bg: #ECFDF5;
+  --status-success-text: #065F46;
+  --status-success-border: #A7F3D0;
+
+  --status-warning-bg: #FFFBEB;
+  --status-warning-text: #92400E;
+  --status-warning-border: #FDE68A;
+
+  --status-danger-bg: #FEF2F2;
+  --status-danger-text: #991B1B;
+  --status-danger-border: #FECACA;
+
+  /* Modern Professional Typography Stack */
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Compatibility mappings */
+  --color-bg: var(--bg-page);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-primary: var(--blue-700);
+  --color-primary-hover: var(--blue-600);
+  --color-muted: var(--blue-50);
+  --color-success: #065F46;
+  --color-warning: #92400E;
+  --color-danger: #991B1B;
+  --color-info: var(--blue-600);
+
+  color-scheme: light;
+}
+
+.dark, [data-theme="dark"], html.dark {
+  /* Dark Mode Overrides - Elegant Midnight Slate */
+  --bg-page: #070D1E;
+  --surface: #0E172E;
+  --surface-hover: #152244;
+  --border: #1E293B;
+  --border-subtle: #162035;
+  --text-primary: #FFFFFF;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --blue-50: rgba(26, 59, 176, 0.2);
+
+  --color-bg: #070D1E;
+  --color-surface: #0E172E;
+  --color-border: #1E293B;
+  --color-text: #FFFFFF;
+  --color-text-muted: #94A3B8;
+  --color-primary: var(--blue-600);
+  --color-primary-hover: var(--blue-400);
+  --color-muted: rgba(26, 59, 176, 0.2);
+
+  --status-success-bg: rgba(6, 95, 70, 0.25);
+  --status-success-text: #34D399;
+  --status-success-border: rgba(52, 211, 153, 0.3);
+
+  --status-warning-bg: rgba(146, 64, 14, 0.25);
+  --status-warning-text: #FBBF24;
+  --status-warning-border: rgba(251, 191, 36, 0.3);
+
+  --status-danger-bg: rgba(153, 27, 27, 0.25);
+  --status-danger-text: #F87171;
+  --status-danger-border: rgba(248, 113, 113, 0.3);
+
+  color-scheme: dark;
+}
+
 @theme {
-  --color-bg: #0d0d10;
-  --color-surface: #141417;
-  --color-border: #1e1e24;
-  --color-muted: #2a2a32;
-  --color-text: #ffffff;
-  --color-text-muted: #8b8b9a;
-  --color-primary: #00c5c8;
-  --color-primary-hover: #00e0e4;
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --color-navy-950: var(--navy-950);
+  --color-navy-800: var(--navy-800);
+  --color-blue-700: var(--blue-700);
+  --color-blue-600: var(--blue-600);
+  --color-blue-400: var(--blue-400);
+  --color-blue-200: var(--blue-200);
+  --color-blue-50: var(--blue-50);
+
+  --color-bg-page: var(--bg-page);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   
@@ -28,33 +125,43 @@
   }
 }
 
-:root {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  color-scheme: dark;
-}
-
 body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Base custom scrollbar */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* Custom sleek scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-muted);
-  border-radius: 4px;
+  background: #CBD5E1;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border);
+  background: #94A3B8;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }

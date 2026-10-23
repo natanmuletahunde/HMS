@@ -5,7 +5,10 @@ import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 import { randomUUID } from 'crypto';
 
-const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads');
+const rootDir = existsSync(join(process.cwd(), 'artifacts'))
+  ? process.cwd()
+  : join(process.cwd(), '..', '..');
+const UPLOAD_DIR = process.env.UPLOAD_DIR || join(rootDir, 'uploads');
 
 @Injectable()
 export class DocumentsService {

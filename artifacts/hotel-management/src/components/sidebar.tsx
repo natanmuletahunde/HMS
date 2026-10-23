@@ -8,9 +8,15 @@ import {
   Sparkles, Wrench, UtensilsCrossed, FileText, 
   CreditCard, Package, UserCog, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
   Shield, Lock, ClipboardList,
+<<<<<<< HEAD
   CalendarSearch, UserPlus, LogIn, LogOut, Bed, ShoppingCart, ConciergeBell,
   ShoppingBag, Car, Users2,
   BarChart2, FolderOpen, Bell,
+=======
+  CalendarDays, ShoppingCart, Bed, LogOut,
+  ShoppingBag, Users2,
+  BarChart2, Bell,
+>>>>>>> origin/feature/hotel-setup-and-room-hierarchy
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
   TrendingUp, ShieldCheck, QrCode,
 } from "lucide-react";
@@ -116,14 +122,13 @@ const NAV_GROUPS = [
   },
 ];
 
-
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
 
-  // Memoize filtered navigation groups based on role authorization
+  // Filter navigation groups based on role authorization
   const filteredNavGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => {
       const authorizedItems = group.items.filter((item) => {
@@ -138,16 +143,24 @@ export function Sidebar() {
   }, [currentRole]);
 
   return (
-    <aside className="w-64 flex flex-col bg-surface border-r border-border h-screen sticky top-0 overflow-y-auto">
-      <div className="flex items-center px-6 py-4 border-b border-border">
-        <BedDouble className="h-6 w-6 text-primary mr-3" />
-        <span className="font-bold text-lg tracking-tight">Nexus HMS</span>
+    <aside className="w-64 flex flex-col bg-[#071039] border-r border-[#0F2270] h-screen sticky top-0 overflow-y-auto z-20 select-none">
+      {/* Brand Header */}
+      <div className="flex items-center px-6 py-5 border-b border-[#0F2270] shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-[#1A3BB0] flex items-center justify-center text-white mr-3 shadow-xs">
+          <Building2 className="h-4 w-4 stroke-[1.5] text-[#AFC5F8]" />
+        </div>
+        <div>
+          <span className="font-bold text-base tracking-tight text-white block">
+            Nexus HMS
+          </span>
+        </div>
       </div>
       
-      <div className="flex-1 py-6 px-4 space-y-8">
+      {/* Nav Groups */}
+      <div className="flex-1 py-5 px-3 space-y-6">
         {filteredNavGroups.map((group) => (
           <div key={group.title}>
-            <h4 className="px-2 mb-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <h4 className="px-3 mb-2 text-[11px] font-bold text-[#6E92F2] uppercase tracking-[0.08em]">
               {group.title}
             </h4>
             <div className="space-y-1">
@@ -156,6 +169,7 @@ export function Sidebar() {
                 const isActive = item.href === "/reservations"
                   ? pathname === "/reservations" || pathname.startsWith("/reservations/")
                   : pathname === pathOnly || pathname.startsWith(pathOnly + "/");
+
                 return (
                   <Link
                     key={item.href}
@@ -169,14 +183,19 @@ export function Sidebar() {
                       }
                     }}
                     className={cn(
-                      "flex items-center px-2 py-2 text-sm font-medium rounded-md group transition-colors",
+                      "flex items-center px-3 py-2 text-sm font-medium transition-all group",
                       isActive 
-                        ? "bg-primary/10 text-primary" 
-                        : "text-text hover:bg-muted hover:text-text"
+                        ? "bg-gradient-to-r from-blue-700/80 via-blue-800/40 to-transparent text-white border-l-[3px] border-blue-400 pl-[9px] rounded-r-lg font-semibold" 
+                        : "text-[#AFC5F8] hover:bg-white/5 hover:text-white rounded-lg"
                     )}
                   >
-                    <item.icon className={cn("mr-3 h-5 w-5 shrink-0", isActive ? "text-primary" : "text-text-muted group-hover:text-text")} />
-                    {item.name}
+                    <item.icon
+                      className={cn(
+                        "mr-3 h-4 w-4 shrink-0 transition-colors stroke-[1.5]",
+                        isActive ? "text-[#6E92F2]" : "text-[#AFC5F8] group-hover:text-white"
+                      )}
+                    />
+                    <span className="truncate">{item.name}</span>
                   </Link>
                 );
               })}

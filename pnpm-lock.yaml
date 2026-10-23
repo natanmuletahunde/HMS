@@ -352,9 +352,6 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
-      zxing-wasm:
-        specifier: ^3.1.6
-        version: 3.1.6
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.14

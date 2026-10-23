@@ -83,7 +83,6 @@ export default function BuildingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-sm font-semibold tracking-tight text-text-muted uppercase">Hotel Setup / Buildings</h1>
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold tracking-tight">Buildings</h2>
