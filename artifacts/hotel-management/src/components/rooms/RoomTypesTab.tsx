@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePag
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
@@ -23,6 +24,11 @@ export function RoomTypesTab() {
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["room-types"],
     queryFn: () => apiFetch<any[]>("/room-types"),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["room-categories"],
+    queryFn: () => apiFetch<any[]>("/room-categories"),
   });
 
   const {
@@ -61,6 +67,7 @@ export function RoomTypesTab() {
     const data = Object.fromEntries(fd);
     saveMutation.mutate({
       ...data,
+      categoryId: data.categoryId || null,
       maximumAdults: Number(data.maximumAdults),
       maximumChildren: Number(data.maximumChildren),
       maxOccupancy: Number(data.maximumAdults) + Number(data.maximumChildren),
@@ -88,6 +95,17 @@ export function RoomTypesTab() {
                 <div className="grid gap-2">
                   <Label>Name</Label>
                   <Input name="name" defaultValue={editItem?.name} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Category</Label>
+                  <Select name="categoryId" defaultValue={editItem?.categoryId}>
+                    <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -126,6 +144,7 @@ export function RoomTypesTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Type Name</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Max Adults</TableHead>
               <TableHead>Max Children</TableHead>
               <TableHead>Base Price</TableHead>
@@ -135,10 +154,10 @@ export function RoomTypesTab() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" /></TableCell></TableRow>
             ) : types.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-text-muted">
+                <TableCell colSpan={7} className="h-48 text-center text-text-muted">
                   <BedDouble className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No room types found.</p>
                 </TableCell>
@@ -147,6 +166,13 @@ export function RoomTypesTab() {
               paginatedTypes.map((type) => (
                 <TableRow key={type.id}>
                   <TableCell className="font-medium">{type.name}</TableCell>
+                  <TableCell>
+                    {type.categoryName ? (
+                      <Badge variant="outline">{type.categoryName}</Badge>
+                    ) : (
+                      <span className="text-text-muted text-xs">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{type.maximumAdults || type.capacity}</TableCell>
                   <TableCell>{type.maximumChildren || 0}</TableCell>
                   <TableCell>${Number(type.basePrice ?? 0).toFixed(2)}</TableCell>

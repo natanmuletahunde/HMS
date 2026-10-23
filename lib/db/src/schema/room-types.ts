@@ -1,9 +1,11 @@
 import { pgTable, text, boolean, timestamp, numeric, integer } from "drizzle-orm/pg-core";
+import { roomCategoriesTable } from "./room-categories";
 
 export const roomTypesTable = pgTable("room_types", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
   description: text("description"),
+  categoryId: text("category_id").references(() => roomCategoriesTable.id),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
   maxOccupancy: text("max_occupancy").notNull().default("2"),
   maximumAdults: integer("maximum_adults").notNull().default(2),

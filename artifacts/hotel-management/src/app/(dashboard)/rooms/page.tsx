@@ -120,6 +120,10 @@ function RoomsContent() {
   const [selectedFloorId, setSelectedFloorId] = useState<string>("");
   const [selectedFloorNumber, setSelectedFloorNumber] = useState<string>("1");
 
+  // Category -> Type cascading selection state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("");
+
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(handler);
@@ -163,6 +167,18 @@ function RoomsContent() {
         ? floors.filter((f: any) => availableBuildings.some((b: any) => b.id === f.buildingId))
         : floors);
 
+  const availableTypes = selectedCategoryId
+    ? types.filter((t: any) => t.categoryId === selectedCategoryId)
+    : types;
+
+  const handleCategoryChange = (catId: string) => {
+    setSelectedCategoryId(catId);
+    const catTypes = catId ? types.filter((t: any) => t.categoryId === catId) : types;
+    if (catTypes.length > 0 && !catTypes.some((t: any) => t.id === selectedRoomTypeId)) {
+      setSelectedRoomTypeId(catTypes[0].id);
+    }
+  };
+
   const openAddRoom = () => {
     setEditItem(null);
     const initialBranch = branches[0]?.id || "";
@@ -173,6 +189,12 @@ function RoomsContent() {
     const bldgFloors = initialBldg ? floors.filter((f: any) => f.buildingId === initialBldg) : [];
     setSelectedFloorId(bldgFloors[0]?.id || "");
     setSelectedFloorNumber(String(bldgFloors[0]?.floorNumber ?? 1));
+
+    const initialCat = categories[0]?.id || "";
+    setSelectedCategoryId(initialCat);
+    const catTypes = initialCat ? types.filter((t: any) => t.categoryId === initialCat) : types;
+    setSelectedRoomTypeId(catTypes[0]?.id || types[0]?.id || "");
+
     setIsAddOpen(true);
   };
 
@@ -185,6 +207,11 @@ function RoomsContent() {
     setSelectedBuildingId(room.buildingId || "");
     setSelectedFloorId(room.floorId || "");
     setSelectedFloorNumber(String(roomFlr?.floorNumber ?? room.floorNumber ?? room.floor ?? 1));
+
+    const editCat = room.roomCategoryId || types.find((t: any) => t.id === room.roomTypeId)?.categoryId || categories[0]?.id || "";
+    setSelectedCategoryId(editCat);
+    setSelectedRoomTypeId(room.roomTypeId || "");
+
     setIsAddOpen(true);
   };
 
@@ -503,6 +530,40 @@ function RoomsContent() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Category</Label>
+                      <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
+                        <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <input type="hidden" name="roomCategoryId" value={selectedCategoryId} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Type</Label>
+                      <Select value={selectedRoomTypeId} onValueChange={setSelectedRoomTypeId} required>
+                        <SelectTrigger>
+                          <SelectValue placeholder={availableTypes.length ? "Select Type" : "No types in category"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTypes.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <input type="hidden" name="roomTypeId" value={selectedRoomTypeId} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Bed Type</Label>
+                      <Select name="bedTypeId" defaultValue={editItem?.bedTypeId} required>
+                        <SelectTrigger><SelectValue placeholder="Select Bed Type" /></SelectTrigger>
+                        <SelectContent>
+                          {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Room Number</Label>
@@ -511,36 +572,6 @@ function RoomsContent() {
                     <div className="grid gap-2">
                       <Label>Room Name</Label>
                       <Input name="roomName" defaultValue={editItem?.roomName} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Type</Label>
-                      <Select name="roomTypeId" defaultValue={editItem?.roomTypeId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {types.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Category</Label>
-                      <Select name="roomCategoryId" defaultValue={editItem?.roomCategoryId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Bed Type</Label>
-                      <Select name="bedTypeId" defaultValue={editItem?.bedTypeId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
 
