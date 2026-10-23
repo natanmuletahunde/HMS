@@ -51,6 +51,7 @@ import {
   Landmark,
   Smartphone,
   Eye,
+  Banknote,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -433,6 +434,126 @@ const DEFAULT_SETTINGS: HotelSettings = {
 };
 
 type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "housekeeping" | "policies";
+
+// ---------------------------------------------------------------------------
+// PAYMENT BRAND LOGOS & METADATA
+// ---------------------------------------------------------------------------
+function PaymentChannelLogo({ channelId }: { channelId: string }) {
+  switch (channelId) {
+    case "telebirr":
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#005cb9] to-[#00b0f0] flex items-center justify-center shadow-xs shrink-0 p-2 border border-white/20">
+          <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12H27" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+            <path d="M18 12V27" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+            <path d="M13 27H23" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
+            <path d="M24 10C26.5 12 28 15 28 18" stroke="#FFD100" strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M28 7C32 10.5 33 14.5 33 18" stroke="#FFD100" strokeWidth="2.4" strokeLinecap="round" opacity="0.85" />
+          </svg>
+        </div>
+      );
+    case "cbe_birr":
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#671b50] to-[#8c226c] flex items-center justify-center shadow-xs shrink-0 p-2 border border-amber-400/25">
+          <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="8" r="1.5" fill="#FFCA08" />
+            <path d="M18 8V27" stroke="#FFCA08" strokeWidth="2" strokeLinecap="round" />
+            <path d="M10 13L18 10L26 13" stroke="#FFCA08" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 13V19C10 20.8 12.5 21.5 12.5 21.5C12.5 21.5 10 21.5 10 19" stroke="#FFCA08" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M26 13V19C26 20.8 23.5 21.5 23.5 21.5C23.5 21.5 26 21.5 26 19" stroke="#FFCA08" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M14 27H22" stroke="#FFCA08" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+        </div>
+      );
+    case "chapa":
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0A2540] to-[#123963] flex items-center justify-center shadow-xs shrink-0 p-2 border border-emerald-400/25">
+          <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 12C22.2 10.5 19.8 9.5 17 9.5C12.3 9.5 8.5 13.3 8.5 18C8.5 22.7 12.3 26.5 17 26.5C19.8 26.5 22.2 25.5 24 24" stroke="#00D084" strokeWidth="2.8" strokeLinecap="round" />
+            <path d="M19 14L24 18L19 22" stroke="#00D084" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      );
+    case "visa_mastercard":
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center shadow-xs shrink-0 p-1.5 border border-slate-700">
+          <svg viewBox="0 0 36 26" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+            <rect width="36" height="26" rx="4" fill="#0f172a" />
+            <circle cx="13" cy="13" r="7" fill="#EB001B" fillOpacity="0.95" />
+            <circle cx="23" cy="13" r="7" fill="#F79E1B" fillOpacity="0.95" />
+            <path d="M18 8A7 7 0 0 1 18 18A7 7 0 0 1 18 8" fill="#FF5F00" />
+          </svg>
+        </div>
+      );
+    case "bank_transfer":
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1e1b4b] to-[#0f172a] flex items-center justify-center shadow-xs shrink-0 border border-amber-500/25 text-amber-300">
+          <Landmark className="w-5 h-5 text-amber-300" />
+        </div>
+      );
+    case "cash":
+    default:
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#064e3b] to-[#022c22] flex items-center justify-center shadow-xs shrink-0 border border-emerald-500/25 text-emerald-300">
+          <Banknote className="w-5 h-5 text-emerald-300" />
+        </div>
+      );
+  }
+}
+
+function getPaymentMetadata(channelId: string) {
+  switch (channelId) {
+    case "telebirr":
+      return {
+        title: "Telebirr",
+        provider: "Ethio Telecom",
+        category: "Mobile Wallet",
+        idLabel: "Till / Shortcode",
+      };
+    case "cbe_birr":
+      return {
+        title: "CBE Birr",
+        provider: "Commercial Bank of Ethiopia",
+        category: "Bank Wallet",
+        idLabel: "Merchant Till",
+      };
+    case "chapa":
+      return {
+        title: "Chapa Gateway",
+        provider: "Chapa Financial Tech",
+        category: "Payment Gateway",
+        idLabel: "Public API Key",
+      };
+    case "visa_mastercard":
+      return {
+        title: "Visa / Mastercard / Amex",
+        provider: "International POS Gateway",
+        category: "Card Settlement",
+        idLabel: "Merchant ID (MID)",
+      };
+    case "bank_transfer":
+      return {
+        title: "Direct Bank Wire",
+        provider: "Commercial Bank of Ethiopia",
+        category: "Wire Transfer",
+        idLabel: "Corporate Account",
+      };
+    case "cash":
+      return {
+        title: "Cash & Safe Vault",
+        provider: "Front Desk Cashier",
+        category: "Cash & Vault",
+        idLabel: "Cash Vault ID",
+      };
+    default:
+      return {
+        title: channelId,
+        provider: "Payment Provider",
+        category: "Payment Method",
+        idLabel: "Account Number",
+      };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // MAIN COMPONENT
@@ -2133,73 +2254,129 @@ export default function HotelPage() {
                 <div className="md:col-span-2 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {paymentAccounts.map((account) => {
+                      const meta = getPaymentMetadata(account.channelId);
+                      const isCopied = copiedKey === account.channelId;
+
                       return (
                         <div
                           key={account.channelId}
-                          className={`rounded-2xl border p-4 transition-all flex flex-col justify-between ${
+                          className={`group rounded-2xl border transition-all p-5 flex flex-col justify-between ${
                             account.isEnabled
-                              ? "border-blue-700/40 bg-blue-700/5 dark:bg-blue-900/15"
-                              : "border-[var(--border)] bg-[var(--surface)] opacity-70"
+                              ? "bg-[var(--surface)] border-[var(--border)] hover:border-slate-400/60 dark:hover:border-slate-600 shadow-xs"
+                              : "bg-[var(--surface-hover)]/40 border-[var(--border)] opacity-60"
                           }`}
                         >
                           <div>
-                            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-                              <span className="text-sm font-bold text-[var(--text-primary)]">
-                                {account.channelName}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleTogglePaymentChannel(account.channelId)}
-                                  disabled={!isEditing}
-                                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
-                                    account.isEnabled ? "bg-blue-700" : "bg-slate-300 dark:bg-slate-700"
-                                  }`}
-                                >
-                                  <span
-                                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                                      account.isEnabled ? "right-0.5" : "left-0.5"
-                                    }`}
-                                  />
-                                </button>
+                            {/* Card Header: Brand Logo + Provider Details + Toggle */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <PaymentChannelLogo channelId={account.channelId} />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                                      {meta.title}
+                                    </h4>
+                                    <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-secondary)]">
+                                      {meta.category}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-[var(--text-secondary)] font-medium block mt-0.5 truncate">
+                                    {account.bankOrProvider || meta.provider}
+                                  </span>
+                                </div>
                               </div>
+
+                              {/* Toggle Switch */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isEditing) {
+                                    toast({
+                                      title: "Edit mode required",
+                                      description: "Click 'Edit Hotel' in the top header to enable or disable payment channels.",
+                                    });
+                                    return;
+                                  }
+                                  handleTogglePaymentChannel(account.channelId);
+                                }}
+                                className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 mt-1 ${
+                                  account.isEnabled ? "bg-blue-700" : "bg-slate-300 dark:bg-slate-700"
+                                }`}
+                                title={account.isEnabled ? "Channel is Active" : "Channel is Disabled"}
+                              >
+                                <span
+                                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                                    account.isEnabled ? "right-0.5" : "left-0.5"
+                                  }`}
+                                />
+                              </button>
                             </div>
 
-                            {/* Recipient Account Specifier Details */}
-                            <div className="mt-3 space-y-1.5 text-xs">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[var(--text-secondary)]">Recipient Account / Till:</span>
-                                <span className="font-mono font-bold text-[var(--text-primary)]">
-                                  {account.accountNumber || "Not Configured"}
+                            {/* Recipient Account Specifier Inset Card */}
+                            <div className="mt-4 rounded-xl bg-[var(--surface-hover)] p-3 border border-[var(--border)] space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)]">
+                                  {meta.idLabel}
                                 </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate max-w-[170px]">
+                                    {account.accountNumber || "Not Configured"}
+                                  </span>
+                                  {account.accountNumber && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(account.accountNumber, account.channelId)}
+                                      className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer transition-colors"
+                                      title="Copy account number"
+                                    >
+                                      {isCopied ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[var(--text-secondary)]">Account Name:</span>
-                                <span className="font-medium text-[var(--text-primary)] truncate max-w-[150px]">
+
+                              <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border)]/60 text-xs">
+                                <span className="text-[11px] text-[var(--text-secondary)] shrink-0">Holder:</span>
+                                <span className="font-medium text-[var(--text-primary)] truncate max-w-[170px]">
                                   {account.accountName || "—"}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[var(--text-secondary)]">Provider / Bank:</span>
-                                <span className="text-[var(--text-secondary)]">{account.bankOrProvider || "—"}</span>
-                              </div>
+
                               {account.additionalIdentifier && (
-                                <div className="text-[10px] text-[var(--text-secondary)] font-mono pt-1">
-                                  {account.additionalIdentifier}
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border)]/60 text-[11px] font-mono">
+                                  <span className="text-[var(--text-secondary)] shrink-0">Specifier:</span>
+                                  <span className="font-semibold text-blue-700 dark:text-blue-400 truncate max-w-[170px]">
+                                    {account.additionalIdentifier}
+                                  </span>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* Edit Specifiers Button */}
-                          <div className="pt-3 mt-3 border-t border-[var(--border)] flex justify-end">
+                          {/* Card Footer: Live Status indicator + Configure Action */}
+                          <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  account.isEnabled ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                                }`}
+                              />
+                              <span className={account.isEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--text-secondary)]"}>
+                                {account.isEnabled ? "Active Channel" : "Offline"}
+                              </span>
+                            </span>
+
                             <button
                               type="button"
                               onClick={() => setEditingPaymentAccount(account)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-700/10 hover:bg-blue-700/20 border border-blue-500/20 transition-all cursor-pointer"
                             >
-                              <Key className="w-3.5 h-3.5" />
-                              <span>Configure Recipient Specifier</span>
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Configure</span>
                             </button>
                           </div>
                         </div>
