@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { StatusPill } from "@/components/setup/StatusPill";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 // ---------------------------------------------------------------------------
 // TYPES
@@ -290,7 +290,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   cancellationPenaltyPercent: 100,
   refundProcessingDays: 5,
   refundTermsText:
-    "Cancellations received up to 48 hours prior to arrival date by 14:00 local time will receive a 100% refund. Cancellations made inside 48 hours, or guest no-shows, will be charged the first night room rate plus applicable taxes. Refunds are processed back to the original method of payment (Telebirr, CBE Birr, or Credit Card) within 3 to 5 business days.",
+    `<h3>Standard Cancellation & Refund Policy</h3><p>Our hotel strives to provide flexible, transparent terms for both business and leisure guests.</p><h4>Cancellation Windows:</h4><ul><li><strong>Free Cancellation:</strong> Bookings cancelled up to 48 hours prior to arrival date by 14:00 local time receive a 100% full refund.</li><li><strong>Late Cancellation:</strong> Cancellations received within 48 hours of check-in, or failure to arrive (No-Show), will be billed for the first night room rate plus applicable taxes.</li><li><strong>Non-Refundable Tariffs:</strong> Promotional rates flagged as non-refundable are charged at booking and cannot be refunded or transferred.</li></ul><h4>Refund Settlement Timeline:</h4><p>Approved refunds are credited directly to the original settlement instrument (Telebirr, CBE Birr, or Credit Card) within 3 to 5 business days.</p>`,
   petPolicy: "not_allowed",
   petFee: 0,
   smokingPolicy: "strictly_non_smoking",
@@ -316,9 +316,9 @@ const DEFAULT_SETTINGS: HotelSettings = {
   enabledGateways: ["telebirr", "cbe_birr", "visa_mastercard", "cash"],
 
   folioTermsFooter:
-    "Safe deposit boxes are provided at reception for valuables. The hotel is not responsible for money, jewelry, or documents left in guest rooms. Guests are liable for any damages caused to hotel property during their stay.",
+    `<h4>Guest Liability & Security Notice:</h4><ul><li><strong>Safe Deposit Boxes:</strong> Individual safe deposit boxes are provided at the Front Desk free of charge. Management disclaims all liability for cash, jewelry, or documents left in guest rooms.</li><li><strong>Property Damages:</strong> Registered guests assume full financial responsibility for any physical breakage, smoke damage, or fixture loss caused during their stay.</li><li><strong>Settlement of Charges:</strong> Unbilled incidental charges discovered post-departure will be posted to the credit card or billing account on record.</li></ul>`,
   registrationCardDisclaimer:
-    "I agree to the hotel rules and policies. I agree that my liability for this bill is not waived and I agree to be held personally liable in the event that the indicated person or company fails to pay the full amount.",
+    `<h4>Guest Registration Agreement & Terms:</h4><p>I hereby certify that all information submitted during registration is accurate and complete.</p><ul><li>I agree to comply with hotel safety regulations, quiet hours, and property guidelines.</li><li>I agree that my personal liability for all room charges, taxes, and incidentals is not waived if any third party, employer, or sponsoring organization fails to pay in full.</li><li>I understand check-out time is 12:00 PM. Delayed departures without prior front desk clearance may incur half-day or full-day surcharges.</li></ul>`,
 };
 
 type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "housekeeping" | "policies";
@@ -595,7 +595,6 @@ export default function HotelPage() {
                 <span className="font-bold text-xl text-[var(--text-primary)]">
                   {hotel?.hotelName || "Nexus Grand Hotel"}
                 </span>
-                <StatusPill status={hotel?.status || "active"} />
               </div>
               <div className="flex items-center gap-2.5 text-xs text-[var(--text-secondary)] font-mono mt-1">
                 <span className="font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
@@ -1285,18 +1284,12 @@ export default function HotelPage() {
                   <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
                     Official Cancellation & Refund Terms (Full Text)
                   </label>
-                  {isEditing ? (
-                    <textarea
-                      name="refundTermsText"
-                      rows={5}
-                      defaultValue={mergedSettings.refundTermsText}
-                      className="w-full p-3.5 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 leading-relaxed font-sans"
-                    />
-                  ) : (
-                    <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] leading-relaxed">
-                      {mergedSettings.refundTermsText}
-                    </div>
-                  )}
+                  <RichTextEditor
+                    name="refundTermsText"
+                    defaultValue={mergedSettings.refundTermsText}
+                    isEditable={isEditing}
+                    minHeight="220px"
+                  />
                 </div>
               </div>
 
@@ -1310,18 +1303,12 @@ export default function HotelPage() {
                     Standardized legal statement rendered at the foot of all guest folios and checkout bills
                   </span>
                 </div>
-                {isEditing ? (
-                  <textarea
-                    name="folioTermsFooter"
-                    rows={4}
-                    defaultValue={mergedSettings.folioTermsFooter}
-                    className="w-full p-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 leading-relaxed"
-                  />
-                ) : (
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] leading-relaxed font-mono">
-                    {mergedSettings.folioTermsFooter}
-                  </div>
-                )}
+                <RichTextEditor
+                  name="folioTermsFooter"
+                  defaultValue={mergedSettings.folioTermsFooter}
+                  isEditable={isEditing}
+                  minHeight="180px"
+                />
               </div>
 
               {/* Registration Card Agreement */}
@@ -1334,18 +1321,12 @@ export default function HotelPage() {
                     Pre-configured declaration signed by guests on arrival via physical or digital registration
                   </span>
                 </div>
-                {isEditing ? (
-                  <textarea
-                    name="registrationCardDisclaimer"
-                    rows={4}
-                    defaultValue={mergedSettings.registrationCardDisclaimer}
-                    className="w-full p-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 leading-relaxed"
-                  />
-                ) : (
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-secondary)] leading-relaxed font-mono">
-                    {mergedSettings.registrationCardDisclaimer}
-                  </div>
-                )}
+                <RichTextEditor
+                  name="registrationCardDisclaimer"
+                  defaultValue={mergedSettings.registrationCardDisclaimer}
+                  isEditable={isEditing}
+                  minHeight="180px"
+                />
               </div>
 
               {/* Smoking & Pet Policies */}
