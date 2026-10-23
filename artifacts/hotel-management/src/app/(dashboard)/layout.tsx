@@ -32,12 +32,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const authorized = isRouteAuthorized(currentRole, pathname);
 
   return (
-    <div className="flex min-h-screen bg-bg">
+    <div className="flex min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)]">
       <NavigationProgress />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {!authorized ? (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-surface rounded-2xl border border-border shadow-sm">
               <div className="w-16 h-16 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-4">

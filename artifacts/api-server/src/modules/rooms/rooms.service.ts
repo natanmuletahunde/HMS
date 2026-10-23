@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, sql, like, getTableColumns } from 'drizzle-orm';
 import {
   db, roomsTable, roomTypesTable, roomCategoriesTable, bedTypesTable,
-  buildingsTable, floorsTable, roomAmenityAssignmentsTable, roomAmenitiesTable,
+  buildingsTable, floorsTable, branchesTable, roomAmenityAssignmentsTable, roomAmenitiesTable,
   roomImagesTable, roomPricingTable,
 } from '@workspace/db';
 import { EventBusService } from '../event-bus/event-bus.service';
@@ -15,6 +15,8 @@ const joinedFields = () => ({
   roomCategoryName: roomCategoriesTable.name,
   bedTypeName: bedTypesTable.name,
   buildingName: buildingsTable.buildingName,
+  branchId: buildingsTable.branchId,
+  branchName: branchesTable.branchName,
   floorName: floorsTable.floorName,
   floorNumber: floorsTable.floorNumber,
 });
@@ -24,6 +26,7 @@ const base = () => db.select(joinedFields())
   .leftJoin(roomCategoriesTable, eq(roomsTable.roomCategoryId, roomCategoriesTable.id))
   .leftJoin(bedTypesTable, eq(roomsTable.bedTypeId, bedTypesTable.id))
   .leftJoin(buildingsTable, eq(roomsTable.buildingId, buildingsTable.id))
+  .leftJoin(branchesTable, eq(buildingsTable.branchId, branchesTable.id))
   .leftJoin(floorsTable, eq(roomsTable.floorId, floorsTable.id));
 
 const fmt = (r: any) => ({
@@ -33,6 +36,8 @@ const fmt = (r: any) => ({
   roomCategoryName: r.roomCategoryName ?? null,
   bedTypeName: r.bedTypeName ?? null,
   buildingName: r.buildingName ?? null,
+  branchId: r.branchId ?? null,
+  branchName: r.branchName ?? null,
   floorName: r.floorName ?? null,
   floorNumber: r.floorNumber ?? null,
   size: r.size ? parseFloat(r.size) : null,
@@ -52,7 +57,7 @@ export class RoomsService {
   constructor(private readonly eventBus: EventBusService) {}
 
   async findAll(q: any) {
-    const { status, floor, roomTypeId, roomCategoryId, bedTypeId, buildingId, floorId, search, page = 1, limit = 50 } = q;
+    const { status, floor, roomTypeId, roomCategoryId, bedTypeId, buildingId, branchId, floorId, search, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
     const conds: any[] = [eq(roomsTable.isActive, true)];
     if (status) conds.push(eq(roomsTable.status, status));
@@ -61,12 +66,16 @@ export class RoomsService {
     if (roomCategoryId) conds.push(eq(roomsTable.roomCategoryId, roomCategoryId));
     if (bedTypeId) conds.push(eq(roomsTable.bedTypeId, bedTypeId));
     if (buildingId) conds.push(eq(roomsTable.buildingId, buildingId));
+    if (branchId) conds.push(eq(buildingsTable.branchId, branchId));
     if (floorId) conds.push(eq(roomsTable.floorId, floorId));
     if (search) conds.push(sql`(${roomsTable.number} ilike ${'%' + search + '%'} or ${roomsTable.roomName} ilike ${'%' + search + '%'})`);
     const where = and(...conds);
     const [rows, [{ count }]] = await Promise.all([
       base().where(where).limit(l).offset(offset).orderBy(roomsTable.number),
-      db.select({ count: sql<number>`count(*)::int` }).from(roomsTable).where(where),
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(roomsTable)
+        .leftJoin(buildingsTable, eq(roomsTable.buildingId, buildingsTable.id))
+        .where(where),
     ]);
     return { data: rows.map(fmt), meta: { total: count, page: +page, limit: l, totalPages: Math.ceil(count / l) } };
   }

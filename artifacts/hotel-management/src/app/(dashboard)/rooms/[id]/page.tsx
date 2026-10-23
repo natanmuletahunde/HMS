@@ -191,7 +191,9 @@ export default function RoomDetailPage() {
               <div>
                 <p className="text-sm text-text-muted">Location</p>
                 <p className="font-medium">
-                  {room.building?.buildingName || 'Main Building'} &bull; {room.floorDetails?.floorName || `Floor ${room.floor}`}
+                  {room.branchName ? `${room.branchName} • ` : ''}
+                  {room.buildingName || room.building?.buildingName || 'Main Building'} &bull; Floor {room.floorNumber || room.floor}
+                  {room.floorName ? ` (${room.floorName})` : room.floorDetails?.floorName ? ` (${room.floorDetails.floorName})` : ''}
                 </p>
               </div>
             </div>

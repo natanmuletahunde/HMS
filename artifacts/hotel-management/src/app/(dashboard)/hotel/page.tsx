@@ -1,266 +1,630 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, Edit, Loader2, Save } from "lucide-react";
-import { apiFetch } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Building2,
+  Mail,
+  Phone,
+  Globe,
+  MapPin,
+  Clock,
+  Coins,
+  ShieldCheck,
+  Star,
+  Edit,
+  Loader2,
+  Copy,
+  Check,
+  RotateCcw,
+  Save,
+  X,
+} from "lucide-react";
+import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { StatusPill } from "@/components/setup/StatusPill";
 
 type Hotel = {
   id: string;
   hotelName: string;
-  legalName: string;
+  legalName?: string;
   hotelCode: string;
   currencyCode?: string;
-  email: string;
-  phone: string;
-  website: string;
-  country: string;
-  region: string;
-  city: string;
-  address: string;
-  timezone: string;
-  starRating: number;
-  checkInTime: string;
-  checkOutTime: string;
-  status: string;
-  taxNumber: string;
-  licenseNumber: string;
-  description: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  address?: string;
+  timezone?: string;
+  starRating?: number;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: string;
+  taxNumber?: string;
+  licenseNumber?: string;
+  description?: string;
   logoUrl?: string;
 };
 
 export default function HotelPage() {
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: rawHotel, isLoading } = useQuery({
+  const { data: rawHotel, isLoading, isError, refetch } = useQuery({
     queryKey: ["hotel"],
     queryFn: () => apiFetch<any>("/hotel"),
   });
-  const hotel: Hotel | undefined = Array.isArray(rawHotel) ? rawHotel[0] : (rawHotel?.data?.[0] ?? rawHotel);
+
+  const hotel: Hotel | undefined = Array.isArray(rawHotel)
+    ? rawHotel[0]
+    : (rawHotel?.data?.[0] ?? rawHotel);
 
   const saveMutation = useMutation({
-    mutationFn: (data: Partial<Hotel>) => 
-      hotel?.id ? apiFetch(`/hotel/${hotel.id}`, { method: "PATCH", body: JSON.stringify(data) })
-                : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) }),
+    mutationFn: (data: Partial<Hotel>) =>
+      hotel?.id
+        ? apiFetch(`/hotel/${hotel.id}`, { method: "PATCH", body: JSON.stringify(data) })
+        : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hotel"] });
-      toast({ title: hotel?.id ? "Hotel updated" : "Hotel configured" });
-      setIsEditOpen(false);
+      toast({ title: "Hotel configuration updated successfully" });
+      setIsEditing(false);
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
+      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+    },
   });
+
+  const handleCopy = (text: string, key: string) => {
+    if (!text || typeof navigator === "undefined") return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const data = Object.fromEntries(fd);
+    saveMutation.mutate({
+      ...data,
+      starRating: Number(data.starRating) || 5,
+    } as Partial<Hotel>);
+  };
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[400px] w-full" />
+      <div className="space-y-6 max-w-5xl mx-auto py-6">
+        <div className="h-10 w-64 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+        <div className="h-20 bg-slate-100 dark:bg-slate-800/50 rounded-lg animate-pulse" />
+        <div className="space-y-8 pt-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-40 bg-slate-100 dark:bg-slate-800/50 rounded-lg animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const renderForm = () => (
-    <form key={hotel?.id || "hotel-edit-form"} className="space-y-4" onSubmit={(e) => {
-      e.preventDefault();
-      const fd = new FormData(e.currentTarget);
-      const data = Object.fromEntries(fd);
-      saveMutation.mutate({
-        ...data,
-        starRating: Number(data.starRating)
-      } as Partial<Hotel>);
-    }}>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label>Hotel Name</Label>
-          <Input name="hotelName" defaultValue={hotel?.hotelName} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Legal Name</Label>
-          <Input name="legalName" defaultValue={hotel?.legalName} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Hotel Code</Label>
-          <Input name="hotelCode" defaultValue={hotel?.hotelCode} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Email</Label>
-          <Input name="email" type="email" defaultValue={hotel?.email} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Phone</Label>
-          <Input name="phone" defaultValue={hotel?.phone} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Website</Label>
-          <Input name="website" defaultValue={hotel?.website} />
-        </div>
-        <div className="grid gap-2">
-          <Label>Country</Label>
-          <Input name="country" defaultValue={hotel?.country} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>City</Label>
-          <Input name="city" defaultValue={hotel?.city} required />
-        </div>
-        <div className="grid gap-2 col-span-2">
-          <Label>Address</Label>
-          <Input name="address" defaultValue={hotel?.address} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Star Rating (1-5)</Label>
-          <Input name="starRating" type="number" min={1} max={5} defaultValue={hotel?.starRating} required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Timezone</Label>
-          <Input name="timezone" defaultValue={hotel?.timezone || "Africa/Addis_Ababa"} />
-        </div>
-        <div className="grid gap-2">
-          <Label>Currency Code</Label>
-          <Input name="currencyCode" defaultValue={hotel?.currencyCode || "ETB"} placeholder="e.g. ETB, USD, EUR" required />
-        </div>
-        <div className="grid gap-2">
-          <Label>Check-in Time</Label>
-          <Input 
-            name="checkInTime" 
-            type="text" 
-            defaultValue={hotel?.checkInTime || "14:00"} 
-            placeholder="e.g. 14:00" 
-            required 
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label>Check-out Time</Label>
-          <Input 
-            name="checkOutTime" 
-            type="text" 
-            defaultValue={hotel?.checkOutTime || "12:00"} 
-            placeholder="e.g. 12:00" 
-            required 
-          />
-        </div>
-      </div>
-      <Button type="submit" className="w-full" disabled={saveMutation.isPending}>
-        {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Save Configuration
-      </Button>
-    </form>
-  );
-
-  if (!hotel?.id) {
+  if (isError) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight text-text-muted">Hotel Setup / Hotel Config</h1>
-        <Card className="border-dashed border-2 border-border bg-transparent shadow-none">
-          <CardContent className="flex flex-col items-center justify-center h-96 text-center">
-            <Building2 className="h-12 w-12 text-text-muted mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No Hotel Configured</h2>
-            <p className="text-text-muted mb-6 max-w-sm">Setup your primary hotel details, branding, and default settings to get started.</p>
-            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-              <DialogTrigger asChild>
-                <Button><Plus className="mr-2 h-4 w-4" /> Configure Hotel</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Configure Hotel</DialogTitle>
-                </DialogHeader>
-                {renderForm()}
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
+      <div className="max-w-xl mx-auto my-16 p-8 text-center bg-[var(--surface)] border border-[var(--border)] rounded-lg">
+        <Building2 className="w-12 h-12 text-blue-700 dark:text-blue-400 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
+          Unable to Load Hotel Configuration
+        </h3>
+        <p className="text-sm text-[var(--text-secondary)] mb-6">
+          Could not communicate with the hotel service.
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-700 text-white hover:bg-blue-600 transition-all cursor-pointer"
+        >
+          <RotateCcw className="w-4 h-4" /> Retry
+        </button>
       </div>
     );
   }
+
+  const starsCount = hotel?.starRating || 5;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-text-muted">Hotel Setup / Hotel Config</h1>
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Details</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Hotel Configuration</DialogTitle>
-            </DialogHeader>
-            {renderForm()}
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-4 pb-6">
-          {hotel.logoUrl ? (
-            <img src={hotel.logoUrl} alt="Logo" className="w-16 h-16 rounded-md object-cover border border-border" />
-          ) : (
-            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center text-2xl font-bold text-text-muted">
-              {hotel.hotelName?.charAt(0) ?? "H"}
-            </div>
-          )}
+    <div className="max-w-5xl mx-auto pb-16 pt-2">
+      <form onSubmit={handleSubmit}>
+        {/* Top Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[var(--border)]">
           <div>
-            <CardTitle className="text-2xl">{hotel.hotelName}</CardTitle>
-            <CardDescription className="flex items-center gap-2 mt-1">
-              <span>{hotel.legalName}</span>
-              <span>&bull;</span>
-              <span>{hotel.hotelCode}</span>
-              <span>&bull;</span>
-              <span className="flex text-amber-500">
-                {Array.from({ length: hotel.starRating || 0 }).map((_, i) => <span key={i}>★</span>)}
-              </span>
-            </CardDescription>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+              Hotel Configuration
+            </h1>
           </div>
-          <Badge className="ml-auto" variant={hotel.status === 'active' ? 'success' : 'muted'}>
-            {hotel.status || 'Active'}
-          </Badge>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-text-muted uppercase tracking-wider">Contact & Location</h3>
-              <div className="grid grid-cols-3 gap-y-2 text-sm">
-                <span className="text-text-muted">Email</span>
-                <span className="col-span-2">{hotel.email}</span>
-                <span className="text-text-muted">Phone</span>
-                <span className="col-span-2">{hotel.phone}</span>
-                <span className="text-text-muted">Website</span>
-                <span className="col-span-2">{hotel.website || '-'}</span>
-                <span className="text-text-muted">Address</span>
-                <span className="col-span-2">{hotel.address}, {hotel.city}, {hotel.region}, {hotel.country}</span>
-                <span className="text-text-muted">Timezone</span>
-                <span className="col-span-2">{hotel.timezone || '-'}</span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  disabled={saveMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={saveMutation.isPending}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span>Save Changes</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-all shadow-xs cursor-pointer"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Edit Configuration</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Hotel Identity Banner Strip with Fading Away Blue Gradient */}
+        <div className="my-5 p-5 rounded-xl bg-gradient-to-r from-blue-700/15 via-blue-600/5 to-transparent dark:from-blue-900/35 dark:via-blue-950/15 dark:to-transparent border border-blue-500/20 dark:border-blue-500/30 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-lg bg-blue-700 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+              {hotel?.hotelName?.charAt(0) || "N"}
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="font-bold text-lg text-[var(--text-primary)]">
+                  {hotel?.hotelName || "Nexus Grand Hotel"}
+                </span>
+                <StatusPill status={hotel?.status || "active"} />
+              </div>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-mono mt-0.5">
+                <span className="font-semibold">{hotel?.hotelCode || "NGH-001"}</span>
+                <span>&bull;</span>
+                <div className="flex items-center text-amber-500 dark:text-amber-400 gap-0.5">
+                  {Array.from({ length: starsCount }).map((_, i) => (
+                    <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-text-muted uppercase tracking-wider">Operations</h3>
-              <div className="grid grid-cols-3 gap-y-2 text-sm">
-                <span className="text-text-muted">Currency</span>
-                <span className="col-span-2 font-medium">{hotel.currencyCode || 'ETB'}</span>
-                <span className="text-text-muted">Check-in</span>
-                <span className="col-span-2">{hotel.checkInTime}</span>
-                <span className="text-text-muted">Check-out</span>
-                <span className="col-span-2">{hotel.checkOutTime}</span>
-                <span className="text-text-muted">Tax Number</span>
-                <span className="col-span-2">{hotel.taxNumber || '-'}</span>
-                <span className="text-text-muted">License</span>
-                <span className="col-span-2">{hotel.licenseNumber || '-'}</span>
+          </div>
+
+          <div className="flex items-center gap-6 text-xs text-[var(--text-secondary)]">
+            <div>
+              <span className="text-[var(--text-muted)] block uppercase tracking-wider text-[10px]">Base Currency</span>
+              <span className="font-semibold text-[var(--text-primary)] font-mono">{hotel?.currencyCode || "ETB"}</span>
+            </div>
+            <div>
+              <span className="text-[var(--text-muted)] block uppercase tracking-wider text-[10px]">Timezone</span>
+              <span className="font-semibold text-[var(--text-primary)] font-mono">{hotel?.timezone || "Africa/Addis_Ababa"}</span>
+            </div>
+            <div>
+              <span className="text-[var(--text-muted)] block uppercase tracking-wider text-[10px]">Check-In / Out</span>
+              <span className="font-semibold text-[var(--text-primary)] font-mono">{hotel?.checkInTime || "14:00"} / {hotel?.checkOutTime || "12:00"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Flat Two-Column Divided Layout (No cards) */}
+        <div>
+          {/* SECTION 1: IDENTITY & LEGAL */}
+          <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Identity & Legal
+              </h3>
+            </div>
+
+            <div className="md:col-span-2 space-y-3.5">
+              {/* Hotel Name */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hotel Brand Name</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="hotelName"
+                    defaultValue={hotel?.hotelName}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.hotelName || "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* Legal Entity */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Legal Entity</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="legalName"
+                    defaultValue={hotel?.legalName}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.legalName || "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* Property Code */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Property Code</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="hotelCode"
+                    defaultValue={hotel?.hotelCode}
+                    required
+                    className="flex-1 h-9 px-3 text-sm font-mono uppercase rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[var(--blue-50)] text-blue-700 dark:text-blue-300 border border-[var(--border)]">
+                    {hotel?.hotelCode || "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* Star Rating */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Star Rating</span>
+                {isEditing ? (
+                  <select
+                    name="starRating"
+                    defaultValue={hotel?.starRating || 5}
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none cursor-pointer"
+                  >
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <option key={s} value={s}>
+                        {s} Stars
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {starsCount} Stars Luxury
+                  </span>
+                )}
+              </div>
+
+              {/* Brand Status */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Status</span>
+                <StatusPill status={hotel?.status || "active"} />
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Fading Away Blue Divider */}
+          <div className="h-[1px] bg-gradient-to-r from-blue-600/30 via-blue-500/10 to-transparent my-2" />
+
+          {/* SECTION 2: CONTACT & LOCATION */}
+          <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Contact & Location
+              </h3>
+            </div>
+
+            <div className="md:col-span-2 space-y-3.5">
+              {/* Email */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Email</span>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    name="email"
+                    defaultValue={hotel?.email}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">
+                      {hotel?.email || "—"}
+                    </span>
+                    {hotel?.email && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(hotel.email!, "email")}
+                        className="text-[var(--text-secondary)] hover:text-blue-700 p-1 cursor-pointer"
+                        title="Copy Email"
+                      >
+                        {copiedKey === "email" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Phone */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Phone Number</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="phone"
+                    defaultValue={hotel?.phone}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[var(--text-primary)] font-mono">
+                      {hotel?.phone || "—"}
+                    </span>
+                    {hotel?.phone && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(hotel.phone!, "phone")}
+                        className="text-[var(--text-secondary)] hover:text-blue-700 p-1 cursor-pointer"
+                        title="Copy Phone"
+                      >
+                        {copiedKey === "phone" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Website */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Website</span>
+                {isEditing ? (
+                  <input
+                    type="url"
+                    name="website"
+                    defaultValue={hotel?.website}
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.website || "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* Physical Address */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Physical Address</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="address"
+                    defaultValue={hotel?.address}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.address || "—"}
+                  </span>
+                )}
+              </div>
+
+              {/* City & Country */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">City & Country</span>
+                {isEditing ? (
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      name="city"
+                      defaultValue={hotel?.city}
+                      required
+                      placeholder="City"
+                      className="h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    />
+                    <input
+                      type="text"
+                      name="country"
+                      defaultValue={hotel?.country || "Ethiopia"}
+                      required
+                      placeholder="Country"
+                      className="h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    />
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.city || "Addis Ababa"}, {hotel?.country || "Ethiopia"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Fading Away Blue Divider */}
+          <div className="h-[1px] bg-gradient-to-r from-blue-600/30 via-blue-500/10 to-transparent my-2" />
+
+          {/* SECTION 3: OPERATING RULES */}
+          <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Operating Rules
+              </h3>
+            </div>
+
+            <div className="md:col-span-2 space-y-3.5">
+              {/* Check-In Time */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-In</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="checkInTime"
+                    defaultValue={hotel?.checkInTime || "14:00"}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold font-mono text-[var(--text-primary)]">
+                    {hotel?.checkInTime || "14:00"}
+                  </span>
+                )}
+              </div>
+
+              {/* Check-Out Time */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="checkOutTime"
+                    defaultValue={hotel?.checkOutTime || "12:00"}
+                    required
+                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold font-mono text-[var(--text-primary)]">
+                    {hotel?.checkOutTime || "12:00"}
+                  </span>
+                )}
+              </div>
+
+              {/* Base Currency */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Base Currency</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="currencyCode"
+                    defaultValue={hotel?.currencyCode || "ETB"}
+                    required
+                    className="flex-1 h-9 px-3 text-sm font-mono uppercase rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[var(--blue-50)] text-blue-700 dark:text-blue-300 border border-[var(--border)]">
+                    {hotel?.currencyCode || "ETB"}
+                  </span>
+                )}
+              </div>
+
+              {/* Timezone */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Timezone</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="timezone"
+                    defaultValue={hotel?.timezone || "Africa/Addis_Ababa"}
+                    required
+                    className="flex-1 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold font-mono text-[var(--text-primary)]">
+                    {hotel?.timezone || "Africa/Addis_Ababa"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Fading Away Blue Divider */}
+          <div className="h-[1px] bg-gradient-to-r from-blue-600/30 via-blue-500/10 to-transparent my-2" />
+
+          {/* SECTION 4: TAX & LICENCE */}
+          <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Tax & Licence
+              </h3>
+            </div>
+
+            <div className="md:col-span-2 space-y-3.5">
+              {/* TIN */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tax Number (TIN)</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="taxNumber"
+                    defaultValue={hotel?.taxNumber || "TIN-ET-001234567"}
+                    className="flex-1 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[var(--blue-50)] text-blue-700 dark:text-blue-300 border border-[var(--border)]">
+                    {hotel?.taxNumber || "TIN-ET-001234567"}
+                  </span>
+                )}
+              </div>
+
+              {/* Business Licence */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Business Licence</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="licenseNumber"
+                    defaultValue={hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                    className="flex-1 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[var(--blue-50)] text-blue-700 dark:text-blue-300 border border-[var(--border)]">
+                    {hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                  </span>
+                )}
+              </div>
+
+              {/* Standard Tax Rate */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tax Rate Standard</span>
+                <span className="text-sm font-semibold text-[var(--text-primary)]">
+                  15% VAT
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Save Action Bar when Editing */}
+        {isEditing && (
+          <div className="sticky bottom-4 mt-8 py-3 px-5 rounded-lg bg-slate-900 text-white shadow-xl flex items-center justify-between z-30">
+            <span className="text-sm font-medium text-slate-300">
+              You have unsaved changes
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                disabled={saveMutation.isPending}
+                className="px-3.5 py-1.5 rounded-md text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saveMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Save Changes</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </form>
     </div>
   );
 }

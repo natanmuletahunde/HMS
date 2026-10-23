@@ -105,9 +105,16 @@ function RoomsContent() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [buildingFilter, setBuildingFilter] = useState<string>("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+
+  // Hierarchy selection state for Add/Edit Room
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
+  const [selectedFloorId, setSelectedFloorId] = useState<string>("");
+  const [selectedFloorNumber, setSelectedFloorNumber] = useState<string>("1");
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 300);
@@ -117,10 +124,11 @@ function RoomsContent() {
   let queryStr = `/rooms?search=${debouncedSearch}`;
   if (statusFilter !== "all") queryStr += `&status=${statusFilter}`;
   if (typeFilter !== "all") queryStr += `&roomTypeId=${typeFilter}`;
+  if (branchFilter !== "all") queryStr += `&branchId=${branchFilter}`;
   if (buildingFilter !== "all") queryStr += `&buildingId=${buildingFilter}`;
 
   const { data: rawRooms, isLoading: isRoomsLoading } = useQuery({
-    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, buildingFilter],
+    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter],
     queryFn: () => apiFetch<any>(queryStr),
   });
   const rooms: any[] = Array.isArray(rawRooms) ? rawRooms : (rawRooms?.data ?? []);
@@ -129,8 +137,10 @@ function RoomsContent() {
 
   useEffect(() => {
     inventoryPagination.setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, typeFilter, buildingFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter]);
 
+  const { data: rawBranches } = useQuery({ queryKey: ["branches"], queryFn: () => apiFetch<any>("/branches") });
+  const branches: any[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
   const { data: types = [] } = useQuery({ queryKey: ["room-types"], queryFn: () => apiFetch<any[]>("/room-types") });
   const { data: categories = [] } = useQuery({ queryKey: ["room-categories"], queryFn: () => apiFetch<any[]>("/room-categories") });
   const { data: bedTypes = [] } = useQuery({ queryKey: ["bed-types"], queryFn: () => apiFetch<any[]>("/bed-types") });
@@ -138,6 +148,75 @@ function RoomsContent() {
   const buildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
   const { data: rawFloors } = useQuery({ queryKey: ["floors"], queryFn: () => apiFetch<any>("/floors") });
   const floors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+
+  // Filtered dropdown options based on hierarchy
+  const availableBuildings = selectedBranchId
+    ? buildings.filter((b: any) => b.branchId === selectedBranchId)
+    : buildings;
+  const availableFloors = selectedBuildingId
+    ? floors.filter((f: any) => f.buildingId === selectedBuildingId)
+    : (selectedBranchId
+        ? floors.filter((f: any) => availableBuildings.some((b: any) => b.id === f.buildingId))
+        : floors);
+
+  const openAddRoom = () => {
+    setEditItem(null);
+    const initialBranch = branches[0]?.id || "";
+    setSelectedBranchId(initialBranch);
+    const branchBldgs = initialBranch ? buildings.filter((b: any) => b.branchId === initialBranch) : buildings;
+    const initialBldg = branchBldgs[0]?.id || "";
+    setSelectedBuildingId(initialBldg);
+    const bldgFloors = initialBldg ? floors.filter((f: any) => f.buildingId === initialBldg) : [];
+    setSelectedFloorId(bldgFloors[0]?.id || "");
+    setSelectedFloorNumber(String(bldgFloors[0]?.floorNumber ?? 1));
+    setIsAddOpen(true);
+  };
+
+  const openEditRoom = (room: any) => {
+    setEditItem(room);
+    const roomBldg = buildings.find((b: any) => b.id === room.buildingId);
+    const roomFlr = floors.find((f: any) => f.id === room.floorId);
+    const branchId = room.branchId || roomBldg?.branchId || branches[0]?.id || "";
+    setSelectedBranchId(branchId);
+    setSelectedBuildingId(room.buildingId || "");
+    setSelectedFloorId(room.floorId || "");
+    setSelectedFloorNumber(String(roomFlr?.floorNumber ?? room.floorNumber ?? room.floor ?? 1));
+    setIsAddOpen(true);
+  };
+
+  const handleBranchChange = (branchId: string) => {
+    setSelectedBranchId(branchId);
+    const branchBldgs = buildings.filter((b: any) => b.branchId === branchId);
+    const nextBldg = branchBldgs[0]?.id || "";
+    setSelectedBuildingId(nextBldg);
+    const bldgFloors = nextBldg ? floors.filter((f: any) => f.buildingId === nextBldg) : [];
+    setSelectedFloorId(bldgFloors[0]?.id || "");
+    setSelectedFloorNumber(String(bldgFloors[0]?.floorNumber ?? 1));
+  };
+
+  const handleBuildingChange = (bldgId: string) => {
+    setSelectedBuildingId(bldgId);
+    const bldg = buildings.find((b: any) => b.id === bldgId);
+    if (bldg?.branchId && bldg.branchId !== selectedBranchId) {
+      setSelectedBranchId(bldg.branchId);
+    }
+    const bldgFloors = floors.filter((f: any) => f.buildingId === bldgId);
+    setSelectedFloorId(bldgFloors[0]?.id || "");
+    setSelectedFloorNumber(String(bldgFloors[0]?.floorNumber ?? 1));
+  };
+
+  const handleFloorChange = (floorId: string) => {
+    setSelectedFloorId(floorId);
+    const flr = floors.find((f: any) => f.id === floorId);
+    if (flr) {
+      setSelectedFloorNumber(String(flr.floorNumber));
+      if (flr.buildingId && flr.buildingId !== selectedBuildingId) {
+        setSelectedBuildingId(flr.buildingId);
+        const bldg = buildings.find((b: any) => b.id === flr.buildingId);
+        if (bldg?.branchId) setSelectedBranchId(bldg.branchId);
+      }
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -279,10 +358,10 @@ function RoomsContent() {
                 placeholder="Search rooms..." 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-[150px]"
+                className="w-[140px]"
               />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -291,12 +370,24 @@ function RoomsContent() {
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Room Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   {types.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={branchFilter} onValueChange={(val) => {
+                setBranchFilter(val);
+                setBuildingFilter("all");
+              }}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={buildingFilter} onValueChange={setBuildingFilter}>
@@ -305,18 +396,21 @@ function RoomsContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Buildings</SelectItem>
-                  {buildings.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>)}
+                  {(branchFilter !== "all" ? buildings.filter((b: any) => b.branchId === branchFilter) : buildings).map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            <Button onClick={openAddRoom}>
+              <Plus className="mr-2 h-4 w-4" /> Add Room
+            </Button>
 
             <Dialog open={isAddOpen} onOpenChange={(open) => {
               setIsAddOpen(open);
               if (!open) setEditItem(null);
             }}>
-              <DialogTrigger asChild>
-                <Button><Plus className="mr-2 h-4 w-4" /> Add Room</Button>
-              </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editItem ? "Edit Room" : "Add Room"}</DialogTitle>
@@ -363,28 +457,88 @@ function RoomsContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Building</Label>
-                      <Select name="buildingId" defaultValue={editItem?.buildingId}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {buildings.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                  {/* Connected Location Hierarchy: Branch -> Building -> Floor -> Floor Number */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-primary">
+                        Location Connection
+                      </Label>
+                      <span className="text-[11px] text-text-muted">
+                        Branch &rarr; Building &rarr; Floor
+                      </span>
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Floor Config</Label>
-                      <Select name="floorId" defaultValue={editItem?.floorId}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {floors.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.floorName}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* 1. Branch Property */}
+                      <div className="grid gap-2">
+                        <Label>Branch Property</Label>
+                        <Select value={selectedBranchId} onValueChange={handleBranchChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Branch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branches.map((br: any) => (
+                              <SelectItem key={br.id} value={br.id}>
+                                {br.branchName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* 2. Building (Filtered by Branch) */}
+                      <div className="grid gap-2">
+                        <Label>Building</Label>
+                        <Select value={selectedBuildingId} onValueChange={handleBuildingChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={availableBuildings.length ? "Select Building" : "No buildings in branch"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableBuildings.map((b: any) => (
+                              <SelectItem key={b.id} value={b.id}>
+                                {b.buildingName} ({b.buildingCode})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" name="buildingId" value={selectedBuildingId} />
+                      </div>
+
+                      {/* 3. Floor (Filtered by Building) */}
+                      <div className="grid gap-2">
+                        <Label>Floor (Number & Name)</Label>
+                        <Select value={selectedFloorId} onValueChange={handleFloorChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={availableFloors.length ? "Select Floor" : "No floors in building"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableFloors.map((f: any) => (
+                              <SelectItem key={f.id} value={f.id}>
+                                Floor {f.floorNumber} — {f.floorName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" name="floorId" value={selectedFloorId} />
+                        <input type="hidden" name="floor" value={selectedFloorNumber || "1"} />
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Floor Number (Legacy)</Label>
-                      <Input name="floor" type="number" defaultValue={editItem?.floor} />
+
+                    {/* Hierarchy Summary Badge */}
+                    <div className="text-xs text-text-muted flex items-center gap-2 pt-1 border-t border-border/50 flex-wrap">
+                      <span className="font-medium text-text">Connection:</span>
+                      <span className="font-semibold text-primary">
+                        {branches.find((br: any) => br.id === selectedBranchId)?.branchName || "Branch"}
+                      </span>
+                      <span>&rarr;</span>
+                      <span className="font-semibold text-primary">
+                        {buildings.find((b: any) => b.id === selectedBuildingId)?.buildingName || "Building"}
+                      </span>
+                      <span>&rarr;</span>
+                      <span className="font-semibold text-primary">
+                        Floor {selectedFloorNumber || "1"}
+                        {floors.find((f: any) => f.id === selectedFloorId)?.floorName ? ` (${floors.find((f: any) => f.id === selectedFloorId)?.floorName})` : ""}
+                      </span>
                     </div>
                   </div>
 
@@ -462,7 +616,11 @@ function RoomsContent() {
                   inventoryPagination.paginatedItems.map((room) => {
                     const b = buildings.find((x: any) => x.id === room.buildingId);
                     const f = floors.find((x: any) => x.id === room.floorId);
+                    const br = branches.find((x: any) => x.id === (room.branchId || b?.branchId));
                     const t = types.find((x: any) => x.id === room.roomTypeId);
+                    const branchName = room.branchName || br?.branchName;
+                    const buildingName = room.buildingName || b?.buildingName;
+                    const floorNum = room.floorNumber ?? f?.floorNumber ?? room.floor;
                     return (
                       <TableRow key={room.id}>
                         <TableCell>
@@ -477,8 +635,22 @@ function RoomsContent() {
                           <span className="text-sm">{room.capacityAdults}A / {room.capacityChildren}C</span>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm">{b?.buildingName || '-'}</div>
-                          <div className="text-xs text-text-muted">{f?.floorName || `Floor ${room.floor}`}</div>
+                          <div className="font-medium text-sm text-[var(--text-primary)] flex items-center gap-1.5 flex-wrap">
+                            {branchName && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800 uppercase">
+                                {branchName}
+                              </span>
+                            )}
+                            <span>{buildingName || '—'}</span>
+                          </div>
+                          <div className="text-xs text-text-muted mt-1 flex items-center gap-1.5">
+                            <span className="font-mono font-semibold bg-muted px-1.5 py-0.5 rounded">
+                              Floor {floorNum ?? "—"}
+                            </span>
+                            {(room.floorName || f?.floorName) && (
+                              <span>• {room.floorName || f?.floorName}</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(room.status)}</TableCell>
                         <TableCell>
@@ -492,7 +664,7 @@ function RoomsContent() {
                                   View Detail <ArrowRight className="ml-auto h-3 w-3" />
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setEditItem(room); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditRoom(room)}>Edit</DropdownMenuItem>
                               
                               {room.status !== 'available' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Mark Available</DropdownMenuItem>}
                               {room.status !== 'dirty' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'dirty' })}>Mark Dirty</DropdownMenuItem>}
