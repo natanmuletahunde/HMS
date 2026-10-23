@@ -183,6 +183,7 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/guests',
       '/qr-codes',
       '/rooms',
+      '/room-configs',
       '/front-office',
       '/availability',
       '/walk-in',

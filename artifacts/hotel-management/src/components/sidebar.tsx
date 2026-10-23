@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { 
-  LayoutDashboard, CalendarCheck, Users, BedDouble, 
+  LayoutDashboard, CalendarCheck, Users, BedDouble, SlidersHorizontal, 
   Sparkles, Wrench, UtensilsCrossed, FileText, 
   CreditCard, Package, UserCog, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
   Shield, Lock, ClipboardList,
@@ -31,11 +31,8 @@ const NAV_GROUPS = [
   {
     title: "Room Setup",
     items: [
-      { name: "Room Types", href: "/room-types", icon: BedDouble },
-      { name: "Room Categories", href: "/room-categories", icon: Tag },
-      { name: "Bed Types", href: "/bed-types", icon: BedSingle },
-      { name: "Amenities", href: "/room-amenities", icon: Sparkles },
-      { name: "Pricing", href: "/room-pricing", icon: DollarSign },
+      { name: "Rooms", href: "/rooms", icon: BedDouble },
+      { name: "Configs", href: "/room-configs", icon: SlidersHorizontal },
     ]
   },
   {
@@ -43,7 +40,6 @@ const NAV_GROUPS = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
-      { name: "Rooms", href: "/rooms", icon: BedDouble },
       { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
       { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
     ]

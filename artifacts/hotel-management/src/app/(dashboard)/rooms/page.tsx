@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { RoomTypesTab } from "@/components/rooms/RoomTypesTab";
+import { RoomCategoriesTab } from "@/components/rooms/RoomCategoriesTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Plus, MoreHorizontal, Loader2, Filter, BedDouble, 
-  ArrowRight, Search, Users, CalendarSearch, Sparkles, CalendarDays 
+  ArrowRight, Search, Users, CalendarSearch, Sparkles, CalendarDays, Layers, Tag 
 } from "lucide-react";
 import { ReservationCalendarView } from "@/components/reservation-calendar-view";
 import { apiFetch } from "@/lib/api";
@@ -74,28 +76,30 @@ function RoomsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
-  const [activeTab, setActiveTab] = useState<"inventory" | "availability" | "calendar">(initialTab);
+
+  const activeMainTab: "rooms" | "types" | "categories" =
+    tabParam === "types" ? "types" : tabParam === "categories" ? "categories" : "rooms";
+
+  const activeRoomSubTab: "inventory" | "availability" | "calendar" =
+    tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Sync tab with URL search parameter if changed externally
-  useEffect(() => {
-    const currentTabParam = searchParams.get("tab");
-    if (currentTabParam === "calendar" && activeTab !== "calendar") {
-      setActiveTab("calendar");
-    } else if (currentTabParam === "availability" && activeTab !== "availability") {
-      setActiveTab("availability");
-    } else if (!currentTabParam && activeTab !== "inventory") {
-      setActiveTab("inventory");
+  const handleMainTabChange = (tab: "rooms" | "types" | "categories") => {
+    if (tab === "rooms") {
+      router.replace("/rooms", { scroll: false });
+    } else {
+      router.replace(`/rooms?tab=${tab}`, { scroll: false });
     }
-  }, [searchParams, activeTab]);
+  };
 
-  const handleTabChange = (tab: "inventory" | "availability" | "calendar") => {
-    setActiveTab(tab);
-    const url = tab === "calendar" ? "/rooms?tab=calendar" : tab === "availability" ? "/rooms?tab=availability" : "/rooms";
-    router.replace(url, { scroll: false });
+  const handleRoomSubTabChange = (subTab: "inventory" | "availability" | "calendar") => {
+    if (subTab === "inventory") {
+      router.replace("/rooms", { scroll: false });
+    } else {
+      router.replace(`/rooms?tab=${subTab}`, { scroll: false });
+    }
   };
 
   // ----------------------------------------------------------------------
@@ -284,7 +288,7 @@ function RoomsContent() {
   const { data: rawAvailRooms = [], isLoading: isAvailLoading, refetch: refetchAvail } = useQuery<AvailRoom[]>({
     queryKey: ["availability", checkIn, checkOut, availRoomTypeId],
     queryFn: () => apiFetch<AvailRoom[]>(`/reservations/availability?${availSearchParams}`),
-    enabled: activeTab === "availability",
+    enabled: activeRoomSubTab === "availability",
   });
 
   const filteredAvailRooms = (Array.isArray(rawAvailRooms) ? rawAvailRooms : []).filter((r) => {
@@ -304,53 +308,82 @@ function RoomsContent() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xs font-semibold tracking-wider text-text-muted uppercase">Front Desk / Rooms & Availability</h1>
-          <h2 className="text-2xl font-bold tracking-tight">Rooms & Availability</h2>
-        </div>
+        <h2 className="text-2xl font-bold tracking-tight">Rooms</h2>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      {/* Main Tabs: Rooms | Room Types | Room Categories */}
+      <div className="flex gap-2 border-b border-border">
         <button
-          onClick={() => handleTabChange("inventory")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "inventory"
+          onClick={() => handleMainTabChange("rooms")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "rooms"
               ? "border-primary text-primary"
               : "border-transparent text-text-muted hover:text-text"
           }`}
         >
           <BedDouble className="h-4 w-4" />
-          <span>Room Inventory & Status</span>
+          <span>Rooms</span>
         </button>
         <button
-          onClick={() => handleTabChange("availability")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "availability"
+          onClick={() => handleMainTabChange("types")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "types"
               ? "border-primary text-primary"
               : "border-transparent text-text-muted hover:text-text"
           }`}
         >
-          <CalendarSearch className="h-4 w-4" />
-          <span>Date Availability & Booking</span>
+          <Layers className="h-4 w-4" />
+          <span>Room Types</span>
         </button>
         <button
-          onClick={() => handleTabChange("calendar")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "calendar"
+          onClick={() => handleMainTabChange("categories")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "categories"
               ? "border-primary text-primary"
               : "border-transparent text-text-muted hover:text-text"
           }`}
         >
-          <CalendarDays className="h-4 w-4" />
-          <span>Reservation Calendar</span>
+          <Tag className="h-4 w-4" />
+          <span>Room Categories</span>
         </button>
       </div>
 
-      {/* ================================================================= */}
-      {/* TAB 1: ROOM INVENTORY & STATUS CONTENT                           */}
-      {/* ================================================================= */}
-      {activeTab === "inventory" && (
+      {activeMainTab === "types" && <RoomTypesTab />}
+      {activeMainTab === "categories" && <RoomCategoriesTab />}
+
+      {activeMainTab === "rooms" && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-border/40">
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "inventory" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("inventory")}
+              className="text-xs h-8"
+            >
+              <BedDouble className="mr-1.5 h-3.5 w-3.5" />
+              Room Inventory & Status
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "availability" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("availability")}
+              className="text-xs h-8"
+            >
+              <CalendarSearch className="mr-1.5 h-3.5 w-3.5" />
+              Date Availability & Booking
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "calendar" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("calendar")}
+              className="text-xs h-8"
+            >
+              <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+              Reservation Calendar
+            </Button>
+          </div>
+
+          {activeRoomSubTab === "inventory" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -416,6 +449,60 @@ function RoomsContent() {
                   <DialogTitle>{editItem ? "Edit Room" : "Add Room"}</DialogTitle>
                 </DialogHeader>
                 <form className="space-y-6" onSubmit={onInventorySubmit}>
+                  {/* Location Hierarchy: Branch -> Building -> Floor */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Branch</Label>
+                      <Select value={selectedBranchId} onValueChange={handleBranchChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branches.map((br: any) => (
+                            <SelectItem key={br.id} value={br.id}>
+                              {br.branchName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Building</Label>
+                      <Select value={selectedBuildingId} onValueChange={handleBuildingChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={availableBuildings.length ? "Select Building" : "No buildings in branch"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableBuildings.map((b: any) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.buildingName} ({b.buildingCode})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <input type="hidden" name="buildingId" value={selectedBuildingId} />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Floor</Label>
+                      <Select value={selectedFloorId} onValueChange={handleFloorChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={availableFloors.length ? "Select Floor" : "No floors in building"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableFloors.map((f: any) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              Floor {f.floorNumber} — {f.floorName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <input type="hidden" name="floorId" value={selectedFloorId} />
+                      <input type="hidden" name="floor" value={selectedFloorNumber || "1"} />
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Room Number</Label>
@@ -454,91 +541,6 @@ function RoomsContent() {
                           {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
-
-                  {/* Connected Location Hierarchy: Branch -> Building -> Floor -> Floor Number */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-primary">
-                        Location Connection
-                      </Label>
-                      <span className="text-[11px] text-text-muted">
-                        Branch &rarr; Building &rarr; Floor
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* 1. Branch Property */}
-                      <div className="grid gap-2">
-                        <Label>Branch Property</Label>
-                        <Select value={selectedBranchId} onValueChange={handleBranchChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Branch" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {branches.map((br: any) => (
-                              <SelectItem key={br.id} value={br.id}>
-                                {br.branchName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* 2. Building (Filtered by Branch) */}
-                      <div className="grid gap-2">
-                        <Label>Building</Label>
-                        <Select value={selectedBuildingId} onValueChange={handleBuildingChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={availableBuildings.length ? "Select Building" : "No buildings in branch"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableBuildings.map((b: any) => (
-                              <SelectItem key={b.id} value={b.id}>
-                                {b.buildingName} ({b.buildingCode})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <input type="hidden" name="buildingId" value={selectedBuildingId} />
-                      </div>
-
-                      {/* 3. Floor (Filtered by Building) */}
-                      <div className="grid gap-2">
-                        <Label>Floor (Number & Name)</Label>
-                        <Select value={selectedFloorId} onValueChange={handleFloorChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={availableFloors.length ? "Select Floor" : "No floors in building"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableFloors.map((f: any) => (
-                              <SelectItem key={f.id} value={f.id}>
-                                Floor {f.floorNumber} — {f.floorName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <input type="hidden" name="floorId" value={selectedFloorId} />
-                        <input type="hidden" name="floor" value={selectedFloorNumber || "1"} />
-                      </div>
-                    </div>
-
-                    {/* Hierarchy Summary Badge */}
-                    <div className="text-xs text-text-muted flex items-center gap-2 pt-1 border-t border-border/50 flex-wrap">
-                      <span className="font-medium text-text">Connection:</span>
-                      <span className="font-semibold text-primary">
-                        {branches.find((br: any) => br.id === selectedBranchId)?.branchName || "Branch"}
-                      </span>
-                      <span>&rarr;</span>
-                      <span className="font-semibold text-primary">
-                        {buildings.find((b: any) => b.id === selectedBuildingId)?.buildingName || "Building"}
-                      </span>
-                      <span>&rarr;</span>
-                      <span className="font-semibold text-primary">
-                        Floor {selectedFloorNumber || "1"}
-                        {floors.find((f: any) => f.id === selectedFloorId)?.floorName ? ` (${floors.find((f: any) => f.id === selectedFloorId)?.floorName})` : ""}
-                      </span>
                     </div>
                   </div>
 
@@ -699,7 +701,7 @@ function RoomsContent() {
       {/* ================================================================= */}
       {/* TAB 2: DATE AVAILABILITY & BOOKING CONTENT                       */}
       {/* ================================================================= */}
-      {activeTab === "availability" && (
+      {activeRoomSubTab === "availability" && (
         <div className="space-y-6">
           {/* Availability Search Filter */}
           <Card>
@@ -857,14 +859,14 @@ function RoomsContent() {
       {/* ================================================================= */}
       {/* TAB 3: RESERVATION CALENDAR CONTENT                             */}
       {/* ================================================================= */}
-      {activeTab === "calendar" && (
+      {activeRoomSubTab === "calendar" && (
         <div className="space-y-4 pt-2">
           <ReservationCalendarView showTitle={true} />
         </div>
       )}
 
       {/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
-      {activeTab === "inventory" && (
+      {activeRoomSubTab === "inventory" && (
         <div className="pt-8 border-t border-border mt-8 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -872,9 +874,6 @@ function RoomsContent() {
                 <CalendarDays className="h-5 w-5 text-primary" />
                 Reservation Calendar & Room Schedule
               </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Live room booking schedule, check-in dates, and occupancy timeline
-              </p>
             </div>
             <Link href="/reservations/calendar">
               <Button variant="outline" size="sm" className="text-xs gap-1.5">
@@ -884,6 +883,8 @@ function RoomsContent() {
           </div>
 
           <ReservationCalendarView showTitle={false} />
+        </div>
+      )}
         </div>
       )}
     </div>
