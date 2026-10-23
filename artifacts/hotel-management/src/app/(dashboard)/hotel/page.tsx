@@ -100,6 +100,7 @@ export type PaymentAccountSpecifier = {
   accountNumber: string;
   accountName: string;
   bankOrProvider: string;
+  category?: string;
   additionalIdentifier?: string;
 };
 
@@ -318,6 +319,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "telebirr",
     channelName: "Telebirr (Ethio Telecom)",
+    category: "Mobile Wallet",
     isEnabled: true,
     accountNumber: "10045239",
     accountName: "Nexus Grand Hotel PLC",
@@ -327,6 +329,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "cbe_birr",
     channelName: "CBE Birr (Commercial Bank)",
+    category: "Bank Wallet",
     isEnabled: true,
     accountNumber: "100028492019",
     accountName: "Nexus Grand Hotel PLC",
@@ -336,6 +339,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "chapa",
     channelName: "Chapa Payment Gateway",
+    category: "Payment Gateway",
     isEnabled: true,
     accountNumber: "CHAPUBK_LIVE-nexus8842",
     accountName: "Nexus Hospitality Services",
@@ -345,6 +349,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "visa_mastercard",
     channelName: "Visa / Mastercard / Amex",
+    category: "Cards & POS",
     isEnabled: true,
     accountNumber: "MID-99238472",
     accountName: "Nexus Grand Hotel POS Settlement",
@@ -354,6 +359,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "bank_transfer",
     channelName: "Direct Bank Wire Transfer",
+    category: "Wire Transfer",
     isEnabled: true,
     accountNumber: "1000182930495",
     accountName: "Nexus Grand Hotel Main Corporate",
@@ -363,6 +369,7 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   {
     channelId: "cash",
     channelName: "Cash & Front Desk Cashier",
+    category: "Cash & Vault",
     isEnabled: true,
     accountNumber: "CASH-VAULT-01",
     accountName: "Front Desk Cashier Drawer",
@@ -438,7 +445,7 @@ type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "
 // ---------------------------------------------------------------------------
 // PAYMENT BRAND LOGOS & METADATA
 // ---------------------------------------------------------------------------
-function PaymentChannelLogo({ channelId }: { channelId: string }) {
+function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string; channelName?: string }) {
   switch (channelId) {
     case "telebirr":
       return (
@@ -492,65 +499,95 @@ function PaymentChannelLogo({ channelId }: { channelId: string }) {
         </div>
       );
     case "cash":
-    default:
       return (
         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#064e3b] to-[#022c22] flex items-center justify-center shadow-xs shrink-0 border border-emerald-500/25 text-emerald-300">
           <Banknote className="w-5 h-5 text-emerald-300" />
         </div>
       );
+    default: {
+      const lower = (channelName || channelId).toLowerCase();
+      if (lower.includes("mobile") || lower.includes("birr") || lower.includes("tele") || lower.includes("amole") || lower.includes("wallet") || lower.includes("pay")) {
+        return (
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center shadow-xs shrink-0 border border-cyan-400/25 text-white">
+            <Smartphone className="w-5 h-5 text-white" />
+          </div>
+        );
+      }
+      if (lower.includes("bank") || lower.includes("wire") || lower.includes("transfer") || lower.includes("abyssinia") || lower.includes("awash") || lower.includes("dashen") || lower.includes("cbe")) {
+        return (
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 flex items-center justify-center shadow-xs shrink-0 border border-indigo-500/25 text-indigo-300">
+            <Landmark className="w-5 h-5 text-indigo-300" />
+          </div>
+        );
+      }
+      if (lower.includes("card") || lower.includes("pos") || lower.includes("visa") || lower.includes("master") || lower.includes("stripe") || lower.includes("terminal")) {
+        return (
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 to-blue-950 flex items-center justify-center shadow-xs shrink-0 border border-blue-500/25 text-blue-300">
+            <CreditCard className="w-5 h-5 text-blue-300" />
+          </div>
+        );
+      }
+      const initials = (channelName || channelId).replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PS";
+      return (
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-800 flex items-center justify-center shadow-xs shrink-0 border border-blue-400/30 text-white font-bold text-xs tracking-wider">
+          {initials}
+        </div>
+      );
+    }
   }
 }
 
-function getPaymentMetadata(channelId: string) {
+function getPaymentMetadata(account: PaymentAccountSpecifier) {
+  const { channelId, channelName, category, bankOrProvider } = account;
   switch (channelId) {
     case "telebirr":
       return {
         title: "Telebirr",
-        provider: "Ethio Telecom",
-        category: "Mobile Wallet",
+        provider: bankOrProvider || "Ethio Telecom",
+        category: category || "Mobile Wallet",
         idLabel: "Till / Shortcode",
       };
     case "cbe_birr":
       return {
         title: "CBE Birr",
-        provider: "Commercial Bank of Ethiopia",
-        category: "Bank Wallet",
+        provider: bankOrProvider || "Commercial Bank of Ethiopia",
+        category: category || "Bank Wallet",
         idLabel: "Merchant Till",
       };
     case "chapa":
       return {
         title: "Chapa Gateway",
-        provider: "Chapa Financial Tech",
-        category: "Payment Gateway",
+        provider: bankOrProvider || "Chapa Financial Tech",
+        category: category || "Payment Gateway",
         idLabel: "Public API Key",
       };
     case "visa_mastercard":
       return {
         title: "Visa / Mastercard / Amex",
-        provider: "International POS Gateway",
-        category: "Card Settlement",
+        provider: bankOrProvider || "International POS Gateway",
+        category: category || "Card Settlement",
         idLabel: "Merchant ID (MID)",
       };
     case "bank_transfer":
       return {
         title: "Direct Bank Wire",
-        provider: "Commercial Bank of Ethiopia",
-        category: "Wire Transfer",
+        provider: bankOrProvider || "Commercial Bank of Ethiopia",
+        category: category || "Wire Transfer",
         idLabel: "Corporate Account",
       };
     case "cash":
       return {
         title: "Cash & Safe Vault",
-        provider: "Front Desk Cashier",
-        category: "Cash & Vault",
+        provider: bankOrProvider || "Front Desk Cashier",
+        category: category || "Cash & Vault",
         idLabel: "Cash Vault ID",
       };
     default:
       return {
-        title: channelId,
-        provider: "Payment Provider",
-        category: "Payment Method",
-        idLabel: "Account Number",
+        title: channelName || channelId,
+        provider: bankOrProvider || "Payment Provider",
+        category: category || "Payment Service",
+        idLabel: "Account / Till Number",
       };
   }
 }
@@ -646,7 +683,8 @@ export default function HotelPage() {
   const [isBedModalOpen, setIsBedModalOpen] = useState(false);
   const [editingBedItem, setEditingBedItem] = useState<ExtraBedItem | null>(null);
 
-  // Payment Account Specifier Modal
+  // Payment Account CRUD Modal
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [editingPaymentAccount, setEditingPaymentAccount] = useState<PaymentAccountSpecifier | null>(null);
 
   // -------------------------------------------------------------------------
@@ -800,25 +838,50 @@ export default function HotelPage() {
     toast({ title: "Bed configuration removed" });
   };
 
-  // Payment Account Actions
+  // Payment Account Actions (Full CRUD)
   const handleSavePaymentAccount = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingPaymentAccount) return;
     const fd = new FormData(e.currentTarget);
+    const channelName = String(fd.get("channelName") || "").trim();
+    const category = String(fd.get("category") || "Payment Method").trim();
+    const bankOrProvider = String(fd.get("bankOrProvider") || "").trim();
     const accountNumber = String(fd.get("accountNumber") || "").trim();
     const accountName = String(fd.get("accountName") || "").trim();
-    const bankOrProvider = String(fd.get("bankOrProvider") || "").trim();
     const additionalIdentifier = String(fd.get("additionalIdentifier") || "").trim();
 
-    setPaymentAccounts((prev) =>
-      prev.map((acc) =>
-        acc.channelId === editingPaymentAccount.channelId
-          ? { ...acc, accountNumber, accountName, bankOrProvider, additionalIdentifier }
-          : acc
-      )
-    );
+    if (!channelName) return;
+
+    if (editingPaymentAccount) {
+      setPaymentAccounts((prev) =>
+        prev.map((acc) =>
+          acc.channelId === editingPaymentAccount.channelId
+            ? { ...acc, channelName, category, bankOrProvider, accountNumber, accountName, additionalIdentifier }
+            : acc
+        )
+      );
+      toast({ title: "Payment channel updated" });
+    } else {
+      const channelId = "pay_" + Date.now();
+      const newAcc: PaymentAccountSpecifier = {
+        channelId,
+        channelName,
+        category,
+        bankOrProvider,
+        accountNumber,
+        accountName,
+        additionalIdentifier,
+        isEnabled: true,
+      };
+      setPaymentAccounts((prev) => [...prev, newAcc]);
+      toast({ title: "New payment service added" });
+    }
+    setIsPaymentModalOpen(false);
     setEditingPaymentAccount(null);
-    toast({ title: "Recipient account details updated" });
+  };
+
+  const handleDeletePaymentAccount = (channelId: string) => {
+    setPaymentAccounts((prev) => prev.filter((acc) => acc.channelId !== channelId));
+    toast({ title: "Payment service deleted" });
   };
 
   const handleTogglePaymentChannel = (channelId: string) => {
@@ -2244,17 +2307,49 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* Active Payment Channels WITH Recipient Account Specifiers */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
-                <div>
-                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+              {/* Payment Services & Recipient Accounts with full CRUD */}
+              <div className="space-y-4 pt-6 pb-2 border-t border-[var(--border)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h3 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
                     Payment Services & Recipient Accounts
                   </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPaymentAccount(null);
+                      setIsPaymentModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Payment Service</span>
+                  </button>
                 </div>
-                <div className="md:col-span-2 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {paymentAccounts.map((account) => {
-                      const meta = getPaymentMetadata(account.channelId);
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {paymentAccounts.length === 0 ? (
+                    <div className="col-span-full py-12 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)]/30">
+                      <CreditCard className="mx-auto h-10 w-10 text-[var(--text-secondary)] mb-2 opacity-50" />
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">No payment channels registered</h4>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                        Add a payment service or merchant account to start accepting guest transactions.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPaymentAccount(null);
+                          setIsPaymentModalOpen(true);
+                        }}
+                        className="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Payment Service</span>
+                      </button>
+                    </div>
+                  ) : (
+                    paymentAccounts.map((account) => {
+                      const meta = getPaymentMetadata(account);
                       const isCopied = copiedKey === account.channelId;
 
                       return (
@@ -2270,10 +2365,10 @@ export default function HotelPage() {
                             {/* Card Header: Brand Logo + Provider Details + Toggle */}
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <PaymentChannelLogo channelId={account.channelId} />
+                                <PaymentChannelLogo channelId={account.channelId} channelName={account.channelName} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                                    <h4 className="text-sm font-bold text-[var(--text-primary)] truncate max-w-[140px]">
                                       {meta.title}
                                     </h4>
                                     <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-secondary)]">
@@ -2357,7 +2452,7 @@ export default function HotelPage() {
                             </div>
                           </div>
 
-                          {/* Card Footer: Live Status indicator + Configure Action */}
+                          {/* Card Footer: Live Status indicator + Configure & Delete Actions */}
                           <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between">
                             <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
                               <span
@@ -2370,19 +2465,34 @@ export default function HotelPage() {
                               </span>
                             </span>
 
-                            <button
-                              type="button"
-                              onClick={() => setEditingPaymentAccount(account)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-700/10 hover:bg-blue-700/20 border border-blue-500/20 transition-all cursor-pointer"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                              <span>Configure</span>
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingPaymentAccount(account);
+                                  setIsPaymentModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-700/10 hover:bg-blue-700/20 border border-blue-500/20 transition-all cursor-pointer"
+                                title="Edit payment service"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                <span>Configure</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePaymentAccount(account.channelId)}
+                                className="p-1.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors cursor-pointer"
+                                title="Delete payment service"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
+                    })
+                  )}
                 </div>
               </div>
 
@@ -3011,90 +3121,132 @@ export default function HotelPage() {
       </Dialog>
 
       {/* =================================================================== */}
-      {/* MODAL 4: CONFIGURE RECIPIENT ACCOUNT SPECIFIERS                     */}
+      {/* MODAL 4: PAYMENT CHANNEL & RECIPIENT SPECIFIER CRUD                 */}
       {/* =================================================================== */}
       <Dialog
-        open={Boolean(editingPaymentAccount)}
+        open={isPaymentModalOpen}
         onOpenChange={(open) => {
+          setIsPaymentModalOpen(open);
           if (!open) setEditingPaymentAccount(null);
         }}
       >
         <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
-              Configure {editingPaymentAccount?.channelName}
+              {editingPaymentAccount ? `Configure ${editingPaymentAccount.channelName}` : "Add Payment Service"}
             </DialogTitle>
           </DialogHeader>
-          {editingPaymentAccount && (
-            <form onSubmit={handleSavePaymentAccount} className="space-y-4 pt-2">
+
+          <form onSubmit={handleSavePaymentAccount} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Payment Channel / Service Name
+              </label>
+              <input
+                type="text"
+                name="channelName"
+                defaultValue={editingPaymentAccount?.channelName || ""}
+                placeholder="e.g. Awash Birr, Stripe Gateway, Bank of Abyssinia"
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
-                  Recipient Account / Till / Merchant Shortcode
+                  Channel Category / Type
                 </label>
-                <input
-                  type="text"
-                  name="accountNumber"
-                  defaultValue={editingPaymentAccount.accountNumber}
-                  placeholder="e.g. 10045239"
-                  required
-                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                />
+                <select
+                  name="category"
+                  defaultValue={editingPaymentAccount?.category || "Mobile Wallet"}
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                >
+                  <option value="Mobile Wallet">Mobile Wallet</option>
+                  <option value="Bank Wallet">Bank Wallet</option>
+                  <option value="Payment Gateway">Payment Gateway</option>
+                  <option value="Cards & POS">Cards & POS</option>
+                  <option value="Wire Transfer">Wire Transfer</option>
+                  <option value="Cash & Vault">Cash & Vault</option>
+                  <option value="Other">Other Service</option>
+                </select>
               </div>
+
               <div>
                 <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
-                  Registered Account / Merchant Holder Name
-                </label>
-                <input
-                  type="text"
-                  name="accountName"
-                  defaultValue={editingPaymentAccount.accountName}
-                  placeholder="e.g. Nexus Grand Hotel PLC"
-                  required
-                  className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
-                  Acquiring Bank / Provider Name
+                  Provider / Bank Name
                 </label>
                 <input
                   type="text"
                   name="bankOrProvider"
-                  defaultValue={editingPaymentAccount.bankOrProvider}
-                  placeholder="e.g. Ethio Telecom, Commercial Bank of Ethiopia"
+                  defaultValue={editingPaymentAccount?.bankOrProvider || ""}
+                  placeholder="e.g. Awash Bank, Ethio Telecom"
                   required
                   className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
-                  Additional Specifiers (SWIFT, Terminal TID, Phone)
-                </label>
-                <input
-                  type="text"
-                  name="additionalIdentifier"
-                  defaultValue={editingPaymentAccount.additionalIdentifier || ""}
-                  placeholder="e.g. +251 91 123 4567, SWIFT: CBETETAA"
-                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                />
-              </div>
-              <DialogFooter className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingPaymentAccount(null)}
-                  className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800"
-                >
-                  Save Recipient Details
-                </button>
-              </DialogFooter>
-            </form>
-          )}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Recipient Account / Till / Merchant Shortcode
+              </label>
+              <input
+                type="text"
+                name="accountNumber"
+                defaultValue={editingPaymentAccount?.accountNumber || ""}
+                placeholder="e.g. 10045239, CHAPUBK_LIVE-..."
+                required
+                className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Registered Account / Merchant Holder Name
+              </label>
+              <input
+                type="text"
+                name="accountName"
+                defaultValue={editingPaymentAccount?.accountName || ""}
+                placeholder="e.g. Nexus Grand Hotel PLC"
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Additional Specifiers (SWIFT, Terminal TID, Phone)
+              </label>
+              <input
+                type="text"
+                name="additionalIdentifier"
+                defaultValue={editingPaymentAccount?.additionalIdentifier || ""}
+                placeholder="e.g. +251 91 123 4567, SWIFT: AWINETAA"
+                className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPaymentModalOpen(false);
+                  setEditingPaymentAccount(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingPaymentAccount ? "Save Changes" : "Create Payment Service"}
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
