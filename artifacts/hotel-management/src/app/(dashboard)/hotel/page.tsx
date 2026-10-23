@@ -1336,16 +1336,48 @@ export default function HotelPage() {
                     <Cigarette className="w-4 h-4 text-rose-600" />
                     <h4 className="text-sm font-bold text-[var(--text-primary)]">Smoking Policy</h4>
                   </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]">
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
                       <span className="text-[var(--text-secondary)]">Room Policy</span>
-                      <span className="font-semibold text-rose-600">Strictly Non-Smoking Indoors</span>
+                      {isEditing ? (
+                        <select
+                          name="smokingPolicy"
+                          defaultValue={mergedSettings.smokingPolicy || "strictly_non_smoking"}
+                          className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        >
+                          <option value="strictly_non_smoking">Strictly Non-Smoking Indoors</option>
+                          <option value="designated_areas">Designated Outdoor Smoking Zones Only</option>
+                          <option value="allowed">Smoking Permitted</option>
+                        </select>
+                      ) : (
+                        <span className="font-semibold text-rose-600">
+                          {mergedSettings.smokingPolicy === "designated_areas"
+                            ? "Designated Outdoor Zones Only"
+                            : mergedSettings.smokingPolicy === "allowed"
+                            ? "Smoking Permitted"
+                            : "Strictly Non-Smoking Indoors"}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between py-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
                       <span className="text-[var(--text-secondary)]">Deep Clean Violation Fee</span>
-                      <span className="font-mono font-bold text-[var(--text-primary)]">
-                        ${mergedSettings.smokingPenaltyFee || 250} USD / 15,000 ETB
-                      </span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[var(--text-secondary)]">$</span>
+                          <input
+                            type="number"
+                            name="smokingPenaltyFee"
+                            defaultValue={mergedSettings.smokingPenaltyFee || 250}
+                            min={0}
+                            className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                          <span className="text-[var(--text-secondary)]">USD / 15,000 ETB</span>
+                        </div>
+                      ) : (
+                        <span className="font-mono font-bold text-[var(--text-primary)]">
+                          ${mergedSettings.smokingPenaltyFee || 250} USD / 15,000 ETB
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1355,14 +1387,50 @@ export default function HotelPage() {
                     <Dog className="w-4 h-4 text-amber-600" />
                     <h4 className="text-sm font-bold text-[var(--text-primary)]">Pet Accommodation Policy</h4>
                   </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between py-1.5 border-b border-[var(--border)]">
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
                       <span className="text-[var(--text-secondary)]">Policy Status</span>
-                      <span className="font-semibold text-[var(--text-primary)]">Certified Guide & Service Dogs Only</span>
+                      {isEditing ? (
+                        <select
+                          name="petPolicy"
+                          defaultValue={mergedSettings.petPolicy || "not_allowed"}
+                          className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        >
+                          <option value="not_allowed">Certified Guide & Service Dogs Only</option>
+                          <option value="charges_apply">Pets Allowed (Surcharge Applies)</option>
+                          <option value="allowed">Pets Fully Welcome (All Breeds)</option>
+                        </select>
+                      ) : (
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          {mergedSettings.petPolicy === "allowed"
+                            ? "Pets Fully Welcome (All Breeds)"
+                            : mergedSettings.petPolicy === "charges_apply"
+                            ? "Pets Allowed (Surcharge Applies)"
+                            : "Certified Guide & Service Dogs Only"}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between py-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
                       <span className="text-[var(--text-secondary)]">Pet Cleaning Deposit</span>
-                      <span className="font-mono font-bold text-[var(--text-primary)]">Waived for Service Animals</span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            name="petFee"
+                            defaultValue={mergedSettings.petFee || 0}
+                            min={0}
+                            placeholder="0"
+                            className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                          <span className="text-[var(--text-secondary)]">ETB (0 = waived)</span>
+                        </div>
+                      ) : (
+                        <span className="font-mono font-bold text-[var(--text-primary)]">
+                          {mergedSettings.petFee && mergedSettings.petFee > 0
+                            ? `${mergedSettings.petFee} ETB per stay`
+                            : "Waived for Service Animals"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
