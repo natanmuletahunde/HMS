@@ -47,19 +47,12 @@ export function RichTextEditor({
   const [isSourceMode, setIsSourceMode] = useState(false);
 
   useEffect(() => {
-    if (value !== undefined) {
-      setHtmlContent(value);
-      if (editorRef.current && editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value;
-      }
+    const val = value !== undefined ? value : defaultValue;
+    setHtmlContent(val);
+    if (editorRef.current && editorRef.current.innerHTML !== val) {
+      editorRef.current.innerHTML = val;
     }
-  }, [value]);
-
-  useEffect(() => {
-    if (editorRef.current && !value && defaultValue) {
-      editorRef.current.innerHTML = defaultValue;
-    }
-  }, []);
+  }, [value, defaultValue, isEditable]);
 
   const handleInput = () => {
     if (editorRef.current) {

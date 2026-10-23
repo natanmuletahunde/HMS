@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -42,23 +42,67 @@ import {
   Dog,
   Cigarette,
   DollarSign,
+  ChevronDown,
+  ChevronUp,
+  Maximize2,
+  Minimize2,
+  Edit2,
+  Key,
+  Landmark,
+  Smartphone,
+  Eye,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // ---------------------------------------------------------------------------
-// TYPES
+// DATA TYPES
 // ---------------------------------------------------------------------------
-type GalleryImage = {
+export type GalleryImage = {
   id: string;
   url: string;
   title: string;
   category: "facade" | "lobby" | "dining" | "wellness" | "outdoors" | "general";
+  description?: string;
 };
 
-type HotelSettings = {
-  // Front Desk & Operations
+export type CustomFacility = {
+  id: string;
+  name: string;
+  category: string;
+  isCustom?: boolean;
+};
+
+export type ExtraBedItem = {
+  id: string;
+  name: string;
+  type: "rollaway" | "crib" | "folding";
+  capacity: number;
+  dailyFee: number;
+  totalInventory: number;
+  isComplimentary: boolean;
+};
+
+export type PaymentAccountSpecifier = {
+  channelId: string;
+  channelName: string;
+  isEnabled: boolean;
+  accountNumber: string;
+  accountName: string;
+  bankOrProvider: string;
+  additionalIdentifier?: string;
+};
+
+export type HotelSettings = {
+  // Operations & Timers
   earlyCheckInAllowedTime?: string;
   lateCheckOutGracePeriod?: number;
   lateCheckOutHalfDayCutoff?: string;
@@ -67,8 +111,9 @@ type HotelSettings = {
   noShowReleaseWindow?: string;
   overbookingThreshold?: number;
 
-  // Facilities & Features
+  // Facilities
   propertyFacilities?: string[];
+  customFacilitiesList?: CustomFacility[];
 
   // Media & Gallery
   heroImageUrl?: string;
@@ -82,7 +127,7 @@ type HotelSettings = {
   refundTermsText?: string;
   petPolicy?: "allowed" | "not_allowed" | "charges_apply";
   petFee?: number;
-  smokingPolicy?: "strictly_non_smoking" | "designated_areas";
+  smokingPolicy?: "strictly_non_smoking" | "designated_areas" | "allowed";
   smokingPenaltyFee?: number;
   folioTermsFooter?: string;
   registrationCardDisclaimer?: string;
@@ -95,8 +140,7 @@ type HotelSettings = {
   breakfastServiceHours?: string;
   breakfastPriceAdult?: number;
   breakfastPriceChild?: number;
-  extraBedDailyFee?: number;
-  maxExtraBedsPerRoom?: number;
+  extraBedsList?: ExtraBedItem[];
 
   // Revenue & Payment
   invoicePrefix?: string;
@@ -107,9 +151,10 @@ type HotelSettings = {
   ageTierChildMax?: number;
   ageTierAdultMin?: number;
   enabledGateways?: string[];
+  paymentAccountsList?: PaymentAccountSpecifier[];
 };
 
-type Hotel = {
+export type Hotel = {
   id: string;
   hotelName: string;
   legalName?: string;
@@ -135,86 +180,61 @@ type Hotel = {
 };
 
 // ---------------------------------------------------------------------------
-// DEFAULT CATALOGS & SETTINGS
+// DEFAULT CATALOGS
 // ---------------------------------------------------------------------------
-const FACILITY_CATEGORIES = [
-  {
-    category: "Outdoors & Grounds",
-    icon: Trees,
-    items: [
-      { id: "gardens", name: "Gardens & Landscaped Lawns" },
-      { id: "rooftop_garden", name: "Rooftop Garden & Sunset Terrace" },
-      { id: "barbecue_campfire", name: "Barbecue Area & Campfire / Bonfire" },
-      { id: "childrens_park", name: "Children's Playground & Adventure Park" },
-      { id: "private_beach", name: "Private Beach & Boardwalk Access" },
-      { id: "nature_walk", name: "Guided Nature Walk & Botanical Trails" },
-      { id: "marina", name: "Marina On-Site & Private Boat Slips" },
-      { id: "fishing", name: "Fishing Excursions & Equipment" },
-      { id: "safari", name: "Safari & Scenic Wildlife Excursions" },
-    ],
-  },
-  {
-    category: "Parking & Valet Services",
-    icon: Car,
-    items: [
-      { id: "valet_service", name: "Valet Service (Complimentary)" },
-      { id: "outdoor_parking_secured", name: "Outdoor Parking - Secured & CCTV Monitored" },
-      { id: "outdoor_parking_non_secured", name: "Outdoor Parking - Non Secured" },
-      { id: "parking_facilities", name: "Covered Underground Parking Facilities" },
-      { id: "parking_surcharge", name: "Dedicated Long-Term Parking (Surcharge)" },
-      { id: "bike_rent", name: "Bicycles & E-Bikes on Rent" },
-    ],
-  },
-  {
-    category: "Sports, Fitness & Recreation",
-    icon: Dumbbell,
-    items: [
-      { id: "health_club_gym", name: "Health Club & 24/7 Gym Facility" },
-      { id: "fitness_equipment", name: "Premium Cardio & Strength Equipment" },
-      { id: "tennis_court", name: "Championship Floodlit Tennis Court" },
-      { id: "badminton_court", name: "Indoor Badminton Court" },
-      { id: "basketball_court", name: "Half-Court Basketball" },
-      { id: "squash_court", name: "Squash Courts" },
-      { id: "table_tennis", name: "Table Tennis & Ping Pong Lounge" },
-      { id: "billiards", name: "Billiards & Luxury Pool Tables" },
-      { id: "bowling", name: "Multi-Lane Bowling Alley" },
-      { id: "golf_course", name: "18-Hole Championship Golf Course" },
-      { id: "virtual_golf", name: "HD Virtual Golf Simulator" },
-      { id: "clubhouse", name: "Private Residents & Members Clubhouse" },
-      { id: "games_zone", name: "Arcade & Modern E-Sports Games Zone" },
-      { id: "horse_ride", name: "Horse Riding & Equestrian Trails (Chargeable)" },
-      { id: "camel_ride", name: "Camel Riding & Heritage Tours" },
-      { id: "boating", name: "Boating, Kayaking & Watercraft Rental" },
-      { id: "skiing", name: "Skiing Facility & Winter Sports Desk" },
-    ],
-  },
-  {
-    category: "Spa, Wellness & Water",
-    icon: Waves,
-    items: [
-      { id: "spa_services", name: "Available Spa & Holistic Wellness Services" },
-      { id: "water_amenities", name: "Infinity Heated Pools & Water Amenities" },
-      { id: "fun_floats", name: "Resort Family Pools & Fun Floats" },
-    ],
-  },
-  {
-    category: "Dining, Lounge & Entertainment",
-    icon: Utensils,
-    items: [
-      { id: "wine_and_dine", name: "Wine & Dine Fine Dining Restaurants" },
-      { id: "entertainment", name: "Evening Entertainment & Live Music Lounge" },
-    ],
-  },
-  {
-    category: "Business, Connectivity & Services",
-    icon: Briefcase,
-    items: [
-      { id: "business_services", name: "Executive Business Center & Secretarial Desk" },
-      { id: "internet", name: "High-Speed Fiber Internet & Campus-Wide WiFi" },
-      { id: "general_services", name: "24/7 Concierge, Porterage & Luggage Vault" },
-      { id: "complementary", name: "Complimentary Arrival Welcome Drink & Valet" },
-    ],
-  },
+const BASE_FACILITIES: CustomFacility[] = [
+  // Outdoors & Grounds
+  { id: "gardens", name: "Gardens & Landscaped Lawns", category: "Outdoors & Grounds" },
+  { id: "rooftop_garden", name: "Rooftop Garden & Sunset Terrace", category: "Outdoors & Grounds" },
+  { id: "barbecue_campfire", name: "Barbecue Area & Campfire / Bonfire", category: "Outdoors & Grounds" },
+  { id: "childrens_park", name: "Children's Playground & Adventure Park", category: "Outdoors & Grounds" },
+  { id: "private_beach", name: "Private Beach & Boardwalk Access", category: "Outdoors & Grounds" },
+  { id: "nature_walk", name: "Guided Nature Walk & Botanical Trails", category: "Outdoors & Grounds" },
+  { id: "marina", name: "Marina On-Site & Private Boat Slips", category: "Outdoors & Grounds" },
+  { id: "fishing", name: "Fishing Excursions & Equipment", category: "Outdoors & Grounds" },
+  { id: "safari", name: "Safari & Scenic Wildlife Excursions", category: "Outdoors & Grounds" },
+
+  // Parking & Valet
+  { id: "valet_service", name: "Valet Service (Complimentary)", category: "Parking & Valet Services" },
+  { id: "outdoor_parking_secured", name: "Outdoor Parking - Secured & CCTV Monitored", category: "Parking & Valet Services" },
+  { id: "outdoor_parking_non_secured", name: "Outdoor Parking - Non Secured", category: "Parking & Valet Services" },
+  { id: "parking_facilities", name: "Covered Underground Parking Facilities", category: "Parking & Valet Services" },
+  { id: "parking_surcharge", name: "Dedicated Long-Term Parking (Surcharge)", category: "Parking & Valet Services" },
+  { id: "bike_rent", name: "Bicycles & E-Bikes on Rent", category: "Parking & Valet Services" },
+
+  // Sports & Recreation
+  { id: "health_club_gym", name: "Health Club & 24/7 Gym Facility", category: "Sports, Fitness & Recreation" },
+  { id: "fitness_equipment", name: "Premium Cardio & Strength Equipment", category: "Sports, Fitness & Recreation" },
+  { id: "tennis_court", name: "Championship Floodlit Tennis Court", category: "Sports, Fitness & Recreation" },
+  { id: "badminton_court", name: "Indoor Badminton Court", category: "Sports, Fitness & Recreation" },
+  { id: "basketball_court", name: "Half-Court Basketball", category: "Sports, Fitness & Recreation" },
+  { id: "squash_court", name: "Squash Courts", category: "Sports, Fitness & Recreation" },
+  { id: "table_tennis", name: "Table Tennis & Ping Pong Lounge", category: "Sports, Fitness & Recreation" },
+  { id: "billiards", name: "Billiards & Luxury Pool Tables", category: "Sports, Fitness & Recreation" },
+  { id: "bowling", name: "Multi-Lane Bowling Alley", category: "Sports, Fitness & Recreation" },
+  { id: "golf_course", name: "18-Hole Championship Golf Course", category: "Sports, Fitness & Recreation" },
+  { id: "virtual_golf", name: "HD Virtual Golf Simulator", category: "Sports, Fitness & Recreation" },
+  { id: "clubhouse", name: "Private Residents & Members Clubhouse", category: "Sports, Fitness & Recreation" },
+  { id: "games_zone", name: "Arcade & Modern E-Sports Games Zone", category: "Sports, Fitness & Recreation" },
+  { id: "horse_ride", name: "Horse Riding & Equestrian Trails", category: "Sports, Fitness & Recreation" },
+  { id: "camel_ride", name: "Camel Riding & Heritage Tours", category: "Sports, Fitness & Recreation" },
+  { id: "boating", name: "Boating, Kayaking & Watercraft Rental", category: "Sports, Fitness & Recreation" },
+  { id: "skiing", name: "Skiing Facility & Winter Sports Desk", category: "Sports, Fitness & Recreation" },
+
+  // Spa & Water
+  { id: "spa_services", name: "Available Spa & Holistic Wellness Services", category: "Spa, Wellness & Water" },
+  { id: "water_amenities", name: "Infinity Heated Pools & Water Amenities", category: "Spa, Wellness & Water" },
+  { id: "fun_floats", name: "Resort Family Pools & Fun Floats", category: "Spa, Wellness & Water" },
+
+  // Dining
+  { id: "wine_and_dine", name: "Wine & Dine Fine Dining Restaurants", category: "Dining & Entertainment" },
+  { id: "entertainment", name: "Evening Entertainment & Live Music Lounge", category: "Dining & Entertainment" },
+
+  // Business & General
+  { id: "business_services", name: "Executive Business Center & Secretarial Desk", category: "Business & Connectivity" },
+  { id: "internet", name: "High-Speed Fiber Internet & Campus-Wide WiFi", category: "Business & Connectivity" },
+  { id: "general_services", name: "24/7 Concierge, Porterage & Luggage Vault", category: "Business & Connectivity" },
+  { id: "complementary", name: "Complimentary Arrival Welcome Drink & Valet", category: "Business & Connectivity" },
 ];
 
 const DEFAULT_GALLERY: GalleryImage[] = [
@@ -223,36 +243,129 @@ const DEFAULT_GALLERY: GalleryImage[] = [
     url: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
     title: "Grand Facade & Portico",
     category: "facade",
+    description: "Main arrival portico and neoclassical architectural exterior.",
   },
   {
     id: "img-2",
     url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
     title: "Presidential Lobby & Atrium",
     category: "lobby",
+    description: "Double-height marble atrium with concierge desk.",
   },
   {
     id: "img-3",
     url: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80",
     title: "Infinity Sky Pool & Sunbeds",
     category: "wellness",
+    description: "Heated panoramic rooftop pool overlooking the city skyline.",
   },
   {
     id: "img-4",
     url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80",
     title: "Botanical Spa Sanctuary",
     category: "wellness",
+    description: "Private hydrotherapy and couples massage suites.",
   },
   {
     id: "img-5",
     url: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
     title: "Amber Rooftop Wine & Dine",
     category: "dining",
+    description: "Fine dining restaurant with curated wine cellar.",
   },
   {
     id: "img-6",
     url: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=1200&q=80",
     title: "Landscaped Gardens & Fountain",
     category: "outdoors",
+    description: "Lush gardens featuring private walking paths.",
+  },
+];
+
+const DEFAULT_EXTRA_BEDS: ExtraBedItem[] = [
+  {
+    id: "bed-1",
+    name: "Luxury Rollaway Bed (Adult)",
+    type: "rollaway",
+    capacity: 1,
+    dailyFee: 800,
+    totalInventory: 15,
+    isComplimentary: false,
+  },
+  {
+    id: "bed-2",
+    name: "Wooden Baby Cot / Crib (Infant)",
+    type: "crib",
+    capacity: 1,
+    dailyFee: 0,
+    totalInventory: 8,
+    isComplimentary: true,
+  },
+  {
+    id: "bed-3",
+    name: "Executive Folding Extra Bed",
+    type: "folding",
+    capacity: 1,
+    dailyFee: 1200,
+    totalInventory: 5,
+    isComplimentary: false,
+  },
+];
+
+const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
+  {
+    channelId: "telebirr",
+    channelName: "Telebirr (Ethio Telecom)",
+    isEnabled: true,
+    accountNumber: "10045239",
+    accountName: "Nexus Grand Hotel PLC",
+    bankOrProvider: "Ethio Telecom",
+    additionalIdentifier: "+251 91 123 4567 (Till Shortcode)",
+  },
+  {
+    channelId: "cbe_birr",
+    channelName: "CBE Birr (Commercial Bank)",
+    isEnabled: true,
+    accountNumber: "100028492019",
+    accountName: "Nexus Grand Hotel PLC",
+    bankOrProvider: "Commercial Bank of Ethiopia",
+    additionalIdentifier: "CBE-MERCH-8841",
+  },
+  {
+    channelId: "chapa",
+    channelName: "Chapa Payment Gateway",
+    isEnabled: true,
+    accountNumber: "CHAPUBK_LIVE-nexus8842",
+    accountName: "Nexus Hospitality Services",
+    bankOrProvider: "Chapa Financial",
+    additionalIdentifier: "Merchant Account #48291",
+  },
+  {
+    channelId: "visa_mastercard",
+    channelName: "Visa / Mastercard / Amex",
+    isEnabled: true,
+    accountNumber: "MID-99238472",
+    accountName: "Nexus Grand Hotel POS Settlement",
+    bankOrProvider: "Dashen Bank Acquiring",
+    additionalIdentifier: "Terminal TID-0042",
+  },
+  {
+    channelId: "bank_transfer",
+    channelName: "Direct Bank Wire Transfer",
+    isEnabled: true,
+    accountNumber: "1000182930495",
+    accountName: "Nexus Grand Hotel Main Corporate",
+    bankOrProvider: "Commercial Bank of Ethiopia",
+    additionalIdentifier: "SWIFT: CBETETAA",
+  },
+  {
+    channelId: "cash",
+    channelName: "Cash & Front Desk Cashier",
+    isEnabled: true,
+    accountNumber: "CASH-VAULT-01",
+    accountName: "Front Desk Cashier Drawer",
+    bankOrProvider: "On-Site Safe Vault",
+    additionalIdentifier: "Dual-Control Key Safe",
   },
 ];
 
@@ -281,6 +394,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
     "complementary",
     "billiards",
   ],
+  customFacilitiesList: BASE_FACILITIES,
 
   heroImageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85",
   galleryImages: DEFAULT_GALLERY,
@@ -289,12 +403,13 @@ const DEFAULT_SETTINGS: HotelSettings = {
   cancellationFreeHours: 48,
   cancellationPenaltyPercent: 100,
   refundProcessingDays: 5,
-  refundTermsText:
-    `<h3>Standard Cancellation & Refund Policy</h3><p>Our hotel strives to provide flexible, transparent terms for both business and leisure guests.</p><h4>Cancellation Windows:</h4><ul><li><strong>Free Cancellation:</strong> Bookings cancelled up to 48 hours prior to arrival date by 14:00 local time receive a 100% full refund.</li><li><strong>Late Cancellation:</strong> Cancellations received within 48 hours of check-in, or failure to arrive (No-Show), will be billed for the first night room rate plus applicable taxes.</li><li><strong>Non-Refundable Tariffs:</strong> Promotional rates flagged as non-refundable are charged at booking and cannot be refunded or transferred.</li></ul><h4>Refund Settlement Timeline:</h4><p>Approved refunds are credited directly to the original settlement instrument (Telebirr, CBE Birr, or Credit Card) within 3 to 5 business days.</p>`,
+  refundTermsText: `<h3>Standard Cancellation & Refund Policy</h3><p>Our hotel strives to provide flexible, transparent terms for both business and leisure guests.</p><h4>Cancellation Windows:</h4><ul><li><strong>Free Cancellation:</strong> Bookings cancelled up to 48 hours prior to arrival date by 14:00 local time receive a 100% full refund.</li><li><strong>Late Cancellation:</strong> Cancellations received within 48 hours of check-in, or failure to arrive (No-Show), will be billed for the first night room rate plus applicable taxes.</li><li><strong>Non-Refundable Tariffs:</strong> Promotional rates flagged as non-refundable are charged at booking and cannot be refunded or transferred.</li></ul><h4>Refund Settlement Timeline:</h4><p>Approved refunds are credited directly to the original settlement instrument (Telebirr, CBE Birr, or Credit Card) within 3 to 5 business days.</p>`,
   petPolicy: "not_allowed",
   petFee: 0,
   smokingPolicy: "strictly_non_smoking",
   smokingPenaltyFee: 250,
+  folioTermsFooter: `<h4>Guest Liability & Security Notice:</h4><ul><li><strong>Safe Deposit Boxes:</strong> Individual safe deposit boxes are provided at the Front Desk free of charge. Management disclaims all liability for cash, jewelry, or documents left in guest rooms.</li><li><strong>Property Damages:</strong> Registered guests assume full financial responsibility for any physical breakage, smoke damage, or fixture loss caused during their stay.</li><li><strong>Settlement of Charges:</strong> Unbilled incidental charges discovered post-departure will be posted to the credit card or billing account on record.</li></ul>`,
+  registrationCardDisclaimer: `<h4>Guest Registration Agreement & Terms:</h4><p>I hereby certify that all information submitted during registration is accurate and complete.</p><ul><li>I agree to comply with hotel safety regulations, quiet hours, and property guidelines.</li><li>I agree that my personal liability for all room charges, taxes, and incidentals is not waived if any third party, employer, or sponsoring organization fails to pay in full.</li><li>I understand check-out time is 12:00 PM. Delayed departures without prior front desk clearance may incur half-day or full-day surcharges.</li></ul>`,
 
   checkoutTriggerState: "dirty",
   linenChangeFrequency: 3,
@@ -303,8 +418,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   breakfastServiceHours: "06:30 - 10:00",
   breakfastPriceAdult: 450,
   breakfastPriceChild: 250,
-  extraBedDailyFee: 800,
-  maxExtraBedsPerRoom: 1,
+  extraBedsList: DEFAULT_EXTRA_BEDS,
 
   invoicePrefix: "NGH-INV-",
   receiptPrefix: "NGH-REC-",
@@ -314,11 +428,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   ageTierChildMax: 12,
   ageTierAdultMin: 13,
   enabledGateways: ["telebirr", "cbe_birr", "visa_mastercard", "cash"],
-
-  folioTermsFooter:
-    `<h4>Guest Liability & Security Notice:</h4><ul><li><strong>Safe Deposit Boxes:</strong> Individual safe deposit boxes are provided at the Front Desk free of charge. Management disclaims all liability for cash, jewelry, or documents left in guest rooms.</li><li><strong>Property Damages:</strong> Registered guests assume full financial responsibility for any physical breakage, smoke damage, or fixture loss caused during their stay.</li><li><strong>Settlement of Charges:</strong> Unbilled incidental charges discovered post-departure will be posted to the credit card or billing account on record.</li></ul>`,
-  registrationCardDisclaimer:
-    `<h4>Guest Registration Agreement & Terms:</h4><p>I hereby certify that all information submitted during registration is accurate and complete.</p><ul><li>I agree to comply with hotel safety regulations, quiet hours, and property guidelines.</li><li>I agree that my personal liability for all room charges, taxes, and incidentals is not waived if any third party, employer, or sponsoring organization fails to pay in full.</li><li>I understand check-out time is 12:00 PM. Delayed departures without prior front desk clearance may incur half-day or full-day surcharges.</li></ul>`,
+  paymentAccountsList: DEFAULT_PAYMENT_ACCOUNTS,
 };
 
 type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "housekeeping" | "policies";
@@ -329,7 +439,6 @@ type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "
 export default function HotelPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [isEditing, setIsEditing] = useState(false);
-  const [facilitySearch, setFacilitySearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -343,34 +452,84 @@ export default function HotelPage() {
     ? rawHotel[0]
     : (rawHotel?.data?.[0] ?? rawHotel);
 
-  const mergedSettings: HotelSettings = {
-    ...DEFAULT_SETTINGS,
-    ...(hotel?.settings || {}),
+  // -------------------------------------------------------------------------
+  // REACTIVE LOCAL STATES (SYNCHRONIZED WITH BACKEND)
+  // -------------------------------------------------------------------------
+  const [selectedFacilities, setSelectedFacilities] = useState<string[]>(
+    DEFAULT_SETTINGS.propertyFacilities || []
+  );
+  const [facilitiesCatalog, setFacilitiesCatalog] = useState<CustomFacility[]>(
+    DEFAULT_SETTINGS.customFacilitiesList || BASE_FACILITIES
+  );
+  const [facilitySearch, setFacilitySearch] = useState("");
+
+  const [gallery, setGallery] = useState<GalleryImage[]>(DEFAULT_GALLERY);
+  const [heroImage, setHeroImage] = useState<string>(DEFAULT_SETTINGS.heroImageUrl || "");
+
+  const [extraBeds, setExtraBeds] = useState<ExtraBedItem[]>(DEFAULT_EXTRA_BEDS);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
+
+  // Rich Text State Holders
+  const [refundText, setRefundText] = useState(DEFAULT_SETTINGS.refundTermsText || "");
+  const [folioFooterText, setFolioFooterText] = useState(DEFAULT_SETTINGS.folioTermsFooter || "");
+  const [regCardText, setRegCardText] = useState(DEFAULT_SETTINGS.registrationCardDisclaimer || "");
+
+  // Expandable Policies State
+  const [expandedPolicies, setExpandedPolicies] = useState<Record<string, boolean>>({
+    refund: true,
+    folio: true,
+    regCard: true,
+    smokingPet: true,
+  });
+
+  const togglePolicyCollapse = (key: string) => {
+    setExpandedPolicies((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // State for interactive features in Edit Mode
-  const [selectedFacilities, setSelectedFacilities] = useState<string[]>(
-    mergedSettings.propertyFacilities || DEFAULT_SETTINGS.propertyFacilities || []
-  );
+  const toggleAllPolicies = (expand: boolean) => {
+    setExpandedPolicies({
+      refund: expand,
+      folio: expand,
+      regCard: expand,
+      smokingPet: expand,
+    });
+  };
 
-  const [gateways, setGateways] = useState<string[]>(
-    mergedSettings.enabledGateways || DEFAULT_SETTINGS.enabledGateways || []
-  );
+  // Synchronize state when hotel data arrives from server (prevents info disappearance!)
+  useEffect(() => {
+    if (hotel) {
+      const s = hotel.settings || {};
+      if (s.propertyFacilities) setSelectedFacilities(s.propertyFacilities);
+      if (s.customFacilitiesList && s.customFacilitiesList.length > 0) setFacilitiesCatalog(s.customFacilitiesList);
+      if (s.galleryImages && s.galleryImages.length > 0) setGallery(s.galleryImages);
+      if (s.heroImageUrl) setHeroImage(s.heroImageUrl);
+      if (s.extraBedsList && s.extraBedsList.length > 0) setExtraBeds(s.extraBedsList);
+      if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
+      if (s.refundTermsText) setRefundText(s.refundTermsText);
+      if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
+      if (s.registrationCardDisclaimer) setRegCardText(s.registrationCardDisclaimer);
+    }
+  }, [hotel]);
 
-  const [gallery, setGallery] = useState<GalleryImage[]>(
-    mergedSettings.galleryImages && mergedSettings.galleryImages.length > 0
-      ? mergedSettings.galleryImages
-      : DEFAULT_GALLERY
-  );
+  // Modals for CRUD operations
+  // Facility Modal
+  const [isFacilityModalOpen, setIsFacilityModalOpen] = useState(false);
+  const [editingFacility, setEditingFacility] = useState<CustomFacility | null>(null);
 
-  const [heroImage, setHeroImage] = useState<string>(
-    mergedSettings.heroImageUrl || DEFAULT_SETTINGS.heroImageUrl || ""
-  );
+  // Gallery Modal
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryImage | null>(null);
 
-  const [newImageUrl, setNewImageUrl] = useState("");
-  const [newImageTitle, setNewImageTitle] = useState("");
-  const [newImageCategory, setNewImageCategory] = useState<GalleryImage["category"]>("general");
+  // Extra Bed Modal
+  const [isBedModalOpen, setIsBedModalOpen] = useState(false);
+  const [editingBedItem, setEditingBedItem] = useState<ExtraBedItem | null>(null);
 
+  // Payment Account Specifier Modal
+  const [editingPaymentAccount, setEditingPaymentAccount] = useState<PaymentAccountSpecifier | null>(null);
+
+  // -------------------------------------------------------------------------
+  // MUTATION
+  // -------------------------------------------------------------------------
   const saveMutation = useMutation({
     mutationFn: (data: Partial<Hotel>) =>
       hotel?.id
@@ -393,6 +552,7 @@ export default function HotelPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  // Facility Actions
   const handleToggleFacility = (fid: string) => {
     if (!isEditing) return;
     setSelectedFacilities((prev) =>
@@ -400,84 +560,213 @@ export default function HotelPage() {
     );
   };
 
-  const handleToggleGateway = (gw: string) => {
+  const handleSaveFacility = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "").trim();
+    const category = String(fd.get("category") || "General").trim();
+    if (!name) return;
+
+    if (editingFacility) {
+      setFacilitiesCatalog((prev) =>
+        prev.map((f) => (f.id === editingFacility.id ? { ...f, name, category } : f))
+      );
+      toast({ title: "Facility updated" });
+    } else {
+      const newF: CustomFacility = {
+        id: "fac-" + Date.now(),
+        name,
+        category,
+        isCustom: true,
+      };
+      setFacilitiesCatalog((prev) => [newF, ...prev]);
+      setSelectedFacilities((prev) => [...prev, newF.id]);
+      toast({ title: "Custom facility added" });
+    }
+    setIsFacilityModalOpen(false);
+    setEditingFacility(null);
+  };
+
+  const handleDeleteFacility = (id: string) => {
+    setFacilitiesCatalog((prev) => prev.filter((f) => f.id !== id));
+    setSelectedFacilities((prev) => prev.filter((fid) => fid !== id));
+    toast({ title: "Facility deleted" });
+  };
+
+  // Gallery Actions
+  const handleSaveGalleryItem = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const url = String(fd.get("url") || "").trim();
+    const title = String(fd.get("title") || "").trim();
+    const category = (fd.get("category") as GalleryImage["category"]) || "general";
+    const description = String(fd.get("description") || "").trim();
+    const setAsCover = fd.get("setAsCover") === "on";
+
+    if (!url) return;
+
+    if (editingGalleryItem) {
+      setGallery((prev) =>
+        prev.map((img) =>
+          img.id === editingGalleryItem.id ? { ...img, url, title, category, description } : img
+        )
+      );
+      if (setAsCover) setHeroImage(url);
+      toast({ title: "Photo updated" });
+    } else {
+      const newImg: GalleryImage = {
+        id: "img-" + Date.now(),
+        url,
+        title: title || "Property Showcase Photo",
+        category,
+        description,
+      };
+      setGallery((prev) => [newImg, ...prev]);
+      if (setAsCover) setHeroImage(url);
+      toast({ title: "Photo added to gallery" });
+    }
+    setIsGalleryModalOpen(false);
+    setEditingGalleryItem(null);
+  };
+
+  const handleDeleteGalleryItem = (id: string) => {
+    setGallery((prev) => prev.filter((img) => img.id !== id));
+    toast({ title: "Photo removed" });
+  };
+
+  // Extra Bed Actions
+  const handleSaveBedItem = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "").trim();
+    const type = (fd.get("type") as ExtraBedItem["type"]) || "rollaway";
+    const capacity = Number(fd.get("capacity")) || 1;
+    const dailyFee = Number(fd.get("dailyFee")) || 0;
+    const totalInventory = Number(fd.get("totalInventory")) || 1;
+    const isComplimentary = fd.get("isComplimentary") === "on" || dailyFee === 0;
+
+    if (!name) return;
+
+    if (editingBedItem) {
+      setExtraBeds((prev) =>
+        prev.map((b) =>
+          b.id === editingBedItem.id
+            ? { ...b, name, type, capacity, dailyFee, totalInventory, isComplimentary }
+            : b
+        )
+      );
+      toast({ title: "Bed configuration updated" });
+    } else {
+      const newBed: ExtraBedItem = {
+        id: "bed-" + Date.now(),
+        name,
+        type,
+        capacity,
+        dailyFee,
+        totalInventory,
+        isComplimentary,
+      };
+      setExtraBeds((prev) => [...prev, newBed]);
+      toast({ title: "Extra bed added to inventory" });
+    }
+    setIsBedModalOpen(false);
+    setEditingBedItem(null);
+  };
+
+  const handleDeleteBedItem = (id: string) => {
+    setExtraBeds((prev) => prev.filter((b) => b.id !== id));
+    toast({ title: "Bed configuration removed" });
+  };
+
+  // Payment Account Actions
+  const handleSavePaymentAccount = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingPaymentAccount) return;
+    const fd = new FormData(e.currentTarget);
+    const accountNumber = String(fd.get("accountNumber") || "").trim();
+    const accountName = String(fd.get("accountName") || "").trim();
+    const bankOrProvider = String(fd.get("bankOrProvider") || "").trim();
+    const additionalIdentifier = String(fd.get("additionalIdentifier") || "").trim();
+
+    setPaymentAccounts((prev) =>
+      prev.map((acc) =>
+        acc.channelId === editingPaymentAccount.channelId
+          ? { ...acc, accountNumber, accountName, bankOrProvider, additionalIdentifier }
+          : acc
+      )
+    );
+    setEditingPaymentAccount(null);
+    toast({ title: "Recipient account details updated" });
+  };
+
+  const handleTogglePaymentChannel = (channelId: string) => {
     if (!isEditing) return;
-    setGateways((prev) =>
-      prev.includes(gw) ? prev.filter((g) => g !== gw) : [...prev, gw]
+    setPaymentAccounts((prev) =>
+      prev.map((acc) =>
+        acc.channelId === channelId ? { ...acc, isEnabled: !acc.isEnabled } : acc
+      )
     );
   };
 
-  const handleAddGalleryImage = () => {
-    if (!newImageUrl.trim()) return;
-    const newImg: GalleryImage = {
-      id: "img-" + Date.now(),
-      url: newImageUrl.trim(),
-      title: newImageTitle.trim() || "Hotel Photo",
-      category: newImageCategory,
-    };
-    setGallery((prev) => [newImg, ...prev]);
-    setNewImageUrl("");
-    setNewImageTitle("");
-    toast({ title: "Image added to property gallery" });
-  };
-
-  const handleRemoveGalleryImage = (id: string) => {
-    setGallery((prev) => prev.filter((img) => img.id !== id));
-  };
-
+  // Main Form Submit Handler
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const formObj = Object.fromEntries(fd);
 
+    const mergedSettings = hotel?.settings || DEFAULT_SETTINGS;
+
     const updatedSettings: HotelSettings = {
-      // Front Desk & Operations
-      earlyCheckInAllowedTime: String(formObj.earlyCheckInAllowedTime || mergedSettings.earlyCheckInAllowedTime),
-      lateCheckOutGracePeriod: Number(formObj.lateCheckOutGracePeriod) || mergedSettings.lateCheckOutGracePeriod,
-      lateCheckOutHalfDayCutoff: String(formObj.lateCheckOutHalfDayCutoff || mergedSettings.lateCheckOutHalfDayCutoff),
+      // Operations
+      earlyCheckInAllowedTime: String(formObj.earlyCheckInAllowedTime || mergedSettings.earlyCheckInAllowedTime || "10:00"),
+      lateCheckOutGracePeriod: Number(formObj.lateCheckOutGracePeriod) || mergedSettings.lateCheckOutGracePeriod || 30,
+      lateCheckOutHalfDayCutoff: String(formObj.lateCheckOutHalfDayCutoff || mergedSettings.lateCheckOutHalfDayCutoff || "15:00"),
       nightAuditMode: formObj.nightAuditMode === "manual" ? "manual" : "auto",
-      nightAuditTime: String(formObj.nightAuditTime || mergedSettings.nightAuditTime),
-      noShowReleaseWindow: String(formObj.noShowReleaseWindow || mergedSettings.noShowReleaseWindow),
+      nightAuditTime: String(formObj.nightAuditTime || mergedSettings.nightAuditTime || "02:00"),
+      noShowReleaseWindow: String(formObj.noShowReleaseWindow || mergedSettings.noShowReleaseWindow || "18:00"),
       overbookingThreshold: Number(formObj.overbookingThreshold) || 0,
 
-      // Facilities & Media
+      // Facilities CRUD list & Active IDs
       propertyFacilities: selectedFacilities,
-      heroImageUrl: heroImage || String(formObj.heroImageUrl || mergedSettings.heroImageUrl),
+      customFacilitiesList: facilitiesCatalog,
+
+      // Media & Gallery CRUD
+      heroImageUrl: heroImage || String(formObj.heroImageUrl || mergedSettings.heroImageUrl || ""),
       galleryImages: gallery,
 
-      // Policies & Refunds
-      cancellationPolicyType: (formObj.cancellationPolicyType as any) || mergedSettings.cancellationPolicyType,
-      cancellationFreeHours: Number(formObj.cancellationFreeHours) || mergedSettings.cancellationFreeHours,
-      cancellationPenaltyPercent: Number(formObj.cancellationPenaltyPercent) || mergedSettings.cancellationPenaltyPercent,
-      refundProcessingDays: Number(formObj.refundProcessingDays) || mergedSettings.refundProcessingDays,
-      refundTermsText: String(formObj.refundTermsText || mergedSettings.refundTermsText),
-      petPolicy: (formObj.petPolicy as any) || mergedSettings.petPolicy,
+      // Policies & Refunds (using live rich text states!)
+      cancellationPolicyType: (formObj.cancellationPolicyType as any) || mergedSettings.cancellationPolicyType || "moderate",
+      cancellationFreeHours: Number(formObj.cancellationFreeHours) || mergedSettings.cancellationFreeHours || 48,
+      cancellationPenaltyPercent: Number(formObj.cancellationPenaltyPercent) || mergedSettings.cancellationPenaltyPercent || 100,
+      refundProcessingDays: Number(formObj.refundProcessingDays) || mergedSettings.refundProcessingDays || 5,
+      refundTermsText: refundText || String(formObj.refundTermsText || mergedSettings.refundTermsText || ""),
+      petPolicy: (formObj.petPolicy as any) || mergedSettings.petPolicy || "not_allowed",
       petFee: Number(formObj.petFee) || 0,
-      smokingPolicy: (formObj.smokingPolicy as any) || mergedSettings.smokingPolicy,
+      smokingPolicy: (formObj.smokingPolicy as any) || mergedSettings.smokingPolicy || "strictly_non_smoking",
       smokingPenaltyFee: Number(formObj.smokingPenaltyFee) || 0,
-      folioTermsFooter: String(formObj.folioTermsFooter || mergedSettings.folioTermsFooter),
-      registrationCardDisclaimer: String(formObj.registrationCardDisclaimer || mergedSettings.registrationCardDisclaimer),
+      folioTermsFooter: folioFooterText || String(formObj.folioTermsFooter || mergedSettings.folioTermsFooter || ""),
+      registrationCardDisclaimer: regCardText || String(formObj.registrationCardDisclaimer || mergedSettings.registrationCardDisclaimer || ""),
 
-      // Housekeeping & Dining
+      // Housekeeping & Dining + Cribs CRUD
       checkoutTriggerState: formObj.checkoutTriggerState === "cleaning" ? "cleaning" : "dirty",
       linenChangeFrequency: Number(formObj.linenChangeFrequency) || 3,
       turndownServiceEnabled: formObj.turndownServiceEnabled === "on",
       defaultBoardBasis: (formObj.defaultBoardBasis as any) || "bb",
-      breakfastServiceHours: String(formObj.breakfastServiceHours || mergedSettings.breakfastServiceHours),
+      breakfastServiceHours: String(formObj.breakfastServiceHours || mergedSettings.breakfastServiceHours || "06:30 - 10:00"),
       breakfastPriceAdult: Number(formObj.breakfastPriceAdult) || 0,
       breakfastPriceChild: Number(formObj.breakfastPriceChild) || 0,
-      extraBedDailyFee: Number(formObj.extraBedDailyFee) || 0,
-      maxExtraBedsPerRoom: Number(formObj.maxExtraBedsPerRoom) || 1,
+      extraBedsList: extraBeds,
 
-      // Revenue & Financial
-      invoicePrefix: String(formObj.invoicePrefix || mergedSettings.invoicePrefix),
-      receiptPrefix: String(formObj.receiptPrefix || mergedSettings.receiptPrefix),
-      proformaPrefix: String(formObj.proformaPrefix || mergedSettings.proformaPrefix),
+      // Revenue & Financial + Payment Accounts Specifiers
+      invoicePrefix: String(formObj.invoicePrefix || mergedSettings.invoicePrefix || "NGH-INV-"),
+      receiptPrefix: String(formObj.receiptPrefix || mergedSettings.receiptPrefix || "NGH-REC-"),
+      proformaPrefix: String(formObj.proformaPrefix || mergedSettings.proformaPrefix || "NGH-PRO-"),
       defaultGuaranteePolicy: (formObj.defaultGuaranteePolicy as any) || "credit_card",
       ageTierInfantMax: Number(formObj.ageTierInfantMax) || 2,
       ageTierChildMax: Number(formObj.ageTierChildMax) || 12,
       ageTierAdultMin: Number(formObj.ageTierAdultMin) || 13,
-      enabledGateways: gateways,
+      enabledGateways: paymentAccounts.filter((a) => a.isEnabled).map((a) => a.channelId),
+      paymentAccountsList: paymentAccounts,
     };
 
     saveMutation.mutate({
@@ -535,6 +824,9 @@ export default function HotelPage() {
 
   const starsCount = hotel?.starRating || 5;
 
+  // Categories extracted from facilitiesCatalog
+  const uniqueCategories = Array.from(new Set(facilitiesCatalog.map((f) => f.category)));
+
   return (
     <div className="max-w-7xl mx-auto pb-24 pt-2 space-y-6">
       <form onSubmit={handleSubmit}>
@@ -584,7 +876,7 @@ export default function HotelPage() {
           </div>
         </div>
 
-        {/* Hero Luxury Identity Banner */}
+        {/* Hero Luxury Identity Banner (No StatusPill as requested) */}
         <div className="mt-4 p-6 rounded-2xl bg-gradient-to-r from-blue-700/10 via-blue-600/5 to-transparent dark:from-blue-900/30 dark:via-blue-950/10 dark:to-transparent border border-blue-600/20 dark:border-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-700 to-blue-950 text-white flex items-center justify-center font-bold text-xl tracking-wider shadow-sm border border-blue-400/30">
@@ -958,89 +1250,136 @@ export default function HotelPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 2: FACILITIES & FEATURES                                      */}
+          {/* TAB 2: FACILITIES & FEATURES (CRUD IMPLEMENTED)                  */}
           {/* ================================================================= */}
           {activeTab === "facilities" && (
             <div className="space-y-6">
-              {/* Header Filter Strip */}
+              {/* Header with Search and "+ Add Custom Facility" CRUD action */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
                 <div>
                   <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Hotel Facilities, Amenities & Services Catalog
+                    Hotel Facilities, Amenities & Services
                   </h3>
                   <span className="text-xs text-[var(--text-secondary)]">
-                    {selectedFacilities.length} features active across property
+                    {selectedFacilities.length} active of {facilitiesCatalog.length} registered facilities
                   </span>
                 </div>
 
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--text-secondary)]" />
-                  <input
-                    type="text"
-                    placeholder="Search amenities & services..."
-                    value={facilitySearch}
-                    onChange={(e) => setFacilitySearch(e.target.value)}
-                    className="w-full h-9 pl-9 pr-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                  />
+                <div className="flex items-center gap-3">
+                  <div className="relative w-48 sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-[var(--text-secondary)]" />
+                    <input
+                      type="text"
+                      placeholder="Search facilities..."
+                      value={facilitySearch}
+                      onChange={(e) => setFacilitySearch(e.target.value)}
+                      className="w-full h-9 pl-9 pr-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFacility(null);
+                      setIsFacilityModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Facility</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Categorized Facility Cards */}
+              {/* Categorized Facility Groups */}
               <div className="space-y-6">
-                {FACILITY_CATEGORIES.map((cat) => {
-                  const CategoryIcon = cat.icon;
-                  const filteredItems = cat.items.filter((item) =>
-                    item.name.toLowerCase().includes(facilitySearch.toLowerCase())
+                {uniqueCategories.map((category) => {
+                  const items = facilitiesCatalog.filter(
+                    (f) =>
+                      f.category === category &&
+                      f.name.toLowerCase().includes(facilitySearch.toLowerCase())
                   );
 
-                  if (filteredItems.length === 0) return null;
+                  if (items.length === 0) return null;
 
                   return (
                     <div
-                      key={cat.category}
+                      key={category}
                       className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xs space-y-4"
                     >
-                      <div className="flex items-center gap-2.5 border-b border-[var(--border)] pb-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center">
-                          <CategoryIcon className="w-4 h-4" />
+                      <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                            {items.length}
+                          </div>
+                          <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                            {category}
+                          </h4>
                         </div>
-                        <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                          {cat.category}
-                        </h4>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        {filteredItems.map((item) => {
+                        {items.map((item) => {
                           const isChecked = selectedFacilities.includes(item.id);
                           return (
                             <div
                               key={item.id}
-                              onClick={() => handleToggleFacility(item.id)}
-                              className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                                isEditing ? "cursor-pointer" : ""
-                              } ${
+                              className={`group flex items-center justify-between p-3 rounded-xl border transition-all ${
                                 isChecked
                                   ? "border-blue-700/40 bg-blue-700/5 dark:bg-blue-900/15"
                                   : "border-[var(--border)] bg-[var(--surface)] opacity-70"
                               }`}
                             >
-                              <span
-                                className={`text-xs font-semibold ${
-                                  isChecked ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
-                                }`}
-                              >
-                                {item.name}
-                              </span>
-
                               <div
-                                className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
-                                  isChecked
-                                    ? "bg-blue-700 text-white"
-                                    : "border border-[var(--border)] bg-transparent"
+                                onClick={() => handleToggleFacility(item.id)}
+                                className={`flex items-center gap-2.5 flex-1 select-none ${
+                                  isEditing ? "cursor-pointer" : ""
                                 }`}
                               >
-                                {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                <div
+                                  className={`w-4 h-4 rounded flex items-center justify-center transition-colors shrink-0 ${
+                                    isChecked
+                                      ? "bg-blue-700 text-white"
+                                      : "border border-[var(--border)] bg-transparent"
+                                  }`}
+                                >
+                                  {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold ${
+                                    isChecked ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
+                                  }`}
+                                >
+                                  {item.name}
+                                </span>
                               </div>
+
+                              {/* CRUD Actions on Facility */}
+                              {isEditing && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pl-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingFacility(item);
+                                      setIsFacilityModalOpen(true);
+                                    }}
+                                    className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors cursor-pointer"
+                                    title="Edit Facility"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  {item.isCustom && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteFacility(item.id)}
+                                      className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                                      title="Delete Facility"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1053,19 +1392,19 @@ export default function HotelPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 3: MEDIA & GALLERY                                            */}
+          {/* TAB 3: MEDIA & GALLERY (CRUD IMPLEMENTED)                         */}
           {/* ================================================================= */}
           {activeTab === "media" && (
             <div className="space-y-8">
-              {/* Primary Hero Cover Banner */}
+              {/* Primary Hero Cover Showcase */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Primary Showcase Hero Cover
-                  </h3>
-                  {isEditing && (
-                    <span className="text-xs text-[var(--text-secondary)]">Displayed on guest portals & booking headers</span>
-                  )}
+                  <div>
+                    <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                      Primary Showcase Hero Cover
+                    </h3>
+                    <span className="text-xs text-[var(--text-secondary)]">Displayed on guest portals, website headers, and booking cards</span>
+                  </div>
                 </div>
 
                 <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-slate-900 h-64 md:h-80 shadow-xs group">
@@ -1078,11 +1417,11 @@ export default function HotelPage() {
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
                       <ImageIcon className="w-12 h-12 mb-2 opacity-50" />
-                      <span className="text-sm">No cover photo set</span>
+                      <span className="text-sm">No hero cover photo set</span>
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-6">
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent flex flex-col justify-end p-6">
                     <div className="flex items-center justify-between text-white">
                       <div>
                         <span className="text-xs uppercase tracking-wider text-blue-300 font-mono">Master Cover</span>
@@ -1096,20 +1435,20 @@ export default function HotelPage() {
                 </div>
 
                 {isEditing && (
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex items-center gap-2 pt-1">
                     <input
                       type="url"
                       name="heroImageUrl"
                       value={heroImage}
                       onChange={(e) => setHeroImage(e.target.value)}
-                      placeholder="Enter High-Resolution Hero Cover Image URL..."
+                      placeholder="Paste high-resolution hero cover image URL..."
                       className="flex-1 h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                     />
                   </div>
                 )}
               </div>
 
-              {/* Property Gallery Grid */}
+              {/* Property Gallery Grid with Full CRUD */}
               <div className="space-y-4 pt-4 border-t border-[var(--border)]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
@@ -1121,319 +1460,472 @@ export default function HotelPage() {
                     </span>
                   </div>
 
-                  {isEditing && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="url"
-                        placeholder="Image URL..."
-                        value={newImageUrl}
-                        onChange={(e) => setNewImageUrl(e.target.value)}
-                        className="w-48 sm:w-60 h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Title (e.g. Sunset Sky Pool)"
-                        value={newImageTitle}
-                        onChange={(e) => setNewImageTitle(e.target.value)}
-                        className="w-36 h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                      <select
-                        value={newImageCategory}
-                        onChange={(e) => setNewImageCategory(e.target.value as any)}
-                        className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      >
-                        <option value="facade">Facade</option>
-                        <option value="lobby">Lobby</option>
-                        <option value="dining">Dining</option>
-                        <option value="wellness">Wellness & Spa</option>
-                        <option value="outdoors">Outdoors</option>
-                        <option value="general">General</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAddGalleryImage}
-                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Photo</span>
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingGalleryItem(null);
+                      setIsGalleryModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add New Photo</span>
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {gallery.map((img) => (
-                    <div
-                      key={img.id}
-                      className="group relative rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] shadow-xs aspect-[4/3]"
-                    >
-                      <img
-                        src={img.url}
-                        alt={img.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-4 text-white">
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-blue-300">
-                          {img.category}
-                        </span>
-                        <span className="text-sm font-bold truncate">{img.title}</span>
-                      </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                  {gallery.map((img) => {
+                    const isCurrentCover = heroImage === img.url;
+                    return (
+                      <div
+                        key={img.id}
+                        className="group relative rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] shadow-xs flex flex-col"
+                      >
+                        <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
+                          <img
+                            src={img.url}
+                            alt={img.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-3.5 text-white">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-blue-300">
+                              {img.category}
+                            </span>
+                            <span className="text-sm font-bold truncate">{img.title}</span>
+                          </div>
 
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGalleryImage(img.id)}
-                          className="absolute top-3 right-3 w-7 h-7 rounded-full bg-red-600/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 shadow-md cursor-pointer"
-                          title="Remove Photo"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                          {isCurrentCover && (
+                            <span className="absolute top-2.5 left-2.5 bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                              Current Hero Cover
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Card Meta & CRUD Actions */}
+                        <div className="p-3 bg-[var(--surface)] flex items-center justify-between text-xs border-t border-[var(--border)]">
+                          <span className="text-[var(--text-secondary)] truncate flex-1 pr-2">
+                            {img.description || "Verified property photo"}
+                          </span>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setHeroImage(img.url);
+                                toast({ title: "Set as Master Hero Cover" });
+                              }}
+                              className="px-2 py-1 rounded text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors cursor-pointer"
+                              title="Set as Hero Cover"
+                            >
+                              Make Cover
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingGalleryItem(img);
+                                setIsGalleryModalOpen(true);
+                              }}
+                              className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                              title="Edit Photo"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteGalleryItem(img.id)}
+                              className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                              title="Delete Photo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
 
           {/* ================================================================= */}
-          {/* TAB 4: POLICIES & REFUNDS (FULL-WIDTH POLICY SUITE)               */}
+          {/* TAB 4: POLICIES & REFUNDS (EXPANDABLE & COLLAPSIBLE ACCORDIONS)   */}
           {/* ================================================================= */}
           {activeTab === "policies" && (
-            <div className="space-y-8">
-              {/* Cancellation & Refund Policy */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xs space-y-5">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
-                  <div>
-                    <h3 className="text-base font-bold text-[var(--text-primary)]">
-                      Cancellation & Refund Policy Architecture
-                    </h3>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      Governs booking deposit returns, late cancellations, and refund processing schedules
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                      Policy Archetype
-                    </label>
-                    {isEditing ? (
-                      <select
-                        name="cancellationPolicyType"
-                        defaultValue={mergedSettings.cancellationPolicyType || "moderate"}
-                        className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      >
-                        <option value="flexible">Flexible (24 Hours Prior)</option>
-                        <option value="moderate">Moderate (48 Hours Prior)</option>
-                        <option value="strict">Strict (7 Days Prior)</option>
-                        <option value="non_refundable">100% Non-Refundable</option>
-                      </select>
-                    ) : (
-                      <span className="text-sm font-bold text-[var(--text-primary)] capitalize">
-                        {mergedSettings.cancellationPolicyType || "moderate"}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                      Free Cancellation Window
-                    </label>
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="cancellationFreeHours"
-                          defaultValue={mergedSettings.cancellationFreeHours || 48}
-                          className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <span className="text-xs text-[var(--text-secondary)]">Hours before check-in</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        Up to {mergedSettings.cancellationFreeHours || 48} hours prior
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                      Refund Settlement Timeline
-                    </label>
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="refundProcessingDays"
-                          defaultValue={mergedSettings.refundProcessingDays || 5}
-                          className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <span className="text-xs text-[var(--text-secondary)]">Business days</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {mergedSettings.refundProcessingDays || 5} Business Days
-                      </span>
-                    )}
-                  </div>
-                </div>
-
+            <div className="space-y-6">
+              {/* Header with Expand All / Collapse All */}
+              <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
                 <div>
-                  <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                    Official Cancellation & Refund Terms (Full Text)
-                  </label>
-                  <RichTextEditor
-                    name="refundTermsText"
-                    defaultValue={mergedSettings.refundTermsText}
-                    isEditable={isEditing}
-                    minHeight="220px"
-                  />
-                </div>
-              </div>
-
-              {/* Guest Folio T&C Footer */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xs space-y-3">
-                <div className="border-b border-[var(--border)] pb-3">
                   <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Guest Folio & Invoice Legal T&C Footer
+                    Hotel Policies, Refund Terms & Legal Disclaimers
                   </h3>
                   <span className="text-xs text-[var(--text-secondary)]">
-                    Standardized legal statement rendered at the foot of all guest folios and checkout bills
+                    All legal statements and agreements support formatted rich-text editing
                   </span>
                 </div>
-                <RichTextEditor
-                  name="folioTermsFooter"
-                  defaultValue={mergedSettings.folioTermsFooter}
-                  isEditable={isEditing}
-                  minHeight="180px"
-                />
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleAllPolicies(true)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>Expand All</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAllPolicies(false)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span>Collapse All</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Registration Card Agreement */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xs space-y-3">
-                <div className="border-b border-[var(--border)] pb-3">
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Arrival Registration Card Agreement
-                  </h3>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    Pre-configured declaration signed by guests on arrival via physical or digital registration
-                  </span>
+              {/* ACCORDION 1: Cancellation & Refund Policy */}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
+                <div
+                  onClick={() => togglePolicyCollapse("refund")}
+                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                      CR
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Official Cancellation & Refund Policy (Full Text)
+                      </h4>
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        Governs free cancellation windows, late penalty fees, and settlement timelines
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Active Policy
+                    </span>
+                    {expandedPolicies.refund ? (
+                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                    )}
+                  </div>
                 </div>
-                <RichTextEditor
-                  name="registrationCardDisclaimer"
-                  defaultValue={mergedSettings.registrationCardDisclaimer}
-                  isEditable={isEditing}
-                  minHeight="180px"
-                />
+
+                {expandedPolicies.refund && (
+                  <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-[var(--border)]">
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
+                          Policy Archetype
+                        </label>
+                        {isEditing ? (
+                          <select
+                            name="cancellationPolicyType"
+                            defaultValue={hotel?.settings?.cancellationPolicyType || "moderate"}
+                            className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          >
+                            <option value="flexible">Flexible (24 Hours Prior)</option>
+                            <option value="moderate">Moderate (48 Hours Prior)</option>
+                            <option value="strict">Strict (7 Days Prior)</option>
+                            <option value="non_refundable">100% Non-Refundable</option>
+                          </select>
+                        ) : (
+                          <span className="text-sm font-bold text-[var(--text-primary)] capitalize">
+                            {hotel?.settings?.cancellationPolicyType || "moderate"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
+                          Free Cancellation Window
+                        </label>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              name="cancellationFreeHours"
+                              defaultValue={hotel?.settings?.cancellationFreeHours ?? 48}
+                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                            />
+                            <span className="text-xs text-[var(--text-secondary)]">Hours before check-in</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-bold text-[var(--text-primary)]">
+                            Up to {hotel?.settings?.cancellationFreeHours ?? 48} hours prior
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
+                          Refund Settlement Timeline
+                        </label>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              name="refundProcessingDays"
+                              defaultValue={hotel?.settings?.refundProcessingDays ?? 5}
+                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                            />
+                            <span className="text-xs text-[var(--text-secondary)]">Business days</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-bold text-[var(--text-primary)]">
+                            {hotel?.settings?.refundProcessingDays ?? 5} Business Days
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-2">
+                        Official Cancellation & Refund Policy Document
+                      </label>
+                      <RichTextEditor
+                        name="refundTermsText"
+                        value={refundText}
+                        onChange={setRefundText}
+                        isEditable={isEditing}
+                        minHeight="240px"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Smoking & Pet Policies */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xs space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Cigarette className="w-4 h-4 text-rose-600" />
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">Smoking Policy</h4>
+              {/* ACCORDION 2: Guest Folio Legal T&C Footer */}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
+                <div
+                  onClick={() => togglePolicyCollapse("folio")}
+                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                      TC
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Guest Folio & Invoice Legal T&C Footer
+                      </h4>
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        Standardized legal statement rendered at the foot of all guest folios and checkout bills
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                      <span className="text-[var(--text-secondary)]">Room Policy</span>
-                      {isEditing ? (
-                        <select
-                          name="smokingPolicy"
-                          defaultValue={mergedSettings.smokingPolicy || "strictly_non_smoking"}
-                          className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        >
-                          <option value="strictly_non_smoking">Strictly Non-Smoking Indoors</option>
-                          <option value="designated_areas">Designated Outdoor Smoking Zones Only</option>
-                          <option value="allowed">Smoking Permitted</option>
-                        </select>
-                      ) : (
-                        <span className="font-semibold text-rose-600">
-                          {mergedSettings.smokingPolicy === "designated_areas"
-                            ? "Designated Outdoor Zones Only"
-                            : mergedSettings.smokingPolicy === "allowed"
-                            ? "Smoking Permitted"
-                            : "Strictly Non-Smoking Indoors"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                      <span className="text-[var(--text-secondary)]">Deep Clean Violation Fee</span>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[var(--text-secondary)]">$</span>
-                          <input
-                            type="number"
-                            name="smokingPenaltyFee"
-                            defaultValue={mergedSettings.smokingPenaltyFee || 250}
-                            min={0}
-                            className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                          />
-                          <span className="text-[var(--text-secondary)]">USD / 15,000 ETB</span>
-                        </div>
-                      ) : (
-                        <span className="font-mono font-bold text-[var(--text-primary)]">
-                          ${mergedSettings.smokingPenaltyFee || 250} USD / 15,000 ETB
-                        </span>
-                      )}
-                    </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                      Invoice Footer
+                    </span>
+                    {expandedPolicies.folio ? (
+                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                    )}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xs space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Dog className="w-4 h-4 text-amber-600" />
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">Pet Accommodation Policy</h4>
+                {expandedPolicies.folio && (
+                  <div className="p-6">
+                    <RichTextEditor
+                      name="folioTermsFooter"
+                      value={folioFooterText}
+                      onChange={setFolioFooterText}
+                      isEditable={isEditing}
+                      minHeight="180px"
+                    />
                   </div>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                      <span className="text-[var(--text-secondary)]">Policy Status</span>
-                      {isEditing ? (
-                        <select
-                          name="petPolicy"
-                          defaultValue={mergedSettings.petPolicy || "not_allowed"}
-                          className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        >
-                          <option value="not_allowed">Certified Guide & Service Dogs Only</option>
-                          <option value="charges_apply">Pets Allowed (Surcharge Applies)</option>
-                          <option value="allowed">Pets Fully Welcome (All Breeds)</option>
-                        </select>
-                      ) : (
-                        <span className="font-semibold text-[var(--text-primary)]">
-                          {mergedSettings.petPolicy === "allowed"
-                            ? "Pets Fully Welcome (All Breeds)"
-                            : mergedSettings.petPolicy === "charges_apply"
-                            ? "Pets Allowed (Surcharge Applies)"
-                            : "Certified Guide & Service Dogs Only"}
-                        </span>
-                      )}
+                )}
+              </div>
+
+              {/* ACCORDION 3: Arrival Registration Card Agreement */}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
+                <div
+                  onClick={() => togglePolicyCollapse("regCard")}
+                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+                      RC
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                      <span className="text-[var(--text-secondary)]">Pet Cleaning Deposit</span>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            name="petFee"
-                            defaultValue={mergedSettings.petFee || 0}
-                            min={0}
-                            placeholder="0"
-                            className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                          />
-                          <span className="text-[var(--text-secondary)]">ETB (0 = waived)</span>
-                        </div>
-                      ) : (
-                        <span className="font-mono font-bold text-[var(--text-primary)]">
-                          {mergedSettings.petFee && mergedSettings.petFee > 0
-                            ? `${mergedSettings.petFee} ETB per stay`
-                            : "Waived for Service Animals"}
-                        </span>
-                      )}
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Arrival Registration Card Agreement
+                      </h4>
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        Pre-configured declaration signed by guests on arrival via physical or digital registration
+                      </span>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      Check-In Agreement
+                    </span>
+                    {expandedPolicies.regCard ? (
+                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                    )}
                   </div>
                 </div>
+
+                {expandedPolicies.regCard && (
+                  <div className="p-6">
+                    <RichTextEditor
+                      name="registrationCardDisclaimer"
+                      value={regCardText}
+                      onChange={setRegCardText}
+                      isEditable={isEditing}
+                      minHeight="180px"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ACCORDION 4: Smoking & Pet Accommodation Policies */}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
+                <div
+                  onClick={() => togglePolicyCollapse("smokingPet")}
+                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold text-xs">
+                      SP
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                        Smoking & Pet Accommodation Policies
+                      </h4>
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        Room cleanliness mandates, service animals, and deep cleaning penalty fines
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {expandedPolicies.smokingPet ? (
+                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                    )}
+                  </div>
+                </div>
+
+                {expandedPolicies.smokingPet && (
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Cigarette className="w-4 h-4 text-rose-600" />
+                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Smoking Policy</h5>
+                      </div>
+                      <div className="space-y-3 text-xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
+                          <span className="text-[var(--text-secondary)]">Room Policy</span>
+                          {isEditing ? (
+                            <select
+                              name="smokingPolicy"
+                              defaultValue={hotel?.settings?.smokingPolicy || "strictly_non_smoking"}
+                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                            >
+                              <option value="strictly_non_smoking">Strictly Non-Smoking Indoors</option>
+                              <option value="designated_areas">Designated Outdoor Smoking Zones Only</option>
+                              <option value="allowed">Smoking Permitted</option>
+                            </select>
+                          ) : (
+                            <span className="font-semibold text-rose-600">
+                              {hotel?.settings?.smokingPolicy === "designated_areas"
+                                ? "Designated Outdoor Zones Only"
+                                : hotel?.settings?.smokingPolicy === "allowed"
+                                ? "Smoking Permitted"
+                                : "Strictly Non-Smoking Indoors"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
+                          <span className="text-[var(--text-secondary)]">Deep Clean Violation Fee</span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[var(--text-secondary)]">$</span>
+                              <input
+                                type="number"
+                                name="smokingPenaltyFee"
+                                defaultValue={hotel?.settings?.smokingPenaltyFee ?? 250}
+                                min={0}
+                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                              />
+                              <span className="text-[var(--text-secondary)]">USD / 15,000 ETB</span>
+                            </div>
+                          ) : (
+                            <span className="font-mono font-bold text-[var(--text-primary)]">
+                              ${hotel?.settings?.smokingPenaltyFee ?? 250} USD / 15,000 ETB
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Dog className="w-4 h-4 text-amber-600" />
+                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Pet Accommodation Policy</h5>
+                      </div>
+                      <div className="space-y-3 text-xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
+                          <span className="text-[var(--text-secondary)]">Policy Status</span>
+                          {isEditing ? (
+                            <select
+                              name="petPolicy"
+                              defaultValue={hotel?.settings?.petPolicy || "not_allowed"}
+                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                            >
+                              <option value="not_allowed">Certified Guide & Service Dogs Only</option>
+                              <option value="charges_apply">Pets Allowed (Surcharge Applies)</option>
+                              <option value="allowed">Pets Fully Welcome (All Breeds)</option>
+                            </select>
+                          ) : (
+                            <span className="font-semibold text-[var(--text-primary)]">
+                              {hotel?.settings?.petPolicy === "allowed"
+                                ? "Pets Fully Welcome (All Breeds)"
+                                : hotel?.settings?.petPolicy === "charges_apply"
+                                ? "Pets Allowed (Surcharge Applies)"
+                                : "Certified Guide & Service Dogs Only"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
+                          <span className="text-[var(--text-secondary)]">Pet Cleaning Deposit</span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                name="petFee"
+                                defaultValue={hotel?.settings?.petFee ?? 0}
+                                min={0}
+                                placeholder="0"
+                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                              />
+                              <span className="text-[var(--text-secondary)]">ETB (0 = waived)</span>
+                            </div>
+                          ) : (
+                            <span className="font-mono font-bold text-[var(--text-primary)]">
+                              {hotel?.settings?.petFee && hotel.settings.petFee > 0
+                                ? `${hotel.settings.petFee} ETB per stay`
+                                : "Waived for Service Animals"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1485,11 +1977,11 @@ export default function HotelPage() {
                       <input
                         type="time"
                         name="earlyCheckInAllowedTime"
-                        defaultValue={mergedSettings.earlyCheckInAllowedTime || "10:00"}
+                        defaultValue={hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{mergedSettings.earlyCheckInAllowedTime || "10:00"} (Complimentary)</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.earlyCheckInAllowedTime || "10:00"} (Complimentary)</span>
                     )}
                   </div>
 
@@ -1500,7 +1992,7 @@ export default function HotelPage() {
                         <input
                           type="number"
                           name="lateCheckOutGracePeriod"
-                          defaultValue={mergedSettings.lateCheckOutGracePeriod || 30}
+                          defaultValue={hotel?.settings?.lateCheckOutGracePeriod ?? 30}
                           min={0}
                           max={120}
                           className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
@@ -1508,7 +2000,7 @@ export default function HotelPage() {
                         <span className="text-xs text-[var(--text-secondary)]">Minutes past 12:00</span>
                       </div>
                     ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{mergedSettings.lateCheckOutGracePeriod || 30} minutes</span>
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutGracePeriod ?? 30} minutes</span>
                     )}
                   </div>
 
@@ -1518,11 +2010,11 @@ export default function HotelPage() {
                       <input
                         type="time"
                         name="lateCheckOutHalfDayCutoff"
-                        defaultValue={mergedSettings.lateCheckOutHalfDayCutoff || "15:00"}
+                        defaultValue={hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"}
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{mergedSettings.lateCheckOutHalfDayCutoff || "15:00"} (Full night billed past cutoff)</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"} (Full night billed past cutoff)</span>
                     )}
                   </div>
                 </div>
@@ -1541,7 +2033,7 @@ export default function HotelPage() {
                     {isEditing ? (
                       <select
                         name="nightAuditMode"
-                        defaultValue={mergedSettings.nightAuditMode || "auto"}
+                        defaultValue={hotel?.settings?.nightAuditMode || "auto"}
                         className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       >
                         <option value="auto">Scheduled Automatic Roll</option>
@@ -1549,7 +2041,7 @@ export default function HotelPage() {
                       </select>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)] capitalize">
-                        {mergedSettings.nightAuditMode === "auto" ? "Scheduled Automatic Roll" : "Manual Execution"}
+                        {hotel?.settings?.nightAuditMode === "manual" ? "Manual Execution" : "Scheduled Automatic Roll"}
                       </span>
                     )}
                   </div>
@@ -1560,11 +2052,11 @@ export default function HotelPage() {
                       <input
                         type="time"
                         name="nightAuditTime"
-                        defaultValue={mergedSettings.nightAuditTime || "02:00"}
+                        defaultValue={hotel?.settings?.nightAuditTime || "02:00"}
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{mergedSettings.nightAuditTime || "02:00"} AM</span>
+                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{hotel?.settings?.nightAuditTime || "02:00"} AM</span>
                     )}
                   </div>
 
@@ -1574,11 +2066,11 @@ export default function HotelPage() {
                       <input
                         type="time"
                         name="noShowReleaseWindow"
-                        defaultValue={mergedSettings.noShowReleaseWindow || "18:00"}
+                        defaultValue={hotel?.settings?.noShowReleaseWindow || "18:00"}
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{mergedSettings.noShowReleaseWindow || "18:00"}</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.noShowReleaseWindow || "18:00"}</span>
                     )}
                   </div>
 
@@ -1589,7 +2081,7 @@ export default function HotelPage() {
                         <input
                           type="number"
                           name="overbookingThreshold"
-                          defaultValue={mergedSettings.overbookingThreshold || 2}
+                          defaultValue={hotel?.settings?.overbookingThreshold ?? 2}
                           min={0}
                           max={15}
                           className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
@@ -1597,7 +2089,7 @@ export default function HotelPage() {
                         <span className="text-xs text-[var(--text-secondary)]">% overbooking allowed</span>
                       </div>
                     ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{mergedSettings.overbookingThreshold || 2}%</span>
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{hotel?.settings?.overbookingThreshold ?? 2}%</span>
                     )}
                   </div>
                 </div>
@@ -1606,7 +2098,7 @@ export default function HotelPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 6: REVENUE & PAYMENTS                                         */}
+          {/* TAB 6: REVENUE & PAYMENTS (RECIPIENT ACCOUNTS CRUD/SPECIFIERS)    */}
           {/* ================================================================= */}
           {activeTab === "revenue" && (
             <div className="space-y-8">
@@ -1624,12 +2116,12 @@ export default function HotelPage() {
                       <input
                         type="text"
                         name="invoicePrefix"
-                        defaultValue={mergedSettings.invoicePrefix || "NGH-INV-"}
+                        defaultValue={hotel?.settings?.invoicePrefix || "NGH-INV-"}
                         className="flex-1 h-9 px-3 text-sm font-mono uppercase rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
                       <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)]">
-                        {mergedSettings.invoicePrefix || "NGH-INV-"}00001
+                        {hotel?.settings?.invoicePrefix || "NGH-INV-"}00001
                       </span>
                     )}
                   </div>
@@ -1640,12 +2132,12 @@ export default function HotelPage() {
                       <input
                         type="text"
                         name="receiptPrefix"
-                        defaultValue={mergedSettings.receiptPrefix || "NGH-REC-"}
+                        defaultValue={hotel?.settings?.receiptPrefix || "NGH-REC-"}
                         className="flex-1 h-9 px-3 text-sm font-mono uppercase rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
                       <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)]">
-                        {mergedSettings.receiptPrefix || "NGH-REC-"}00001
+                        {hotel?.settings?.receiptPrefix || "NGH-REC-"}00001
                       </span>
                     )}
                   </div>
@@ -1656,56 +2148,100 @@ export default function HotelPage() {
                       <input
                         type="text"
                         name="proformaPrefix"
-                        defaultValue={mergedSettings.proformaPrefix || "NGH-PRO-"}
+                        defaultValue={hotel?.settings?.proformaPrefix || "NGH-PRO-"}
                         className="flex-1 h-9 px-3 text-sm font-mono uppercase rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
                       <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)]">
-                        {mergedSettings.proformaPrefix || "NGH-PRO-"}00001
+                        {hotel?.settings?.proformaPrefix || "NGH-PRO-"}00001
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Payment Channels */}
+              {/* Active Payment Channels WITH Recipient Account Specifiers */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
                 <div>
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Active Payment Channels
+                    Payment Services & Recipient Accounts
                   </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    Configure merchant codes, recipient till numbers, bank accounts, and payment endpoints
+                  </p>
                 </div>
-                <div className="md:col-span-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      { id: "telebirr", label: "Telebirr (Ethio Telecom)", tag: "Mobile Money" },
-                      { id: "cbe_birr", label: "CBE Birr (Commercial Bank)", tag: "Direct Banking" },
-                      { id: "chapa", label: "Chapa Payment Gateway", tag: "Local & Card Gateway" },
-                      { id: "visa_mastercard", label: "Visa / Mastercard / Amex", tag: "International POS" },
-                      { id: "cash", label: "Cash & Direct Deposit", tag: "Front Desk Cashier" },
-                    ].map((gw) => {
-                      const isEnabled = gateways.includes(gw.id);
+                <div className="md:col-span-2 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {paymentAccounts.map((account) => {
                       return (
                         <div
-                          key={gw.id}
-                          onClick={() => handleToggleGateway(gw.id)}
-                          className={`p-3.5 rounded-xl border transition-all ${
-                            isEditing ? "cursor-pointer" : ""
-                          } ${
-                            isEnabled
-                              ? "border-blue-700/40 bg-blue-700/5 dark:bg-blue-900/20"
-                              : "border-[var(--border)] bg-[var(--surface)] opacity-60"
+                          key={account.channelId}
+                          className={`rounded-2xl border p-4 transition-all flex flex-col justify-between ${
+                            account.isEnabled
+                              ? "border-blue-700/40 bg-blue-700/5 dark:bg-blue-900/15"
+                              : "border-[var(--border)] bg-[var(--surface)] opacity-70"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-[var(--text-primary)]">{gw.label}</span>
-                            <span
-                              className={`w-2.5 h-2.5 rounded-full ${
-                                isEnabled ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-slate-300 dark:bg-slate-700"
-                              }`}
-                            />
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                              <span className="text-sm font-bold text-[var(--text-primary)]">
+                                {account.channelName}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePaymentChannel(account.channelId)}
+                                  disabled={!isEditing}
+                                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
+                                    account.isEnabled ? "bg-blue-700" : "bg-slate-300 dark:bg-slate-700"
+                                  }`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                                      account.isEnabled ? "right-0.5" : "left-0.5"
+                                    }`}
+                                  />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Recipient Account Specifier Details */}
+                            <div className="mt-3 space-y-1.5 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[var(--text-secondary)]">Recipient Account / Till:</span>
+                                <span className="font-mono font-bold text-[var(--text-primary)]">
+                                  {account.accountNumber || "Not Configured"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[var(--text-secondary)]">Account Name:</span>
+                                <span className="font-medium text-[var(--text-primary)] truncate max-w-[150px]">
+                                  {account.accountName || "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[var(--text-secondary)]">Provider / Bank:</span>
+                                <span className="text-[var(--text-secondary)]">{account.bankOrProvider || "—"}</span>
+                              </div>
+                              {account.additionalIdentifier && (
+                                <div className="text-[10px] text-[var(--text-secondary)] font-mono pt-1">
+                                  {account.additionalIdentifier}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[11px] text-[var(--text-secondary)] font-mono block mt-1">{gw.tag}</span>
+
+                          {/* Edit Specifiers Button */}
+                          <div className="pt-3 mt-3 border-t border-[var(--border)] flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPaymentAccount(account)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer"
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                              <span>Configure Recipient Specifier</span>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1726,7 +2262,7 @@ export default function HotelPage() {
                     {isEditing ? (
                       <select
                         name="defaultGuaranteePolicy"
-                        defaultValue={mergedSettings.defaultGuaranteePolicy || "credit_card"}
+                        defaultValue={hotel?.settings?.defaultGuaranteePolicy || "credit_card"}
                         className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       >
                         <option value="credit_card">Credit Card Pre-Authorization</option>
@@ -1735,9 +2271,9 @@ export default function HotelPage() {
                       </select>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {mergedSettings.defaultGuaranteePolicy === "first_night_deposit"
+                        {hotel?.settings?.defaultGuaranteePolicy === "first_night_deposit"
                           ? "First Night Deposit Required"
-                          : mergedSettings.defaultGuaranteePolicy === "non_guaranteed"
+                          : hotel?.settings?.defaultGuaranteePolicy === "non_guaranteed"
                           ? "Non-Guaranteed"
                           : "Credit Card Pre-Authorization"}
                       </span>
@@ -1753,7 +2289,7 @@ export default function HotelPage() {
                           <input
                             type="number"
                             name="ageTierInfantMax"
-                            defaultValue={mergedSettings.ageTierInfantMax || 2}
+                            defaultValue={hotel?.settings?.ageTierInfantMax ?? 2}
                             className="h-8 w-full px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)]"
                           />
                         </div>
@@ -1762,7 +2298,7 @@ export default function HotelPage() {
                           <input
                             type="number"
                             name="ageTierChildMax"
-                            defaultValue={mergedSettings.ageTierChildMax || 12}
+                            defaultValue={hotel?.settings?.ageTierChildMax ?? 12}
                             className="h-8 w-full px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)]"
                           />
                         </div>
@@ -1771,14 +2307,14 @@ export default function HotelPage() {
                           <input
                             type="number"
                             name="ageTierAdultMin"
-                            defaultValue={mergedSettings.ageTierAdultMin || 13}
+                            defaultValue={hotel?.settings?.ageTierAdultMin ?? 13}
                             className="h-8 w-full px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)]"
                           />
                         </div>
                       </div>
                     ) : (
                       <span className="text-xs font-mono font-medium text-[var(--text-secondary)]">
-                        Infant: 0–{mergedSettings.ageTierInfantMax || 2} &bull; Child: {(mergedSettings.ageTierInfantMax || 2) + 1}–{mergedSettings.ageTierChildMax || 12} &bull; Adult: {mergedSettings.ageTierAdultMin || 13}+
+                        Infant: 0–{hotel?.settings?.ageTierInfantMax ?? 2} &bull; Child: {(hotel?.settings?.ageTierInfantMax ?? 2) + 1}–{hotel?.settings?.ageTierChildMax ?? 12} &bull; Adult: {hotel?.settings?.ageTierAdultMin ?? 13}+
                       </span>
                     )}
                   </div>
@@ -1788,7 +2324,7 @@ export default function HotelPage() {
           )}
 
           {/* ================================================================= */}
-          {/* TAB 7: HOUSEKEEPING & DINING                                      */}
+          {/* TAB 7: HOUSEKEEPING & DINING (CRIBS & EXTRA BEDS CRUD)            */}
           {/* ================================================================= */}
           {activeTab === "housekeeping" && (
             <div className="space-y-8">
@@ -1805,7 +2341,7 @@ export default function HotelPage() {
                     {isEditing ? (
                       <select
                         name="checkoutTriggerState"
-                        defaultValue={mergedSettings.checkoutTriggerState || "dirty"}
+                        defaultValue={hotel?.settings?.checkoutTriggerState || "dirty"}
                         className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       >
                         <option value="dirty">Dirty (Requires Deep Cleaning)</option>
@@ -1813,7 +2349,7 @@ export default function HotelPage() {
                       </select>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)] capitalize">
-                        {mergedSettings.checkoutTriggerState || "dirty"}
+                        {hotel?.settings?.checkoutTriggerState || "dirty"}
                       </span>
                     )}
                   </div>
@@ -1825,7 +2361,7 @@ export default function HotelPage() {
                         <input
                           type="number"
                           name="linenChangeFrequency"
-                          defaultValue={mergedSettings.linenChangeFrequency || 3}
+                          defaultValue={hotel?.settings?.linenChangeFrequency ?? 3}
                           min={1}
                           max={7}
                           className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
@@ -1833,7 +2369,7 @@ export default function HotelPage() {
                         <span className="text-xs text-[var(--text-secondary)]">Days between full sheet change</span>
                       </div>
                     ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">Every {mergedSettings.linenChangeFrequency || 3} days</span>
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">Every {hotel?.settings?.linenChangeFrequency ?? 3} days</span>
                     )}
                   </div>
 
@@ -1844,14 +2380,14 @@ export default function HotelPage() {
                         <input
                           type="checkbox"
                           name="turndownServiceEnabled"
-                          defaultChecked={mergedSettings.turndownServiceEnabled !== false}
+                          defaultChecked={hotel?.settings?.turndownServiceEnabled !== false}
                           className="w-4 h-4 rounded text-blue-700 focus:ring-blue-700 border-[var(--border)]"
                         />
                         <span className="text-sm font-medium text-[var(--text-primary)]">Enable evening turndown service</span>
                       </label>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {mergedSettings.turndownServiceEnabled !== false ? "Active for Executive Rooms" : "Disabled"}
+                        {hotel?.settings?.turndownServiceEnabled !== false ? "Active for Executive Rooms" : "Disabled"}
                       </span>
                     )}
                   </div>
@@ -1871,7 +2407,7 @@ export default function HotelPage() {
                     {isEditing ? (
                       <select
                         name="defaultBoardBasis"
-                        defaultValue={mergedSettings.defaultBoardBasis || "bb"}
+                        defaultValue={hotel?.settings?.defaultBoardBasis || "bb"}
                         className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       >
                         <option value="ro">Room Only (RO)</option>
@@ -1881,11 +2417,11 @@ export default function HotelPage() {
                       </select>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {mergedSettings.defaultBoardBasis === "ro"
+                        {hotel?.settings?.defaultBoardBasis === "ro"
                           ? "Room Only (RO)"
-                          : mergedSettings.defaultBoardBasis === "hb"
+                          : hotel?.settings?.defaultBoardBasis === "hb"
                           ? "Half Board (HB)"
-                          : mergedSettings.defaultBoardBasis === "fb"
+                          : hotel?.settings?.defaultBoardBasis === "fb"
                           ? "Full Board (FB)"
                           : "Bed & Breakfast (BB)"}
                       </span>
@@ -1898,11 +2434,11 @@ export default function HotelPage() {
                       <input
                         type="text"
                         name="breakfastServiceHours"
-                        defaultValue={mergedSettings.breakfastServiceHours || "06:30 - 10:00"}
+                        defaultValue={hotel?.settings?.breakfastServiceHours || "06:30 - 10:00"}
                         className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{mergedSettings.breakfastServiceHours || "06:30 - 10:00"}</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.breakfastServiceHours || "06:30 - 10:00"}</span>
                     )}
                   </div>
 
@@ -1915,7 +2451,7 @@ export default function HotelPage() {
                           <input
                             type="number"
                             name="breakfastPriceAdult"
-                            defaultValue={mergedSettings.breakfastPriceAdult || 450}
+                            defaultValue={hotel?.settings?.breakfastPriceAdult ?? 450}
                             className="h-8 w-full px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)]"
                           />
                         </div>
@@ -1924,60 +2460,103 @@ export default function HotelPage() {
                           <input
                             type="number"
                             name="breakfastPriceChild"
-                            defaultValue={mergedSettings.breakfastPriceChild || 250}
+                            defaultValue={hotel?.settings?.breakfastPriceChild ?? 250}
                             className="h-8 w-full px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)]"
                           />
                         </div>
                       </div>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        Adult: {mergedSettings.breakfastPriceAdult || 450} ETB &bull; Child: {mergedSettings.breakfastPriceChild || 250} ETB
+                        Adult: {hotel?.settings?.breakfastPriceAdult ?? 450} ETB &bull; Child: {hotel?.settings?.breakfastPriceChild ?? 250} ETB
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Extra Bed & Crib Capacity */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
-                <div>
-                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Cribs & Extra Beds
-                  </h3>
-                </div>
-                <div className="md:col-span-2 space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Extra Bed Daily Fee</span>
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="extraBedDailyFee"
-                          defaultValue={mergedSettings.extraBedDailyFee || 800}
-                          className="w-32 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <span className="text-xs text-[var(--text-secondary)]">ETB per night</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{mergedSettings.extraBedDailyFee || 800} ETB / night</span>
-                    )}
+              {/* Cribs & Extra Beds CRUD Inventory Service */}
+              <div className="space-y-4 pt-4 border-t border-[var(--border)]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                      Cribs & Extra Beds Service Inventory
+                    </h3>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      Manage rollaway beds, infant baby cots, physical inventory caps, and daily rental fees
+                    </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Max Extra Beds / Room</span>
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        name="maxExtraBedsPerRoom"
-                        defaultValue={mergedSettings.maxExtraBedsPerRoom || 1}
-                        min={0}
-                        max={3}
-                        className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{mergedSettings.maxExtraBedsPerRoom || 1} Rollaway Bed</span>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingBedItem(null);
+                      setIsBedModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Bed / Crib</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {extraBeds.map((bed) => (
+                    <div
+                      key={bed.id}
+                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xs flex flex-col justify-between space-y-4 group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono uppercase tracking-wider text-blue-700 dark:text-blue-400 font-bold">
+                            {bed.type.toUpperCase()}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              bed.isComplimentary
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                : "bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                            }`}
+                          >
+                            {bed.isComplimentary ? "Complimentary" : `${bed.dailyFee} ETB / night`}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-bold text-[var(--text-primary)] mt-1.5">{bed.name}</h4>
+
+                        <div className="mt-3 space-y-1 text-xs text-[var(--text-secondary)]">
+                          <div className="flex items-center justify-between">
+                            <span>Sleeping Capacity:</span>
+                            <span className="font-semibold text-[var(--text-primary)]">{bed.capacity} Person</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Physical Stock Cap:</span>
+                            <span className="font-mono font-bold text-[var(--text-primary)]">{bed.totalInventory} Units</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* CRUD Actions */}
+                      <div className="pt-3 border-t border-[var(--border)] flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingBedItem(bed);
+                            setIsBedModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBedItem(bed.id)}
+                          className="p-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -2011,6 +2590,365 @@ export default function HotelPage() {
           </div>
         )}
       </form>
+
+      {/* =================================================================== */}
+      {/* MODAL 1: ADD / EDIT FACILITY (CRUD)                                 */}
+      {/* =================================================================== */}
+      <Dialog open={isFacilityModalOpen} onOpenChange={setIsFacilityModalOpen}>
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingFacility ? "Edit Facility" : "Add Custom Facility"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveFacility} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Facility / Service Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                defaultValue={editingFacility?.name || ""}
+                placeholder="e.g. Padél Court, Infinity Heliport"
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Category
+              </label>
+              <input
+                type="text"
+                name="category"
+                defaultValue={editingFacility?.category || "Sports, Fitness & Recreation"}
+                placeholder="e.g. Outdoors & Grounds, Wellness"
+                required
+                list="category-suggestions"
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+              <datalist id="category-suggestions">
+                {uniqueCategories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => setIsFacilityModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800"
+              >
+                {editingFacility ? "Update Facility" : "Create Facility"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 2: ADD / EDIT GALLERY PHOTO (CRUD)                            */}
+      {/* =================================================================== */}
+      <Dialog open={isGalleryModalOpen} onOpenChange={setIsGalleryModalOpen}>
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingGalleryItem ? "Edit Property Photo" : "Add Property Photo"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveGalleryItem} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Photo URL
+              </label>
+              <input
+                type="url"
+                name="url"
+                defaultValue={editingGalleryItem?.url || ""}
+                placeholder="https://images.unsplash.com/..."
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Photo Title
+              </label>
+              <input
+                type="text"
+                name="title"
+                defaultValue={editingGalleryItem?.title || ""}
+                placeholder="e.g. Sunset Sky Pool"
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Category
+              </label>
+              <select
+                name="category"
+                defaultValue={editingGalleryItem?.category || "general"}
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              >
+                <option value="facade">Facade & Exterior</option>
+                <option value="lobby">Lobby & Atrium</option>
+                <option value="dining">Dining & Bar</option>
+                <option value="wellness">Spa & Wellness</option>
+                <option value="outdoors">Outdoors & Grounds</option>
+                <option value="general">General Property</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Caption / Description
+              </label>
+              <input
+                type="text"
+                name="description"
+                defaultValue={editingGalleryItem?.description || ""}
+                placeholder="Short caption for guest views"
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                name="setAsCover"
+                id="setAsCover"
+                className="w-4 h-4 rounded text-blue-700"
+              />
+              <label htmlFor="setAsCover" className="text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                Set as Master Hero Cover Image
+              </label>
+            </div>
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => setIsGalleryModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800"
+              >
+                {editingGalleryItem ? "Update Photo" : "Add to Gallery"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 3: ADD / EDIT EXTRA BED & CRIB (CRUD)                         */}
+      {/* =================================================================== */}
+      <Dialog open={isBedModalOpen} onOpenChange={setIsBedModalOpen}>
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingBedItem ? "Edit Extra Bed / Crib" : "Add Extra Bed / Crib"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveBedItem} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Item Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                defaultValue={editingBedItem?.name || ""}
+                placeholder="e.g. Luxury Rollaway Bed"
+                required
+                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Type
+                </label>
+                <select
+                  name="type"
+                  defaultValue={editingBedItem?.type || "rollaway"}
+                  className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                >
+                  <option value="rollaway">Rollaway Bed</option>
+                  <option value="crib">Baby Cot / Crib</option>
+                  <option value="folding">Folding Bed</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Capacity (Guests)
+                </label>
+                <input
+                  type="number"
+                  name="capacity"
+                  min={1}
+                  max={3}
+                  defaultValue={editingBedItem?.capacity || 1}
+                  required
+                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Daily Rental Fee (ETB)
+                </label>
+                <input
+                  type="number"
+                  name="dailyFee"
+                  min={0}
+                  defaultValue={editingBedItem?.dailyFee ?? 800}
+                  required
+                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Available Inventory Cap
+                </label>
+                <input
+                  type="number"
+                  name="totalInventory"
+                  min={1}
+                  defaultValue={editingBedItem?.totalInventory || 10}
+                  required
+                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                name="isComplimentary"
+                id="isComplimentary"
+                defaultChecked={editingBedItem?.isComplimentary}
+                className="w-4 h-4 rounded text-blue-700"
+              />
+              <label htmlFor="isComplimentary" className="text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                Complimentary Service (Free of Charge)
+              </label>
+            </div>
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => setIsBedModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800"
+              >
+                {editingBedItem ? "Update Bed" : "Create Bed Option"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 4: CONFIGURE RECIPIENT ACCOUNT SPECIFIERS                     */}
+      {/* =================================================================== */}
+      <Dialog
+        open={Boolean(editingPaymentAccount)}
+        onOpenChange={(open) => {
+          if (!open) setEditingPaymentAccount(null);
+        }}
+      >
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              Configure {editingPaymentAccount?.channelName}
+            </DialogTitle>
+          </DialogHeader>
+          {editingPaymentAccount && (
+            <form onSubmit={handleSavePaymentAccount} className="space-y-4 pt-2">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Recipient Account / Till / Merchant Shortcode
+                </label>
+                <input
+                  type="text"
+                  name="accountNumber"
+                  defaultValue={editingPaymentAccount.accountNumber}
+                  placeholder="e.g. 10045239"
+                  required
+                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Registered Account / Merchant Holder Name
+                </label>
+                <input
+                  type="text"
+                  name="accountName"
+                  defaultValue={editingPaymentAccount.accountName}
+                  placeholder="e.g. Nexus Grand Hotel PLC"
+                  required
+                  className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Acquiring Bank / Provider Name
+                </label>
+                <input
+                  type="text"
+                  name="bankOrProvider"
+                  defaultValue={editingPaymentAccount.bankOrProvider}
+                  placeholder="e.g. Ethio Telecom, Commercial Bank of Ethiopia"
+                  required
+                  className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Additional Specifiers (SWIFT, Terminal TID, Phone)
+                </label>
+                <input
+                  type="text"
+                  name="additionalIdentifier"
+                  defaultValue={editingPaymentAccount.additionalIdentifier || ""}
+                  placeholder="e.g. +251 91 123 4567, SWIFT: CBETETAA"
+                  className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+              <DialogFooter className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPaymentAccount(null)}
+                  className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800"
+                >
+                  Save Recipient Details
+                </button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
