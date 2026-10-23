@@ -449,7 +449,7 @@ function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string
   switch (channelId) {
     case "telebirr":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#005cb9] to-[#00b0f0] flex items-center justify-center shadow-xs shrink-0 p-2 border border-white/20">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#005cb9] to-[#00b0f0] flex items-center justify-center shrink-0 p-1.5 border border-white/20">
           <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 12H27" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
             <path d="M18 12V27" stroke="white" strokeWidth="2.8" strokeLinecap="round" />
@@ -461,7 +461,7 @@ function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string
       );
     case "cbe_birr":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#671b50] to-[#8c226c] flex items-center justify-center shadow-xs shrink-0 p-2 border border-amber-400/25">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#671b50] to-[#8c226c] flex items-center justify-center shrink-0 p-1.5 border border-amber-400/25">
           <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="18" cy="8" r="1.5" fill="#FFCA08" />
             <path d="M18 8V27" stroke="#FFCA08" strokeWidth="2" strokeLinecap="round" />
@@ -474,7 +474,7 @@ function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string
       );
     case "chapa":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0A2540] to-[#123963] flex items-center justify-center shadow-xs shrink-0 p-2 border border-emerald-400/25">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#0A2540] to-[#123963] flex items-center justify-center shrink-0 p-1.5 border border-emerald-400/25">
           <svg viewBox="0 0 36 36" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M24 12C22.2 10.5 19.8 9.5 17 9.5C12.3 9.5 8.5 13.3 8.5 18C8.5 22.7 12.3 26.5 17 26.5C19.8 26.5 22.2 25.5 24 24" stroke="#00D084" strokeWidth="2.8" strokeLinecap="round" />
             <path d="M19 14L24 18L19 22" stroke="#00D084" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -483,9 +483,9 @@ function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string
       );
     case "visa_mastercard":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center shadow-xs shrink-0 p-1.5 border border-slate-700">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center shrink-0 p-1 border border-slate-700">
           <svg viewBox="0 0 36 26" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="26" rx="4" fill="#0f172a" />
+            <rect width="36" height="26" rx="3" fill="#0f172a" />
             <circle cx="13" cy="13" r="7" fill="#EB001B" fillOpacity="0.95" />
             <circle cx="23" cy="13" r="7" fill="#F79E1B" fillOpacity="0.95" />
             <path d="M18 8A7 7 0 0 1 18 18A7 7 0 0 1 18 8" fill="#FF5F00" />
@@ -494,42 +494,42 @@ function PaymentChannelLogo({ channelId, channelName = "" }: { channelId: string
       );
     case "bank_transfer":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#1e1b4b] to-[#0f172a] flex items-center justify-center shadow-xs shrink-0 border border-amber-500/25 text-amber-300">
-          <Landmark className="w-5 h-5 text-amber-300" />
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#1e1b4b] to-[#0f172a] flex items-center justify-center shrink-0 border border-amber-500/25 text-amber-300">
+          <Landmark className="w-4 h-4 text-amber-300" />
         </div>
       );
     case "cash":
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#064e3b] to-[#022c22] flex items-center justify-center shadow-xs shrink-0 border border-emerald-500/25 text-emerald-300">
-          <Banknote className="w-5 h-5 text-emerald-300" />
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#064e3b] to-[#022c22] flex items-center justify-center shrink-0 border border-emerald-500/25 text-emerald-300">
+          <Banknote className="w-4 h-4 text-emerald-300" />
         </div>
       );
     default: {
       const lower = (channelName || channelId).toLowerCase();
       if (lower.includes("mobile") || lower.includes("birr") || lower.includes("tele") || lower.includes("amole") || lower.includes("wallet") || lower.includes("pay")) {
         return (
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center shadow-xs shrink-0 border border-cyan-400/25 text-white">
-            <Smartphone className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center shrink-0 border border-cyan-400/25 text-white">
+            <Smartphone className="w-4 h-4 text-white" />
           </div>
         );
       }
       if (lower.includes("bank") || lower.includes("wire") || lower.includes("transfer") || lower.includes("abyssinia") || lower.includes("awash") || lower.includes("dashen") || lower.includes("cbe")) {
         return (
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 flex items-center justify-center shadow-xs shrink-0 border border-indigo-500/25 text-indigo-300">
-            <Landmark className="w-5 h-5 text-indigo-300" />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-900 to-slate-900 flex items-center justify-center shrink-0 border border-indigo-500/25 text-indigo-300">
+            <Landmark className="w-4 h-4 text-indigo-300" />
           </div>
         );
       }
       if (lower.includes("card") || lower.includes("pos") || lower.includes("visa") || lower.includes("master") || lower.includes("stripe") || lower.includes("terminal")) {
         return (
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-900 to-blue-950 flex items-center justify-center shadow-xs shrink-0 border border-blue-500/25 text-blue-300">
-            <CreditCard className="w-5 h-5 text-blue-300" />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-900 to-blue-950 flex items-center justify-center shrink-0 border border-blue-500/25 text-blue-300">
+            <CreditCard className="w-4 h-4 text-blue-300" />
           </div>
         );
       }
       const initials = (channelName || channelId).replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PS";
       return (
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-800 flex items-center justify-center shadow-xs shrink-0 border border-blue-400/30 text-white font-bold text-xs tracking-wider">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-700 to-indigo-800 flex items-center justify-center shrink-0 border border-blue-400/30 text-white font-bold text-xs tracking-wider">
           {initials}
         </div>
       );
@@ -2320,18 +2320,18 @@ export default function HotelPage() {
                       setEditingPaymentAccount(null);
                       setIsPaymentModalOpen(true);
                     }}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Payment Service</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {paymentAccounts.length === 0 ? (
-                    <div className="col-span-full py-12 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)]/30">
-                      <CreditCard className="mx-auto h-10 w-10 text-[var(--text-secondary)] mb-2 opacity-50" />
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">No payment channels registered</h4>
+                    <div className="col-span-full py-10 text-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-hover)]/30">
+                      <CreditCard className="mx-auto h-8 w-8 text-[var(--text-secondary)] mb-2 opacity-50" />
+                      <h4 className="text-sm font-semibold text-[var(--text-primary)]">No payment channels registered</h4>
                       <p className="text-xs text-[var(--text-secondary)] mt-1">
                         Add a payment service or merchant account to start accepting guest transactions.
                       </p>
@@ -2341,7 +2341,7 @@ export default function HotelPage() {
                           setEditingPaymentAccount(null);
                           setIsPaymentModalOpen(true);
                         }}
-                        className="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
+                        className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Payment Service</span>
@@ -2355,27 +2355,27 @@ export default function HotelPage() {
                       return (
                         <div
                           key={account.channelId}
-                          className={`group rounded-2xl border transition-all p-5 flex flex-col justify-between ${
+                          className={`group rounded-lg border transition-all p-4 flex flex-col justify-between ${
                             account.isEnabled
-                              ? "bg-[var(--surface)] border-[var(--border)] hover:border-slate-400/60 dark:hover:border-slate-600 shadow-xs"
-                              : "bg-[var(--surface-hover)]/40 border-[var(--border)] opacity-60"
+                              ? "bg-[var(--surface)] border-[var(--border)] hover:border-slate-400/60 dark:hover:border-slate-600"
+                              : "bg-[var(--surface-hover)]/30 border-[var(--border)] opacity-60"
                           }`}
                         >
                           <div>
                             {/* Card Header: Brand Logo + Provider Details + Toggle */}
-                            <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <PaymentChannelLogo channelId={account.channelId} channelName={account.channelName} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-sm font-bold text-[var(--text-primary)] truncate max-w-[140px]">
+                                    <h4 className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[150px]">
                                       {meta.title}
                                     </h4>
-                                    <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-secondary)]">
+                                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-secondary)]">
                                       {meta.category}
                                     </span>
                                   </div>
-                                  <span className="text-xs text-[var(--text-secondary)] font-medium block mt-0.5 truncate">
+                                  <span className="text-xs text-[var(--text-secondary)] block truncate mt-0.5">
                                     {account.bankOrProvider || meta.provider}
                                   </span>
                                 </div>
@@ -2394,57 +2394,55 @@ export default function HotelPage() {
                                   }
                                   handleTogglePaymentChannel(account.channelId);
                                 }}
-                                className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 mt-1 ${
+                                className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer shrink-0 ${
                                   account.isEnabled ? "bg-blue-700" : "bg-slate-300 dark:bg-slate-700"
                                 }`}
-                                title={account.isEnabled ? "Channel is Active" : "Channel is Disabled"}
+                                title={account.isEnabled ? "Active" : "Disabled"}
                               >
                                 <span
-                                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
                                     account.isEnabled ? "right-0.5" : "left-0.5"
                                   }`}
                                 />
                               </button>
                             </div>
 
-                            {/* Recipient Account Specifier Inset Card */}
-                            <div className="mt-4 rounded-xl bg-[var(--surface-hover)] p-3 border border-[var(--border)] space-y-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)]">
+                            {/* Clean Specifier Specifications with Sharp Dividers */}
+                            <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-1.5 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] uppercase font-mono text-[var(--text-secondary)] tracking-wider">
                                   {meta.idLabel}
                                 </span>
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="font-mono font-bold text-xs text-[var(--text-primary)] truncate max-w-[170px]">
-                                    {account.accountNumber || "Not Configured"}
-                                  </span>
+                                <div className="flex items-center gap-1 font-mono font-semibold text-[var(--text-primary)]">
+                                  <span>{account.accountNumber || "—"}</span>
                                   {account.accountNumber && (
                                     <button
                                       type="button"
                                       onClick={() => handleCopy(account.accountNumber, account.channelId)}
-                                      className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer transition-colors"
-                                      title="Copy account number"
+                                      className="p-0.5 text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer"
+                                      title="Copy"
                                     >
                                       {isCopied ? (
-                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                        <Check className="w-3 h-3 text-emerald-600" />
                                       ) : (
-                                        <Copy className="w-3.5 h-3.5" />
+                                        <Copy className="w-3 h-3" />
                                       )}
                                     </button>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border)]/60 text-xs">
-                                <span className="text-[11px] text-[var(--text-secondary)] shrink-0">Holder:</span>
-                                <span className="font-medium text-[var(--text-primary)] truncate max-w-[170px]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[var(--text-secondary)]">Account Holder</span>
+                                <span className="font-medium text-[var(--text-primary)] truncate max-w-[160px]">
                                   {account.accountName || "—"}
                                 </span>
                               </div>
 
                               {account.additionalIdentifier && (
-                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border)]/60 text-[11px] font-mono">
-                                  <span className="text-[var(--text-secondary)] shrink-0">Specifier:</span>
-                                  <span className="font-semibold text-blue-700 dark:text-blue-400 truncate max-w-[170px]">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[var(--text-secondary)]">Routing / Specifier</span>
+                                  <span className="font-mono text-blue-700 dark:text-blue-400 font-medium truncate max-w-[160px]">
                                     {account.additionalIdentifier}
                                   </span>
                                 </div>
@@ -2452,42 +2450,29 @@ export default function HotelPage() {
                             </div>
                           </div>
 
-                          {/* Card Footer: Live Status indicator + Configure & Delete Actions */}
-                          <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
-                              <span
-                                className={`w-2 h-2 rounded-full ${
-                                  account.isEnabled ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                                }`}
-                              />
-                              <span className={account.isEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--text-secondary)]"}>
-                                {account.isEnabled ? "Active Channel" : "Offline"}
-                              </span>
-                            </span>
+                          {/* Footer: Sharp Action Buttons, Zero Redundant Status Text */}
+                          <div className="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPaymentAccount(account);
+                                setIsPaymentModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border)] transition-colors cursor-pointer"
+                              title="Configure Account"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              <span>Configure</span>
+                            </button>
 
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingPaymentAccount(account);
-                                  setIsPaymentModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-700/10 hover:bg-blue-700/20 border border-blue-500/20 transition-all cursor-pointer"
-                                title="Edit payment service"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                                <span>Configure</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleDeletePaymentAccount(account.channelId)}
-                                className="p-1.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors cursor-pointer"
-                                title="Delete payment service"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePaymentAccount(account.channelId)}
+                              className="p-1 rounded-md text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                              title="Delete Service"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       );
@@ -3148,7 +3133,7 @@ export default function HotelPage() {
                 defaultValue={editingPaymentAccount?.channelName || ""}
                 placeholder="e.g. Awash Birr, Stripe Gateway, Bank of Abyssinia"
                 required
-                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
               />
             </div>
 
@@ -3160,7 +3145,7 @@ export default function HotelPage() {
                 <select
                   name="category"
                   defaultValue={editingPaymentAccount?.category || "Mobile Wallet"}
-                  className="w-full h-9 px-3 text-xs rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                 >
                   <option value="Mobile Wallet">Mobile Wallet</option>
                   <option value="Bank Wallet">Bank Wallet</option>
@@ -3182,7 +3167,7 @@ export default function HotelPage() {
                   defaultValue={editingPaymentAccount?.bankOrProvider || ""}
                   placeholder="e.g. Awash Bank, Ethio Telecom"
                   required
-                  className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                  className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                 />
               </div>
             </div>
@@ -3197,7 +3182,7 @@ export default function HotelPage() {
                 defaultValue={editingPaymentAccount?.accountNumber || ""}
                 placeholder="e.g. 10045239, CHAPUBK_LIVE-..."
                 required
-                className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
               />
             </div>
 
@@ -3211,7 +3196,7 @@ export default function HotelPage() {
                 defaultValue={editingPaymentAccount?.accountName || ""}
                 placeholder="e.g. Nexus Grand Hotel PLC"
                 required
-                className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
               />
             </div>
 
@@ -3224,7 +3209,7 @@ export default function HotelPage() {
                 name="additionalIdentifier"
                 defaultValue={editingPaymentAccount?.additionalIdentifier || ""}
                 placeholder="e.g. +251 91 123 4567, SWIFT: AWINETAA"
-                className="w-full h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
               />
             </div>
 
@@ -3235,13 +3220,13 @@ export default function HotelPage() {
                   setIsPaymentModalOpen(false);
                   setEditingPaymentAccount(null);
                 }}
-                className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-xl hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
               >
                 {editingPaymentAccount ? "Save Changes" : "Create Payment Service"}
               </button>
