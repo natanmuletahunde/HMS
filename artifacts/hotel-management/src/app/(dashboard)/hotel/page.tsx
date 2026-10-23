@@ -55,6 +55,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -1256,14 +1257,9 @@ export default function HotelPage() {
             <div className="space-y-6">
               {/* Header with Search and "+ Add Custom Facility" CRUD action */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Hotel Facilities, Amenities & Services
-                  </h3>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    {selectedFacilities.length} active of {facilitiesCatalog.length} registered facilities
-                  </span>
-                </div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Hotel Facilities, Amenities & Services
+                </h3>
 
                 <div className="flex items-center gap-3">
                   <div className="relative w-48 sm:w-64">
@@ -1399,12 +1395,9 @@ export default function HotelPage() {
               {/* Primary Hero Cover Showcase */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                      Primary Showcase Hero Cover
-                    </h3>
-                    <span className="text-xs text-[var(--text-secondary)]">Displayed on guest portals, website headers, and booking cards</span>
-                  </div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Primary Showcase Hero Cover
+                  </h3>
                 </div>
 
                 <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-slate-900 h-64 md:h-80 shadow-xs group">
@@ -1451,14 +1444,9 @@ export default function HotelPage() {
               {/* Property Gallery Grid with Full CRUD */}
               <div className="space-y-4 pt-4 border-t border-[var(--border)]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                      Property Photo Showcase Gallery
-                    </h3>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {gallery.length} verified showcase photos
-                    </span>
-                  </div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Property Photo Showcase Gallery
+                  </h3>
 
                   <button
                     type="button"
@@ -1555,14 +1543,9 @@ export default function HotelPage() {
             <div className="space-y-6">
               {/* Header with Expand All / Collapse All */}
               <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Hotel Policies, Refund Terms & Legal Disclaimers
-                  </h3>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    All legal statements and agreements support formatted rich-text editing
-                  </span>
-                </div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Hotel Policies, Refund Terms & Legal Disclaimers
+                </h3>
 
                 <div className="flex items-center gap-2">
                   <button
@@ -1594,14 +1577,9 @@ export default function HotelPage() {
                     <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
                       CR
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                        Official Cancellation & Refund Policy (Full Text)
-                      </h4>
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        Governs free cancellation windows, late penalty fees, and settlement timelines
-                      </span>
-                    </div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                      Official Cancellation & Refund Policy (Full Text)
+                    </h4>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1710,14 +1688,9 @@ export default function HotelPage() {
                     <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
                       TC
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                        Guest Folio & Invoice Legal T&C Footer
-                      </h4>
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        Standardized legal statement rendered at the foot of all guest folios and checkout bills
-                      </span>
-                    </div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                      Guest Folio & Invoice Legal T&C Footer
+                    </h4>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1755,14 +1728,9 @@ export default function HotelPage() {
                     <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
                       RC
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                        Arrival Registration Card Agreement
-                      </h4>
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        Pre-configured declaration signed by guests on arrival via physical or digital registration
-                      </span>
-                    </div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                      Arrival Registration Card Agreement
+                    </h4>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1800,14 +1768,9 @@ export default function HotelPage() {
                     <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold text-xs">
                       SP
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                        Smoking & Pet Accommodation Policies
-                      </h4>
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        Room cleanliness mandates, service animals, and deep cleaning penalty fines
-                      </span>
-                    </div>
+                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
+                      Smoking & Pet Accommodation Policies
+                    </h4>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -2166,9 +2129,6 @@ export default function HotelPage() {
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
                     Payment Services & Recipient Accounts
                   </h3>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">
-                    Configure merchant codes, recipient till numbers, bank accounts, and payment endpoints
-                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2474,17 +2434,12 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* Cribs & Extra Beds CRUD Inventory Service */}
+              {/* Cribs & Extra Beds Table */}
               <div className="space-y-4 pt-4 border-t border-[var(--border)]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                      Cribs & Extra Beds Service Inventory
-                    </h3>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      Manage rollaway beds, infant baby cots, physical inventory caps, and daily rental fees
-                    </span>
-                  </div>
+                  <h3 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
+                    Cribs & Extra Beds
+                  </h3>
 
                   <button
                     type="button"
@@ -2499,64 +2454,80 @@ export default function HotelPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {extraBeds.map((bed) => (
-                    <div
-                      key={bed.id}
-                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xs flex flex-col justify-between space-y-4 group"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono uppercase tracking-wider text-blue-700 dark:text-blue-400 font-bold">
-                            {bed.type.toUpperCase()}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              bed.isComplimentary
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                                : "bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20"
-                            }`}
-                          >
-                            {bed.isComplimentary ? "Complimentary" : `${bed.dailyFee} ETB / night`}
-                          </span>
-                        </div>
-
-                        <h4 className="text-sm font-bold text-[var(--text-primary)] mt-1.5">{bed.name}</h4>
-
-                        <div className="mt-3 space-y-1 text-xs text-[var(--text-secondary)]">
-                          <div className="flex items-center justify-between">
-                            <span>Sleeping Capacity:</span>
-                            <span className="font-semibold text-[var(--text-primary)]">{bed.capacity} Person</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Physical Stock Cap:</span>
-                            <span className="font-mono font-bold text-[var(--text-primary)]">{bed.totalInventory} Units</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CRUD Actions */}
-                      <div className="pt-3 border-t border-[var(--border)] flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingBedItem(bed);
-                            setIsBedModalOpen(true);
-                          }}
-                          className="p-1.5 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" /> Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBedItem(bed.id)}
-                          className="p-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-xs">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Name</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Category</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Capacity</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Daily Rate</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Inventory Cap</TableHead>
+                        <TableHead className="w-[90px] text-right"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {extraBeds.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-32 text-center text-[var(--text-secondary)]">
+                            <BedDouble className="mx-auto h-8 w-8 mb-2 opacity-40" />
+                            <p>No extra beds or cribs configured.</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        extraBeds.map((bed) => (
+                          <TableRow key={bed.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
+                            <TableCell className="font-semibold text-[var(--text-primary)]">{bed.name}</TableCell>
+                            <TableCell>
+                              <span className="text-xs font-mono uppercase px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 font-semibold">
+                                {bed.type}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-[var(--text-primary)] font-medium">
+                              {bed.capacity} {bed.capacity === 1 ? "Person" : "Persons"}
+                            </TableCell>
+                            <TableCell>
+                              {bed.isComplimentary ? (
+                                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                  Complimentary
+                                </span>
+                              ) : (
+                                <span className="font-mono font-bold text-sm text-[var(--text-primary)]">
+                                  {bed.dailyFee.toFixed(2)} ETB
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-[var(--text-secondary)] font-semibold">
+                              {bed.totalInventory} Units
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingBedItem(bed);
+                                    setIsBedModalOpen(true);
+                                  }}
+                                  className="p-1.5 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors cursor-pointer"
+                                  title="Edit Bed"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBedItem(bed.id)}
+                                  className="p-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                                  title="Delete Bed"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>
