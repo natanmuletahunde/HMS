@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, numeric, integer, jsonb } from "drizzle-orm/pg-core";
 
 export const hotelStatusEnum = ["active", "inactive", "suspended"] as const;
 export type HotelStatus = (typeof hotelStatusEnum)[number];
@@ -29,6 +29,7 @@ export const hotelsTable = pgTable("hotels", {
   checkInTime: text("check_in_time").notNull().default("14:00"),
   checkOutTime: text("check_out_time").notNull().default("12:00"),
   status: text("status").notNull().default("active").$type<HotelStatus>(),
+  settings: jsonb("settings").default({}),
   isActive: boolean("is_active").notNull().default(true),
   createdBy: text("created_by"),
   updatedBy: text("updated_by"),

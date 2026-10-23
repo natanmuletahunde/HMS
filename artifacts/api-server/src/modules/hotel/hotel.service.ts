@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { eq, sql } from 'drizzle-orm';
 import { db, hotelsTable, branchesTable, buildingsTable, floorsTable, roomsTable } from '@workspace/db';
 
-const fmt = (h: any) => ({ ...h, starRating: h.starRating ?? null, deletedAt: h.deletedAt?.toISOString() ?? null, createdAt: h.createdAt.toISOString(), updatedAt: h.updatedAt.toISOString() });
+const fmt = (h: any) => ({ ...h, starRating: h.starRating ?? null, settings: h.settings ?? {}, deletedAt: h.deletedAt?.toISOString() ?? null, createdAt: h.createdAt.toISOString(), updatedAt: h.updatedAt.toISOString() });
 
 @Injectable()
 export class HotelService {
@@ -30,12 +30,12 @@ export class HotelService {
   async create(b: any) {
     const [exist] = await db.select().from(hotelsTable).where(eq(hotelsTable.hotelCode, b.hotelCode));
     if (exist) throw new ConflictException('Hotel code already exists');
-    const [h] = await db.insert(hotelsTable).values({ hotelName: b.hotelName, legalName: b.legalName, hotelCode: b.hotelCode, logo: b.logo, email: b.email, phone: b.phone, website: b.website, country: b.country ?? 'Ethiopia', region: b.region, city: b.city, subCity: b.subCity, address: b.address, postalCode: b.postalCode, latitude: b.latitude, longitude: b.longitude, description: b.description, timezone: b.timezone ?? 'Africa/Addis_Ababa', currencyCode: b.currencyCode ?? 'ETB', taxNumber: b.taxNumber, licenseNumber: b.licenseNumber, starRating: b.starRating, checkInTime: b.checkInTime ?? '14:00', checkOutTime: b.checkOutTime ?? '12:00', createdBy: b.createdBy }).returning();
+    const [h] = await db.insert(hotelsTable).values({ hotelName: b.hotelName, legalName: b.legalName, hotelCode: b.hotelCode, logo: b.logo, email: b.email, phone: b.phone, website: b.website, country: b.country ?? 'Ethiopia', region: b.region, city: b.city, subCity: b.subCity, address: b.address, postalCode: b.postalCode, latitude: b.latitude, longitude: b.longitude, description: b.description, timezone: b.timezone ?? 'Africa/Addis_Ababa', currencyCode: b.currencyCode ?? 'ETB', taxNumber: b.taxNumber, licenseNumber: b.licenseNumber, starRating: b.starRating, checkInTime: b.checkInTime ?? '14:00', checkOutTime: b.checkOutTime ?? '12:00', settings: b.settings ?? {}, createdBy: b.createdBy }).returning();
     return fmt(h);
   }
   async update(id: string, b: any) {
     const u: any = {};
-    const fields = ['hotelName','legalName','logo','email','phone','website','country','region','city','subCity','address','postalCode','latitude','longitude','description','timezone','currencyCode','taxNumber','licenseNumber','starRating','checkInTime','checkOutTime','status','isActive'];
+    const fields = ['hotelName','legalName','logo','email','phone','website','country','region','city','subCity','address','postalCode','latitude','longitude','description','timezone','currencyCode','taxNumber','licenseNumber','starRating','checkInTime','checkOutTime','status','isActive','settings'];
     for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
     u.updatedBy = b.updatedBy;
     const [h] = await db.update(hotelsTable).set(u).where(eq(hotelsTable.id, id)).returning();
