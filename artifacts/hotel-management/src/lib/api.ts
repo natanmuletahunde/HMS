@@ -92,6 +92,7 @@ export async function attemptTokenRecovery(): Promise<string | null> {
 
 export async function apiFetch<T>(path: string, options?: RequestInit, isRetry = false): Promise<T> {
   let token = typeof window !== 'undefined' ? localStorage.getItem('hms_token') : null;
+  const activeBranchId = typeof window !== 'undefined' ? localStorage.getItem('hms_active_branch_id') : null;
 
   // Proactive check: if token exists but is already expired, recover it before dispatching
   if (token && isTokenExpired(token) && !path.startsWith('/auth/')) {
@@ -106,6 +107,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit, isRetry =
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(activeBranchId ? { 'x-branch-id': activeBranchId } : {}),
       ...options?.headers,
     },
   });
@@ -122,6 +124,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit, isRetry =
       localStorage.removeItem('hms_token');
       localStorage.removeItem('hms_user');
       localStorage.removeItem('hms_refresh_token');
+      localStorage.removeItem('hms_active_branch_id');
       window.location.href = '/login?expired=1';
     }
   }

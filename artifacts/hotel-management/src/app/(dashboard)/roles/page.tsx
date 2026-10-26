@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, MoreHorizontal, Loader2, ShieldCheck, Check, Trash2, Edit } from "lucide-react";
+import { Plus, MoreHorizontal, Loader2, ShieldCheck, Check, Trash2, Edit, Globe, Building2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +16,14 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 
 type Role = {
   id: string;
   name: string;
   description: string | null;
+  scope?: string;
   permissions?: string[];
   permissionsCount?: number;
   isActive: boolean;
@@ -63,13 +64,15 @@ export default function RolesPage() {
   const [editRole, setEditRole] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [scope, setScope] = useState("branch");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const { data: roles = [], isLoading } = useQuery({
+  const { data: rawRoles, isLoading } = useQuery({
     queryKey: ["roles"],
-    queryFn: () => apiFetch<Role[]>("/roles"),
+    queryFn: () => apiFetch<any>("/roles"),
   });
+  const roles: Role[] = Array.isArray(rawRoles) ? rawRoles : (rawRoles?.data ?? []);
 
   const {
     currentPage,
@@ -78,10 +81,10 @@ export default function RolesPage() {
     paginatedItems: paginatedRoles,
     onPrev,
     onNext,
-  } = usePagination(roles, 5);
+  } = usePagination(roles, 8);
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: { name: string; description: string; permissions: string[] }) => {
+    mutationFn: async (payload: any) => {
       if (editRole) {
         return apiFetch(`/roles/${editRole.id}`, {
           method: "PATCH",
@@ -115,6 +118,7 @@ export default function RolesPage() {
     setEditRole(null);
     setName("");
     setDescription("");
+    setScope("branch");
     setSelectedPermissions(["hotel:*", "rooms:*", "reservations:*", "guests:*"]);
     setErrorMsg("");
     setIsOpen(true);
@@ -124,6 +128,7 @@ export default function RolesPage() {
     setEditRole(role);
     setName(role.name);
     setDescription(role.description || "");
+    setScope(role.scope || "branch");
     setSelectedPermissions(role.permissions || []);
     setErrorMsg("");
     setIsOpen(true);
@@ -137,13 +142,13 @@ export default function RolesPage() {
 
   const togglePermission = (permId: string) => {
     if (permId === "*") {
-      setSelectedPermissions(prev => prev.includes("*") ? [] : ["*"]);
+      setSelectedPermissions((prev) => (prev.includes("*") ? [] : ["*"]));
       return;
     }
-    setSelectedPermissions(prev => {
-      const filtered = prev.filter(p => p !== "*");
+    setSelectedPermissions((prev) => {
+      const filtered = prev.filter((p) => p !== "*");
       if (filtered.includes(permId)) {
-        return filtered.filter(p => p !== permId);
+        return filtered.filter((p) => p !== permId);
       }
       return [...filtered, permId];
     });
@@ -158,45 +163,45 @@ export default function RolesPage() {
     saveMutation.mutate({
       name: name.trim(),
       description: description.trim(),
+      scope,
       permissions: selectedPermissions,
     });
   };
 
   return (
     <div className="space-y-6">
+      {/* Top Header — Strictly NO subtitles */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Roles & Permissions</h1>
-          <p className="text-sm text-text-muted mt-1">Configure user roles and granular system access permissions.</p>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">Roles & Permissions</h1>
         <div className="flex items-center gap-2">
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Create Role
+          <Button onClick={openCreateDialog} className="h-9 text-xs font-semibold rounded-lg">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Role
           </Button>
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-surface">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Role Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Permissions</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[80px] text-right">Actions</TableHead>
+            <TableRow className="border-b border-[var(--border)] bg-[var(--blue-50)]/40 hover:bg-[var(--blue-50)]/40">
+              <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Role Name</TableHead>
+              <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Scope</TableHead>
+              <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Description</TableHead>
+              <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Permissions</TableHead>
+              <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Status</TableHead>
+              <TableHead className="w-[80px] text-right font-semibold text-xs text-[var(--text-primary)]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-text-muted" />
+                <TableCell colSpan={6} className="h-28 text-center">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--text-secondary)]" />
                 </TableCell>
               </TableRow>
             ) : roles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-text-muted">
+                <TableCell colSpan={6} className="h-28 text-center text-xs text-[var(--text-secondary)]">
                   No roles found. Click "Create Role" to add one.
                 </TableCell>
               </TableRow>
@@ -206,53 +211,68 @@ export default function RolesPage() {
                   ? role.permissions.length 
                   : (role.permissionsCount ?? 0);
                 const isSuperAdmin = role.permissions?.includes("*");
+                const isGlobal = role.scope === "global" || role.name === "Admin";
 
                 return (
-                  <TableRow key={role.id}>
-                    <TableCell className="font-semibold capitalize flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4 text-primary" />
-                      {role.name}
+                  <TableRow key={role.id} className="border-b border-[var(--border)] hover:bg-[var(--blue-50)]/20 transition-colors">
+                    <TableCell className="py-3 font-semibold text-xs text-[var(--text-primary)] flex items-center gap-2">
+                      <ShieldCheck className="h-3.5 w-3.5 text-[var(--blue-600)]" />
+                      <span>{role.name}</span>
                     </TableCell>
-                    <TableCell className="text-text-muted text-sm max-w-[280px] truncate">
+                    <TableCell className="py-3">
+                      {isGlobal ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--blue-700)] bg-[var(--blue-50)] border border-[var(--blue-200)] px-2 py-0.5 rounded-md">
+                          <Globe className="w-3 h-3 text-[var(--blue-600)]" />
+                          Global Scope
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                          <Building2 className="w-3 h-3 text-slate-500" />
+                          Branch-Bound
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-3 text-[var(--text-secondary)] text-xs max-w-[260px] truncate">
                       {role.description || "No description provided"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-3">
                       {isSuperAdmin ? (
-                        <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">
+                        <Badge variant="default" className="text-[10px] font-bold rounded-md bg-[var(--blue-50)] text-[var(--blue-700)] border border-[var(--blue-200)]">
                           Full Access (*)
                         </Badge>
                       ) : (
-                        <Badge variant="outline">
-                          {count} {count === 1 ? "permission" : "permissions"}
+                        <Badge variant="outline" className="text-[10px] rounded-md">
+                          {count} {count === 1 ? "domain" : "domains"}
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={role.isActive ? 'success' : 'muted'} className="uppercase text-[10px]">
-                        {role.isActive ? 'Active' : 'Inactive'}
+                    <TableCell className="py-3">
+                      <Badge variant={role.isActive ? "success" : "muted"} className="uppercase text-[9px] rounded-md px-1.5">
+                        {role.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button variant="ghost" className="h-7 w-7 p-0 rounded-md">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(role)}>
-                            <Edit className="h-4 w-4 mr-2" /> Edit Role
+                        <DropdownMenuContent align="end" className="w-36 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg text-xs">
+                          <DropdownMenuItem 
+                            onClick={() => openEditDialog(role)}
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer"
+                          >
+                            <Edit className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                            <span>Edit Role</span>
                           </DropdownMenuItem>
-                          {role.name.toLowerCase() !== "admin" && (
+                          {role.name !== "Admin" && (
                             <DropdownMenuItem 
-                              className="text-danger focus:text-danger" 
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete role "${role.name}"?`)) {
-                                  deleteMutation.mutate(role.id);
-                                }
-                              }}
+                              onClick={() => deleteMutation.mutate(role.id)}
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer text-[var(--red-600,#dc2626)]"
                             >
-                              <Trash2 className="h-4 w-4 mr-2" /> Delete Role
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Deactivate</span>
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -268,63 +288,77 @@ export default function RolesPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
-          pageSize={5}
+          pageSize={8}
           onPrev={onPrev}
           onNext={onNext}
         />
       </div>
 
-      {/* Create / Edit Role Dialog */}
+      {/* Role Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-6">
+        <DialogContent className="max-w-xl max-h-[88vh] flex flex-col p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <ShieldCheck className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
+              <ShieldCheck className="h-4 w-4 text-[var(--blue-600)]" />
               {editRole ? "Edit Role" : "Create New Role"}
             </DialogTitle>
           </DialogHeader>
 
           {errorMsg && (
-            <div className="p-3 text-sm rounded bg-danger/10 text-danger border border-danger/30">
+            <div className="p-2.5 text-xs rounded-md bg-[var(--red-50,#fef2f2)] text-[var(--red-600,#dc2626)] border border-[var(--red-200,#fecaca)]">
               {errorMsg}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-4">
-            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
-              <div className="space-y-2">
-                <Label htmlFor="role-name">Role Name *</Label>
-                <Input 
-                  id="role-name"
-                  placeholder="e.g. VIP Concierge Supervisor" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-3.5 pt-2">
+            <div className="space-y-3.5 overflow-y-auto flex-1 pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="role-name" className="text-xs font-semibold">Role Name *</Label>
+                  <Input 
+                    id="role-name"
+                    placeholder="e.g. VIP Concierge Supervisor" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-9 text-xs rounded-md"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="role-scope" className="text-xs font-semibold">Access Scope *</Label>
+                  <select
+                    id="role-scope"
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                  >
+                    <option value="branch">Branch-Bound (Property Scope)</option>
+                    <option value="global">Global (All Branches / Chain Scope)</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role-description">Description</Label>
+              <div className="space-y-1">
+                <Label htmlFor="role-description" className="text-xs font-semibold">Description</Label>
                 <Input 
                   id="role-description"
-                  placeholder="Brief summary of duties and responsibilities" 
+                  placeholder="Summary of operational duties" 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)}
+                  className="h-9 text-xs rounded-md"
                 />
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-border">
+              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
                 <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Permissions Matrix</Label>
-                  <div className="text-xs text-text-muted">
+                  <Label className="text-xs font-bold text-[var(--text-primary)]">Permissions Matrix</Label>
+                  <span className="text-[11px] font-mono text-[var(--text-secondary)]">
                     {selectedPermissions.includes("*") ? "All permissions granted" : `${selectedPermissions.length} selected`}
-                  </div>
+                  </span>
                 </div>
-                <p className="text-xs text-text-muted">
-                  Select the functional domains this role has permission to access and manage:
-                </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 max-h-[300px] overflow-y-auto border border-border rounded-md p-3 bg-surface-muted/30">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-[260px] overflow-y-auto border border-[var(--border)] rounded-md p-2 bg-[var(--surface)]">
                   {AVAILABLE_PERMISSIONS.map((perm) => {
                     const isChecked = selectedPermissions.includes("*") 
                       ? (perm.id === "*" || true)
@@ -333,21 +367,21 @@ export default function RolesPage() {
                     return (
                       <label 
                         key={perm.id} 
-                        className={`flex items-start gap-2 p-2 rounded cursor-pointer border transition-colors ${
+                        className={`flex items-start gap-2 p-1.5 rounded cursor-pointer border transition-colors ${
                           isChecked 
-                            ? "bg-primary/10 border-primary/40 text-text" 
-                            : "border-transparent hover:bg-surface-muted text-text-muted"
+                            ? "bg-[var(--blue-50)] border-[var(--blue-200)] text-[var(--text-primary)]" 
+                            : "border-transparent hover:bg-[var(--blue-50)]/40 text-[var(--text-secondary)]"
                         }`}
                       >
                         <input 
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => togglePermission(perm.id)}
-                          className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-[var(--border)] text-[var(--blue-600)]"
                         />
                         <div className="text-xs leading-tight">
-                          <div className="font-semibold text-text">{perm.label}</div>
-                          <div className="text-[11px] text-text-muted mt-0.5">{perm.desc}</div>
+                          <div className="font-semibold text-[var(--text-primary)]">{perm.label}</div>
+                          <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">{perm.desc}</div>
                         </div>
                       </label>
                     );
@@ -356,15 +390,16 @@ export default function RolesPage() {
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-border flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={closeDialog}>
+            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">
+              <Button variant="outline" type="button" onClick={closeDialog} className="h-8 text-xs rounded-md">
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 disabled={saveMutation.isPending}
+                className="h-8 text-xs font-semibold rounded-md"
               >
-                {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {saveMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 {editRole ? "Save Changes" : "Create Role"}
               </Button>
             </DialogFooter>

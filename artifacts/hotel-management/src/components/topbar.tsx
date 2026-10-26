@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
@@ -11,6 +11,7 @@ import {
   Bell,
   Building2,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,7 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api";
 
 const ROUTE_BREADCRUMBS: Record<string, string> = {
   "/dashboard": "Front Desk / Dashboard",
@@ -35,22 +35,70 @@ const ROUTE_BREADCRUMBS: Record<string, string> = {
   "/pos": "Operations / POS",
   "/invoices": "Finance / Invoices",
   "/payments": "Finance / Payments",
+  "/users": "System / Staff & Users",
+  "/roles": "System / Roles & Permissions",
 };
 
 export function Topbar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, activeBranch, branches, switchBranch, logout } = useAuth();
   const [guestAlerts, setGuestAlerts] = useState<any[]>([]);
 
   const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches" || pathname === "/rooms" || pathname === "/room-configs" || pathname.startsWith("/rooms/") || pathname === "/buildings" || pathname === "/floors") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-10 transition-colors select-none">
-      {/* Left: Breadcrumbs */}
-      <div className="flex items-center gap-3">
+      {/* Left: Breadcrumbs & Branch Switcher */}
+      <div className="flex items-center gap-4">
+        {/* Branch Switcher Dropdown */}
+        {branches.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--blue-50)] transition-all text-xs font-semibold text-[var(--text-primary)] shadow-sm"
+                title="Switch Active Hotel Branch"
+              >
+                <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
+                <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                  {activeBranch?.branchName || "Select Branch"}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] opacity-70 flex-shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-xl">
+              <DropdownMenuLabel className="text-[11px] font-semibold text-[var(--text-secondary)] px-2 py-1 uppercase tracking-wider">
+                Assigned Branches ({branches.length})
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-[var(--border)] my-1" />
+              {branches.map((b) => {
+                const isSelected = b.id === activeBranch?.id;
+                return (
+                  <DropdownMenuItem
+                    key={b.id}
+                    onClick={() => switchBranch(b.id)}
+                    className={cn(
+                      "flex items-center justify-between px-2.5 py-2 rounded-md cursor-pointer text-xs transition-colors",
+                      isSelected
+                        ? "bg-[var(--blue-50)] text-[var(--blue-700)] font-semibold"
+                        : "text-[var(--text-primary)] hover:bg-[var(--blue-50)]"
+                    )}
+                  >
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="truncate">{b.branchName}</span>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono">{b.branchCode}</span>
+                    </div>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {currentBreadcrumb && (
-          <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)] flex items-center gap-2">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)] hidden md:flex items-center gap-2">
             <span>{currentBreadcrumb}</span>
           </div>
         )}
@@ -58,7 +106,6 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-
         {/* Quiet Notifications Icon with subtle Badge */}
         <button
           type="button"
@@ -99,20 +146,16 @@ export function Topbar() {
               onClick={() => router.push("/profile")}
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
             >
-              <User className="w-4 h-4 text-[var(--text-secondary)]" /> My Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => router.push("/hotel")}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
-            >
-              <Building2 className="w-4 h-4 text-[var(--text-secondary)]" /> Hotel Setup
+              <User className="w-4 h-4" />
+              <span>Profile Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-[var(--border)] my-1" />
             <DropdownMenuItem
               onClick={logout}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[var(--red-50,#fef2f2)] text-sm text-[var(--red-600,#dc2626)]"
             >
-              <LogOut className="w-4 h-4" /> Sign Out
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -2,6 +2,7 @@ import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { rolesTable } from "./roles";
+import { branchesTable } from "./branches";
 
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -12,6 +13,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   roleId: text("role_id").notNull().references(() => rolesTable.id),
+  primaryBranchId: text("primary_branch_id").references(() => branchesTable.id, { onDelete: "set null" }),
   // null = platform admin (can access all tenants)
   tenantId: text("tenant_id"),
   isOnDuty: boolean("is_on_duty").notNull().default(true),

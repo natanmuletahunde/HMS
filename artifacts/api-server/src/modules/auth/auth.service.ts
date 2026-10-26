@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
 import { eq } from 'drizzle-orm';
-import { db, usersTable, rolesTable, mfaConfigsTable } from '@workspace/db';
+import { db, usersTable, rolesTable, mfaConfigsTable, userBranchesTable, branchesTable } from '@workspace/db';
 import type { JwtPayload } from './jwt.strategy';
 import { mfaDecrypt, mfaDecryptCodes, mfaEncryptCodes } from '../../common/utils/mfa-crypto';
 import { consumeMfaBackupCode } from '../../common/utils/mfa-backup-codes';
@@ -23,7 +23,8 @@ export class AuthService {
         id: usersTable.id, email: usersTable.email, passwordHash: usersTable.passwordHash,
         firstName: usersTable.firstName, lastName: usersTable.lastName,
         phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
-        roleId: usersTable.roleId, roleName: rolesTable.name,
+        roleId: usersTable.roleId, roleName: rolesTable.name, roleScope: rolesTable.scope,
+        primaryBranchId: usersTable.primaryBranchId,
         tenantId: usersTable.tenantId,
         isActive: usersTable.isActive, createdAt: usersTable.createdAt,
       })
@@ -103,7 +104,8 @@ export class AuthService {
         id: usersTable.id, email: usersTable.email, passwordHash: usersTable.passwordHash,
         firstName: usersTable.firstName, lastName: usersTable.lastName,
         phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
-        roleId: usersTable.roleId, roleName: rolesTable.name,
+        roleId: usersTable.roleId, roleName: rolesTable.name, roleScope: rolesTable.scope,
+        primaryBranchId: usersTable.primaryBranchId,
         tenantId: usersTable.tenantId,
         isActive: usersTable.isActive, createdAt: usersTable.createdAt,
       })
@@ -138,34 +140,85 @@ export class AuthService {
         id: usersTable.id, email: usersTable.email,
         firstName: usersTable.firstName, lastName: usersTable.lastName,
         phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
-        roleId: usersTable.roleId, roleName: rolesTable.name,
+        roleId: usersTable.roleId, roleName: rolesTable.name, roleScope: rolesTable.scope,
+        primaryBranchId: usersTable.primaryBranchId,
         isActive: usersTable.isActive, createdAt: usersTable.createdAt,
       })
       .from(usersTable)
       .leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id))
       .where(eq(usersTable.id, userId));
     if (!user) throw new UnauthorizedException('User not found');
-    return this.formatUser(user);
+
+    const branches = await this.resolveUserBranches(user.id, user.roleName, user.roleScope, user.primaryBranchId);
+    return this.formatUser(user, branches);
   }
 
-  private issueTokens(user: any) {
+  private async resolveUserBranches(userId: string, roleName?: string | null, roleScope?: string | null, primaryBranchId?: string | null) {
+    const isGlobal = roleName === 'Admin' || roleScope === 'global';
+
+    if (isGlobal) {
+      // Global admins have access to all active branches
+      const allBranches = await db
+        .select({
+          id: branchesTable.id,
+          branchName: branchesTable.branchName,
+          branchCode: branchesTable.branchCode,
+        })
+        .from(branchesTable)
+        .where(eq(branchesTable.isActive, true));
+
+      return allBranches.map((b) => ({
+        id: b.id,
+        branchName: b.branchName,
+        branchCode: b.branchCode,
+        isPrimary: primaryBranchId ? b.id === primaryBranchId : false,
+      }));
+    }
+
+    const ubRows = await db
+      .select({
+        id: branchesTable.id,
+        branchName: branchesTable.branchName,
+        branchCode: branchesTable.branchCode,
+        isPrimary: userBranchesTable.isPrimary,
+      })
+      .from(userBranchesTable)
+      .innerJoin(branchesTable, eq(userBranchesTable.branchId, branchesTable.id))
+      .where(eq(userBranchesTable.userId, userId));
+
+    return ubRows;
+  }
+
+  private async issueTokens(user: any) {
     const payload: JwtPayload = {
       userId: user.id, roleId: user.roleId,
       roleName: user.roleName ?? '', email: user.email,
       tenantId: user.tenantId ?? null,
     };
+    const branches = await this.resolveUserBranches(user.id, user.roleName, user.roleScope, user.primaryBranchId);
     return {
       accessToken: this.jwt.sign(payload),
       refreshToken: this.jwt.sign(payload, { secret: REFRESH_SECRET, expiresIn: '7d' }),
-      user: this.formatUser(user),
+      user: this.formatUser(user, branches),
     };
   }
 
-  private formatUser(u: any) {
+  private formatUser(u: any, branches: any[] = []) {
+    const primaryBranch = branches.find((b) => b.isPrimary) || branches[0] || null;
     return {
-      id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName,
-      phone: u.phone ?? null, avatarUrl: u.avatarUrl ?? null,
-      roleId: u.roleId, roleName: u.roleName ?? null,
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+      phone: u.phone ?? null,
+      avatarUrl: u.avatarUrl ?? null,
+      roleId: u.roleId,
+      roleName: u.roleName ?? null,
+      roleScope: u.roleScope ?? 'branch',
+      primaryBranchId: u.primaryBranchId ?? primaryBranch?.id ?? null,
+      activeBranchId: u.primaryBranchId ?? primaryBranch?.id ?? null,
+      branches,
       isActive: u.isActive,
       createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
     };
