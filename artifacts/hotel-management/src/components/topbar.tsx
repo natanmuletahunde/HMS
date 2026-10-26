@@ -8,9 +8,6 @@ import { Button } from "./ui/button";
 import {
   LogOut,
   User,
-  Sun,
-  Moon,
-  Monitor,
   Bell,
   Building2,
   Check,
@@ -23,7 +20,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { setTheme, type Theme, getStoredTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 
@@ -45,22 +41,7 @@ export function Topbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [currentTheme, setCurrentThemeState] = useState<Theme>(() =>
-    typeof window !== "undefined" ? getStoredTheme() : "light"
-  );
-
   const [guestAlerts, setGuestAlerts] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Check initial stored theme
-    const t = getStoredTheme();
-    setCurrentThemeState(t);
-  }, []);
-
-  const handleTheme = (theme: Theme) => {
-    setTheme(theme);
-    setCurrentThemeState(theme);
-  };
 
   const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches" || pathname === "/rooms" || pathname === "/room-configs" || pathname.startsWith("/rooms/") || pathname === "/buildings" || pathname === "/floors") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
@@ -90,43 +71,6 @@ export function Topbar() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--blue-600)]" />
           )}
         </button>
-
-        {/* Theme Toggle (Capsule) */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] border border-transparent hover:border-[var(--border)] transition-all"
-              title="Toggle Theme"
-            >
-              {currentTheme === "dark" ? (
-                <Moon className="w-4 h-4 stroke-[1.5] text-[var(--blue-400)]" />
-              ) : (
-                <Sun className="w-4 h-4 stroke-[1.5] text-[var(--blue-700)]" />
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 text-sm shadow-lg">
-            <DropdownMenuItem
-              onClick={() => handleTheme("light")}
-              className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-[var(--text-primary)]"
-            >
-              <span className="flex items-center gap-2">
-                <Sun className="w-4 h-4 text-[var(--blue-700)]" /> Light
-              </span>
-              {currentTheme === "light" && <Check className="w-3.5 h-3.5 text-[var(--blue-700)]" />}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => handleTheme("dark")}
-              className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-[var(--text-primary)]"
-            >
-              <span className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-[var(--blue-400)]" /> Dark
-              </span>
-              {currentTheme === "dark" && <Check className="w-3.5 h-3.5 text-[var(--blue-400)]" />}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         {/* Profile Avatar / Menu */}
         <DropdownMenu>
