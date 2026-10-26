@@ -79,8 +79,7 @@ const NAV_GROUPS = [
     items: [
       { name: "Employees", href: "/employees", icon: UserCog },
       { name: "HR", href: "/hr", icon: Users2 },
-      { name: "Users", href: "/users", icon: Shield },
-      { name: "Roles", href: "/roles", icon: Lock },
+      { name: "Users & Roles", href: "/users", icon: Shield },
       { name: "Audit Logs", href: "/audit-logs", icon: ClipboardList },
     ]
   },
