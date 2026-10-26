@@ -202,8 +202,9 @@ function UsersAndRolesContent() {
     setPhone("");
     setPassword("");
     setRoleId(roles[0]?.id || "");
+    const allBranchIds = branches.map((b) => b.id);
     const firstBranch = branches[0]?.id || "";
-    setSelectedBranchIds(firstBranch ? [firstBranch] : []);
+    setSelectedBranchIds(allBranchIds.length > 0 ? [firstBranch] : []);
     setPrimaryBranchId(firstBranch);
     setUserErrorMsg("");
     setIsAddUserOpen(true);
@@ -221,8 +222,9 @@ function UsersAndRolesContent() {
     setEditPhone(u.phone || "");
     setEditRoleId(u.roleId || "");
     const existingIds = (u.branches || []).map((b) => b.id);
-    setEditBranchIds(existingIds.length > 0 ? existingIds : branches[0]?.id ? [branches[0].id] : []);
-    setEditPrimaryBranchId(u.primaryBranchId || existingIds[0] || branches[0]?.id || "");
+    const initialBranches = existingIds.length > 0 ? existingIds : branches.map((b) => b.id);
+    setEditBranchIds(initialBranches);
+    setEditPrimaryBranchId(u.primaryBranchId || initialBranches[0] || branches[0]?.id || "");
     setEditUserErrorMsg("");
   };
 
@@ -246,17 +248,36 @@ function UsersAndRolesContent() {
     }
   };
 
+  const handleSelectAllBranches = (isEdit = false) => {
+    const allIds = branches.map((b) => b.id);
+    if (isEdit) {
+      if (editBranchIds.length === allIds.length) {
+        setEditBranchIds(branches[0] ? [branches[0].id] : []);
+        setEditPrimaryBranchId(branches[0]?.id || "");
+      } else {
+        setEditBranchIds(allIds);
+        if (!editPrimaryBranchId) setEditPrimaryBranchId(allIds[0]);
+      }
+    } else {
+      if (selectedBranchIds.length === allIds.length) {
+        setSelectedBranchIds(branches[0] ? [branches[0].id] : []);
+        setPrimaryBranchId(branches[0]?.id || "");
+      } else {
+        setSelectedBranchIds(allIds);
+        if (!primaryBranchId) setPrimaryBranchId(allIds[0]);
+      }
+    }
+  };
+
   const handleCreateUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !password || !roleId) {
       setUserErrorMsg("Please fill in all required fields.");
       return;
     }
-    const selectedRole = roles.find((r) => r.id === roleId);
-    const isGlobal = selectedRole?.name === "Admin" || selectedRole?.scope === "global";
 
-    if (!isGlobal && selectedBranchIds.length === 0) {
-      setUserErrorMsg("Please select at least one branch for this staff account.");
+    if (selectedBranchIds.length === 0) {
+      setUserErrorMsg("Please select at least one assigned branch.");
       return;
     }
 
@@ -275,11 +296,9 @@ function UsersAndRolesContent() {
   const handleEditUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    const selectedRole = roles.find((r) => r.id === editRoleId);
-    const isGlobal = selectedRole?.name === "Admin" || selectedRole?.scope === "global";
 
-    if (!isGlobal && editBranchIds.length === 0) {
-      setEditUserErrorMsg("Please select at least one branch.");
+    if (editBranchIds.length === 0) {
+      setEditUserErrorMsg("Please select at least one assigned branch.");
       return;
     }
 
@@ -847,69 +866,87 @@ function UsersAndRolesContent() {
                   <option value="" disabled>Select role...</option>
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name} {r.scope === "global" ? "(Global)" : ""}
+                      {r.name} {r.scope === "global" ? "(Global Access)" : "(Branch-Bound)"}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Branch Assignment Section */}
-            <div className="space-y-1.5 pt-1 border-t border-[var(--border)]">
-              <Label className="text-xs font-semibold text-[var(--text-primary)]">
-                Branch Assignments {isCreateGlobalRole ? "(Global Scope)" : "*"}
-              </Label>
-              {isCreateGlobalRole ? (
-                <div className="p-2.5 rounded-md bg-[var(--blue-50)] text-xs text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-[var(--blue-600)] flex-shrink-0" />
-                  <span>The <strong>Admin</strong> role automatically inherits access across all hotel branches.</span>
+            {/* Branch Assignment Section — ALWAYS VISIBLE & INTERACTIVE */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
+                  <span>Assign Branches *</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllBranches(false)}
+                  className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
+                >
+                  {selectedBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
+                </button>
+              </div>
+
+              {isCreateGlobalRole && (
+                <div className="p-2 rounded-md bg-[var(--blue-50)] text-[11px] text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
+                  <span>The <strong>Admin</strong> role has chain-wide scope. Check assigned branches and pick their primary home base below:</span>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="rounded-md border border-[var(--border)] p-2 space-y-1.5 max-h-36 overflow-y-auto">
-                    {branches.map((b) => {
-                      const isChecked = selectedBranchIds.includes(b.id);
+              )}
+
+              {/* Branch Checkboxes List */}
+              <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-36 overflow-y-auto bg-[var(--surface)]">
+                {branches.map((b) => {
+                  const isChecked = selectedBranchIds.includes(b.id);
+                  return (
+                    <label
+                      key={b.id}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
+                        isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleBranchToggle(b.id, false)}
+                          className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
+                        />
+                        <span>{b.branchName}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Primary / Home Branch Selector */}
+              {selectedBranchIds.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                      Primary / Home Branch *
+                    </Label>
+                    <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+                  </div>
+                  <select
+                    value={primaryBranchId}
+                    onChange={(e) => setPrimaryBranchId(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    required
+                  >
+                    {selectedBranchIds.map((bId) => {
+                      const branch = branches.find((b) => b.id === bId);
                       return (
-                        <label
-                          key={b.id}
-                          className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--blue-50)] cursor-pointer text-xs transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleBranchToggle(b.id, false)}
-                              className="rounded border-[var(--border)] text-[var(--blue-600)]"
-                            />
-                            <span className="font-medium text-[var(--text-primary)]">{b.branchName}</span>
-                          </div>
-                          <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
-                        </label>
+                        <option key={bId} value={bId}>
+                          {branch?.branchName || bId}
+                        </option>
                       );
                     })}
-                  </div>
-
-                  {selectedBranchIds.length > 1 && (
-                    <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                        Primary / Home Branch
-                      </Label>
-                      <select
-                        value={primaryBranchId}
-                        onChange={(e) => setPrimaryBranchId(e.target.value)}
-                        className="w-full h-8 px-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:outline-none"
-                      >
-                        {selectedBranchIds.map((bId) => {
-                          const branch = branches.find((b) => b.id === bId);
-                          return (
-                            <option key={bId} value={bId}>
-                              {branch?.branchName || bId}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  )}
+                  </select>
                 </div>
               )}
             </div>
@@ -943,7 +980,7 @@ function UsersAndRolesContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog */}
+      {/* Edit User Dialog — ALWAYS VISIBLE & INTERACTIVE */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-md p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
           <DialogHeader>
@@ -1000,69 +1037,87 @@ function UsersAndRolesContent() {
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name} {r.scope === "global" ? "(Global)" : ""}
+                      {r.name} {r.scope === "global" ? "(Global Access)" : "(Branch-Bound)"}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Branch Assignment Section */}
-            <div className="space-y-1.5 pt-1 border-t border-[var(--border)]">
-              <Label className="text-xs font-semibold text-[var(--text-primary)]">
-                Assigned Branches {isEditGlobalRole ? "(Global Scope)" : "*"}
-              </Label>
-              {isEditGlobalRole ? (
-                <div className="p-2.5 rounded-md bg-[var(--blue-50)] text-xs text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-[var(--blue-600)] flex-shrink-0" />
-                  <span>The <strong>Admin</strong> role automatically has access to all branches.</span>
+            {/* Branch Assignment Section — ALWAYS VISIBLE & INTERACTIVE */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
+                  <span>Assign Branches *</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllBranches(true)}
+                  className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
+                >
+                  {editBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
+                </button>
+              </div>
+
+              {isEditGlobalRole && (
+                <div className="p-2 rounded-md bg-[var(--blue-50)] text-[11px] text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
+                  <span>The <strong>Admin</strong> role has chain-wide scope. Check assigned branches and pick their primary home base below:</span>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="rounded-md border border-[var(--border)] p-2 space-y-1.5 max-h-36 overflow-y-auto">
-                    {branches.map((b) => {
-                      const isChecked = editBranchIds.includes(b.id);
+              )}
+
+              {/* Branch Checkboxes List */}
+              <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-36 overflow-y-auto bg-[var(--surface)]">
+                {branches.map((b) => {
+                  const isChecked = editBranchIds.includes(b.id);
+                  return (
+                    <label
+                      key={b.id}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
+                        isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleBranchToggle(b.id, true)}
+                          className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
+                        />
+                        <span>{b.branchName}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Primary / Home Branch Selector */}
+              {editBranchIds.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                      Primary / Home Branch *
+                    </Label>
+                    <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+                  </div>
+                  <select
+                    value={editPrimaryBranchId}
+                    onChange={(e) => setEditPrimaryBranchId(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    required
+                  >
+                    {editBranchIds.map((bId) => {
+                      const branch = branches.find((b) => b.id === bId);
                       return (
-                        <label
-                          key={b.id}
-                          className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--blue-50)] cursor-pointer text-xs transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleBranchToggle(b.id, true)}
-                              className="rounded border-[var(--border)] text-[var(--blue-600)]"
-                            />
-                            <span className="font-medium text-[var(--text-primary)]">{b.branchName}</span>
-                          </div>
-                          <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
-                        </label>
+                        <option key={bId} value={bId}>
+                          {branch?.branchName || bId}
+                        </option>
                       );
                     })}
-                  </div>
-
-                  {editBranchIds.length > 1 && (
-                    <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                        Primary / Home Branch
-                      </Label>
-                      <select
-                        value={editPrimaryBranchId}
-                        onChange={(e) => setEditPrimaryBranchId(e.target.value)}
-                        className="w-full h-8 px-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:outline-none"
-                      >
-                        {editBranchIds.map((bId) => {
-                          const branch = branches.find((b) => b.id === bId);
-                          return (
-                            <option key={bId} value={bId}>
-                              {branch?.branchName || bId}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  )}
+                  </select>
                 </div>
               )}
             </div>
