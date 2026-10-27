@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useAuth } from "@/components/auth-provider";
 import { RoomTypesTab } from "@/components/rooms/RoomTypesTab";
 import { RoomCategoriesTab } from "@/components/rooms/RoomCategoriesTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -85,6 +86,19 @@ function RoomsContent() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, activeBranch, branches: authBranches, hasPermission } = useAuth();
+  const activeBranchId = activeBranch?.id;
+
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const canManageRooms =
+    isGlobal ||
+    hasPermission("*") ||
+    hasPermission("hotel:*") ||
+    hasPermission("rooms:*");
 
   const handleMainTabChange = (tab: "rooms" | "types" | "categories") => {
     if (tab === "rooms") {
@@ -114,6 +128,59 @@ function RoomsContent() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
 
+  // Raw branches from API
+  const { data: rawBranches } = useQuery({ queryKey: ["branches"], queryFn: () => apiFetch<any>("/branches") });
+  const allBranches: any[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
+
+  // Allowed branch IDs for current user
+  const allowedBranchIds = useMemo(() => {
+    if (isGlobal) return null;
+    const ids = new Set<string>();
+    if (user?.branches) {
+      user.branches.forEach((b) => ids.add(b.id));
+    }
+    if (authBranches) {
+      authBranches.forEach((b) => ids.add(b.id));
+    }
+    if (user?.activeBranchId) ids.add(user.activeBranchId);
+    if (user?.primaryBranchId) ids.add(user.primaryBranchId);
+    if (activeBranchId) ids.add(activeBranchId);
+    return ids;
+  }, [isGlobal, user, authBranches, activeBranchId]);
+
+  // Branches strictly accessible to this user
+  const branches: any[] = useMemo(() => {
+    if (isGlobal) return allBranches;
+    return allBranches.filter((b: any) => allowedBranchIds?.has(b.id));
+  }, [isGlobal, allBranches, allowedBranchIds]);
+
+  // Current active branch ID
+  const currentBranchId = useMemo(() => {
+    if (activeBranch?.id && (!allowedBranchIds || allowedBranchIds.has(activeBranch.id))) return activeBranch.id;
+    if (activeBranchId && (!allowedBranchIds || allowedBranchIds.has(activeBranchId))) return activeBranchId;
+    if (user?.activeBranchId && (!allowedBranchIds || allowedBranchIds.has(user.activeBranchId))) return user.activeBranchId;
+    if (user?.primaryBranchId && (!allowedBranchIds || allowedBranchIds.has(user.primaryBranchId))) return user.primaryBranchId;
+    if (branches.length > 0) return branches[0].id;
+    return "";
+  }, [activeBranch, activeBranchId, user, allowedBranchIds, branches]);
+
+  // Scoped buildings
+  const { data: rawBuildings } = useQuery({ queryKey: ["buildings"], queryFn: () => apiFetch<any>("/buildings") });
+  const allBuildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+  const buildings = useMemo(() => {
+    if (isGlobal) return allBuildings;
+    return allBuildings.filter((b: any) => allowedBranchIds?.has(b.branchId));
+  }, [isGlobal, allBuildings, allowedBranchIds]);
+
+  // Scoped floors
+  const { data: rawFloors } = useQuery({ queryKey: ["floors"], queryFn: () => apiFetch<any>("/floors") });
+  const allFloors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+  const floors = useMemo(() => {
+    if (isGlobal) return allFloors;
+    const bldgIds = new Set(buildings.map((b: any) => b.id));
+    return allFloors.filter((f: any) => bldgIds.has(f.buildingId));
+  }, [isGlobal, allFloors, buildings]);
+
   // Hierarchy selection state for Add/Edit Room
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
@@ -133,14 +200,21 @@ function RoomsContent() {
     return () => clearTimeout(handler);
   }, [search]);
 
+  // Effective branch for querying rooms
+  const effectiveBranchId = useMemo(() => {
+    if (branchFilter !== "all") return branchFilter;
+    if (!isGlobal) return currentBranchId;
+    return "";
+  }, [branchFilter, isGlobal, currentBranchId]);
+
   let queryStr = `/rooms?search=${debouncedSearch}`;
   if (statusFilter !== "all") queryStr += `&status=${statusFilter}`;
   if (typeFilter !== "all") queryStr += `&roomTypeId=${typeFilter}`;
-  if (branchFilter !== "all") queryStr += `&branchId=${branchFilter}`;
+  if (effectiveBranchId) queryStr += `&branchId=${effectiveBranchId}`;
   if (buildingFilter !== "all") queryStr += `&buildingId=${buildingFilter}`;
 
   const { data: rawRooms, isLoading: isRoomsLoading } = useQuery({
-    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter],
+    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter, effectiveBranchId],
     queryFn: () => apiFetch<any>(queryStr),
   });
   const rooms: any[] = Array.isArray(rawRooms) ? rawRooms : (rawRooms?.data ?? []);
@@ -149,17 +223,11 @@ function RoomsContent() {
 
   useEffect(() => {
     inventoryPagination.setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter, effectiveBranchId]);
 
-  const { data: rawBranches } = useQuery({ queryKey: ["branches"], queryFn: () => apiFetch<any>("/branches") });
-  const branches: any[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
   const { data: types = [] } = useQuery({ queryKey: ["room-types"], queryFn: () => apiFetch<any[]>("/room-types") });
   const { data: categories = [] } = useQuery({ queryKey: ["room-categories"], queryFn: () => apiFetch<any[]>("/room-categories") });
   const { data: bedTypes = [] } = useQuery({ queryKey: ["bed-types"], queryFn: () => apiFetch<any[]>("/bed-types") });
-  const { data: rawBuildings } = useQuery({ queryKey: ["buildings"], queryFn: () => apiFetch<any>("/buildings") });
-  const buildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
-  const { data: rawFloors } = useQuery({ queryKey: ["floors"], queryFn: () => apiFetch<any>("/floors") });
-  const floors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
 
   // Filtered dropdown options based on hierarchy
   const availableBuildings = selectedBranchId
@@ -207,7 +275,12 @@ function RoomsContent() {
 
   const openAddRoom = () => {
     setEditItem(null);
-    const initialBranch = branches[0]?.id || "";
+    const initialBranch = (
+      (!isGlobal ? currentBranchId : null) ||
+      (branchFilter !== "all" ? branchFilter : null) ||
+      branches[0]?.id ||
+      ""
+    );
     setSelectedBranchId(initialBranch);
     const branchBldgs = initialBranch ? buildings.filter((b: any) => b.branchId === initialBranch) : buildings;
     const initialBldg = branchBldgs[0]?.id || "";
@@ -235,7 +308,7 @@ function RoomsContent() {
     setEditItem(room);
     const roomBldg = buildings.find((b: any) => b.id === room.buildingId);
     const roomFlr = floors.find((f: any) => f.id === room.floorId);
-    const branchId = room.branchId || roomBldg?.branchId || branches[0]?.id || "";
+    const branchId = room.branchId || roomBldg?.branchId || currentBranchId || branches[0]?.id || "";
     setSelectedBranchId(branchId);
     setSelectedBuildingId(room.buildingId || "");
     setSelectedFloorId(room.floorId || "");
@@ -351,6 +424,7 @@ function RoomsContent() {
     checkIn,
     checkOut,
     ...(availRoomTypeId ? { roomTypeId: availRoomTypeId } : {}),
+    ...(!isGlobal && currentBranchId ? { branchId: currentBranchId } : {}),
   });
 
   const { data: rawAvailRooms = [], isLoading: isAvailLoading, refetch: refetchAvail } = useQuery<AvailRoom[]>({
@@ -481,34 +555,51 @@ function RoomsContent() {
                   {types.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={branchFilter} onValueChange={(val) => {
-                setBranchFilter(val);
-                setBuildingFilter("all");
-              }}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {isGlobal ? (
+                <Select value={branchFilter} onValueChange={(val) => {
+                  setBranchFilter(val);
+                  setBuildingFilter("all");
+                }}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : branches.length > 1 ? (
+                <Select value={branchFilter} onValueChange={(val) => {
+                  setBranchFilter(val);
+                  setBuildingFilter("all");
+                }}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Assigned Branches</SelectItem>
+                    {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : null}
               <Select value={buildingFilter} onValueChange={setBuildingFilter}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Building" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Buildings</SelectItem>
-                  {(branchFilter !== "all" ? buildings.filter((b: any) => b.branchId === branchFilter) : buildings).map((b: any) => (
+                  {(effectiveBranchId ? buildings.filter((b: any) => b.branchId === effectiveBranchId) : buildings).map((b: any) => (
                     <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button onClick={openAddRoom}>
-              <Plus className="mr-2 h-4 w-4" /> Add Room
-            </Button>
+            {canManageRooms && (!allowedBranchIds || branches.length > 0) && (
+              <Button onClick={openAddRoom}>
+                <Plus className="mr-2 h-4 w-4" /> Add Room
+              </Button>
+            )}
 
             <Dialog open={isAddOpen} onOpenChange={(open) => {
               setIsAddOpen(open);
@@ -523,8 +614,12 @@ function RoomsContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="grid gap-2">
                       <Label>Branch</Label>
-                      <Select value={selectedBranchId} onValueChange={handleBranchChange}>
-                        <SelectTrigger>
+                      <Select 
+                        value={selectedBranchId} 
+                        onValueChange={handleBranchChange} 
+                        disabled={!isGlobal}
+                      >
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select Branch" />
                         </SelectTrigger>
                         <SelectContent>
@@ -535,6 +630,7 @@ function RoomsContent() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <input type="hidden" name="branchId" value={selectedBranchId} />
                     </div>
 
                     <div className="grid gap-2">
@@ -764,17 +860,17 @@ function RoomsContent() {
                                   View Detail <ArrowRight className="ml-auto h-3 w-3" />
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditRoom(room)}>Edit</DropdownMenuItem>
+                              {canManageRooms && <DropdownMenuItem onClick={() => openEditRoom(room)}>Edit</DropdownMenuItem>}
                               
-                              {room.status !== 'available' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Mark Available</DropdownMenuItem>}
-                              {room.status !== 'dirty' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'dirty' })}>Mark Dirty</DropdownMenuItem>}
-                              {room.status !== 'out_of_service' ? (
+                              {canManageRooms && room.status !== 'available' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Mark Available</DropdownMenuItem>}
+                              {canManageRooms && room.status !== 'dirty' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'dirty' })}>Mark Dirty</DropdownMenuItem>}
+                              {canManageRooms && (room.status !== 'out_of_service' ? (
                                 <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'out_of_service' })}>Mark Out of Service</DropdownMenuItem>
                               ) : (
                                 <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Put In Service</DropdownMenuItem>
-                              )}
+                              ))}
                               
-                              <DropdownMenuItem className="text-danger focus:bg-danger/10 focus:text-danger" onClick={() => deleteMutation.mutate(room.id)}>Delete</DropdownMenuItem>
+                              {canManageRooms && <DropdownMenuItem className="text-danger focus:bg-danger/10 focus:text-danger" onClick={() => deleteMutation.mutate(room.id)}>Delete</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

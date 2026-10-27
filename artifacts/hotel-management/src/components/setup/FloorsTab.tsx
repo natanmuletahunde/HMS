@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, MoreHorizontal, Loader2, Layers } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
@@ -11,10 +12,23 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 
 export function FloorsTab() {
+  const { user, hasPermission } = useAuth();
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const canManageFloors =
+    isGlobal ||
+    hasPermission("*") ||
+    hasPermission("hotel:*") ||
+    hasPermission("rooms:*");
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedBuildingFilter, setSelectedBuildingFilter] = useState<string>("all");
@@ -39,7 +53,34 @@ export function FloorsTab() {
       return apiFetch<any>(url);
     },
   });
-  const floors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+  const allFloors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+
+  const { data: rawBuildings } = useQuery({
+    queryKey: ["buildings"],
+    queryFn: () => apiFetch<any>("/buildings"),
+  });
+  const allBuildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+
+  const allowedBranchIds = isGlobal
+    ? null
+    : new Set(
+        user?.branches?.map((b) => b.id) ||
+        [user?.activeBranchId, user?.primaryBranchId].filter(Boolean)
+      );
+
+  const accessibleBuildings: any[] = isGlobal
+    ? allBuildings
+    : allBuildings.filter((b: any) => allowedBranchIds?.has(b.branchId));
+
+  const scopedBuildingIds = isGlobal ? null : new Set(accessibleBuildings.map((b: any) => b.id));
+
+  const scopedFloors = isGlobal
+    ? allFloors
+    : allFloors.filter((f: any) => scopedBuildingIds?.has(f.buildingId));
+
+  const floors = selectedBuildingFilter === "all"
+    ? scopedFloors
+    : scopedFloors.filter((f: any) => f.buildingId === selectedBuildingFilter);
 
   const {
     paginatedItems: paginatedFloors,
@@ -49,12 +90,6 @@ export function FloorsTab() {
     onPrev,
     onNext,
   } = usePagination(floors, 5);
-
-  const { data: rawBuildings } = useQuery({
-    queryKey: ["buildings"],
-    queryFn: () => apiFetch<any>("/buildings"),
-  });
-  const buildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -110,67 +145,73 @@ export function FloorsTab() {
             </SelectTrigger>
             <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
               <SelectItem value="all">All Buildings</SelectItem>
-              {buildings.map((b) => (
+              {accessibleBuildings.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Dialog open={isAddOpen} onOpenChange={(open) => {
-            setIsAddOpen(open);
-            if (!open) {
-              setEditItem(null);
-              setModalBuildingId("");
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
-                <Plus className="mr-2 h-4 w-4" /> Add Floor
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
-                  {editItem ? "Edit Floor" : "Add Floor"}
-                </DialogTitle>
-              </DialogHeader>
-              <form className="space-y-4" onSubmit={onSubmit}>
-                <div className="grid gap-2">
-                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Building</Label>
-                  <Select 
-                    name="buildingId" 
-                    value={modalBuildingId || editItem?.buildingId || (buildings.length === 1 ? buildings[0].id : undefined)}
-                    onValueChange={(val) => setModalBuildingId(val)}
-                    required
-                  >
-                    <SelectTrigger className="border-[var(--border)] bg-[var(--surface)]">
-                      <SelectValue placeholder="Select Building" />
-                    </SelectTrigger>
-                    <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
-                      {buildings.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Floor Name</Label>
-                  <Input name="floorName" defaultValue={editItem?.floorName} required className="border-[var(--border)] bg-[var(--surface)]" />
-                </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Floor Number</Label>
-                  <Input name="floorNumber" type="number" defaultValue={editItem?.floorNumber ?? 1} required className="border-[var(--border)] bg-[var(--surface)]" />
-                </div>
-                <div className="grid gap-2">
-                  <Label className="text-xs font-semibold text-[var(--text-primary)]">Description</Label>
-                  <Input name="description" defaultValue={editItem?.description} className="border-[var(--border)] bg-[var(--surface)]" />
-                </div>
-                <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Floor
+          {canManageFloors && accessibleBuildings.length > 0 && (
+            <Dialog open={isAddOpen} onOpenChange={(open) => {
+              setIsAddOpen(open);
+              if (!open) {
+                setEditItem(null);
+                setModalBuildingId("");
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
+                  <Plus className="mr-2 h-4 w-4" /> Add Floor
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+                    {editItem ? "Edit Floor" : "Add Floor"}
+                  </DialogTitle>
+                </DialogHeader>
+                <form className="space-y-4" onSubmit={onSubmit}>
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Building</Label>
+                    <Select 
+                      name="buildingId" 
+                      value={modalBuildingId || editItem?.buildingId || accessibleBuildings[0]?.id}
+                      onValueChange={(val) => setModalBuildingId(val)}
+                      disabled={!isGlobal && accessibleBuildings.length <= 1}
+                      required
+                    >
+                      <SelectTrigger className="border-[var(--border)] bg-[var(--surface)]">
+                        <SelectValue placeholder="Select Building" />
+                      </SelectTrigger>
+                      <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
+                        {accessibleBuildings.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!isGlobal && accessibleBuildings.length <= 1 && (
+                      <input type="hidden" name="buildingId" value={modalBuildingId || editItem?.buildingId || accessibleBuildings[0]?.id || ""} />
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Floor Name</Label>
+                    <Input name="floorName" defaultValue={editItem?.floorName} required className="border-[var(--border)] bg-[var(--surface)]" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Floor Number</Label>
+                    <Input name="floorNumber" type="number" defaultValue={editItem?.floorNumber ?? 1} required className="border-[var(--border)] bg-[var(--surface)]" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-[var(--text-primary)]">Description</Label>
+                    <Input name="description" defaultValue={editItem?.description} className="border-[var(--border)] bg-[var(--surface)]" />
+                  </div>
+                  <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
+                    {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Floor
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -182,39 +223,41 @@ export function FloorsTab() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floor Name</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floor Number</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Description</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              {canManageFloors && <TableHead className="w-[80px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManageFloors ? 5 : 4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : floors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-48 text-center text-[var(--text-secondary)]">
+                <TableCell colSpan={canManageFloors ? 5 : 4} className="h-48 text-center text-[var(--text-secondary)]">
                   <Layers className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No floors found.</p>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedFloors.map((floor) => {
-                const bldg = buildings.find((b) => b.id === floor.buildingId);
+                const bldg = allBuildings.find((b) => b.id === floor.buildingId);
                 return (
                   <TableRow key={floor.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]">
                     <TableCell className="font-medium text-[var(--text-primary)]">{bldg?.buildingName || '-'}</TableCell>
                     <TableCell className="font-semibold text-[var(--text-primary)]">{floor.floorName}</TableCell>
                     <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{floor.floorNumber}</TableCell>
                     <TableCell className="text-[var(--text-secondary)]">{floor.description || '-'}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
-                          <DropdownMenuItem onClick={() => { setEditItem(floor); setModalBuildingId(floor.buildingId); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(floor.id)}>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    {canManageFloors && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
+                            <DropdownMenuItem onClick={() => { setEditItem(floor); setModalBuildingId(floor.buildingId); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(floor.id)}>Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })

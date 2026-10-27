@@ -329,6 +329,7 @@ function UsersAndRolesContent() {
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
   const [editPrimaryBranchId, setEditPrimaryBranchId] = useState("");
   const [editUserErrorMsg, setEditUserErrorMsg] = useState("");
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const { data: rawUsers, isLoading: isUsersLoading } = useQuery({
     queryKey: ["users"],
@@ -446,6 +447,34 @@ function UsersAndRolesContent() {
           title: vars.isOnDuty ? "Staff Marked On Duty" : "Staff Marked Off Duty",
         });
       }
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiFetch<{ message: string }>(`/users/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: (data, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setUserToDelete(null);
+      toast({
+        title: "Staff Account Removed",
+        description: data?.message || "User account was successfully deleted.",
+      });
+      if (typeof window !== "undefined") {
+        const bc = new BroadcastChannel("hms_user_events");
+        bc.postMessage({ type: "user_deleted", userId: deletedId });
+        bc.close();
+      }
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Delete Failed",
+        description: err?.message || "Failed to delete user account.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -1001,6 +1030,18 @@ function UsersAndRolesContent() {
                             >
                               {user.isActive ? "Deactivate User" : "Activate User"}
                             </DropdownMenuItem>
+                            {user.id !== currentUser?.id && user.email !== "admin@nexushms.com" && (
+                              <>
+                                <div className="my-1 border-t border-[var(--border)]" />
+                                <DropdownMenuItem
+                                  onClick={() => setUserToDelete(user)}
+                                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50 dark:hover:bg-red-950/40"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                  <span>Delete User</span>
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1598,6 +1639,74 @@ function UsersAndRolesContent() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          DELETE USER CONFIRMATION DIALOG
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <Dialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null); }}>
+        <DialogContent className="sm:max-w-[440px] p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+          <DialogHeader className="pb-2">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 mb-2">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-center text-lg font-bold text-[var(--text-primary)]">
+              Delete Staff Member
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-[var(--text-secondary)] mt-1">
+              Are you sure you want to permanently delete{" "}
+              <span className="font-semibold text-[var(--text-primary)]">
+                {userToDelete?.firstName} {userToDelete?.lastName}
+              </span>{" "}
+              ({userToDelete?.email})?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+            <p className="font-semibold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Irreversible Action</span>
+            </p>
+            <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+              This will revoke login credentials, unlink branch assignments, terminate active sessions, and remove this user from the staff directory.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setUserToDelete(null)}
+              disabled={deleteUserMutation.isPending}
+              className="text-xs h-9 rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (userToDelete) {
+                  deleteUserMutation.mutate(userToDelete.id);
+                }
+              }}
+              disabled={deleteUserMutation.isPending}
+              className="text-xs h-9 bg-red-600 hover:bg-red-700 text-white gap-1.5 rounded-lg shadow-sm"
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Permanently</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

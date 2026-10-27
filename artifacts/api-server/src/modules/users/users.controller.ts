@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtPayload } from '../auth/jwt.strategy';
+import { assertCanManageUsers } from '../../common/utils/access-control';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -33,7 +36,8 @@ export class UsersController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.svc.remove(id);
+  async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await assertCanManageUsers(user);
+    return this.svc.remove(id, user);
   }
 }

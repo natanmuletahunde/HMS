@@ -66,11 +66,17 @@ function BranchesContent() {
     router.replace(url, { scroll: false });
   };
   const { user, hasPermission } = useAuth();
-  const canManageBranches =
+  const isGlobal =
     user?.roleName === "Admin" ||
     user?.roleName === "System Admin" ||
-    user?.roleScope === "global" ||
-    hasPermission("hotel:*");
+    user?.roleScope === "global";
+
+  const canManageBranches =
+    isGlobal &&
+    (user?.roleName === "Admin" ||
+      user?.roleName === "System Admin" ||
+      hasPermission("*") ||
+      hasPermission("hotel:*"));
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -90,9 +96,20 @@ function BranchesContent() {
     queryFn: () => apiFetch<any>(`/branches?search=${encodeURIComponent(debouncedSearch)}`),
   });
 
-  const branches: Branch[] = Array.isArray(rawBranches)
+  const allBranches: Branch[] = Array.isArray(rawBranches)
     ? rawBranches
     : (rawBranches?.data ?? []);
+
+  const allowedBranchIds = isGlobal
+    ? null
+    : new Set(
+        user?.branches?.map((b) => b.id) ||
+        [user?.activeBranchId, user?.primaryBranchId].filter(Boolean)
+      );
+
+  const branches: Branch[] = isGlobal
+    ? allBranches
+    : allBranches.filter((b) => allowedBranchIds?.has(b.id));
 
   const {
     currentPage,

@@ -1,8 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { eq, like, and, sql, or, inArray } from 'drizzle-orm';
-import { db, usersTable, rolesTable, userBranchesTable, branchesTable } from '@workspace/db';
+import {
+  db,
+  usersTable,
+  rolesTable,
+  userBranchesTable,
+  branchesTable,
+  mfaConfigsTable,
+  mobileSessionsTable,
+  employeesTable,
+  housekeepingAssignmentsTable,
+  cleaningInspectionsTable,
+  maintenanceRequestsTable,
+  maintenanceInspectionsTable,
+  posOrdersTable,
+  restaurantOrdersTable,
+  roomServiceRequestsTable,
+} from '@workspace/db';
 import { validatePassword } from '../../common/utils/password-policy';
+import { getUserAccessInfo } from '../../common/utils/access-control';
+import type { JwtPayload } from '../auth/jwt.strategy';
 
 const fields = {
   id: usersTable.id,
@@ -329,9 +347,99 @@ export class UsersService {
     return this.findOne(userId);
   }
 
-  async remove(id: string) {
-    const [u] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
-    if (!u) throw new NotFoundException('User not found');
-    return { message: 'User deleted' };
+  async remove(id: string, currentUser?: JwtPayload) {
+    if (currentUser?.userId && id === currentUser.userId) {
+      throw new BadRequestException('You cannot delete your own account.');
+    }
+
+    const [target] = await db
+      .select({
+        id: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        roleId: usersTable.roleId,
+        primaryBranchId: usersTable.primaryBranchId,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, id));
+
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (target.email === 'admin@nexushms.com') {
+      throw new ForbiddenException('Cannot delete the root System Admin account.');
+    }
+
+    // Branch-bounded users can only delete users in their branch and cannot delete global admins
+    if (currentUser) {
+      const access = await getUserAccessInfo(currentUser);
+      if (!access.isGlobal) {
+        const [targetRole] = await db
+          .select({ scope: rolesTable.scope, name: rolesTable.name })
+          .from(rolesTable)
+          .where(eq(rolesTable.id, target.roleId));
+
+        if (targetRole?.scope === 'global' || targetRole?.name === 'Admin' || targetRole?.name === 'System Admin') {
+          throw new ForbiddenException('Branch staff cannot delete global administrator accounts.');
+        }
+
+        const targetBranches = await db
+          .select({ branchId: userBranchesTable.branchId })
+          .from(userBranchesTable)
+          .where(eq(userBranchesTable.userId, id));
+        const targetBranchIds = targetBranches.map((tb) => tb.branchId);
+        if (target.primaryBranchId && !targetBranchIds.includes(target.primaryBranchId)) {
+          targetBranchIds.push(target.primaryBranchId);
+        }
+
+        const sharesBranch = targetBranchIds.some((bId) => access.branchIds.includes(bId));
+        if (targetBranchIds.length > 0 && !sharesBranch) {
+          throw new ForbiddenException('You can only delete staff members assigned to your branch.');
+        }
+      }
+    }
+
+    // 1. Clean up junction/auth dependencies
+    await db.delete(userBranchesTable).where(eq(userBranchesTable.userId, id));
+    await db.delete(mfaConfigsTable).where(eq(mfaConfigsTable.userId, id));
+    await db.delete(mobileSessionsTable).where(eq(mobileSessionsTable.userId, id));
+
+    // 2. Unlink employee profile if any
+    await db.update(employeesTable).set({ userId: null }).where(eq(employeesTable.userId, id));
+
+    // 3. Unlink operational references if any
+    try {
+      await db.update(housekeepingAssignmentsTable).set({ staffId: null }).where(eq(housekeepingAssignmentsTable.staffId, id));
+      await db.update(housekeepingAssignmentsTable).set({ supervisorId: null }).where(eq(housekeepingAssignmentsTable.supervisorId, id));
+      await db.update(cleaningInspectionsTable).set({ inspectedBy: null }).where(eq(cleaningInspectionsTable.inspectedBy, id));
+      await db.update(maintenanceRequestsTable).set({ assignedToId: null }).where(eq(maintenanceRequestsTable.assignedToId, id));
+      await db.update(maintenanceInspectionsTable).set({ inspectedBy: null }).where(eq(maintenanceInspectionsTable.inspectedBy, id));
+      await db.update(posOrdersTable).set({ waiterId: null }).where(eq(posOrdersTable.waiterId, id));
+      await db.update(restaurantOrdersTable).set({ waiterId: null }).where(eq(restaurantOrdersTable.waiterId, id));
+      await db.update(roomServiceRequestsTable).set({ assignedToId: null }).where(eq(roomServiceRequestsTable.assignedToId, id));
+    } catch (e) {
+      // Ignore if unlinking fails
+    }
+
+    // 4. Try hard delete; if operational FK constraints prevent hard delete, graceful soft-delete fallback
+    try {
+      const [u] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
+      if (!u) throw new NotFoundException('User not found');
+      return { message: 'User permanently deleted' };
+    } catch (err: any) {
+      await db
+        .update(usersTable)
+        .set({
+          isActive: false,
+          isOnDuty: false,
+          email: `${target.email}.deleted.${Date.now()}`,
+          faydaId: null,
+        })
+        .where(eq(usersTable.id, id));
+
+      return { message: 'User deactivated and removed from staff roster' };
+    }
   }
 }
