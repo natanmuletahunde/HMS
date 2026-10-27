@@ -130,50 +130,50 @@ const heroSlides = [
 const mockServices = [
   {
     id: "srv-1",
-    category: "Gastronomy & Dining",
-    title: "Gourmet Restaurant & In-Room Dining",
+    category: "Food & Dining",
+    title: "Restaurant & Room Service",
     description:
-      "Michelin-grade culinary experiences featuring authentic Ethiopian delicacies, aged steaks, and contemporary international dishes delivered directly to your suite.",
+      "Enjoy delicious Ethiopian and international food delivered straight to your room or served fresh in our main restaurant.",
     icon: Utensils,
   },
   {
     id: "srv-2",
-    category: "Wellness & Spa",
-    title: "Holistic Spa & Therapeutic Center",
+    category: "Spa & Relaxation",
+    title: "Spa, Massage & Sauna",
     description:
-      "Revitalize your body and soul with indigenous aromatherapy, herbal steam sauna rituals, and signature Swedish therapeutic massages.",
+      "Relax your body and mind with soothing massages, herbal steam baths, and quiet sauna rooms.",
     icon: Sparkles,
   },
   {
     id: "srv-3",
-    category: "VIP Transit",
-    title: "Airport Chauffeur & Executive Limousine",
+    category: "Transportation",
+    title: "Airport Pickup & Car Rides",
     description:
-      "Complimentary VIP airport terminal pickup, luggage assistance, and city-wide executive transport in premium climate-controlled vehicles.",
+      "Free airport pickup, friendly help with your luggage, and comfortable air-conditioned car rides around the city.",
     icon: Car,
   },
   {
     id: "srv-4",
-    category: "Personal Care",
-    title: "24/7 Dedicated Butler & Concierge",
+    category: "Guest Support",
+    title: "24/7 Front Desk & Room Help",
     description:
-      "Seamless round-the-clock service tailored to your itinerary, from personalized in-room dining to private diplomatic coordination and bookings.",
+      "Our team is available 24 hours a day to assist you with room orders, taxi bookings, and city directions.",
     icon: ShieldCheck,
   },
   {
     id: "srv-5",
-    category: "Leisure & Views",
-    title: "Heated Infinity Pool & Private Cabanas",
+    category: "Swimming Pool",
+    title: "Warm Swimming Pool & Drinks",
     description:
-      "Unwind in our temperature-controlled infinity pool overlooking the Addis Ababa skyline, complemented with handcrafted poolside refreshments.",
+      "Swim in our warm rooftop pool with beautiful city views, or relax on sun loungers with cold drinks and snacks.",
     icon: Droplets,
   },
   {
     id: "srv-6",
-    category: "Fitness & Sport",
-    title: "Modern Technogym Fitness Club",
+    category: "Gym & Fitness",
+    title: "Gym & Exercise Center",
     description:
-      "High-performance cardio and strength facilities accessible 24/7, with certified personal training, yoga sessions, and steam showers.",
+      "Modern workout equipment open 24/7, personal trainers to guide you, yoga classes, and hot steam showers.",
     icon: Dumbbell,
   },
 ];
@@ -210,46 +210,34 @@ const mockTestimonials = [
 
 const SPECIAL_REQUEST_CATALOG = [
   {
-    category: "🍽️ In-Room Dining & Breakfast",
+    category: "🍽️ In-Room Food & Drinks",
     items: [
-      "Traditional Doro Wat Feast ($18.50)",
-      "Deluxe Angus Burger & Fries ($14.00)",
-      "Continental Club Sandwich ($11.50)",
-      "Fresh Seasonal Fruit Platter ($8.00)",
-      "Signature Ethiopian Jebena Coffee ($4.50)",
-      "Fresh Mango & Avocado Smoothie ($5.50)",
-      "Sparkling Mineral Water (750ml, $3.50)",
+      "Traditional Doro Wat Meal (2,300 ETB)",
+      "Club Sandwich & Fries (1,400 ETB)",
+      "Traditional Ethiopian Coffee (500 ETB)",
     ],
   },
   {
-    category: "🛏️ Room Amenities & Comfort",
+    category: "🛏️ Room Comfort & Bedding",
     items: [
-      "Extra Feather Pillows (x2)",
-      "Extra Warm Wool Blanket",
-      "Fresh Bath Towels & Robe Set",
-      "Baby Cot / Crib Setup",
-      "Room Evening Turn-down Service",
+      "Extra Soft Pillows (x2)",
+      "Warm Wool Blanket",
+      "Fresh Towel & Robe Set",
     ],
   },
   {
-    category: "🛎️ Guest & Stay Services",
+    category: "🛎️ Stay Requests",
     items: [
       "Morning Wake-up Call",
-      "Express Laundry & Pressing ($12.00)",
-      "Quiet Room / High Floor Preference",
-      "Early Check-In Request",
+      "Quiet Room / High Floor",
       "Late Check-Out Request",
-      "AC / Climate Adjustment Assistance",
     ],
   },
   {
-    category: "🚗 Airport & Chauffeur Transport",
+    category: "🚗 Airport Transport",
     items: [
-      "Airport Arrival VIP Meet & Pickup (3,750 ETB)",
-      "Airport Chauffeur Drop-off (3,000 ETB)",
-      "Complimentary Downtown / UNECA Shuttle",
-      "Half-Day City Tour Chauffeur (6,800 ETB)",
-      "Luggage & Bellhop Vehicle Dispatch",
+      "Airport VIP Pickup (3,750 ETB)",
+      "Airport Drop-off (3,000 ETB)",
     ],
   },
 ];
@@ -1359,14 +1347,14 @@ export default function LuxuryLandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-widest mb-3">
-              Elite Hospitality
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider mb-3">
+              Hotel Services
             </div>
             <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Explore Our World-Class <span className="text-amber-400">Services</span>
+              Explore Our Hotel <span className="text-amber-400">Services</span>
             </h2>
             <p className="mt-3 text-sm sm:text-base text-gray-400">
-              From Michelin-grade dining to restorative therapeutic wellness, experience unmatched care at every touchpoint.
+              Enjoy fresh food, spa treatments, airport pickup, and 24/7 care during your stay.
             </p>
           </div>
 
@@ -1918,25 +1906,18 @@ export default function LuxuryLandingPage() {
           {/* STEP 1: REVIEW DETAILS & GUEST IDENTIFICATION */}
           {bookingStep === "review" && (
             <div className="space-y-4 pt-2 text-xs">
-              {/* Suite & Rate Card */}
-              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03] space-y-3">
-                <div className="flex justify-between items-center text-sm font-bold text-white">
-                  <span>{selectedSuite?.name}</span>
-                  <span className="font-mono text-base text-amber-400 font-bold">{formatPrice(totalUsd)}</span>
+              {/* 1. Guest Details Card (Placed Above Suite & Rate Card) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    Guest Details
+                  </Label>
+                  {guestSession?.guest && (
+                    <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] py-0 px-2 font-normal">
+                      Verified Guest
+                    </Badge>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-slate-300 text-xs pt-1 border-t border-white/[0.06]">
-                  <div><span className="text-slate-400">Check-In:</span> <strong className="text-white ml-1 font-mono">{checkInDate} (14:00)</strong></div>
-                  <div><span className="text-slate-400">Check-Out:</span> <strong className="text-white ml-1 font-mono">{checkOutDate} (12:00)</strong></div>
-                  <div><span className="text-slate-400">Nightly Rate:</span> <strong className="text-white ml-1 font-mono">{formatPrice(suitePriceUsd)}</strong></div>
-                  <div><span className="text-slate-400">Duration:</span> <strong className="text-white ml-1 font-mono">{nightsCount} Night{nightsCount > 1 ? "s" : ""}</strong></div>
-                </div>
-              </div>
-
-              {/* Guest Profile Card */}
-              <div className="space-y-2 pt-1">
-                <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                  Guest Details
-                </Label>
 
                 {guestSession?.guest ? (
                   <div className="p-4 rounded-xl border border-emerald-500/25 bg-emerald-950/20">
@@ -1951,9 +1932,6 @@ export default function LuxuryLandingPage() {
                               {guestSession.guest.fullName ||
                                 `${guestSession.guest.firstName} ${guestSession.guest.lastName}`.trim()}
                             </span>
-                            <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] py-0 px-1.5 font-normal">
-                              Verified
-                            </Badge>
                           </div>
                           <div className="text-xs text-slate-300 font-mono mt-1 flex flex-wrap gap-x-4">
                             <span>Phone: <strong className="text-white">{guestSession.guest.phone || "—"}</strong></span>
@@ -1988,126 +1966,124 @@ export default function LuxuryLandingPage() {
                     </Button>
                   </div>
                 )}
+              </div>
 
-                {/* Special Requests */}
-                {guestSession?.guest && (
-                  <div className="pt-2 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        Special Requests
-                      </span>
-                      <div className="flex items-center gap-1.5 relative">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2.5 text-[11px] border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white gap-1 font-medium rounded-lg"
-                          onClick={() => {
-                            setShowServiceDropdown((v) => !v);
-                            setShowOtherInput(false);
-                          }}
-                        >
-                          <span>+ Menu Requests</span>
-                          <ChevronDown className={`w-3 h-3 text-amber-400 transition-transform ${showServiceDropdown ? "rotate-180" : ""}`} />
-                        </Button>
+              {/* 2. Suite & Rate Card (Executive Twin Skyline Suite) */}
+              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03] space-y-3">
+                <div className="flex justify-between items-center text-sm font-bold text-white">
+                  <span className="text-white font-bold">{selectedSuite?.name}</span>
+                  <span className="font-mono text-base text-amber-400 font-bold">{formatPrice(totalUsd)}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-slate-300 text-xs pt-1 border-t border-white/[0.06]">
+                  <div><span className="text-slate-400">Check-In:</span> <strong className="text-white ml-1 font-mono">{checkInDate} (14:00)</strong></div>
+                  <div><span className="text-slate-400">Check-Out:</span> <strong className="text-white ml-1 font-mono">{checkOutDate} (12:00)</strong></div>
+                  <div><span className="text-slate-400">Nightly Rate:</span> <strong className="text-white ml-1 font-mono">{formatPrice(suitePriceUsd)}</strong></div>
+                  <div><span className="text-slate-400">Duration:</span> <strong className="text-white ml-1 font-mono">{nightsCount} Night{nightsCount > 1 ? "s" : ""}</strong></div>
+                </div>
+              </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={`h-7 px-2.5 text-[11px] font-medium rounded-lg gap-1 transition-all ${
-                            showOtherInput
-                              ? "bg-amber-500 text-slate-950 border-amber-500 font-bold"
-                              : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-                          }`}
-                          onClick={() => {
-                            setShowOtherInput((v) => !v);
-                            setShowServiceDropdown(false);
-                          }}
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Custom</span>
-                        </Button>
+              {/* 3. Special Requests with Enlarged & Polished Dropdown Menu */}
+              {guestSession?.guest && (
+                <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      Special Requests & Services
+                    </span>
+                    <div className="flex items-center gap-2 relative">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 gap-1.5 font-medium rounded-xl"
+                        onClick={() => {
+                          setShowServiceDropdown((v) => !v);
+                          setShowOtherInput(false);
+                        }}
+                      >
+                        <span>+ Menu Requests</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform ${showServiceDropdown ? "rotate-180" : ""}`} />
+                      </Button>
 
-                        {/* Catalog Menu Dropdown */}
-                        {showServiceDropdown && (
-                          <div className="absolute right-0 top-9 z-50 w-80 max-w-[90vw] bg-[#0d0f14] border border-white/20 rounded-xl shadow-2xl p-3 space-y-2.5 max-h-64 overflow-y-auto">
-                            <div className="flex items-center justify-between pb-1.5 border-b border-white/10 text-xs text-slate-400 font-medium">
-                              <span className="text-white font-semibold flex items-center gap-1">
-                                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Catalog Services
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setShowServiceDropdown(false)}
-                                className="text-slate-400 hover:text-white"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            {SPECIAL_REQUEST_CATALOG.map((cat) => (
-                              <div key={cat.category} className="space-y-1">
-                                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
-                                  {cat.category}
-                                </span>
-                                <div className="space-y-0.5">
-                                  {cat.items.map((item) => {
-                                    const isSelected = selectedSpecialPresets.includes(item);
-                                    return (
-                                      <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => {
-                                          if (isSelected) {
-                                            setSelectedSpecialPresets((prev) => prev.filter((x) => x !== item));
-                                          } else {
-                                            setSelectedSpecialPresets((prev) => [...prev, item]);
-                                          }
-                                        }}
-                                        className={`w-full text-left px-2 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors ${
-                                          isSelected
-                                            ? "bg-amber-500/20 text-amber-200 border border-amber-500/30"
-                                            : "text-slate-300 hover:bg-white/10"
-                                        }`}
-                                      >
-                                        <span className="truncate">{item}</span>
-                                        {isSelected && <Check className="w-3 h-3 text-amber-400 shrink-0 ml-1.5" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`h-8 px-3 text-xs font-medium rounded-xl gap-1.5 transition-all ${
+                          showOtherInput
+                            ? "bg-amber-500 text-slate-950 border-amber-500 font-bold"
+                            : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                        }`}
+                        onClick={() => {
+                          setShowOtherInput((v) => !v);
+                          setShowServiceDropdown(false);
+                        }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Custom</span>
+                      </Button>
+
+                      {/* Enlarged & Organized Catalog Menu Dropdown */}
+                      {showServiceDropdown && (
+                        <div className="absolute right-0 top-10 z-50 w-96 sm:w-[420px] max-w-[95vw] bg-[#0e1118] border border-amber-500/40 rounded-2xl shadow-2xl p-4 space-y-3 max-h-80 overflow-y-auto">
+                          <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs">
+                            <span className="text-white font-bold flex items-center gap-1.5 text-sm">
+                              <Sparkles className="w-4 h-4 text-amber-400" /> Catalog Services
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowServiceDropdown(false)}
+                              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
-                        )}
-                      </div>
+                          {SPECIAL_REQUEST_CATALOG.map((cat) => (
+                            <div key={cat.category} className="space-y-1.5 pt-1">
+                              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                                {cat.category}
+                              </span>
+                              <div className="space-y-1">
+                                {cat.items.map((item) => {
+                                  const isSelected = selectedSpecialPresets.includes(item);
+                                  return (
+                                    <button
+                                      key={item}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setSelectedSpecialPresets((prev) => prev.filter((x) => x !== item));
+                                        } else {
+                                          setSelectedSpecialPresets((prev) => [...prev, item]);
+                                        }
+                                      }}
+                                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                                        isSelected
+                                          ? "bg-amber-500/20 text-amber-200 border border-amber-500/40 font-semibold"
+                                          : "text-slate-300 hover:bg-white/10 border border-transparent"
+                                      }`}
+                                    >
+                                      <span className="truncate pr-2">{item}</span>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1.5" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                  </div>
 
-                    {showOtherInput && (
-                      <div className="flex items-center gap-1.5 pt-1">
-                        <Input
-                          value={otherText}
-                          onChange={(e) => setOtherText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              if (otherText.trim()) {
-                                if (!selectedSpecialPresets.includes(otherText.trim())) {
-                                  setSelectedSpecialPresets((prev) => [...prev, otherText.trim()]);
-                                }
-                                setOtherText("");
-                                setShowOtherInput(false);
-                              }
-                            }
-                          }}
-                          className="h-8 text-xs bg-black/40 border-slate-700 text-white focus:border-amber-500"
-                          autoFocus
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shrink-0"
-                          onClick={() => {
+                  {showOtherInput && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Input
+                        value={otherText}
+                        onChange={(e) => setOtherText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
                             if (otherText.trim()) {
                               if (!selectedSpecialPresets.includes(otherText.trim())) {
                                 setSelectedSpecialPresets((prev) => [...prev, otherText.trim()]);
@@ -2115,49 +2091,66 @@ export default function LuxuryLandingPage() {
                               setOtherText("");
                               setShowOtherInput(false);
                             }
-                          }}
-                        >
-                          Add
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 px-2 text-slate-400 hover:text-white text-xs shrink-0"
-                          onClick={() => {
+                          }
+                        }}
+                        placeholder="Type custom request (e.g. Extra baby cot)..."
+                        className="h-9 text-xs bg-black/40 border-slate-700 text-white focus:border-amber-500 rounded-xl"
+                        autoFocus
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-9 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shrink-0 rounded-xl"
+                        onClick={() => {
+                          if (otherText.trim()) {
+                            if (!selectedSpecialPresets.includes(otherText.trim())) {
+                              setSelectedSpecialPresets((prev) => [...prev, otherText.trim()]);
+                            }
                             setOtherText("");
                             setShowOtherInput(false);
-                          }}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    )}
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-9 px-2 text-slate-400 hover:text-white text-xs shrink-0 rounded-xl"
+                        onClick={() => {
+                          setOtherText("");
+                          setShowOtherInput(false);
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
 
-                    {selectedSpecialPresets.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {selectedSpecialPresets.map((item, idx) => (
-                          <Badge
-                            key={idx}
-                            variant="outline"
-                            className="bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs py-0.5 px-2 flex items-center gap-1.5 font-normal rounded-lg"
+                  {selectedSpecialPresets.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {selectedSpecialPresets.map((item, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="outline"
+                          className="bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs py-1 px-2.5 flex items-center gap-1.5 font-normal rounded-xl"
+                        >
+                          <span className="truncate max-w-[280px]">{item}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSpecialPresets((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-slate-400 hover:text-red-400 transition-colors ml-0.5"
+                            title="Remove"
                           >
-                            <span className="truncate max-w-[280px]">{item}</span>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedSpecialPresets((prev) => prev.filter((_, i) => i !== idx))}
-                              className="text-slate-400 hover:text-red-400 transition-colors ml-0.5"
-                              title="Remove"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <DialogFooter className="flex items-center justify-end gap-2 pt-4 border-t border-white/10">
                 <Button variant="ghost" size="sm" onClick={() => setBookingModalOpen(false)} className="text-slate-400 hover:text-white">
