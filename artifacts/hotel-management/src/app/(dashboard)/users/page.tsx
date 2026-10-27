@@ -5,9 +5,12 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, MoreHorizontal, Loader2, UserPlus, Building2, Check, Shield, Edit2, 
-  Users as UsersIcon, ShieldCheck, Globe, Trash2, Edit 
+  Users as UsersIcon, ShieldCheck, Globe, Trash2, Edit, RotateCw, Copy,
+  CalendarDays, Sparkles, UtensilsCrossed, CreditCard, Package, CheckSquare, Square, Search, Eye, EyeOff
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,7 +23,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +41,7 @@ type User = {
   name?: string;
   email: string;
   phone?: string | null;
+  faydaId?: string | null;
   roleId?: string;
   role?: string;
   roleName?: string | null;
@@ -94,10 +98,189 @@ const AVAILABLE_PERMISSIONS = [
   { id: "roles:*", label: "Roles & Security (roles:*)", desc: "Role creation and permission matrix" },
 ];
 
+function generateSecurePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const nums = "23456789";
+  const syms = "!@#$%^&*";
+  const all = upper + lower + nums + syms;
+  
+  const pwd = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    nums[Math.floor(Math.random() * nums.length)],
+    syms[Math.floor(Math.random() * syms.length)],
+  ];
+  for (let i = 0; i < 8; i++) {
+    pwd.push(all[Math.floor(Math.random() * all.length)]);
+  }
+  return pwd.sort(() => Math.random() - 0.5).join("");
+}
+
+
+const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
+  "System Admin": ["*"],
+  "Admin": ["*"],
+  "General Manager": [
+    "hotel:*", "rooms:*", "reservations:*", "guests:*", "front-office:*",
+    "housekeeping:*", "maintenance:*", "restaurant:*", "pos:*", "room-service:*",
+    "inventory:*", "procurement:*", "financial:*", "invoices:*", "payments:*",
+    "conference:*", "transport:*", "hr:*", "employees:*", "customer-service:*",
+    "documents:*", "reports:*", "bi:*"
+  ],
+  "Front Office Officer": [
+    "rooms:*", "reservations:*", "guests:*", "front-office:*",
+    "invoices:*", "payments:*", "customer-service:*", "transport:*",
+    "documents:*", "reports:*"
+  ],
+  "Front Desk": [
+    "rooms:*", "reservations:*", "guests:*", "front-office:*",
+    "invoices:*", "payments:*"
+  ],
+  "Reservation Agent": [
+    "rooms:*", "reservations:*", "guests:*", "front-office:*",
+    "customer-service:*", "documents:*"
+  ],
+  "Night Auditor": [
+    "reservations:*", "front-office:*", "invoices:*", "payments:*",
+    "financial:*", "reports:*", "rooms:*", "guests:*"
+  ],
+  "Housekeeping": [
+    "housekeeping:*", "rooms:*"
+  ],
+  "Maintenance": [
+    "maintenance:*", "rooms:*", "inventory:*"
+  ],
+  "Cashier": [
+    "pos:*", "restaurant:*", "room-service:*", "invoices:*", "payments:*"
+  ],
+  "Accountant": [
+    "financial:*", "invoices:*", "payments:*", "procurement:*", "reports:*"
+  ],
+  "Storekeeper": [
+    "inventory:*", "procurement:*"
+  ],
+  "Manager": [
+    "reports:*", "staff:*", "reservations:*", "rooms:*", "guests:*", "front-office:*"
+  ]
+};
+
+function getDefaultPermissionsForRole(name: string): string[] {
+  const trimmed = (name || "").trim().toLowerCase();
+  for (const [key, perms] of Object.entries(ROLE_DEFAULT_PERMISSIONS)) {
+    if (key.toLowerCase() === trimmed) {
+      return perms;
+    }
+  }
+  if (trimmed.includes("admin") || trimmed.includes("super")) return ROLE_DEFAULT_PERMISSIONS["System Admin"];
+  if (trimmed.includes("general manager") || trimmed.includes("gm")) return ROLE_DEFAULT_PERMISSIONS["General Manager"];
+  if (trimmed.includes("front office") || trimmed.includes("reception")) return ROLE_DEFAULT_PERMISSIONS["Front Office Officer"];
+  if (trimmed.includes("reservation")) return ROLE_DEFAULT_PERMISSIONS["Reservation Agent"];
+  if (trimmed.includes("auditor") || trimmed.includes("night")) return ROLE_DEFAULT_PERMISSIONS["Night Auditor"];
+  if (trimmed.includes("housekeep")) return ROLE_DEFAULT_PERMISSIONS["Housekeeping"];
+  if (trimmed.includes("maint")) return ROLE_DEFAULT_PERMISSIONS["Maintenance"];
+  if (trimmed.includes("cashier") || trimmed.includes("pos")) return ROLE_DEFAULT_PERMISSIONS["Cashier"];
+  if (trimmed.includes("account")) return ROLE_DEFAULT_PERMISSIONS["Accountant"];
+  if (trimmed.includes("store") || trimmed.includes("inventory")) return ROLE_DEFAULT_PERMISSIONS["Storekeeper"];
+  if (trimmed.includes("manager")) return ROLE_DEFAULT_PERMISSIONS["Manager"];
+
+  return ["rooms:*", "reservations:*", "guests:*", "reports:*"];
+}
+
+const PERMISSION_GROUPS = [
+  {
+    id: "front_desk",
+    title: "Front Desk & Guest Services",
+    icon: CalendarDays,
+    items: [
+      { id: "reservations:*", label: "Reservations & Bookings", desc: "Manage room bookings, calendar grid, stay dates, and guest allocations." },
+      { id: "front-office:*", label: "Front Office Operations", desc: "Arrival processing, keycard issuance, mid-stay room moves, and check-outs." },
+      { id: "guests:*", label: "Guest Profiles & Fayda ID", desc: "Access guest directory, past stay histories, and national ID records." },
+      { id: "customer-service:*", label: "Guest Service & Requests", desc: "Handle special guest amenities, concierge requests, and customer complaints." },
+    ]
+  },
+  {
+    id: "hotel",
+    title: "Hotel Infrastructure & Setup",
+    icon: Building2,
+    items: [
+      { id: "hotel:*", label: "Hotel Profile & Branches", desc: "Manage property configurations, branch locations, buildings, and floors." },
+      { id: "rooms:*", label: "Rooms, Types & Pricing", desc: "Configure physical room units, room categories, base rates, and seasonal pricing." },
+      { id: "conference:*", label: "Conference & Hall Bookings", desc: "Manage event halls, meeting space reservations, and AV equipment." },
+    ]
+  },
+  {
+    id: "operations",
+    title: "Housekeeping & Facility Maintenance",
+    icon: Sparkles,
+    items: [
+      { id: "housekeeping:*", label: "Housekeeping & Turnaround", desc: "Room cleaning status (clean/dirty), staff cleaning rosters, and inspections." },
+      { id: "maintenance:*", label: "Engineering & Maintenance", desc: "Facility repair work orders, asset issues (HVAC, plumbing), and technician logs." },
+      { id: "transport:*", label: "Transport & Airport Shuttles", desc: "Chauffeur schedules, vehicle fleet management, and guest airport transfers." },
+    ]
+  },
+  {
+    id: "dining",
+    title: "Food & Beverage (F&B)",
+    icon: UtensilsCrossed,
+    items: [
+      { id: "restaurant:*", label: "Restaurant & Table Layout", desc: "Table configurations, dining menu items, and kitchen display routing." },
+      { id: "pos:*", label: "POS Registers & Waiter Orders", desc: "Point-of-sale cashier terminals, order processing, and takeaway sales." },
+      { id: "room-service:*", label: "In-Room Dining Service", desc: "Room service meal orders, delivery tracking, and room folio charges." },
+    ]
+  },
+  {
+    id: "finance",
+    title: "Billing, Invoices & Financials",
+    icon: CreditCard,
+    items: [
+      { id: "invoices:*", label: "Guest Folios & Invoices", desc: "Generate billing statements, consolidate stay charges, and tax receipts." },
+      { id: "payments:*", label: "Payments & Settlements", desc: "Process Cash, Card, Telebirr, and CBE Birr payments and deposit refunds." },
+      { id: "financial:*", label: "Accounting & Cash Shifts", desc: "Cashier drawer balance sign-off, accounts receivable, and general ledger." },
+      { id: "reports:*", label: "Operational & Revenue Reports", desc: "Occupancy metrics, RevPAR, average daily rates (ADR), and shift summaries." },
+      { id: "bi:*", label: "Business Intelligence & KPIs", desc: "Executive dashboards, financial forecasting, and property performance trends." },
+    ]
+  },
+  {
+    id: "inventory",
+    title: "Supply Chain & Inventory",
+    icon: Package,
+    items: [
+      { id: "inventory:*", label: "Stock Inventory Management", desc: "Monitor stock quantities across departments, movements, and minimum stock alerts." },
+      { id: "procurement:*", label: "Procurement & Purchase Orders", desc: "Create supplier purchase orders (PO) and goods received notes (GRN)." },
+    ]
+  },
+  {
+    id: "hr",
+    title: "Human Resources & Administration",
+    icon: UsersIcon,
+    items: [
+      { id: "employees:*", label: "Staff Directory & Records", desc: "Manage employee profiles, job titles, contacts, and employment records." },
+      { id: "hr:*", label: "HR Shifts & Attendance", desc: "Department shifts, staff clock-in/out schedules, and work duty logs." },
+      { id: "users:*", label: "User Accounts & Credentials", desc: "Create staff logins, reset passwords, and bind staff to hotel branches." },
+      { id: "roles:*", label: "Role Definitions & Security", desc: "Configure staff roles, access permissions, and security scope." },
+      { id: "documents:*", label: "Document Management Archive", desc: "Attach, archive, and manage uploaded business and operational files." },
+    ]
+  },
+  {
+    id: "admin",
+    title: "Administrative Control",
+    icon: ShieldCheck,
+    items: [
+      { id: "*", label: "Full System Access (*)", desc: "Super-admin unrestricted access to all properties, configurations, and data." },
+    ]
+  }
+];
+
+const ALL_PERMISSION_ITEMS = PERMISSION_GROUPS.flatMap(g => g.items);
+
+
 function UsersAndRolesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user: currentUser, logout, refreshUser } = useAuth();
 
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"users" | "roles">(tabParam === "roles" ? "roles" : "users");
@@ -118,6 +301,7 @@ function UsersAndRolesContent() {
   // ─────────────────────────────────────────────────────────────────────────────
   const [userSearch, setUserSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [userErrorMsg, setUserErrorMsg] = useState("");
@@ -125,7 +309,10 @@ function UsersAndRolesContent() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [faydaId, setFaydaId] = useState("");
   const [password, setPassword] = useState("");
+  const [copiedPass, setCopiedPass] = useState(false);
+  const [showUserPass, setShowUserPass] = useState(true);
   const [roleId, setRoleId] = useState("");
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [primaryBranchId, setPrimaryBranchId] = useState("");
@@ -134,6 +321,10 @@ function UsersAndRolesContent() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editFaydaId, setEditFaydaId] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editCopiedPass, setEditCopiedPass] = useState(false);
+  const [showEditUserPass, setShowEditUserPass] = useState(true);
   const [editRoleId, setEditRoleId] = useState("");
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
   const [editPrimaryBranchId, setEditPrimaryBranchId] = useState("");
@@ -186,21 +377,98 @@ function UsersAndRolesContent() {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, isActive, isOnDuty }: { id: string; isActive?: boolean; isOnDuty?: boolean }) => {
       const body: any = {};
-      if (isActive !== undefined) body.isActive = isActive;
+      if (isActive !== undefined) {
+        body.isActive = isActive;
+        if (isActive === false) body.isOnDuty = false;
+      }
       if (isOnDuty !== undefined) body.isOnDuty = isOnDuty;
       return apiFetch(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) });
     },
-    onSuccess: () => {
+    onMutate: async ({ id, isActive, isOnDuty }) => {
+      await queryClient.cancelQueries({ queryKey: ["users"] });
+      const previousUsers = queryClient.getQueryData(["users"]);
+
+      queryClient.setQueryData(["users"], (old: any) => {
+        if (!old) return old;
+        const updateItem = (u: User) => {
+          if (u.id !== id) return u;
+          return {
+            ...u,
+            ...(isActive !== undefined ? { isActive, ...(isActive === false ? { isOnDuty: false } : {}) } : {}),
+            ...(isOnDuty !== undefined ? { isOnDuty } : {}),
+          };
+        };
+
+        if (Array.isArray(old)) {
+          return old.map(updateItem);
+        }
+        if (old.data && Array.isArray(old.data)) {
+          return { ...old, data: old.data.map(updateItem) };
+        }
+        return old;
+      });
+
+      return { previousUsers };
+    },
+    onError: (err: any, _, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(["users"], context.previousUsers);
+      }
+      toast({
+        title: "Action failed",
+        description: err?.message || "Failed to update user status",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      if (vars.isActive !== undefined) {
+        // Broadcast across tabs to immediately kick out the deactivated user
+        if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+          const bc = new BroadcastChannel("hms_user_events");
+          bc.postMessage({ type: "USER_DEACTIVATED", userId: vars.id });
+          bc.close();
+        }
+
+        if (currentUser?.id === vars.id && vars.isActive === false) {
+          logout();
+          return;
+        }
+
+        toast({
+          title: vars.isActive ? "Staff Member Activated" : "Staff Member Deactivated",
+          description: vars.isActive
+            ? "Account is now active and can access the system."
+            : "Account has been deactivated and marked off-duty.",
+        });
+      } else if (vars.isOnDuty !== undefined) {
+        toast({
+          title: vars.isOnDuty ? "Staff Marked On Duty" : "Staff Marked Off Duty",
+        });
+      }
     },
   });
+
+  const handleCopyPassword = (text: string, isEdit = false) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    if (isEdit) {
+      setEditCopiedPass(true);
+      setTimeout(() => setEditCopiedPass(false), 2000);
+    } else {
+      setCopiedPass(true);
+      setTimeout(() => setCopiedPass(false), 2000);
+    }
+  };
 
   const openAddUserDialog = () => {
     setFirstName("");
     setLastName("");
     setEmail("");
     setPhone("");
+    setFaydaId("");
     setPassword("");
+    setCopiedPass(false);
     setRoleId(roles[0]?.id || "");
     const allBranchIds = branches.map((b) => b.id);
     const firstBranch = branches[0]?.id || "";
@@ -220,9 +488,12 @@ function UsersAndRolesContent() {
     setEditFirstName(u.firstName || "");
     setEditLastName(u.lastName || "");
     setEditPhone(u.phone || "");
+    setEditFaydaId(u.faydaId || "");
+    setEditPassword("");
+    setEditCopiedPass(false);
     setEditRoleId(u.roleId || "");
     const existingIds = (u.branches || []).map((b) => b.id);
-    const initialBranches = existingIds.length > 0 ? existingIds : branches.map((b) => b.id);
+    const initialBranches = existingIds.length > 0 ? existingIds : (branches[0] ? [branches[0].id] : []);
     setEditBranchIds(initialBranches);
     setEditPrimaryBranchId(u.primaryBranchId || initialBranches[0] || branches[0]?.id || "");
     setEditUserErrorMsg("");
@@ -281,11 +552,20 @@ function UsersAndRolesContent() {
       return;
     }
 
+    if (phone && phone.trim()) {
+      const cleanPhone = phone.trim();
+      if (!/^0[79]\d{8}$/.test(cleanPhone) && !/^0\d{9}$/.test(cleanPhone)) {
+        setUserErrorMsg("Phone number must be a valid 10-digit Ethiopian number starting with 09 or 07 (e.g. 0911223344).");
+        return;
+      }
+    }
+
     createUserMutation.mutate({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim() || undefined,
+      faydaId: faydaId.trim() || undefined,
       password,
       roleId,
       branchIds: selectedBranchIds,
@@ -302,16 +582,31 @@ function UsersAndRolesContent() {
       return;
     }
 
+    if (editPhone && editPhone.trim()) {
+      const cleanPhone = editPhone.trim();
+      if (!/^0[79]\d{8}$/.test(cleanPhone) && !/^0\d{9}$/.test(cleanPhone)) {
+        setEditUserErrorMsg("Phone number must be a valid 10-digit Ethiopian number starting with 09 or 07 (e.g. 0911223344).");
+        return;
+      }
+    }
+
+    const payload: any = {
+      firstName: editFirstName.trim(),
+      lastName: editLastName.trim(),
+      phone: editPhone.trim() || null,
+      faydaId: editFaydaId.trim() || null,
+      roleId: editRoleId,
+      branchIds: editBranchIds,
+      primaryBranchId: editPrimaryBranchId || editBranchIds[0] || null,
+    };
+
+    if (editPassword && editPassword.trim()) {
+      payload.password = editPassword.trim();
+    }
+
     updateUserMutation.mutate({
       id: editingUser.id,
-      payload: {
-        firstName: editFirstName.trim(),
-        lastName: editLastName.trim(),
-        phone: editPhone.trim() || null,
-        roleId: editRoleId,
-        branchIds: editBranchIds,
-        primaryBranchId: editPrimaryBranchId || editBranchIds[0] || null,
-      },
+      payload,
     });
   };
 
@@ -323,6 +618,11 @@ function UsersAndRolesContent() {
       (u.email ?? "").toLowerCase().includes(userSearch.toLowerCase());
 
     if (!matchesSearch) return false;
+
+    // Status filter
+    if (statusFilter === "active" && !u.isActive) return false;
+    if (statusFilter === "inactive" && u.isActive) return false;
+
     if (branchFilter === "all") return true;
 
     const isGlobal = u.roleName === "Admin" || u.roleScope === "global";
@@ -342,7 +642,7 @@ function UsersAndRolesContent() {
 
   useEffect(() => {
     setUserPage(1);
-  }, [userSearch, branchFilter, setUserPage]);
+  }, [userSearch, branchFilter, statusFilter, setUserPage]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // ROLES STATE & LOGIC
@@ -354,6 +654,8 @@ function UsersAndRolesContent() {
   const [roleScope, setRoleScope] = useState("branch");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [roleErrorMsg, setRoleErrorMsg] = useState("");
+  const [useDefaultPerms, setUseDefaultPerms] = useState(false);
+  const [permissionSearch, setPermissionSearch] = useState("");
 
   const {
     currentPage: rolePage,
@@ -396,6 +698,7 @@ function UsersAndRolesContent() {
     setRoleScope("branch");
     setSelectedPermissions(["hotel:*", "rooms:*", "reservations:*", "guests:*"]);
     setRoleErrorMsg("");
+    setPermissionSearch("");
     setIsRoleModalOpen(true);
   };
 
@@ -404,9 +707,22 @@ function UsersAndRolesContent() {
     setRoleName(r.name);
     setRoleDesc(r.description || "");
     setRoleScope(r.scope || "branch");
-    setSelectedPermissions(r.permissions || []);
+    const currentPerms = r.permissions || [];
+    setSelectedPermissions(currentPerms);
+    const defaults = getDefaultPermissionsForRole(r.name);
+    const isMatching = defaults.length === currentPerms.length && defaults.every((p) => currentPerms.includes(p));
+    setUseDefaultPerms(isMatching);
     setRoleErrorMsg("");
+    setPermissionSearch("");
     setIsRoleModalOpen(true);
+  };
+
+  const handleToggleDefaultPermissions = (checked: boolean) => {
+    setUseDefaultPerms(checked);
+    if (checked) {
+      const defaults = getDefaultPermissionsForRole(roleName);
+      setSelectedPermissions(defaults);
+    }
   };
 
   const closeRoleDialog = () => {
@@ -416,16 +732,23 @@ function UsersAndRolesContent() {
   };
 
   const togglePermission = (permId: string) => {
+    setUseDefaultPerms(false);
     if (permId === "*") {
       setSelectedPermissions((prev) => (prev.includes("*") ? [] : ["*"]));
       return;
     }
+    if (selectedPermissions.includes("*")) {
+      const allExceptCurrent = AVAILABLE_PERMISSIONS
+        .filter((p) => p.id !== "*" && p.id !== permId)
+        .map((p) => p.id);
+      setSelectedPermissions(allExceptCurrent);
+      return;
+    }
     setSelectedPermissions((prev) => {
-      const filtered = prev.filter((p) => p !== "*");
-      if (filtered.includes(permId)) {
-        return filtered.filter((p) => p !== permId);
+      if (prev.includes(permId)) {
+        return prev.filter((p) => p !== permId);
       }
-      return [...filtered, permId];
+      return [...prev, permId];
     });
   };
 
@@ -453,44 +776,34 @@ function UsersAndRolesContent() {
     <div className="space-y-5">
       {/* Unified Top Header & Tab Navigation — Strictly NO subtitles */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">User & Role MS</h1>
-          
-          {/* Segmented Tab Switcher */}
-          <div className="flex items-center gap-1 p-1 bg-[var(--blue-50)]/60 border border-[var(--border)] rounded-lg">
-            <button
-              type="button"
-              onClick={() => handleTabChange("users")}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
-                activeTab === "users"
-                  ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              )}
-            >
-              <UsersIcon className="w-3.5 h-3.5" />
-              <span>Staff Accounts</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--blue-100)] text-[var(--blue-800)]">
-                {users.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange("roles")}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
-                activeTab === "roles"
-                  ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              )}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Roles & Permissions</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--blue-100)] text-[var(--blue-800)]">
-                {roles.length}
-              </span>
-            </button>
-          </div>
+        {/* Segmented Tab Switcher */}
+        <div className="flex items-center gap-1 p-1 bg-[var(--blue-50)]/60 border border-[var(--border)] rounded-lg">
+          <button
+            type="button"
+            onClick={() => handleTabChange("users")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+              activeTab === "users"
+                ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            )}
+          >
+            <UsersIcon className="w-3.5 h-3.5" />
+            <span>Staff Accounts</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("roles")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+              activeTab === "roles"
+                ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            )}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Roles & Permissions</span>
+          </button>
         </div>
 
         {/* Action Controls for Active Tab */}
@@ -509,6 +822,17 @@ function UsersAndRolesContent() {
                     {b.branchName}
                   </option>
                 ))}
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs font-semibold text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active Staff</option>
+                <option value="inactive">Inactive / Deactivated</option>
               </select>
 
               <Input 
@@ -538,7 +862,7 @@ function UsersAndRolesContent() {
             <TableHeader>
               <TableRow className="border-b border-[var(--border)] bg-[var(--blue-50)]/40 hover:bg-[var(--blue-50)]/40">
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Staff Member</TableHead>
-                <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Role & Scope</TableHead>
+                <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Role</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Assigned Branch(es)</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Duty Status</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Account</TableHead>
@@ -569,24 +893,32 @@ function UsersAndRolesContent() {
                   const extraBranchCount = Math.max(0, userBranches.length - 1);
 
                   return (
-                    <TableRow key={user.id} className="border-b border-[var(--border)] hover:bg-[var(--blue-50)]/20 transition-colors">
+                    <TableRow 
+                      key={user.id} 
+                      className={cn(
+                        "border-b border-[var(--border)] transition-colors",
+                        user.isActive 
+                          ? "hover:bg-[var(--blue-50)]/20" 
+                          : "bg-slate-50/70 dark:bg-slate-900/40 opacity-70 hover:bg-slate-100/50"
+                      )}
+                    >
                       <TableCell className="py-3">
                         <div className="flex flex-col">
                           <span className="font-semibold text-xs text-[var(--text-primary)]">{displayName}</span>
-                          <span className="text-[11px] font-mono text-[var(--text-secondary)]">{user.email}</span>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className="text-[11px] font-mono text-[var(--text-secondary)]">{user.email}</span>
+                            {user.faydaId && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200" title="Fayda National ID">
+                                FAN: {user.faydaId}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3">
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="font-semibold text-[11px] rounded-md px-2 py-0.5">
-                            {displayRole}
-                          </Badge>
-                          {isGlobal && (
-                            <span className="text-[10px] font-semibold text-[var(--blue-700)] bg-[var(--blue-50)] border border-[var(--blue-200)] px-1.5 py-0.5 rounded">
-                              Global
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-xs font-medium text-[var(--text-primary)]">
+                          {displayRole}
+                        </span>
                       </TableCell>
                       <TableCell className="py-3">
                         {isGlobal ? (
@@ -612,23 +944,41 @@ function UsersAndRolesContent() {
                         )}
                       </TableCell>
                       <TableCell className="py-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleStatusMutation.mutate({ id: user.id, isOnDuty: !isOnDuty })}
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase border transition-all ${
-                            isOnDuty
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${isOnDuty ? "bg-emerald-600 animate-pulse" : "bg-slate-400"}`} />
-                          {isOnDuty ? "ON DUTY" : "OFF DUTY"}
-                        </button>
+                        {user.isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleStatusMutation.mutate({ id: user.id, isOnDuty: !isOnDuty })}
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase border transition-all cursor-pointer ${
+                              isOnDuty
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${isOnDuty ? "bg-emerald-600 animate-pulse" : "bg-slate-400"}`} />
+                            {isOnDuty ? "ON DUTY" : "OFF DUTY"}
+                          </button>
+                        ) : (
+                          <span 
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase border border-slate-200 bg-slate-100 text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500 cursor-not-allowed"
+                            title="Deactivated users are suspended and cannot be on duty"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                            DISABLED
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="py-3">
-                        <Badge variant={user.isActive ? "success" : "muted"} className="uppercase text-[9px] rounded-md px-1.5">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border",
+                            user.isActive
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                              : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
+                          )}
+                        >
+                          <span className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-rose-500")} />
                           {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right py-3">
                         <DropdownMenu>
@@ -791,14 +1141,14 @@ function UsersAndRolesContent() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────────────────────
-          MODALS & DIALOGS
+          MODALS & DIALOGS (WIDE 2-COLUMN LAYOUT)
       ───────────────────────────────────────────────────────────────────────────── */}
-      {/* Add User Dialog */}
+      {/* Add User Dialog — Wide 2-Column Executive Layout */}
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-        <DialogContent className="max-w-md p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+        <DialogContent className="max-w-3xl p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
-              <UserPlus className="h-4 w-4 text-[var(--blue-600)]" />
+              <UserPlus className="h-5 w-5 text-[var(--blue-600)] shrink-0" />
               Add System User
             </DialogTitle>
           </DialogHeader>
@@ -809,161 +1159,210 @@ function UsersAndRolesContent() {
             </div>
           )}
 
-          <form onSubmit={handleCreateUserSubmit} className="space-y-3.5 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">First Name *</Label>
-                <Input 
-                  placeholder="e.g. Bethlehem" 
-                  value={firstName} 
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Last Name *</Label>
-                <Input 
-                  placeholder="e.g. Assefa" 
-                  value={lastName} 
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Email Address *</Label>
-              <Input 
-                type="email"
-                placeholder="e.g. bethlehem@nexusgrand.com" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-9 text-xs rounded-md"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Phone Number</Label>
-                <Input 
-                  placeholder="+251-911-223344" 
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Role *</Label>
-                <select
-                  value={roleId}
-                  onChange={(e) => setRoleId(e.target.value)}
-                  className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
-                  required
-                >
-                  <option value="" disabled>Select role...</option>
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} {r.scope === "global" ? "(Global Access)" : "(Branch-Bound)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Branch Assignment Section — ALWAYS VISIBLE & INTERACTIVE */}
-            <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
-                  <span>Assign Branches *</span>
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => handleSelectAllBranches(false)}
-                  className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
-                >
-                  {selectedBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
-                </button>
-              </div>
-
-              {isCreateGlobalRole && (
-                <div className="p-2 rounded-md bg-[var(--blue-50)] text-[11px] text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
-                  <span>The <strong>Admin</strong> role has chain-wide scope. Check assigned branches and pick their primary home base below:</span>
-                </div>
-              )}
-
-              {/* Branch Checkboxes List */}
-              <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-36 overflow-y-auto bg-[var(--surface)]">
-                {branches.map((b) => {
-                  const isChecked = selectedBranchIds.includes(b.id);
-                  return (
-                    <label
-                      key={b.id}
-                      className={cn(
-                        "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
-                        isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleBranchToggle(b.id, false)}
-                          className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
-                        />
-                        <span>{b.branchName}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {/* Primary / Home Branch Selector */}
-              {selectedBranchIds.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
-                      Primary / Home Branch *
-                    </Label>
-                    <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+          <form onSubmit={handleCreateUserSubmit} className="space-y-4 pt-2">
+            {/* 2-Column Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Staff Information */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">First Name *</Label>
+                    <Input 
+                      placeholder="e.g. Bethlehem" 
+                      value={firstName} 
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="h-9 text-xs rounded-md"
+                      required
+                    />
                   </div>
-                  <select
-                    value={primaryBranchId}
-                    onChange={(e) => setPrimaryBranchId(e.target.value)}
-                    className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Last Name *</Label>
+                    <Input 
+                      placeholder="e.g. Assefa" 
+                      value={lastName} 
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="h-9 text-xs rounded-md"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Email Address *</Label>
+                  <Input 
+                    type="email"
+                    placeholder="e.g. bethlehem@nexusgrand.com" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-9 text-xs rounded-md"
                     required
-                  >
-                    {selectedBranchIds.map((bId) => {
-                      const branch = branches.find((b) => b.id === bId);
-                      return (
-                        <option key={bId} value={bId}>
-                          {branch?.branchName || bId}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Phone Number</Label>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)]">{phone.length}/10</span>
+                    </div>
+                    <Input 
+                      placeholder="0911223344" 
+                      value={phone} 
+                      maxLength={10}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                      className="h-9 text-xs rounded-md font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Role *</Label>
+                    <select
+                      value={roleId}
+                      onChange={(e) => setRoleId(e.target.value)}
+                      className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                      required
+                    >
+                      <option value="" disabled>Select role...</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
                         </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Fayda ID</Label>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                      {faydaId.length}/16
+                    </span>
+                  </div>
+                  <Input 
+                    placeholder="1234567890123456" 
+                    value={faydaId} 
+                    maxLength={16}
+                    onChange={(e) => setFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
+                    className="h-9 text-xs rounded-md font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <Label className="text-xs font-semibold">Password *</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1 flex items-center">
+                      <Input 
+                        type={showUserPass ? "text" : "password"}
+                        placeholder="Enter or generate" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="h-9 text-xs rounded-lg font-mono pr-10 w-full"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowUserPass(!showUserPass)}
+                        className="absolute right-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
+                        title={showUserPass ? "Hide password" : "View password"}
+                      >
+                        {showUserPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPassword(generateSecurePassword())}
+                      title="Generate Password"
+                      className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--blue-50)] hover:bg-[var(--blue-100)] text-[var(--blue-600)] border border-[var(--blue-200)] transition-colors shrink-0 cursor-pointer"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPassword(password, false)}
+                      title="Copy Password"
+                      className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--blue-50)] hover:bg-[var(--blue-100)] text-[var(--blue-600)] border border-[var(--blue-200)] transition-colors shrink-0 cursor-pointer"
+                    >
+                      {copiedPass ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Branch & Property Assignments */}
+              <div className="space-y-3 flex flex-col justify-between border-t md:border-t-0 md:border-l border-[var(--border)] md:pl-6 pt-3 md:pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
+                      <span>Assign Branches *</span>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAllBranches(false)}
+                      className="text-xs font-bold text-[var(--blue-700)] hover:text-[var(--blue-800)] hover:underline cursor-pointer px-2 py-0.5 rounded hover:bg-[var(--blue-50)] transition-colors"
+                    >
+                      {selectedBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
+                    </button>
+                  </div>
+
+                  {/* Branch Checkboxes List */}
+                  <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-48 overflow-y-auto bg-[var(--surface)]">
+                    {branches.map((b) => {
+                      const isChecked = selectedBranchIds.includes(b.id);
+                      return (
+                        <label
+                          key={b.id}
+                          className={cn(
+                            "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
+                            isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleBranchToggle(b.id, false)}
+                              className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
+                            />
+                            <span>{b.branchName}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
+                        </label>
                       );
                     })}
-                  </select>
+                  </div>
                 </div>
-              )}
+
+                {/* Primary / Home Branch Selector */}
+                {selectedBranchIds.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        Primary / Home Branch *
+                      </Label>
+                      <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+                    </div>
+                    <select
+                      value={primaryBranchId}
+                      onChange={(e) => setPrimaryBranchId(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                      required
+                    >
+                      {selectedBranchIds.map((bId) => {
+                        const branch = branches.find((b) => b.id === bId);
+                        return (
+                          <option key={bId} value={bId}>
+                            {branch?.branchName || bId}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Password *</Label>
-              <Input 
-                type="password"
-                placeholder="Min 8 chars, uppercase, number & symbol" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-9 text-xs rounded-md"
-                required
-              />
-            </div>
-
-            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <DialogFooter className="pt-4 border-t border-[var(--border)] flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={closeAddUserDialog} className="h-8 text-xs rounded-md">
                 Cancel
               </Button>
@@ -980,9 +1379,9 @@ function UsersAndRolesContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog — ALWAYS VISIBLE & INTERACTIVE */}
+      {/* Edit User Dialog — Wide 2-Column Executive Layout */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-w-md p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+        <DialogContent className="max-w-3xl p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
               <Edit2 className="h-4 w-4 text-[var(--blue-600)]" />
@@ -996,133 +1395,196 @@ function UsersAndRolesContent() {
             </div>
           )}
 
-          <form onSubmit={handleEditUserSubmit} className="space-y-3.5 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">First Name</Label>
-                <Input 
-                  value={editFirstName} 
-                  onChange={(e) => setEditFirstName(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Last Name</Label>
-                <Input 
-                  value={editLastName} 
-                  onChange={(e) => setEditLastName(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Phone</Label>
-                <Input 
-                  value={editPhone} 
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Role</Label>
-                <select
-                  value={editRoleId}
-                  onChange={(e) => setEditRoleId(e.target.value)}
-                  className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
-                  required
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} {r.scope === "global" ? "(Global Access)" : "(Branch-Bound)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Branch Assignment Section — ALWAYS VISIBLE & INTERACTIVE */}
-            <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
-                  <span>Assign Branches *</span>
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => handleSelectAllBranches(true)}
-                  className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
-                >
-                  {editBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
-                </button>
-              </div>
-
-              {isEditGlobalRole && (
-                <div className="p-2 rounded-md bg-[var(--blue-50)] text-[11px] text-[var(--blue-800)] border border-[var(--blue-200)] flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
-                  <span>The <strong>Admin</strong> role has chain-wide scope. Check assigned branches and pick their primary home base below:</span>
-                </div>
-              )}
-
-              {/* Branch Checkboxes List */}
-              <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-36 overflow-y-auto bg-[var(--surface)]">
-                {branches.map((b) => {
-                  const isChecked = editBranchIds.includes(b.id);
-                  return (
-                    <label
-                      key={b.id}
-                      className={cn(
-                        "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
-                        isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleBranchToggle(b.id, true)}
-                          className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
-                        />
-                        <span>{b.branchName}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {/* Primary / Home Branch Selector */}
-              {editBranchIds.length > 0 && (
-                <div className="space-y-1 pt-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
-                      Primary / Home Branch *
-                    </Label>
-                    <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+          <form onSubmit={handleEditUserSubmit} className="space-y-4 pt-2">
+            {/* 2-Column Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Staff Information */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">First Name</Label>
+                    <Input 
+                      value={editFirstName} 
+                      onChange={(e) => setEditFirstName(e.target.value)}
+                      className="h-9 text-xs rounded-md"
+                      required
+                    />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Last Name</Label>
+                    <Input 
+                      value={editLastName} 
+                      onChange={(e) => setEditLastName(e.target.value)}
+                      className="h-9 text-xs rounded-md"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Phone Number</Label>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">{editPhone.length}/10</span>
+                  </div>
+                  <Input 
+                    placeholder="0911223344" 
+                    value={editPhone} 
+                    maxLength={10}
+                    onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                    className="h-9 text-xs rounded-md font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Role</Label>
                   <select
-                    value={editPrimaryBranchId}
-                    onChange={(e) => setEditPrimaryBranchId(e.target.value)}
-                    className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    value={editRoleId}
+                    onChange={(e) => setEditRoleId(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
                     required
                   >
-                    {editBranchIds.map((bId) => {
-                      const branch = branches.find((b) => b.id === bId);
-                      return (
-                        <option key={bId} value={bId}>
-                          {branch?.branchName || bId}
-                        </option>
-                      );
-                    })}
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              )}
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Fayda ID</Label>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                      {editFaydaId.length}/16
+                    </span>
+                  </div>
+                  <Input 
+                    placeholder="1234567890123456" 
+                    value={editFaydaId} 
+                    maxLength={16}
+                    onChange={(e) => setEditFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
+                    className="h-9 text-xs rounded-md font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Password</Label>
+                    <span className="text-[10px] text-[var(--text-secondary)]">Leave empty to keep current</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1 flex items-center">
+                      <Input 
+                        type={showEditUserPass ? "text" : "password"}
+                        placeholder="Enter or generate" 
+                        value={editPassword} 
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        className="h-9 text-xs rounded-lg font-mono pr-10 w-full"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEditUserPass(!showEditUserPass)}
+                        className="absolute right-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
+                        title={showEditUserPass ? "Hide password" : "View password"}
+                      >
+                        {showEditUserPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditPassword(generateSecurePassword())}
+                      title="Generate Password"
+                      className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--blue-50)] hover:bg-[var(--blue-100)] text-[var(--blue-600)] border border-[var(--blue-200)] transition-colors shrink-0 cursor-pointer"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyPassword(editPassword, true)}
+                      title="Copy Password"
+                      className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--blue-50)] hover:bg-[var(--blue-100)] text-[var(--blue-600)] border border-[var(--blue-200)] transition-colors shrink-0 cursor-pointer"
+                    >
+                      {editCopiedPass ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Branch & Property Assignments */}
+              <div className="space-y-3 flex flex-col justify-between border-t md:border-t-0 md:border-l border-[var(--border)] md:pl-6 pt-3 md:pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)]" />
+                      <span>Assign Branches *</span>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAllBranches(true)}
+                      className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
+                    >
+                      {editBranchIds.length === branches.length ? "Deselect All" : "Select All Branches"}
+                    </button>
+                  </div>
+
+                  {/* Branch Checkboxes List */}
+                  <div className="rounded-md border border-[var(--border)] p-1.5 space-y-1 max-h-48 overflow-y-auto bg-[var(--surface)]">
+                    {branches.map((b) => {
+                      const isChecked = editBranchIds.includes(b.id);
+                      return (
+                        <label
+                          key={b.id}
+                          className={cn(
+                            "flex items-center justify-between p-2 rounded cursor-pointer text-xs transition-colors",
+                            isChecked ? "bg-[var(--blue-50)]/70 text-[var(--blue-900)] font-medium" : "hover:bg-[var(--surface-hover,#f8fafc)] text-[var(--text-primary)]"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleBranchToggle(b.id, true)}
+                              className="h-4 w-4 rounded border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)]"
+                            />
+                            <span>{b.branchName}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-[var(--text-secondary)]">{b.branchCode}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Primary / Home Branch Selector */}
+                {editBranchIds.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        Primary / Home Branch *
+                      </Label>
+                      <span className="text-[10px] text-[var(--blue-700)] font-semibold bg-[var(--blue-50)] px-1.5 rounded">Default Login Branch</span>
+                    </div>
+                    <select
+                      value={editPrimaryBranchId}
+                      onChange={(e) => setEditPrimaryBranchId(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                      required
+                    >
+                      {editBranchIds.map((bId) => {
+                        const branch = branches.find((b) => b.id === bId);
+                        return (
+                          <option key={bId} value={bId}>
+                            {branch?.branchName || bId}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">
+            <DialogFooter className="pt-4 border-t border-[var(--border)] flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setEditingUser(null)} className="h-8 text-xs rounded-md">
                 Cancel
               </Button>
@@ -1139,111 +1601,270 @@ function UsersAndRolesContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Role Dialog */}
+      {/* Role Dialog - Descriptive, Spacious, Categorized UI */}
       <Dialog open={isRoleModalOpen} onOpenChange={setIsRoleModalOpen}>
-        <DialogContent className="max-w-xl max-h-[88vh] flex flex-col p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
-              <ShieldCheck className="h-4 w-4 text-[var(--blue-600)]" />
-              {editingRole ? "Edit Role" : "Create New Role"}
-            </DialogTitle>
+        <DialogContent className="max-w-4xl sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+          <DialogHeader className="pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2.5 text-lg font-bold text-[var(--text-primary)]">
+                <div className="w-8 h-8 rounded-lg bg-[var(--blue-50)] flex items-center justify-center text-[var(--blue-700)]">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <span>Access Permissions</span>
+              </DialogTitle>
+              {roleName && (
+                <span className="text-xs px-2.5 py-1 rounded-md font-mono bg-[var(--blue-50)] text-[var(--blue-700)] font-semibold border border-[var(--blue-200)]">
+                  {roleName}
+                </span>
+              )}
+            </div>
+            <DialogDescription className="sr-only">Access Permissions</DialogDescription>
           </DialogHeader>
 
           {roleErrorMsg && (
-            <div className="p-2.5 text-xs rounded-md bg-[var(--red-50,#fef2f2)] text-[var(--red-600,#dc2626)] border border-[var(--red-200,#fecaca)]">
+            <div className="p-3 text-xs rounded-lg bg-[var(--red-50,#fef2f2)] text-[var(--red-600,#dc2626)] border border-[var(--red-200,#fecaca)] font-medium">
               {roleErrorMsg}
             </div>
           )}
 
-          <form onSubmit={handleRoleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-3.5 pt-2">
-            <div className="space-y-3.5 overflow-y-auto flex-1 pr-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <form onSubmit={handleRoleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-4 pt-1">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1.5">
+              {/* Role Info Card */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 rounded-lg border border-[var(--border)] bg-[var(--bg-page,#f8fafc)]/60">
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Role Name *</Label>
+                  <Label className="text-xs font-bold text-[var(--text-primary)]">Role Name *</Label>
                   <Input 
-                    placeholder="e.g. VIP Concierge Supervisor" 
+                    placeholder="e.g. Front Office Manager" 
                     value={roleName} 
                     onChange={(e) => setRoleName(e.target.value)}
-                    className="h-9 text-xs rounded-md"
+                    className="h-9 text-xs rounded-md bg-[var(--surface)]"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Access Scope *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-[var(--text-primary)]">Access Scope *</Label>
+                    <span className="text-[10px] text-[var(--text-secondary)] font-medium">
+                      {roleScope === "global" ? "🌐 All Properties" : "📌 Bound Branch"}
+                    </span>
+                  </div>
                   <select
                     value={roleScope}
                     onChange={(e) => setRoleScope(e.target.value)}
-                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
                   >
                     <option value="branch">Branch-Bound (Property Scope)</option>
-                    <option value="global">Global (All Branches / Chain Scope)</option>
+                    <option value="global">Global (Chain-Wide / Multi-Branch)</option>
                   </select>
                 </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-[var(--text-primary)]">Description</Label>
+                  <Input 
+                    placeholder="Operational responsibilities and duties" 
+                    value={roleDesc} 
+                    onChange={(e) => setRoleDesc(e.target.value)}
+                    className="h-9 text-xs rounded-md bg-[var(--surface)]"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Description</Label>
-                <Input 
-                  placeholder="Summary of operational duties" 
-                  value={roleDesc} 
-                  onChange={(e) => setRoleDesc(e.target.value)}
-                  className="h-9 text-xs rounded-md"
-                />
-              </div>
+              {/* Permissions Action Bar */}
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-lg border border-[var(--blue-200,#bfdbfe)] bg-[var(--blue-50,#eff6ff)]/70">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer text-sm font-bold text-[var(--blue-950)] select-none">
+                      <input 
+                        type="checkbox"
+                        checked={useDefaultPerms}
+                        onChange={(e) => handleToggleDefaultPermissions(e.target.checked)}
+                        className="h-5 w-5 rounded border-2 border-[var(--border)] text-[var(--blue-600)] focus:ring-[var(--blue-500)] cursor-pointer"
+                      />
+                      <span>Use Default Permissions for {roleName ? `"${roleName}"` : "this role"}</span>
+                    </label>
 
-              <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold text-[var(--text-primary)]">Permissions Matrix</Label>
-                  <span className="text-[11px] font-mono text-[var(--text-secondary)]">
-                    {selectedPermissions.includes("*") ? "All permissions granted" : `${selectedPermissions.length} selected`}
-                  </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDefaultPermissions(true)}
+                      className="text-xs font-bold text-[var(--blue-700)] hover:text-[var(--blue-800)] hover:underline flex items-center gap-1.5 cursor-pointer bg-white px-3 py-1 rounded-md border border-[var(--blue-200)] shadow-xs"
+                      title="Reset all permissions to the recommended default preset for this role"
+                    >
+                      <RotateCw className="h-3 w-3" /> Reset Defaults
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPermissions(["*"]);
+                        setUseDefaultPerms(false);
+                      }}
+                      className="text-xs font-bold px-3 py-1.5 rounded-md bg-white hover:bg-slate-50 border border-[var(--border)] text-[var(--text-primary)] transition-colors cursor-pointer shadow-xs"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPermissions([]);
+                        setUseDefaultPerms(false);
+                      }}
+                      className="text-xs font-medium px-2.5 py-1 rounded bg-white hover:bg-slate-50 border border-[var(--border)] text-[var(--text-primary)] transition-colors cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                    <span className="text-xs font-mono font-semibold px-2 py-1 rounded bg-[var(--blue-600)] text-white">
+                      {selectedPermissions.includes("*") ? "All 26 Enabled" : `${selectedPermissions.length} / ${ALL_PERMISSION_ITEMS.length} Enabled`}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-[260px] overflow-y-auto border border-[var(--border)] rounded-md p-2 bg-[var(--surface)]">
-                  {AVAILABLE_PERMISSIONS.map((perm) => {
-                    const isChecked = selectedPermissions.includes("*") 
-                      ? (perm.id === "*" || true)
-                      : selectedPermissions.includes(perm.id);
+                {/* Filter Search Input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search permissions by module name or keyword (e.g. housekeeping, invoices, pos)..."
+                    value={permissionSearch}
+                    onChange={(e) => setPermissionSearch(e.target.value)}
+                    className="w-full h-9 pl-9 pr-3 text-sm bg-[var(--surface)] text-[var(--text-primary)] rounded-lg border border-[var(--border)] focus:border-[var(--blue-600)] focus:ring-1 focus:ring-[var(--blue-600)] outline-none"
+                  />
+                </div>
+              </div>
 
+              {/* Categorized Permissions Container */}
+              <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+                {PERMISSION_GROUPS.map((group) => {
+                  const filteredItems = group.items.filter((item) => {
+                    if (!permissionSearch.trim()) return true;
+                    const q = permissionSearch.toLowerCase();
                     return (
-                      <label 
-                        key={perm.id} 
-                        className={`flex items-start gap-2 p-1.5 rounded cursor-pointer border transition-colors ${
-                          isChecked 
-                            ? "bg-[var(--blue-50)] border-[var(--blue-200)] text-[var(--text-primary)]" 
-                            : "border-transparent hover:bg-[var(--blue-50)]/40 text-[var(--text-secondary)]"
-                        }`}
-                      >
-                        <input 
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => togglePermission(perm.id)}
-                          className="mt-0.5 h-3.5 w-3.5 rounded border-[var(--border)] text-[var(--blue-600)]"
-                        />
-                        <div className="text-xs leading-tight">
-                          <div className="font-semibold text-[var(--text-primary)]">{perm.label}</div>
-                          <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">{perm.desc}</div>
-                        </div>
-                      </label>
+                      item.label.toLowerCase().includes(q) ||
+                      item.desc.toLowerCase().includes(q) ||
+                      item.id.toLowerCase().includes(q)
                     );
-                  })}
-                </div>
+                  });
+
+                  if (filteredItems.length === 0) return null;
+
+                  const groupItemIds = group.items.map((i) => i.id);
+                  const isAllGroupSelected = groupItemIds.every(
+                    (id) => selectedPermissions.includes(id) || selectedPermissions.includes("*")
+                  );
+
+                  const defaultPerms = getDefaultPermissionsForRole(roleName);
+
+                  return (
+                    <div key={group.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 space-y-2.5">
+                      {/* Category Header */}
+                      <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                        <div className="flex items-center gap-2">
+                          <group.icon className="h-4 w-4 text-[var(--blue-600)]" />
+                          <h4 className="text-sm font-bold text-[var(--text-primary)] tracking-wide uppercase">
+                            {group.title}
+                          </h4>
+                          <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                            ({filteredItems.length} {filteredItems.length === 1 ? "module" : "modules"})
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isAllGroupSelected) {
+                              if (selectedPermissions.includes("*")) {
+                                const remaining = ALL_PERMISSION_ITEMS
+                                  .filter((p) => !groupItemIds.includes(p.id) && p.id !== "*")
+                                  .map((p) => p.id);
+                                setSelectedPermissions(remaining);
+                              } else {
+                                setSelectedPermissions((prev) => prev.filter((id) => !groupItemIds.includes(id)));
+                              }
+                            } else {
+                              setSelectedPermissions((prev) => Array.from(new Set([...prev, ...groupItemIds])));
+                            }
+                            setUseDefaultPerms(false);
+                          }}
+                          className="text-[11px] font-semibold text-[var(--blue-700)] hover:underline cursor-pointer"
+                        >
+                          {isAllGroupSelected ? "Deselect Group" : "Select Group"}
+                        </button>
+                      </div>
+
+                      {/* Items Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {filteredItems.map((perm) => {
+                          const isChecked = selectedPermissions.includes("*") 
+                            ? true 
+                            : selectedPermissions.includes(perm.id);
+                          const isDefault = defaultPerms.includes(perm.id);
+
+                          return (
+                            <label
+                              key={perm.id}
+                              className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
+                                isChecked
+                                  ? "bg-[var(--blue-50,#eff6ff)]/80 border-[var(--blue-300,#93c5fd)] shadow-xs text-[var(--text-primary)]"
+                                  : "border-[var(--border)] hover:bg-[var(--bg-page,#f8fafc)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => togglePermission(perm.id)}
+                                className="mt-0.5 h-5 w-5 rounded border-2 border-slate-300 text-[var(--blue-600)] focus:ring-[var(--blue-500)] cursor-pointer shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <span className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                    {perm.label}
+                                  </span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {isDefault && (
+                                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--blue-100,#dbeafe)] text-[var(--blue-700,#1d4ed8)] border border-[var(--blue-200)]">
+                                        Default
+                                      </span>
+                                    )}
+                                    <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                      {perm.id}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-xs sm:text-[13px] text-[var(--text-secondary)] mt-1 leading-relaxed">
+                                  {perm.desc}
+                                </p>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={closeRoleDialog} className="h-8 text-xs rounded-md">
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={saveRoleMutation.isPending}
-                className="h-8 text-xs font-semibold rounded-md"
-              >
-                {saveRoleMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                {editingRole ? "Save Changes" : "Create Role"}
-              </Button>
+            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-between items-center sm:justify-between">
+              <span className="text-xs text-[var(--text-secondary)] font-medium">
+                {selectedPermissions.includes("*")
+                  ? "⚠️ Full Super Admin Access Granted"
+                  : `${selectedPermissions.length} operational permission(s) assigned`}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" type="button" onClick={closeRoleDialog} className="h-8 text-xs rounded-md">
+                  Cancel
+                </Button>
+                <button 
+                  type="submit" 
+                  disabled={saveRoleMutation.isPending}
+                  className="inline-flex items-center justify-center h-9 px-4 text-xs font-semibold rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white !text-white transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {saveRoleMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-white" />}
+                  {editingRole ? "Save Changes" : "Create Role"}
+                </button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { BedDouble } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BedDouble, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,19 @@ type LoginStep = "credentials" | "mfa";
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<LoginStep>("credentials");
+  const [isDeactivatedNotice, setIsDeactivatedNotice] = useState(false);
+
+  useEffect(() => {
+    // Read query parameter safely after hydration on client
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deactivated") === "1") {
+      setIsDeactivatedNotice(true);
+      // Clean up URL so query parameter doesn't persist across login/refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete("deactivated");
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    }
+  }, []);
   const [mfaToken, setMfaToken] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [mfaSubmitting, setMfaSubmitting] = useState(false);
@@ -93,6 +106,7 @@ export default function LoginPage() {
   ];
 
   const handleQuickRole = async (r: typeof quickRoles[0]) => {
+    setIsDeactivatedNotice(false);
     setValue("email", r.email);
     setValue("password", r.pass);
     await onSubmit({ email: r.email, password: r.pass });
@@ -102,6 +116,7 @@ export default function LoginPage() {
   const onSubmit = async (data: z.infer<typeof schema>) => {
     try {
       setError("");
+      setIsDeactivatedNotice(false);
       const res = await apiFetch<any>("/auth/login", {
         method: "POST",
         body: JSON.stringify(data),
@@ -148,6 +163,13 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold tracking-tight text-text">Nexus HMS</h1>
           <p className="text-text-muted text-sm mt-1">Role-Based Hotel Management & Operations Platform</p>
         </div>
+
+        {isDeactivatedNotice && (
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Your account has been deactivated by an administrator. Access has been locked.</span>
+          </div>
+        )}
 
         {/* Quick Role Selection Cards */}
         <div className="bg-surface border border-border p-6 rounded-xl shadow-lg">

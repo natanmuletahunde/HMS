@@ -10,6 +10,7 @@ const fields = {
   firstName: usersTable.firstName,
   lastName: usersTable.lastName,
   phone: usersTable.phone,
+  faydaId: usersTable.faydaId,
   avatarUrl: usersTable.avatarUrl,
   roleId: usersTable.roleId,
   roleName: rolesTable.name,
@@ -23,6 +24,7 @@ const fields = {
 const fmt = (u: any, branches: any[] = []) => ({
   ...u,
   phone: u.phone ?? null,
+  faydaId: u.faydaId ?? null,
   avatarUrl: u.avatarUrl ?? null,
   roleName: u.roleName ?? null,
   roleScope: u.roleScope ?? 'branch',
@@ -31,13 +33,35 @@ const fmt = (u: any, branches: any[] = []) => ({
   createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
 });
 
+function validateEthiopianPhone(phone: string): string {
+  let clean = phone.trim().replace(/[\s\-]/g, '');
+  if (clean.startsWith('+251')) {
+    clean = '0' + clean.slice(4);
+  } else if (clean.startsWith('251') && clean.length === 12) {
+    clean = '0' + clean.slice(3);
+  }
+  if (!/^0[79]\d{8}$/.test(clean)) {
+    throw new BadRequestException('Phone number must be a valid 10-digit Ethiopian number starting with 09 or 07 (e.g. 0911223344).');
+  }
+  return clean;
+}
+
 @Injectable()
 export class UsersService {
   async findAll(page = 1, limit = 20, search?: string, roleId?: string, isActive?: string, branchId?: string) {
     const l = Math.min(limit, 100);
     const offset = (page - 1) * l;
     const conds: any[] = [];
-    if (search) conds.push(or(like(usersTable.firstName, `%${search}%`), like(usersTable.lastName, `%${search}%`), like(usersTable.email, `%${search}%`)));
+    if (search) {
+      conds.push(
+        or(
+          like(usersTable.firstName, `%${search}%`),
+          like(usersTable.lastName, `%${search}%`),
+          like(usersTable.email, `%${search}%`),
+          like(usersTable.faydaId, `%${search}%`)
+        )
+      );
+    }
     if (roleId) conds.push(eq(usersTable.roleId, roleId));
     if (isActive !== undefined) conds.push(eq(usersTable.isActive, isActive === 'true'));
     
@@ -101,6 +125,28 @@ export class UsersService {
     }
     const hash = await bcrypt.hash(body.password, 10);
 
+    // Fayda validation & duplicate check
+    let trimmedFayda: string | null = null;
+    if (body.faydaId && body.faydaId.trim()) {
+      trimmedFayda = body.faydaId.trim();
+      if (trimmedFayda.length > 16) {
+        throw new BadRequestException('Fayda ID cannot exceed 16 digits.');
+      }
+      const [existingFayda] = await db
+        .select({ id: usersTable.id, email: usersTable.email })
+        .from(usersTable)
+        .where(eq(usersTable.faydaId, trimmedFayda));
+      if (existingFayda) {
+        throw new BadRequestException(`A staff account with Fayda ID "${trimmedFayda}" already exists.`);
+      }
+    }
+
+    // Phone validation (Ethiopian phone format: max 10 digits starting with 09 or 07)
+    let formattedPhone: string | null = null;
+    if (body.phone && body.phone.trim()) {
+      formattedPhone = validateEthiopianPhone(body.phone);
+    }
+
     const branchIds: string[] = Array.isArray(body.branchIds)
       ? body.branchIds
       : body.branchId
@@ -115,7 +161,8 @@ export class UsersService {
         passwordHash: hash,
         firstName: body.firstName,
         lastName: body.lastName,
-        phone: body.phone,
+        phone: formattedPhone,
+        faydaId: trimmedFayda,
         roleId: body.roleId,
         primaryBranchId,
       })
@@ -169,13 +216,50 @@ export class UsersService {
 
   async update(id: string, body: any) {
     const updates: any = {};
-    for (const k of ['firstName', 'lastName', 'phone', 'roleId', 'isActive', 'isOnDuty']) {
+    for (const k of ['firstName', 'lastName', 'roleId', 'isOnDuty']) {
       if (body[k] !== undefined) updates[k] = body[k];
     }
-    if (body.password) {
+    if (body.isActive !== undefined) {
+      updates.isActive = Boolean(body.isActive);
+      if (body.isActive === false) {
+        updates.isOnDuty = false;
+      }
+    }
+
+    // Phone validation & format
+    if (body.phone !== undefined) {
+      if (body.phone && body.phone.trim()) {
+        updates.phone = validateEthiopianPhone(body.phone);
+      } else {
+        updates.phone = null;
+      }
+    }
+
+    // Password update
+    if (body.password && body.password.trim() !== '') {
       const { valid, errors } = validatePassword(body.password);
       if (!valid) throw new BadRequestException(`Password does not meet policy requirements: ${errors.join('; ')}`);
       updates.passwordHash = await bcrypt.hash(body.password, 10);
+    }
+
+    // Fayda validation & duplicate check
+    if (body.faydaId !== undefined) {
+      if (body.faydaId && body.faydaId.trim()) {
+        const trimmedFayda = body.faydaId.trim();
+        if (trimmedFayda.length > 16) {
+          throw new BadRequestException('Fayda ID cannot exceed 16 digits.');
+        }
+        const [existingFayda] = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(and(eq(usersTable.faydaId, trimmedFayda), sql`${usersTable.id} != ${id}`));
+        if (existingFayda) {
+          throw new BadRequestException(`A staff account with Fayda ID "${trimmedFayda}" already exists.`);
+        }
+        updates.faydaId = trimmedFayda;
+      } else {
+        updates.faydaId = null;
+      }
     }
 
     // Branch synchronisation

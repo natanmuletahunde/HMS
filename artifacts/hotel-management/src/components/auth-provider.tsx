@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { apiFetch, isTokenExpired, attemptTokenRecovery } from "@/lib/api";
 
@@ -14,14 +14,20 @@ export type BranchSummary = {
 export type User = {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
+  phone?: string | null;
+  faydaId?: string | null;
   role: string;
   roleName?: string;
   roleScope?: string;
+  permissions?: string[];
   primaryBranchId?: string | null;
   activeBranchId?: string | null;
   branches?: BranchSummary[];
   isOnDuty?: boolean;
+  isActive?: boolean;
 };
 
 type AuthContextType = {
@@ -32,6 +38,8 @@ type AuthContextType = {
   login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   toggleOnDuty: () => void;
+  refreshUser: () => Promise<void>;
+  hasPermission: (permission: string) => boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
 };
@@ -43,6 +51,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+
+  const syncMe = useCallback(async () => {
+    try {
+      const freshUser = await apiFetch<any>("/auth/me");
+      if (freshUser && freshUser.id) {
+        if (freshUser.isActive === false) {
+          localStorage.removeItem("hms_token");
+          localStorage.removeItem("hms_user");
+          localStorage.removeItem("hms_refresh_token");
+          localStorage.removeItem("hms_active_branch_id");
+          setUser(null);
+          window.location.href = "/login?deactivated=1";
+          return;
+        }
+
+        const savedActiveBranchId = localStorage.getItem("hms_active_branch_id");
+        const role = freshUser.roleName || freshUser.role || "Staff";
+        const name = freshUser.name || `${freshUser.firstName || ''} ${freshUser.lastName || ''}`.trim() || freshUser.email;
+        const branches: BranchSummary[] = freshUser.branches || [];
+        const primaryBranch = branches.find((b) => b.isPrimary) || branches[0] || null;
+        const activeBranchId = savedActiveBranchId || freshUser.activeBranchId || freshUser.primaryBranchId || primaryBranch?.id || null;
+
+        const normalized: User = {
+          ...freshUser,
+          role,
+          roleName: role,
+          roleScope: freshUser.roleScope || "branch",
+          permissions: Array.isArray(freshUser.permissions) ? freshUser.permissions : [],
+          name,
+          branches,
+          primaryBranchId: freshUser.primaryBranchId || primaryBranch?.id || null,
+          activeBranchId,
+        };
+
+        localStorage.setItem("hms_user", JSON.stringify(normalized));
+        setUser(normalized);
+      }
+    } catch (err: any) {
+      if (
+        String(err?.message || '').toLowerCase().includes("deactivate") ||
+        String(err?.message || '').toLowerCase().includes("unauthorized")
+      ) {
+        localStorage.removeItem("hms_token");
+        localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_refresh_token");
+        localStorage.removeItem("hms_active_branch_id");
+        setUser(null);
+        window.location.href = "/login?deactivated=1";
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("hms_token");
@@ -67,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           attemptTokenRecovery().then((recovered) => {
             if (recovered) {
               setUser(parsed);
+              syncMe();
             } else {
               localStorage.removeItem("hms_token");
               localStorage.removeItem("hms_user");
@@ -79,6 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setUser(parsed);
+        // Refresh fresh permissions and details from server
+        syncMe();
       } catch (e) {
         localStorage.removeItem("hms_token");
         localStorage.removeItem("hms_user");
@@ -87,7 +149,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [syncMe]);
+
+  // Real-time BroadcastChannel for cross-tab immediate lockout
+  useEffect(() => {
+    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    const bc = new BroadcastChannel("hms_user_events");
+    bc.onmessage = (event) => {
+      if (event.data?.type === "PERMISSIONS_UPDATED" || event.data?.type === "ROLE_UPDATED") {
+        syncMe();
+      }
+      if (event.data?.type === "USER_DEACTIVATED" && event.data?.userId === user?.id) {
+        localStorage.removeItem("hms_token");
+        localStorage.removeItem("hms_user");
+        localStorage.removeItem("hms_refresh_token");
+        localStorage.removeItem("hms_active_branch_id");
+        setUser(null);
+        window.location.href = "/login?deactivated=1";
+      }
+    };
+    return () => {
+      bc.close();
+    };
+  }, [user?.id]);
+
+  // Periodic heartbeat (every 4s) and on-focus check
+  useEffect(() => {
+    const heartbeat = setInterval(() => {
+      const token = localStorage.getItem("hms_token");
+      if (token && !isTokenExpired(token)) {
+        syncMe();
+      }
+    }, 4000);
+
+    const onFocus = () => {
+      const token = localStorage.getItem("hms_token");
+      if (token && !isTokenExpired(token)) {
+        syncMe();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [syncMe]);
 
   const login = (token: string, rawUser: any, refreshToken?: string) => {
     const role = rawUser.roleName || rawUser.role || "Staff";
@@ -100,6 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...rawUser,
       role,
       roleName: role,
+      roleScope: rawUser.roleScope || "branch",
+      permissions: Array.isArray(rawUser.permissions) ? rawUser.permissions : [],
       name,
       branches,
       primaryBranchId: rawUser.primaryBranchId || primaryBranch?.id || null,
@@ -154,6 +263,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const hasPermission = useCallback((permission: string): boolean => {
+    if (!user) return false;
+    if (
+      user.roleName === "Admin" ||
+      user.roleName === "System Admin" ||
+      user.role === "Admin" ||
+      user.roleScope === "global" ||
+      user.permissions?.includes("*")
+    ) {
+      return true;
+    }
+    if (user.permissions?.includes(permission)) return true;
+    if (permission.includes(":")) {
+      const [domain] = permission.split(":");
+      if (user.permissions?.includes(`${domain}:*`)) return true;
+    }
+    return false;
+  }, [user]);
+
   const branches = user?.branches || [];
   const activeBranch = useMemo(() => {
     if (!user?.activeBranchId || !branches.length) return branches[0] || null;
@@ -170,6 +298,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         toggleOnDuty,
+        refreshUser: syncMe,
+        hasPermission,
         isAuthenticated: !!user,
         isLoading,
       }}

@@ -116,19 +116,19 @@ export function Sidebar() {
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
 
-  // Filter navigation groups based on role authorization
+  // Filter navigation groups based on role authorization & dynamic permissions
   const filteredNavGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => {
       const authorizedItems = group.items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
-        return isRouteAuthorized(currentRole, pathOnly);
+        return isRouteAuthorized(user, pathOnly, user?.permissions);
       });
       return {
         ...group,
         items: authorizedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [currentRole]);
+  }, [user]);
 
   return (
     <aside className="w-64 flex flex-col bg-[#071039] border-r border-[#0F2270] h-screen sticky top-0 overflow-y-auto z-20 select-none">

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq, ilike } from 'drizzle-orm';
+import { eq, ilike, and, sql } from 'drizzle-orm';
 import { db, rolesTable } from '@workspace/db';
 
 const fmt = (r: any) => ({
@@ -51,6 +51,7 @@ export class RolesService {
         .insert(rolesTable)
         .values({
           name: roleName,
+          scope: body.scope || 'branch',
           description: body.description || null,
           permissions: body.permissions ?? [],
         })
@@ -72,12 +73,31 @@ export class RolesService {
 
   async update(id: string, body: any) {
     const u: any = {};
-    for (const k of ['name', 'description', 'permissions', 'isActive']) {
+    for (const k of ['name', 'description', 'scope', 'permissions', 'isActive']) {
       if (body[k] !== undefined) u[k] = body[k];
     }
-    const [r] = await db.update(rolesTable).set(u).where(eq(rolesTable.id, id)).returning();
-    if (!r) throw new NotFoundException();
-    return fmt(r);
+    if (u.name) {
+      u.name = u.name.trim();
+      const [existing] = await db
+        .select({ id: rolesTable.id })
+        .from(rolesTable)
+        .where(and(eq(rolesTable.name, u.name), sql`${rolesTable.id} != ${id}`));
+      if (existing) {
+        throw new BadRequestException(`A role with name "${u.name}" already exists. Please choose a different name.`);
+      }
+    }
+
+    try {
+      const [r] = await db.update(rolesTable).set(u).where(eq(rolesTable.id, id)).returning();
+      if (!r) throw new NotFoundException('Role not found');
+      return fmt(r);
+    } catch (err: any) {
+      const msg = err.message || '';
+      if (err.code === '23505' || err.cause?.code === '23505' || msg.includes('unique') || msg.includes('23505')) {
+        throw new BadRequestException(`A role with name "${u.name || body.name}" already exists.`);
+      }
+      throw err;
+    }
   }
 
   async remove(id: string) {

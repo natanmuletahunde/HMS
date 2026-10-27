@@ -53,4 +53,15 @@ export class AuthController {
   getMe(@CurrentUser() user: JwtPayload) {
     return this.auth.getMe(user.userId);
   }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { currentPassword?: string; newPassword: string },
+  ) {
+    return this.auth.changePassword(user.userId, body.currentPassword, body.newPassword);
+  }
 }

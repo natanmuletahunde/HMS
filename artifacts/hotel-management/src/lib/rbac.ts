@@ -147,22 +147,123 @@ export function getRoleInfo(roleName?: string | null): RoleInfo {
   return ROLE_DEFINITIONS[category];
 }
 
+export interface UserWithPermissions {
+  role?: string;
+  roleName?: string;
+  roleScope?: string;
+  permissions?: string[];
+}
+
+export const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
+  '/hotel': ['hotel:*'],
+  '/branches': ['hotel:*', 'branches:*'],
+  '/rooms': ['rooms:*'],
+  '/room-configs': ['rooms:*'],
+  '/guests': ['guests:*'],
+  '/qr-codes': ['guests:*', 'front-office:*'],
+  '/reservations': ['reservations:*'],
+  '/reservations/calendar': ['reservations:*'],
+  '/availability': ['reservations:*', 'rooms:*'],
+  '/walk-in': ['reservations:*', 'front-office:*'],
+  '/check-in': ['reservations:*', 'front-office:*'],
+  '/check-out': ['reservations:*', 'front-office:*'],
+  '/stay': ['front-office:*', 'reservations:*', 'room-service:*'],
+  '/front-office': ['front-office:*'],
+  '/housekeeping': ['housekeeping:*'],
+  '/maintenance': ['maintenance:*'],
+  '/restaurant': ['restaurant:*'],
+  '/pos': ['pos:*'],
+  '/room-service': ['room-service:*', 'restaurant:*'],
+  '/invoices': ['invoices:*', 'financial:*'],
+  '/payments': ['payments:*', 'financial:*'],
+  '/inventory': ['inventory:*'],
+  '/procurement': ['procurement:*'],
+  '/financial': ['financial:*'],
+  '/conference': ['conference:*'],
+  '/transport': ['transport:*'],
+  '/customer-service': ['customer-service:*'],
+  '/documents': ['documents:*'],
+  '/employees': ['employees:*', 'staff:*'],
+  '/hr': ['hr:*', 'staff:*'],
+  '/users': ['users:*', 'roles:*'],
+  '/roles': ['roles:*'],
+  '/audit-logs': ['audit:*', 'roles:*'],
+  '/bi': ['bi:*'],
+  '/reports': ['reports:*'],
+  '/security': ['security:*', 'roles:*'],
+  '/tenants': ['*'],
+  '/organizations': ['*'],
+  '/subscriptions': ['*'],
+  '/workflows': ['*'],
+  '/module-config': ['*'],
+  '/plugins': ['*'],
+};
+
 /**
- * Checks whether a given path is authorized for a specific role category.
+ * Checks whether a given path is authorized for a specific role category or user permissions.
  */
-export function isRouteAuthorized(roleName: string | undefined | null, pathname: string): boolean {
-  if (!roleName) return false;
-  const category = normalizeRole(roleName);
+export function isRouteAuthorized(
+  roleOrUser: string | UserWithPermissions | undefined | null,
+  pathname: string,
+  explicitPermissions?: string[]
+): boolean {
+  if (!roleOrUser) return false;
 
-  // Admin has access to all routes
-  if (category === 'admin') return true;
+  const roleName = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.roleName || roleOrUser.role || '');
+  const userPermissions = Array.isArray(explicitPermissions)
+    ? explicitPermissions
+    : typeof roleOrUser === 'object' && Array.isArray(roleOrUser.permissions)
+    ? roleOrUser.permissions
+    : null;
 
-  // Base dashboard, notifications, and search are accessible to all authenticated staff
-  if (pathname === '/dashboard' || pathname === '/notifications' || pathname === '/search') {
+  const cleanPath = pathname.split('?')[0];
+
+  // Base dashboard, notifications, search, and profile are accessible to all authenticated staff
+  if (
+    cleanPath === '/dashboard' ||
+    cleanPath === '/notifications' ||
+    cleanPath === '/search' ||
+    cleanPath === '/profile'
+  ) {
     return true;
   }
 
-  // Manager: Access to operational, financial, and management routes (excluding SaaS tenant config)
+  // System Administrator / Super Admin has unrestricted access to all routes
+  const isSuperAdmin =
+    roleName.toLowerCase() === 'admin' ||
+    roleName.toLowerCase() === 'system admin' ||
+    userPermissions?.includes('*');
+
+  if (isSuperAdmin) return true;
+
+  // Strict Dynamic Permission Check: If user has a defined permissions array, check it directly!
+  if (userPermissions) {
+    let requiredPerms: string[] | undefined = undefined;
+
+    for (const [routePrefix, perms] of Object.entries(ROUTE_PERMISSION_MAP)) {
+      if (cleanPath === routePrefix || cleanPath.startsWith(routePrefix + '/')) {
+        requiredPerms = perms;
+        break;
+      }
+    }
+
+    if (requiredPerms && requiredPerms.length > 0) {
+      return requiredPerms.some((req) => {
+        if (userPermissions.includes('*')) return true;
+        if (userPermissions.includes(req)) return true;
+        if (req.includes(':')) {
+          const [domain] = req.split(':');
+          if (userPermissions.includes(domain + ':*')) return true;
+        }
+        return false;
+      });
+    }
+  }
+
+  // Fallback to legacy role-category checks only if user has no permissions array
+  const category = normalizeRole(roleName);
+  if (category === 'admin') return true;
+
   if (category === 'manager') {
     const restrictedForManager = [
       '/tenants',
@@ -173,10 +274,9 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/security',
       '/roles',
     ];
-    return !restrictedForManager.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return !restrictedForManager.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Front Desk / Receptionist / Concierge:
   if (category === 'receptionist') {
     const allowed = [
       '/dashboard',
@@ -200,22 +300,19 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/customer-service',
       '/reports',
     ];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Housekeeping:
   if (category === 'housekeeping') {
     const allowed = ['/dashboard', '/housekeeping', '/rooms', '/customer-service'];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Maintenance:
   if (category === 'maintenance') {
     const allowed = ['/dashboard', '/maintenance', '/rooms', '/inventory'];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Cashier / Food & Beverage:
   if (category === 'cashier') {
     const allowed = [
       '/dashboard',
@@ -225,10 +322,9 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/invoices',
       '/payments',
     ];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Accountant / Finance:
   if (category === 'accountant') {
     const allowed = [
       '/dashboard',
@@ -238,15 +334,13 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/procurement',
       '/reports',
     ];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Storekeeper / Inventory:
   if (category === 'storekeeper') {
     const allowed = ['/dashboard', '/inventory', '/procurement'];
-    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
   return false;
 }
-

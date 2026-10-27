@@ -21,6 +21,7 @@ import {
   User,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import {
@@ -64,6 +65,13 @@ function BranchesContent() {
     const url = tab === "branches" ? "/branches" : `/branches?tab=${tab}`;
     router.replace(url, { scroll: false });
   };
+  const { user, hasPermission } = useAuth();
+  const canManageBranches =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global" ||
+    hasPermission("hotel:*");
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -220,38 +228,42 @@ function BranchesContent() {
         <StatusPill status={branch.status || (branch.isActive !== false ? "active" : "inactive")} />
       ),
     },
-    {
-      key: "actions",
-      header: "",
-      className: "w-12 text-right",
-      render: (branch) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] dark:hover:bg-[var(--navy-950)] transition-colors cursor-pointer"
-              title="Branch Actions"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
-            <DropdownMenuItem
-              onClick={() => handleOpenEdit(branch)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
-            >
-              <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => deleteMutation.mutate(branch.id)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
-            >
-              <Trash2 className="w-4 h-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
+    ...(canManageBranches
+      ? [
+          {
+            key: "actions",
+            header: "",
+            className: "w-12 text-right",
+            render: (branch: Branch) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] dark:hover:bg-[var(--navy-950)] transition-colors cursor-pointer"
+                    title="Branch Actions"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
+                  <DropdownMenuItem
+                    onClick={() => handleOpenEdit(branch)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
+                  >
+                    <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => deleteMutation.mutate(branch.id)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ),
+          } as Column<Branch>,
+        ]
+      : []),
   ];
 
   return (
@@ -316,14 +328,16 @@ function BranchesContent() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Branch</span>
-            </button>
+            {canManageBranches && (
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Branch</span>
+              </button>
+            )}
           </div>
 
           <DataTable
@@ -339,13 +353,15 @@ function BranchesContent() {
             emptyTitle="No branches registered"
             emptyDescription="Create your first property branch to begin assigning buildings, floors, and rooms."
             emptyAction={
-              <button
-                type="button"
-                onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" /> Add Branch
-              </button>
+              canManageBranches ? (
+                <button
+                  type="button"
+                  onClick={handleOpenAdd}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Add Branch
+                </button>
+              ) : undefined
             }
           />
         </div>

@@ -123,6 +123,10 @@ function RoomsContent() {
   // Category -> Type cascading selection state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("");
+  const [formBedTypeId, setFormBedTypeId] = useState<string>("");
+  const [formCurrentPrice, setFormCurrentPrice] = useState<string>("100");
+  const [formCapacityAdults, setFormCapacityAdults] = useState<number>(2);
+  const [formCapacityChildren, setFormCapacityChildren] = useState<number>(1);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 300);
@@ -171,11 +175,33 @@ function RoomsContent() {
     ? types.filter((t: any) => t.categoryId === selectedCategoryId)
     : types;
 
+  const handleRoomTypeChange = (typeId: string) => {
+    setSelectedRoomTypeId(typeId);
+    const foundType = types.find((t: any) => t.id === typeId);
+    if (foundType) {
+      if (foundType.categoryId && foundType.categoryId !== selectedCategoryId) {
+        setSelectedCategoryId(foundType.categoryId);
+      }
+      if (foundType.bedTypeId) {
+        setFormBedTypeId(foundType.bedTypeId);
+      }
+      if (foundType.basePrice !== undefined && foundType.basePrice !== null) {
+        setFormCurrentPrice(String(foundType.basePrice));
+      }
+      if (foundType.maximumAdults !== undefined && foundType.maximumAdults !== null) {
+        setFormCapacityAdults(Number(foundType.maximumAdults));
+      }
+      if (foundType.maximumChildren !== undefined && foundType.maximumChildren !== null) {
+        setFormCapacityChildren(Number(foundType.maximumChildren));
+      }
+    }
+  };
+
   const handleCategoryChange = (catId: string) => {
     setSelectedCategoryId(catId);
     const catTypes = catId ? types.filter((t: any) => t.categoryId === catId) : types;
     if (catTypes.length > 0 && !catTypes.some((t: any) => t.id === selectedRoomTypeId)) {
-      setSelectedRoomTypeId(catTypes[0].id);
+      handleRoomTypeChange(catTypes[0].id);
     }
   };
 
@@ -193,7 +219,14 @@ function RoomsContent() {
     const initialCat = categories[0]?.id || "";
     setSelectedCategoryId(initialCat);
     const catTypes = initialCat ? types.filter((t: any) => t.categoryId === initialCat) : types;
-    setSelectedRoomTypeId(catTypes[0]?.id || types[0]?.id || "");
+    const initialType = catTypes[0] || types[0];
+    const initialTypeId = initialType?.id || "";
+    setSelectedRoomTypeId(initialTypeId);
+
+    setFormBedTypeId(initialType?.bedTypeId || bedTypes[0]?.id || "");
+    setFormCurrentPrice(initialType?.basePrice !== undefined ? String(initialType.basePrice) : "100");
+    setFormCapacityAdults(initialType?.maximumAdults ?? 2);
+    setFormCapacityChildren(initialType?.maximumChildren ?? 1);
 
     setIsAddOpen(true);
   };
@@ -211,6 +244,11 @@ function RoomsContent() {
     const editCat = room.roomCategoryId || types.find((t: any) => t.id === room.roomTypeId)?.categoryId || categories[0]?.id || "";
     setSelectedCategoryId(editCat);
     setSelectedRoomTypeId(room.roomTypeId || "");
+
+    setFormBedTypeId(room.bedTypeId || "");
+    setFormCurrentPrice(room.currentPrice ? String(room.currentPrice) : "");
+    setFormCapacityAdults(room.capacityAdults ?? 2);
+    setFormCapacityChildren(room.capacityChildren ?? 1);
 
     setIsAddOpen(true);
   };
@@ -286,10 +324,13 @@ function RoomsContent() {
     const fd = new FormData(e.currentTarget);
     saveMutation.mutate({
       ...Object.fromEntries(fd),
-      capacityAdults: Number(fd.get("capacityAdults")),
-      capacityChildren: Number(fd.get("capacityChildren")),
+      roomCategoryId: selectedCategoryId || fd.get("roomCategoryId"),
+      roomTypeId: selectedRoomTypeId || fd.get("roomTypeId"),
+      bedTypeId: formBedTypeId || fd.get("bedTypeId") || null,
+      capacityAdults: Number(formCapacityAdults ?? fd.get("capacityAdults") ?? 2),
+      capacityChildren: Number(formCapacityChildren ?? fd.get("capacityChildren") ?? 1),
       size: Number(fd.get("size")),
-      currentPrice: Number(fd.get("currentPrice")),
+      currentPrice: Number(formCurrentPrice ?? fd.get("currentPrice") ?? 0),
       smokingAllowed: fd.get("smokingAllowed") === "on",
     });
   };
@@ -545,7 +586,7 @@ function RoomsContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label>Type</Label>
-                      <Select value={selectedRoomTypeId} onValueChange={setSelectedRoomTypeId} required>
+                      <Select value={selectedRoomTypeId} onValueChange={handleRoomTypeChange} required>
                         <SelectTrigger>
                           <SelectValue placeholder={availableTypes.length ? "Select Type" : "No types in category"} />
                         </SelectTrigger>
@@ -557,12 +598,13 @@ function RoomsContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label>Bed Type</Label>
-                      <Select name="bedTypeId" defaultValue={editItem?.bedTypeId} required>
+                      <Select value={formBedTypeId} onValueChange={setFormBedTypeId} required>
                         <SelectTrigger><SelectValue placeholder="Select Bed Type" /></SelectTrigger>
                         <SelectContent>
                           {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <input type="hidden" name="bedTypeId" value={formBedTypeId} />
                     </div>
                   </div>
 
@@ -580,11 +622,25 @@ function RoomsContent() {
                   <div className="grid grid-cols-4 gap-4">
                     <div className="grid gap-2">
                       <Label>Adults Cap.</Label>
-                      <Input name="capacityAdults" type="number" min={1} defaultValue={editItem?.capacityAdults || 2} required />
+                      <Input 
+                        name="capacityAdults" 
+                        type="number" 
+                        min={1} 
+                        value={formCapacityAdults} 
+                        onChange={(e) => setFormCapacityAdults(Number(e.target.value))} 
+                        required 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Child Cap.</Label>
-                      <Input name="capacityChildren" type="number" min={0} defaultValue={editItem?.capacityChildren || 0} required />
+                      <Input 
+                        name="capacityChildren" 
+                        type="number" 
+                        min={0} 
+                        value={formCapacityChildren} 
+                        onChange={(e) => setFormCapacityChildren(Number(e.target.value))} 
+                        required 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Size (sqm)</Label>
@@ -592,7 +648,13 @@ function RoomsContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label>Current Price</Label>
-                      <Input name="currentPrice" type="number" defaultValue={editItem?.currentPrice} />
+                      <Input 
+                        name="currentPrice" 
+                        type="number" 
+                        step="0.01" 
+                        value={formCurrentPrice} 
+                        onChange={(e) => setFormCurrentPrice(e.target.value)} 
+                      />
                     </div>
                   </div>
 
@@ -663,8 +725,11 @@ function RoomsContent() {
                           <div className="text-xs text-text-muted">{room.roomName || '-'}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{t?.name || room.type || '-'}</div>
-                          <div className="text-xs text-text-muted">${room.currentPrice || 0}/night</div>
+                          <div className="font-medium text-sm text-[var(--text-primary)]">{t?.name || room.roomTypeName || room.type || '-'}</div>
+                          <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1.5 mt-0.5">
+                            <span className="font-semibold font-mono text-[var(--text-primary)]">${room.currentPrice || 0}/night</span>
+                            {room.bedTypeName && <span>• {room.bedTypeName}</span>}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{room.capacityAdults}A / {room.capacityChildren}C</span>

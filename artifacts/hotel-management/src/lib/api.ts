@@ -112,11 +112,29 @@ export async function apiFetch<T>(path: string, options?: RequestInit, isRetry =
     },
   });
 
-  // Handle 401 Unauthorized with automatic recovery and retry
-  if (res.status === 401 && !isRetry && !path.startsWith('/auth/')) {
-    const recoveredToken = await attemptTokenRecovery();
-    if (recoveredToken) {
-      return apiFetch<T>(path, options, true);
+  // Handle 401 Unauthorized with immediate lockout for deactivated accounts
+  if (res.status === 401) {
+    const errorBody = await res.clone().json().catch(() => ({}));
+    const isDeactivated = 
+      String(errorBody?.message || '').toLowerCase().includes('deactivate') ||
+      String(errorBody?.error || '').toLowerCase().includes('deactivate');
+
+    if (isDeactivated) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('hms_token');
+        localStorage.removeItem('hms_user');
+        localStorage.removeItem('hms_refresh_token');
+        localStorage.removeItem('hms_active_branch_id');
+        window.location.href = '/login?deactivated=1';
+      }
+      throw new Error('User account has been deactivated');
+    }
+
+    if (!isRetry && !path.startsWith('/auth/login') && !path.startsWith('/auth/refresh')) {
+      const recoveredToken = await attemptTokenRecovery();
+      if (recoveredToken) {
+        return apiFetch<T>(path, options, true);
+      }
     }
 
     // If recovery completely failed and user was on a dashboard page, cleanly clear and redirect
