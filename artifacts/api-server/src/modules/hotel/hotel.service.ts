@@ -30,13 +30,59 @@ export class HotelService {
   async create(b: any) {
     const [exist] = await db.select().from(hotelsTable).where(eq(hotelsTable.hotelCode, b.hotelCode));
     if (exist) throw new ConflictException('Hotel code already exists');
-    const [h] = await db.insert(hotelsTable).values({ hotelName: b.hotelName, legalName: b.legalName, hotelCode: b.hotelCode, logo: b.logo, email: b.email, phone: b.phone, website: b.website, country: b.country ?? 'Ethiopia', region: b.region, city: b.city, subCity: b.subCity, address: b.address, postalCode: b.postalCode, latitude: b.latitude, longitude: b.longitude, description: b.description, timezone: b.timezone ?? 'Africa/Addis_Ababa', currencyCode: b.currencyCode ?? 'ETB', taxNumber: b.taxNumber, licenseNumber: b.licenseNumber, starRating: b.starRating, checkInTime: b.checkInTime ?? '14:00', checkOutTime: b.checkOutTime ?? '12:00', createdBy: b.createdBy }).returning();
+    const [h] = await db.insert(hotelsTable).values({
+      hotelName: b.hotelName,
+      legalName: b.legalName,
+      hotelCode: b.hotelCode,
+      logo: b.logo,
+      email: b.email,
+      phone: b.phone,
+      website: b.website,
+      country: b.country ?? 'Ethiopia',
+      region: b.region,
+      city: b.city,
+      subCity: b.subCity,
+      address: b.address,
+      postalCode: b.postalCode,
+      latitude: b.latitude,
+      longitude: b.longitude,
+      description: b.description,
+      timezone: b.timezone ?? 'Africa/Addis_Ababa',
+      currencyCode: b.currencyCode ?? 'ETB',
+      taxNumber: b.taxNumber,
+      licenseNumber: b.licenseNumber,
+      starRating: b.starRating,
+      checkInTime: b.checkInTime ?? '14:00',
+      checkOutTime: b.checkOutTime ?? '12:00',
+      lateCheckoutGraceMinutes: b.lateCheckoutGraceMinutes !== undefined ? Number(b.lateCheckoutGraceMinutes) : 30,
+      lateCheckoutHourlyFee: b.lateCheckoutHourlyFee !== undefined ? String(b.lateCheckoutHourlyFee) : '25',
+      lateCheckoutTier1Percent: b.lateCheckoutTier1Percent !== undefined ? String(b.lateCheckoutTier1Percent) : '25',
+      lateCheckoutTier2Percent: b.lateCheckoutTier2Percent !== undefined ? String(b.lateCheckoutTier2Percent) : '50',
+      lateCheckoutCutoffTime: b.lateCheckoutCutoffTime ?? '18:00',
+      createdBy: b.createdBy,
+    }).returning();
     return fmt(h);
   }
   async update(id: string, b: any) {
     const u: any = {};
-    const fields = ['hotelName','legalName','logo','email','phone','website','country','region','city','subCity','address','postalCode','latitude','longitude','description','timezone','currencyCode','taxNumber','licenseNumber','starRating','checkInTime','checkOutTime','status','isActive'];
-    for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
+    const fields = [
+      'hotelName','legalName','logo','email','phone','website','country','region','city','subCity',
+      'address','postalCode','latitude','longitude','description','timezone','currencyCode',
+      'taxNumber','licenseNumber','starRating','checkInTime','checkOutTime',
+      'lateCheckoutGraceMinutes','lateCheckoutHourlyFee','lateCheckoutTier1Percent',
+      'lateCheckoutTier2Percent','lateCheckoutCutoffTime','status','isActive'
+    ];
+    for (const k of fields) {
+      if (b[k] !== undefined) {
+        if (k === 'lateCheckoutGraceMinutes' || k === 'starRating') {
+          u[k] = Number(b[k]);
+        } else if (k === 'lateCheckoutHourlyFee' || k === 'lateCheckoutTier1Percent' || k === 'lateCheckoutTier2Percent') {
+          u[k] = String(b[k]);
+        } else {
+          u[k] = b[k];
+        }
+      }
+    }
     u.updatedBy = b.updatedBy;
     const [h] = await db.update(hotelsTable).set(u).where(eq(hotelsTable.id, id)).returning();
     if (!h) throw new NotFoundException('Hotel not found');

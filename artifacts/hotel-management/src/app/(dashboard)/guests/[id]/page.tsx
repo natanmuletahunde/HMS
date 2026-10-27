@@ -123,7 +123,9 @@ export default function GuestProfilePage() {
     return (
       <div className="text-center py-20 text-text-muted">
         <p>Guest not found.</p>
-        <Button variant="outline" className="mt-4" onClick={() => router.back()}>Go Back</Button>
+        <Button variant="outline" size="icon" className="mt-4" onClick={() => router.back()} title="Back" aria-label="Back">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
       </div>
     );
   }
@@ -134,8 +136,8 @@ export default function GuestProfilePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()} className="mt-1">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="mt-1 h-9 w-9 rounded-full shrink-0" title="Back" aria-label="Back">
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -100,8 +101,8 @@ export default function FrontOfficePage() {
           <Button variant="outline" size="sm" onClick={() => router.push("/guests")} className="gap-1.5">
             <UserPlus className="h-4 w-4" /> Guest Stepper
           </Button>
-          <Button size="sm" onClick={() => router.push("/check-in")} className="gap-1.5">
-            <LogIn className="h-4 w-4" /> Check-In Records
+          <Button variant="outline" size="sm" onClick={() => router.push("/check-in")} className="gap-1.5">
+            <LogIn className="h-4 w-4" /> Records
           </Button>
         </div>
       </div>
@@ -209,9 +210,26 @@ export default function FrontOfficePage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={() => router.push("/check-in")}>
-                        <LogIn className="h-3 w-3" />
-                      </Button>
+                      {res.status === "confirmed" || res.status === "pending" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2.5 text-xs gap-1 text-primary hover:bg-primary/10 font-medium"
+                          onClick={() => router.push(`/reservations/${res.id}`)}
+                        >
+                          <LogIn className="h-3 w-3" />
+                          <span>Check In</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs gap-1"
+                          onClick={() => router.push("/check-in")}
+                        >
+                          <LogIn className="h-3 w-3" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

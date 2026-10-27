@@ -76,15 +76,65 @@ export class GuestsService {
   }
 
   async getStats() {
-    const rows = await db
-      .select({
-        guestType: guestsTable.guestType,
-        vipStatus: guestsTable.vipStatus,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(guestsTable)
-      .where(eq(guestsTable.isActive, true))
-      .groupBy(guestsTable.guestType, guestsTable.vipStatus);
+    const [
+      rows,
+      checkedInResult,
+      onlineResult,
+      walkInResult,
+    ] = await Promise.all([
+      db
+        .select({
+          guestType: guestsTable.guestType,
+          vipStatus: guestsTable.vipStatus,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(guestsTable)
+        .where(eq(guestsTable.isActive, true))
+        .groupBy(guestsTable.guestType, guestsTable.vipStatus),
+
+      db
+        .select({
+          count: sql<number>`count(distinct ${reservationsTable.guestId})::int`,
+        })
+        .from(reservationsTable)
+        .where(
+          and(
+            eq(reservationsTable.status, 'checked_in'),
+            eq(reservationsTable.isActive, true)
+          )
+        ),
+
+      db
+        .select({
+          count: sql<number>`count(distinct ${reservationsTable.guestId})::int`,
+        })
+        .from(reservationsTable)
+        .where(
+          and(
+            or(
+              eq(reservationsTable.reservationType, 'online'),
+              eq(reservationsTable.bookingSource, 'online'),
+              eq(reservationsTable.bookingSource, 'ota')
+            ),
+            eq(reservationsTable.isActive, true)
+          )
+        ),
+
+      db
+        .select({
+          count: sql<number>`count(distinct ${reservationsTable.guestId})::int`,
+        })
+        .from(reservationsTable)
+        .where(
+          and(
+            or(
+              eq(reservationsTable.reservationType, 'walk_in'),
+              eq(reservationsTable.bookingSource, 'walk_in')
+            ),
+            eq(reservationsTable.isActive, true)
+          )
+        ),
+    ]);
 
     let total = 0;
     let vip = 0;
@@ -102,7 +152,21 @@ export class GuestsService {
       if (r.guestType === 'government') government += r.count;
     }
 
-    return { total, vip, corporate, individual, travel_agency, government };
+    const checkedIn = checkedInResult[0]?.count ?? 0;
+    const online = onlineResult[0]?.count ?? 0;
+    const walkIn = walkInResult[0]?.count ?? 0;
+
+    return {
+      total,
+      vip,
+      corporate,
+      individual,
+      travel_agency,
+      government,
+      walkIn,
+      online,
+      checkedIn,
+    };
   }
 
   async create(body: any) {

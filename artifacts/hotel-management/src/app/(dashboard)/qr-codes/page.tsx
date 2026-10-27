@@ -57,8 +57,8 @@ export default function QrCodesPage() {
   const effectiveHost = customHost.trim() || origin;
   const targetUrl =
     mode === "room"
-      ? `${effectiveHost}/guest-portal/register?room=${encodeURIComponent(selectedRoomNumber)}`
-      : `${effectiveHost}/guest-portal/register`;
+      ? `${effectiveHost}/?room=${encodeURIComponent(selectedRoomNumber)}`
+      : `${effectiveHost}/`;
 
   // Fetch generated QR Code from API
   const { data: qrData, isLoading: qrLoading, refetch } = useQuery({
@@ -211,10 +211,10 @@ export default function QrCodesPage() {
           <div className="p-8 text-center space-y-6">
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-slate-900">
-                {mode === "room" ? "Scan to Connect Your Room" : "Welcome to Our Hotel"}
+                {mode === "room" ? "Scan for Hotel Services & Bookings" : "Welcome to Nexus Hotel"}
               </h3>
               <p className="text-xs text-slate-600 max-w-xs mx-auto">
-                Point your smartphone camera at the QR code below to self-register and unlock all guest services.
+                Point your smartphone camera at the QR code below to access our portal and book reservations directly.
               </p>
             </div>
 

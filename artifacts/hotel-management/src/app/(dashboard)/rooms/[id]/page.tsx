@@ -77,7 +77,9 @@ export default function RoomDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <h2 className="text-2xl font-bold mb-2">Room not found</h2>
-        <Button onClick={() => router.push("/rooms")}>Back to Rooms</Button>
+        <Button variant="outline" size="icon" onClick={() => router.push("/rooms")} title="Back to Rooms" aria-label="Back to Rooms">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
       </div>
     );
   }

@@ -8,12 +8,13 @@ import {
   Loader2,
   Star,
   Search,
-  ChevronLeft,
   ChevronRight,
   Pencil,
   Trash2,
   Calendar,
   User,
+  Users,
+  UserCheck,
   Key,
   CheckCircle2,
   LogIn,
@@ -28,9 +29,11 @@ import {
   CreditCard,
   Lock,
   Wrench,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +46,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { FaydaScanner } from "@/components/fayda-scanner";
 import type { ParsedFaydaGuest } from "@/lib/fayda";
+import { SpecialRequestsMultiSelect } from "@/components/special-requests-multi-select";
+import { GuestRegistrationModal } from "@/components/modals/guest-registration-modal";
+import { ReservationBookingModal } from "@/components/modals/reservation-booking-modal";
+import { RoomCheckInModal } from "@/components/modals/room-checkin-modal";
 import {
   COUNTRIES,
   ADDIS_ABABA_SUB_CITIES,
@@ -218,6 +225,9 @@ type GuestStats = {
   individual: number;
   travel_agency: number;
   government: number;
+  walkIn?: number;
+  online?: number;
+  checkedIn?: number;
 };
 
 type GuestListResponse = {
@@ -229,12 +239,18 @@ function guestTypeBadge(type?: string) {
   if (!type) return <Badge variant="muted">—</Badge>;
   const styles: Record<string, React.CSSProperties> = {
     individual: {},
+    couple: { backgroundColor: "#f43f5e", color: "#fff", border: "none" },
+    friends: { backgroundColor: "#06b6d4", color: "#fff", border: "none" },
+    family: { backgroundColor: "#10b981", color: "#fff", border: "none" },
     corporate: { backgroundColor: "#3b82f6", color: "#fff", border: "none" },
     travel_agency: { backgroundColor: "#8b5cf6", color: "#fff", border: "none" },
     government: { backgroundColor: "#f97316", color: "#fff", border: "none" },
   };
   const labels: Record<string, string> = {
     individual: "Individual",
+    couple: "Couple",
+    friends: "Friends / Companions",
+    family: "Family",
     corporate: "Corporate",
     travel_agency: "Travel Agency",
     government: "Government",
@@ -427,6 +443,9 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
             <Label htmlFor="guestType">Guest Type</Label>
             <select name="guestType" defaultValue={defaultValues?.guestType ?? "individual"} className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
               <option value="individual">Individual</option>
+              <option value="couple">Couple</option>
+              <option value="friends">Friends / Companions</option>
+              <option value="family">Family</option>
               <option value="corporate">Corporate</option>
               <option value="travel_agency">Travel Agency</option>
               <option value="government">Government</option>
@@ -561,6 +580,15 @@ export default function GuestsPage() {
   const limit = 5;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [selectedGuestForReservation, setSelectedGuestForReservation] = useState<any | null>(null);
+  const [selectedReservationForCheckIn, setSelectedReservationForCheckIn] = useState<any | null>(null);
+  const [selectedGuestForCheckIn, setSelectedGuestForCheckIn] = useState<any | null>(null);
+  const [viewingReservationDetails, setViewingReservationDetails] = useState<any | null>(null);
+  const [viewingCheckInDetails, setViewingCheckInDetails] = useState<any | null>(null);
+
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
   const [deleteGuest, setDeleteGuest] = useState<Guest | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -579,11 +607,8 @@ export default function GuestsPage() {
   const [resChildren, setResChildren] = useState("0");
   const [resType, setResType] = useState("walk_in");
   const [resSpecialRequests, setResSpecialRequests] = useState("");
-  const [resNotes, setResNotes] = useState("");
-  const [resMaintenanceNotes, setResMaintenanceNotes] = useState("");
 
   // Check-in Form State (Step 3)
-  const [keyIssuanceType, setKeyIssuanceType] = useState<"rfid" | "manual">("rfid");
   const [keyCardNumber, setKeyCardNumber] = useState("");
   const [identityVerified, setIdentityVerified] = useState(true);
   const [depositCollected, setDepositCollected] = useState(false);
@@ -663,9 +688,6 @@ export default function GuestsPage() {
     setResChildren("0");
     setResType("walk_in");
     setResSpecialRequests("");
-    setResNotes("");
-    setResMaintenanceNotes("");
-    setKeyIssuanceType("rfid");
     setKeyCardNumber("");
     setIdentityVerified(true);
     setDepositCollected(false);
@@ -677,16 +699,13 @@ export default function GuestsPage() {
     setCheckInNotes("");
   }
 
-  function openReservationForGuest(guest: Guest) {
-    resetStepper();
-    setActiveGuest(guest);
-    setCurrentStep(2);
+  function openReservationForGuest(guest: Guest | any) {
+    setSelectedGuestForReservation(guest);
     refetchAvailableRooms();
-    setIsAddOpen(true);
+    setIsReservationModalOpen(true);
   }
 
   async function openCheckInForReservation(res: ReservationRecord | any) {
-    resetStepper();
     let guestObj: any = guests.find((g) => g.id === res.guestId);
     if (!guestObj && res.guestId) {
       try {
@@ -708,49 +727,10 @@ export default function GuestsPage() {
         vipStatus: false,
       };
     }
-    setActiveGuest(guestObj);
-    setActiveReservation(res);
-    setResRoomId(res.roomId || "");
-    setResRoomTypeId(res.roomTypeId || "");
-    setResCheckIn(res.checkInDate ? new Date(res.checkInDate).toISOString().split("T")[0] : "");
-    setResCheckOut(res.checkOutDate ? new Date(res.checkOutDate).toISOString().split("T")[0] : "");
-    setResAdults(String(res.adults || 1));
-    setResChildren(String(res.children || 0));
-    setResType(res.reservationType || "walk_in");
-
-    const notesLower = (res.notes || "").toLowerCase();
-    const isOnlinePrePaid =
-      res.notes?.includes("ONLINE PRE-PAID") ||
-      notesLower.includes("telebirr") ||
-      notesLower.includes("cbe") ||
-      notesLower.includes("chapa") ||
-      res.bookingSource === "online" ||
-      res.reservationType === "online" ||
-      Number(res.paidAmount) > 0 ||
-      Number(res.depositAmount) > 0;
-
-    if (isOnlinePrePaid) {
-      setPaymentStatus("paid_in_advance");
-      setDepositCollected(true);
-      const depVal = res.depositAmount || res.paidAmount || (res.totalAmount ? Number(res.totalAmount) * 0.2 : 1000);
-      setDepositAmount(String(Math.round(Number(depVal) || 1000)));
-      if (notesLower.includes("telebirr")) setDepositMethod("mobile_money");
-      else if (notesLower.includes("cbe")) setDepositMethod("bank_transfer");
-      else setDepositMethod("card");
-    } else {
-      setPaymentStatus("settle_on_checkout");
-      setDepositCollected(false);
-      setDepositAmount("");
-    }
-
-    const roomNum = res.roomNumber || availableRooms.find((r) => r.id === res.roomId)?.number || "101";
-    setKeyIssuanceType("rfid");
-    setKeyCardNumber(`RFID-${roomNum}-${Date.now().toString(36).toUpperCase()}`);
-    setCheckedInBy(currentStaffName);
-
+    setSelectedGuestForCheckIn(guestObj);
+    setSelectedReservationForCheckIn(res);
     refetchAvailableRooms();
-    setCurrentStep(3);
-    setIsAddOpen(true);
+    setIsCheckInModalOpen(true);
   }
 
   const queryParams = new URLSearchParams({
@@ -799,6 +779,8 @@ export default function GuestsPage() {
   const [mainTab, setMainTab] = useState<"guests" | "reservations" | "checkin">("guests");
   const [resSearch, setResSearch] = useState("");
   const [checkinSearch, setCheckinSearch] = useState("");
+  const [resCategoryFilter, setResCategoryFilter] = useState<"all" | "reserve" | "reserved">("all");
+  const [checkinStatusFilter, setCheckinStatusFilter] = useState<"all" | "checkin" | "checked_in">("all");
   const [resPage, setResPage] = useState(1);
   const [checkinPage, setCheckinPage] = useState(1);
 
@@ -824,46 +806,142 @@ export default function GuestsPage() {
     return map;
   }, [reservationsList]);
 
-  const filteredReservations = reservationsList.filter((r) => {
-    const query = resSearch.toLowerCase();
-    return (
-      (r.reservationNumber ?? "").toLowerCase().includes(query) ||
-      (r.guestName ?? "").toLowerCase().includes(query) ||
-      (r.roomNumber ?? "").toLowerCase().includes(query) ||
-      (r.roomTypeName ?? "").toLowerCase().includes(query) ||
-      (r.status ?? "").toLowerCase().includes(query)
-    );
+  const { data: rawAllGuests } = useQuery<any>({
+    queryKey: ["all-registered-guests"],
+    queryFn: () => apiFetch<any>("/guests?limit=250"),
   });
+  const allGuestsList: Guest[] = useMemo(() => {
+    if (Array.isArray(rawAllGuests?.data)) return rawAllGuests.data;
+    if (Array.isArray(rawAllGuests)) return rawAllGuests;
+    return [];
+  }, [rawAllGuests]);
 
-  const { data: rawCheckins, isLoading: checkinsLoading } = useQuery<any>({
-    queryKey: ["guests-page-checkins"],
-    queryFn: () =>
-      apiFetch<any>("/checkins?limit=100").catch(() =>
-        apiFetch<any>("/checkin?limit=100")
-      ),
-    enabled: mainTab === "checkin",
-  });
-  const checkinsList: CheckInRecord[] = Array.isArray(rawCheckins)
-    ? rawCheckins
-    : Array.isArray(rawCheckins?.data)
-      ? rawCheckins.data
-      : [];
+  // Tab 2 Items: Combining existing reservations + registered guests who have not reserved yet
+  const reservationTabItems = useMemo(() => {
+    const items: Array<{
+      id: string;
+      isReserved: boolean;
+      reservationNumber: string;
+      guestId?: string;
+      guestName: string;
+      guestPhone?: string;
+      guestObj?: Guest;
+      resObj?: ReservationRecord;
+      roomDisplay: string;
+      roomTypeName: string;
+      checkInDate?: string;
+      checkOutDate?: string;
+      totalAmount?: number | string | null;
+      status: string;
+      isOnlineBooking?: boolean;
+    }> = [];
 
-  const filteredCheckins = checkinsList.filter((c) => {
-    const query = checkinSearch.toLowerCase();
-    const gName = (
-      c.guestName ||
-      [c.guestFirstName, c.guestLastName].filter(Boolean).join(" ") ||
-      ""
-    ).toLowerCase();
-    return (
-      (c.checkInNumber || c.checkinNumber || "").toLowerCase().includes(query) ||
-      (c.reservationNumber || "").toLowerCase().includes(query) ||
-      (c.roomNumber || "").toLowerCase().includes(query) ||
-      (c.keyCardNumber || "").toLowerCase().includes(query) ||
-      gName.includes(query)
-    );
-  });
+    const processedGuestIds = new Set<string>();
+
+    // 1. Active pre-arrival reservations (pending, confirmed, guaranteed, reserved)
+    // EXCLUDE checked-in guests — they belong strictly in Tab 3 (The Check-In)
+    for (const res of reservationsList) {
+      if (res.guestId) processedGuestIds.add(res.guestId);
+      if (res.guestCode) processedGuestIds.add(res.guestCode);
+
+      const statusLower = (res.status || "").toLowerCase();
+      if (statusLower === "checked_in" || statusLower === "checked_out" || statusLower === "cancelled") {
+        continue;
+      }
+
+      const isOnline =
+        res.reservationType === "online" ||
+        res.bookingSource === "online" ||
+        res.bookingSource === "ota";
+
+      items.push({
+        id: `res-${res.id}`,
+        isReserved: true,
+        reservationNumber: res.reservationNumber || `RES-${res.id.slice(0, 6)}`,
+        guestId: res.guestId,
+        guestName: res.guestName || "Registered Guest",
+        guestPhone: res.guestPhone,
+        resObj: res,
+        roomDisplay: res.roomNumber ? `Room ${res.roomNumber}` : (res.roomTypeName || "Unassigned"),
+        roomTypeName: res.roomTypeName || "—",
+        checkInDate: res.checkInDate,
+        checkOutDate: res.checkOutDate,
+        totalAmount: res.totalAmount,
+        status: "reserved",
+        isOnlineBooking: isOnline,
+      });
+    }
+
+    // 2. Registered guests who don't have an active reservation yet
+    for (const g of allGuestsList) {
+      if (processedGuestIds.has(g.id) || (g.guestCode && processedGuestIds.has(g.guestCode))) {
+        continue;
+      }
+      const fullName = [g.firstName, g.middleName, g.lastName].filter(Boolean).join(" ");
+      items.push({
+        id: `guest-${g.id}`,
+        isReserved: false,
+        reservationNumber: "—",
+        guestId: g.id,
+        guestName: fullName || g.guestCode || "Guest",
+        guestPhone: g.phone,
+        guestObj: g,
+        roomDisplay: "Not Reserved",
+        roomTypeName: "",
+        status: "not_reserved",
+      });
+    }
+
+    return items;
+  }, [reservationsList, allGuestsList]);
+
+  const filteredReservationItems = useMemo(() => {
+    const query = resSearch.toLowerCase().trim();
+    return reservationTabItems.filter((item) => {
+      // Category filter: "reserve" (unreserved) vs "reserved" (already reserved)
+      if (resCategoryFilter === "reserve" && item.isReserved) return false;
+      if (resCategoryFilter === "reserved" && !item.isReserved) return false;
+
+      if (!query) return true;
+      return (
+        item.reservationNumber.toLowerCase().includes(query) ||
+        item.guestName.toLowerCase().includes(query) ||
+        item.roomDisplay.toLowerCase().includes(query) ||
+        item.roomTypeName.toLowerCase().includes(query) ||
+        item.status.toLowerCase().includes(query)
+      );
+    });
+  }, [reservationTabItems, resSearch, resCategoryFilter]);
+
+  // Tab 3 Items: Reservations that move to check-in (pending, confirmed, guaranteed, checked_in)
+  const checkinTabItems = useMemo(() => {
+    const allowedStatuses = new Set(["pending", "confirmed", "guaranteed", "checked_in"]);
+    const list = reservationsList.filter((r) => r.status && allowedStatuses.has(r.status.toLowerCase()));
+    return list.sort((a, b) => {
+      const aChecked = a.status?.toLowerCase() === "checked_in" ? 1 : 0;
+      const bChecked = b.status?.toLowerCase() === "checked_in" ? 1 : 0;
+      return aChecked - bChecked;
+    });
+  }, [reservationsList]);
+
+  const filteredCheckinItems = useMemo(() => {
+    const query = checkinSearch.toLowerCase().trim();
+    return checkinTabItems.filter((r) => {
+      // Status filter: "checkin" (ready for check-in) vs "checked_in" (already checked in)
+      const isAlreadyCheckedIn = r.status?.toLowerCase() === "checked_in";
+      if (checkinStatusFilter === "checkin" && isAlreadyCheckedIn) return false;
+      if (checkinStatusFilter === "checked_in" && !isAlreadyCheckedIn) return false;
+
+      if (!query) return true;
+      return (
+        (r.reservationNumber ?? "").toLowerCase().includes(query) ||
+        (r.guestName ?? "").toLowerCase().includes(query) ||
+        (r.roomNumber ?? "").toLowerCase().includes(query) ||
+        (r.roomTypeName ?? "").toLowerCase().includes(query) ||
+        (r.status ?? "").toLowerCase().includes(query)
+      );
+    });
+  }, [checkinTabItems, checkinSearch, checkinStatusFilter]);
 
   const guests: Guest[] = Array.isArray(listData?.data)
     ? listData.data
@@ -873,12 +951,12 @@ export default function GuestsPage() {
   const meta = listData?.meta;
 
   const resPageSize = 5;
-  const resTotalPages = Math.max(1, Math.ceil(filteredReservations.length / resPageSize));
-  const paginatedReservations = filteredReservations.slice((resPage - 1) * resPageSize, resPage * resPageSize);
+  const resTotalPages = Math.max(1, Math.ceil(filteredReservationItems.length / resPageSize));
+  const paginatedReservationItems = filteredReservationItems.slice((resPage - 1) * resPageSize, resPage * resPageSize);
 
   const checkinPageSize = 5;
-  const checkinTotalPages = Math.max(1, Math.ceil(filteredCheckins.length / checkinPageSize));
-  const paginatedCheckins = filteredCheckins.slice((checkinPage - 1) * checkinPageSize, checkinPage * checkinPageSize);
+  const checkinTotalPages = Math.max(1, Math.ceil(filteredCheckinItems.length / checkinPageSize));
+  const paginatedCheckinItems = filteredCheckinItems.slice((checkinPage - 1) * checkinPageSize, checkinPage * checkinPageSize);
 
   const addMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => apiFetch<Guest>("/guests", { method: "POST", body: JSON.stringify(body) }),
@@ -900,7 +978,7 @@ export default function GuestsPage() {
       setActiveReservation(newRes);
       const assignedRoom = availableRooms.find((r) => r.id === (newRes.roomId || resRoomId));
       const roomNum = assignedRoom?.number || "101";
-      setKeyCardNumber(`RFID-${roomNum}-${Date.now().toString(36).toUpperCase()}`);
+      setKeyCardNumber(`KEY-${roomNum}`);
     },
     onError: (err: Error) => toast({ title: "Reservation Error", description: err.message, variant: "destructive" }),
   });
@@ -973,11 +1051,6 @@ export default function GuestsPage() {
     if (resRoomId) payload.roomId = resRoomId;
     if (resRoomTypeId) payload.roomTypeId = resRoomTypeId;
     if (resSpecialRequests) payload.specialRequests = resSpecialRequests;
-    const combinedNotes = [
-      resMaintenanceNotes ? `[Maintenance & Readiness Check: ${resMaintenanceNotes}]` : null,
-      resNotes ? resNotes : null,
-    ].filter(Boolean).join("\n");
-    if (combinedNotes) payload.notes = combinedNotes;
 
     createResMutation.mutate(payload, {
       onSuccess: (newRes) => {
@@ -986,7 +1059,16 @@ export default function GuestsPage() {
           description: `Booking #${newRes.reservationNumber || "Confirmed"} saved.`,
         });
         if (andProceedToCheckIn) {
-          setCurrentStep(3);
+          const assignedRoom = availableRooms.find((r) => r.id === (newRes.roomId || resRoomId));
+          const roomNum = assignedRoom?.number || "101";
+          checkInMutation.mutate({
+            id: newRes.id,
+            body: {
+              keyCardNumber: `KEY-${roomNum}`,
+              identityVerified: true,
+              checkedInBy: checkedInBy || currentStaffName,
+            },
+          });
         } else {
           setIsAddOpen(false);
           resetStepper();
@@ -1011,1097 +1093,251 @@ export default function GuestsPage() {
     }
   }
 
+  // Real-time KPI Card Metrics
+  const totalGuestsCount = stats?.total ?? allGuestsList.length;
+
+  const onlineGuestsCount = useMemo(() => {
+    if (stats?.online !== undefined) return stats.online;
+    const uniqueIds = new Set<string>();
+    for (const r of reservationsList) {
+      if (
+        (r.reservationType === "online" || r.bookingSource === "online" || r.bookingSource === "ota") &&
+        r.status?.toLowerCase() !== "cancelled"
+      ) {
+        if (r.guestId) uniqueIds.add(r.guestId);
+      }
+    }
+    return uniqueIds.size;
+  }, [stats?.online, reservationsList]);
+
+  const checkedInGuestsCount = useMemo(() => {
+    if (stats?.checkedIn !== undefined) return stats.checkedIn;
+    const uniqueIds = new Set<string>();
+    for (const r of reservationsList) {
+      if (r.status?.toLowerCase() === "checked_in") {
+        if (r.guestId) uniqueIds.add(r.guestId);
+      }
+    }
+    return uniqueIds.size;
+  }, [stats?.checkedIn, reservationsList]);
+
+  const walkInGuestsCount = useMemo(() => {
+    if (stats?.walkIn !== undefined) return stats.walkIn;
+    const uniqueIds = new Set<string>();
+    for (const r of reservationsList) {
+      if (
+        (r.reservationType === "walk_in" || r.bookingSource === "walk_in") &&
+        r.status?.toLowerCase() !== "cancelled"
+      ) {
+        if (r.guestId) uniqueIds.add(r.guestId);
+      }
+    }
+    return uniqueIds.size;
+  }, [stats?.walkIn, reservationsList]);
+
+  const walkInPct = totalGuestsCount > 0 ? Math.round((walkInGuestsCount / totalGuestsCount) * 100) : 0;
+  const onlinePct = totalGuestsCount > 0 ? Math.round((onlineGuestsCount / totalGuestsCount) * 100) : 0;
+
   const statCards = [
-    { label: "Total Guests", value: stats?.total, color: "text-primary" },
-    { label: "VIP Guests", value: stats?.vip, color: "text-warning" },
-    { label: "Corporate", value: stats?.corporate, color: "text-info" },
-    { label: "Government", value: stats?.government, color: "text-success" },
+    {
+      label: "Total Guests",
+      value: totalGuestsCount,
+      color: "text-primary",
+      iconBg: "bg-primary/10 text-primary",
+      icon: Users,
+      subtext: "Registered Guest Profiles",
+    },
+    {
+      label: "Walk-in Guests",
+      value: walkInGuestsCount,
+      color: "text-emerald-500",
+      iconBg: "bg-emerald-500/10 text-emerald-500",
+      icon: UserCheck,
+      subtext: `${walkInPct}% of total`,
+    },
+    {
+      label: "Online Guests",
+      value: onlineGuestsCount,
+      color: "text-sky-500",
+      iconBg: "bg-sky-500/10 text-sky-500",
+      icon: Globe,
+      subtext: `${onlinePct}% of total`,
+    },
+    {
+      label: "Checked-in Guests",
+      value: checkedInGuestsCount,
+      color: "text-amber-500",
+      iconBg: "bg-amber-500/10 text-amber-500",
+      icon: LogIn,
+      subtext: "Active in-house stays",
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Guests</h1>
-        </div>
-        <Dialog
-          open={isAddOpen}
-          onOpenChange={(open) => {
-            setIsAddOpen(open);
-            if (!open) resetStepper();
-          }}
-        >
-          <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
-            <DialogHeader className="pb-1">
-              <DialogTitle className="flex items-center justify-between text-lg font-bold">
-                <span>
-                  {currentStep === 1
-                    ? "Step 1: Register New Guest"
-                    : currentStep === 2
-                    ? `Step 2: Reserve Room for ${activeGuest?.firstName} ${activeGuest?.lastName}`
-                    : `Step 3: Express Check-in for ${activeGuest?.firstName} ${activeGuest?.lastName}`}
-                </span>
-              </DialogTitle>
-            </DialogHeader>
-
-            {/* Stepper Tabs Navigation */}
-            <div className="flex items-center justify-between border-b border-border pb-3 px-1 mb-2">
-              <div className="flex items-center gap-2 w-full">
-                {/* Step 1 Tab */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                    currentStep === 1
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : activeGuest
-                      ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                      : "text-muted-foreground opacity-60"
-                  }`}
-                >
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-bold">
-                    {activeGuest ? "✓" : "1"}
-                  </span>
-                  <span>1. Guest Profile</span>
-                </button>
-
-                <div className={`h-0.5 flex-1 transition-colors ${currentStep >= 2 || activeGuest ? "bg-primary" : "bg-border"}`} />
-
-                {/* Step 2 Tab */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (activeGuest) {
-                      refetchAvailableRooms();
-                      setCurrentStep(2);
-                    }
-                  }}
-                  disabled={!activeGuest}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
-                    currentStep === 2
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : activeReservation
-                      ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 cursor-pointer"
-                      : activeGuest
-                      ? "bg-muted text-foreground hover:bg-muted/80 cursor-pointer"
-                      : "text-muted-foreground opacity-40 cursor-not-allowed"
-                  }`}
-                >
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-bold">
-                    {activeReservation ? "✓" : "2"}
-                  </span>
-                  <span>2. Reservation</span>
-                </button>
-
-                <div className={`h-0.5 flex-1 transition-colors ${currentStep >= 3 || activeReservation ? "bg-primary" : "bg-border"}`} />
-
-                {/* Step 3 Tab */}
-                <button
-                  type="button"
-                  onClick={() => activeReservation && setCurrentStep(3)}
-                  disabled={!activeReservation}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
-                    currentStep === 3
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : activeReservation
-                      ? "bg-muted text-foreground hover:bg-muted/80 cursor-pointer"
-                      : "text-muted-foreground opacity-40 cursor-not-allowed"
-                  }`}
-                >
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-bold">
-                    3
-                  </span>
-                  <span>3. Check-In</span>
-                </button>
-              </div>
-            </div>
-
-            {/* STEP 1: GUEST REGISTRATION FORM */}
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                {/* Fayda Scan Component at top of guest registration */}
-                <FaydaScanner
-                  onDecoded={handleFaydaDecoded}
-                  onClear={() => {
-                    setFaydaGuest(null);
-                    setFaydaFormDefaults(null);
-                    setFormKey((k) => k + 1);
-                  }}
-                />
-
-                <form
-                  id="guest-registration-form"
-                  key={`guest-reg-form-${formKey}`}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const data = parseFormData(new FormData(e.currentTarget));
-                    addMutation.mutate(data, {
-                      onSuccess: (newGuest) => {
-                        toast({
-                          title: "Guest Registered Successfully",
-                          description: `${newGuest.firstName} ${newGuest.lastName} (${newGuest.guestCode}) registered.`,
-                        });
-                        refetchAvailableRooms();
-                        setCurrentStep(2);
-                      },
-                    });
-                  }}
-                >
-                  <GuestFormFields defaultValues={faydaFormDefaults || activeGuest || undefined} />
-
-                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-border mt-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        setIsAddOpen(false);
-                        resetStepper();
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={addMutation.isPending}
-                        onClick={() => {
-                          const form = document.getElementById("guest-registration-form") as HTMLFormElement;
-                          if (form) {
-                            const data = parseFormData(new FormData(form));
-                            addMutation.mutate(data, {
-                              onSuccess: (newGuest) => {
-                                toast({
-                                  title: "Guest Saved",
-                                  description: `${newGuest.firstName} ${newGuest.lastName} saved successfully.`,
-                                });
-                                setIsAddOpen(false);
-                                resetStepper();
-                              },
-                            });
-                          }
-                        }}
-                      >
-                        Save Guest Only
-                      </Button>
-                      <Button type="submit" disabled={addMutation.isPending}>
-                        {addMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ArrowRight className="mr-2 h-4 w-4" />
-                        )}
-                        Register & Next: Reserve Room
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* STEP 2: ROOM RESERVATION FORM */}
-            {currentStep === 2 && activeGuest && (
-              <div className="space-y-4">
-                {/* Auto-selected Guest Profile Confirmation Banner */}
-                <div className="p-3.5 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground">
-                          {activeGuest.firstName} {activeGuest.middleName ? `${activeGuest.middleName} ` : ""}{activeGuest.lastName}
-                        </span>
-                        {activeGuest.vipStatus && (
-                          <Badge variant="warning" className="text-[10px] py-0 px-1 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                            ⭐ VIP
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {[activeGuest.guestCode, activeGuest.phone, activeGuest.nationality || "Ethiopian"].filter(Boolean).join(" • ")}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs text-primary border-primary/30 bg-primary/5">
-                    ✓ Auto-linked Guest
-                  </Badge>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Dates */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="resCheckIn">Check-in Date *</Label>
-                      <Input
-                        id="resCheckIn"
-                        type="date"
-                        required
-                        value={resCheckIn}
-                        onChange={(e) => setResCheckIn(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="resCheckOut">Check-out Date *</Label>
-                      <Input
-                        id="resCheckOut"
-                        type="date"
-                        required
-                        value={resCheckOut}
-                        onChange={(e) => setResCheckOut(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Room Type (ABOVE Assigned Room) */}
-                  <div className="grid gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="resRoomTypeId" className="font-semibold text-xs flex items-center gap-1.5">
-                        <BedDouble className="w-3.5 h-3.5 text-primary" /> Room Type *
-                      </Label>
-                      <span className="text-[11px] text-primary font-medium">Select type to filter available rooms</span>
-                    </div>
-                    <select
-                      id="resRoomTypeId"
-                      value={resRoomTypeId}
-                      onChange={(e) => {
-                        const newTypeId = e.target.value;
-                        setResRoomTypeId(newTypeId);
-                        // If current room doesn't match new type, reset room selection
-                        if (resRoomId) {
-                          const room = availableRooms.find((r) => r.id === resRoomId);
-                          if (room && room.roomTypeId !== newTypeId) {
-                            setResRoomId("");
-                          }
-                        }
-                      }}
-                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    >
-                      <option value="">-- All Room Types / Select Type --</option>
-                      {roomTypes.map((rt) => (
-                        <option key={rt.id} value={rt.id}>
-                          {rt.name} {rt.basePrice ? `(from $${Number(rt.basePrice).toFixed(2)}/night)` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Assigned Room (DEPENDENT on Room Type) */}
-                  <div className="grid gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="resRoomId" className="font-semibold text-xs">
-                        Assigned Room {resRoomTypeId ? `(${roomTypes.find((t) => t.id === resRoomTypeId)?.name || "Filtered"})` : ""} *
-                      </Label>
-                      <span className="text-[11px] text-text-muted">
-                        {filteredAvailableRooms.length} room{filteredAvailableRooms.length !== 1 ? "s" : ""} available
-                      </span>
-                    </div>
-                    <select
-                      id="resRoomId"
-                      value={resRoomId}
-                      onChange={(e) => {
-                        const rId = e.target.value;
-                        setResRoomId(rId);
-                        const found = availableRooms.find((r) => r.id === rId);
-                        if (found?.roomTypeId && !resRoomTypeId) {
-                          setResRoomTypeId(found.roomTypeId);
-                        }
-                      }}
-                      className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    >
-                      <option value="">
-                        {filteredAvailableRooms.length === 0
-                          ? resRoomTypeId
-                            ? "-- No rooms available for this Room Type --"
-                            : "-- Select Room Type above or choose room --"
-                          : "-- Select Assigned Room --"}
-                      </option>
-                      {filteredAvailableRooms.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          Room {r.number} {r.roomTypeName ? `• ${r.roomTypeName}` : ""} {r.currentPrice ? `($${Number(r.currentPrice).toFixed(2)}/night)` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-text-muted">
-                      {resRoomTypeId
-                        ? "Showing only available rooms matching the selected Room Type above."
-                        : "Tip: Select a Room Type first to view only matching rooms."}
-                    </p>
-                  </div>
-
-                  {/* Adults, Children, and Reservation Type */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="resAdults">Adults</Label>
-                      <Input
-                        id="resAdults"
-                        type="number"
-                        min="1"
-                        value={resAdults}
-                        onChange={(e) => setResAdults(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="resChildren">Children</Label>
-                      <Input
-                        id="resChildren"
-                        type="number"
-                        min="0"
-                        value={resChildren}
-                        onChange={(e) => setResChildren(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="resType" className="text-xs font-medium">Reservation Type</Label>
-                        <span className="text-[10px] text-text-muted flex items-center gap-0.5 font-medium">
-                          <Lock className="h-2.5 w-2.5" /> Default
-                        </span>
-                      </div>
-                      <Input
-                        id="resType"
-                        value="Walk-in"
-                        readOnly
-                        disabled
-                        className="h-10 text-sm bg-muted/50 cursor-not-allowed font-medium text-text select-none border-border/70"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Special Requests (Writable Input + Online Menu Dropdown) */}
-                  <div className="grid gap-1.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                      <Label htmlFor="resSpecialRequests" className="flex items-center gap-1.5 font-medium text-xs">
-                        <Sparkles className="w-3.5 h-3.5 text-primary" /> Special Requests & In-Room Services
-                      </Label>
-                      <select
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val) {
-                            setResSpecialRequests((prev) => {
-                              const trimmed = (prev || "").trim();
-                              return trimmed ? `${trimmed}, ${val}` : val;
-                            });
-                            e.target.value = "";
-                          }
-                        }}
-                        className="h-7 text-xs rounded border border-border bg-muted/40 px-2 text-text font-medium cursor-pointer max-w-xs focus:ring-1 focus:ring-primary"
-                        defaultValue=""
-                      >
-                        <option value="">+ Add from Online Service Menu...</option>
-                        {ONLINE_RESERVATION_SPECIAL_REQUESTS.map((cat) => (
-                          <optgroup key={cat.category} label={cat.category}>
-                            {cat.items.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </div>
-                    <textarea
-                      id="resSpecialRequests"
-                      rows={2}
-                      value={resSpecialRequests}
-                      onChange={(e) => setResSpecialRequests(e.target.value)}
-                      placeholder="Type freely or pick items from the dropdown menu above (e.g. Traditional Doro Wat Feast, Airport Pickup, Extra Pillows)..."
-                      className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="resMaintenanceNotes" className="flex items-center gap-1.5 text-xs font-semibold text-text">
-                        <Wrench className="h-3.5 w-3.5 text-amber-500" />
-                        Room Maintenance & Operational Readiness Status
-                      </Label>
-                      <span className="text-[11px] text-muted-foreground">Pre-check-in verification</span>
-                    </div>
-                    <input
-                      id="resMaintenanceNotes"
-                      type="text"
-                      value={resMaintenanceNotes}
-                      onChange={(e) => setResMaintenanceNotes(e.target.value)}
-                      placeholder="e.g. TV & remote verified, shower hot water & pressure tested, AC fully functional..."
-                      className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="resNotes">Notes</Label>
-                    <textarea
-                      id="resNotes"
-                      rows={2}
-                      value={resNotes}
-                      onChange={(e) => setResNotes(e.target.value)}
-                      placeholder="Optional front desk reservation notes..."
-                      className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </div>
-
-                  {/* Step 2 Actions */}
-                  <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCurrentStep(1)}
-                    >
-                      <ArrowLeft className="mr-1 h-4 w-4" /> Back to Guest
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        disabled={createResMutation.isPending}
-                        onClick={() => handleCreateReservation(false)}
-                      >
-                        Finish (Reserve Only)
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={createResMutation.isPending}
-                        onClick={() => handleCreateReservation(true)}
-                      >
-                        {createResMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ArrowRight className="mr-2 h-4 w-4" />
-                        )}
-                        Reserve & Proceed to Check-In
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: CHECK-IN & KEYCARD FORM */}
-            {currentStep === 3 && activeGuest && activeReservation && (() => {
-              const assignedRoom = availableRooms.find((r) => r.id === (activeReservation.roomId || resRoomId));
-              const roomPrice = Number(assignedRoom?.currentPrice || (activeReservation.totalAmount ? Number(activeReservation.totalAmount) : 0));
-              const checkInDateObj = new Date(resCheckIn || activeReservation.checkInDate || new Date());
-              const checkOutDateObj = new Date(resCheckOut || activeReservation.checkOutDate || new Date(Date.now() + 86400000));
-              const nightsCount = Math.max(1, Math.round((checkOutDateObj.getTime() - checkInDateObj.getTime()) / (1000 * 60 * 60 * 24))) || 1;
-              const calculatedTotal = activeReservation.totalAmount ? Number(activeReservation.totalAmount) : (roomPrice * nightsCount);
-              const roomDisplayNum = activeReservation.roomNumber || assignedRoom?.number || availableRooms.find((r) => r.id === resRoomId)?.number || "Assigned";
-              const isOnlinePrePaid = Boolean(
-                activeReservation.notes?.includes("ONLINE PRE-PAID") ||
-                activeReservation.notes?.toLowerCase().includes("telebirr") ||
-                activeReservation.notes?.toLowerCase().includes("cbe") ||
-                activeReservation.notes?.toLowerCase().includes("chapa") ||
-                (activeReservation as any).bookingSource === "online" ||
-                activeReservation.reservationType === "online" ||
-                Number((activeReservation as any).paidAmount) > 0 ||
-                Number((activeReservation as any).depositAmount) > 0
-              );
-
-              return (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const settlementLabel =
-                      paymentStatus === "settle_on_checkout"
-                        ? "Settle on Checkout"
-                        : paymentStatus === "paid_in_advance"
-                        ? "Paid in Advance"
-                        : paymentStatus === "direct_billing"
-                        ? "Direct Corporate Billing"
-                        : "Partial Prepayment";
-                    const notesParts = [
-                      checkInNotes?.trim() || null,
-                      `Settlement: ${settlementLabel}`,
-                      depositCollected && depositAmount
-                        ? `Deposit: ${depositAmount} ETB via ${depositMethod.toUpperCase()}`
-                        : null,
-                    ].filter(Boolean);
-
-                    checkInMutation.mutate({
-                      id: activeReservation.id,
-                      body: {
-                        keyCardNumber:
-                          keyCardNumber ||
-                          (keyIssuanceType === "manual"
-                            ? `Manual Key #${roomDisplayNum}`
-                            : `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`),
-                        identityVerified,
-                        depositCollected,
-                        depositAmount: depositAmount ? Number(depositAmount) : undefined,
-                        registrationCardGenerated,
-                        checkedInBy: checkedInBy || currentStaffName,
-                        notes: notesParts.length > 0 ? notesParts.join(" | ") : undefined,
-                      },
-                    });
-                  }}
-                  className="space-y-4"
-                >
-                  {/* ZERO-REDUNDANCY ONLINE BOOKING & PRE-PAYMENT BANNER */}
-                  {isOnlinePrePaid && (
-                    <div className="p-3.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 flex items-start gap-3">
-                      <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0">
-                        <CheckCircle2 className="w-5 h-5" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300">
-                            ✅ Online Pre-Paid Settled — Zero Payment Required at Front Desk
-                          </span>
-                          <Badge className="bg-emerald-600 text-white text-[10px] uppercase font-mono">
-                            Telebirr / CBE / Chapa
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Guest registered and pre-paid accommodation & deposit online. All personal credentials and stay details are verified. Front desk staff only needs to issue the keycard below and complete check-in.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SECTION A: GUEST INFORMATION */}
-                  <div className="p-3.5 rounded-lg border border-border bg-card/60 space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                        <User className="w-4 h-4" />
-                        <span>A. Guest Information</span>
-                      </div>
-                      {activeGuest.vipStatus && (
-                        <Badge variant="outline" className="border-amber-500/40 text-amber-500 bg-amber-500/10 text-xs">
-                          <Star className="w-3 h-3 mr-1 fill-amber-500" /> VIP Guest
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Full Name</span>
-                        <span className="font-semibold text-foreground text-sm">
-                          {activeGuest.firstName} {activeGuest.middleName ? `${activeGuest.middleName} ` : ""}{activeGuest.lastName}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Phone Number</span>
-                        <span className="font-medium text-foreground flex items-center gap-1 mt-0.5">
-                          <Phone className="w-3 h-3 text-muted-foreground" />
-                          {activeGuest.phone || "—"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Identification</span>
-                        <span className="font-medium text-foreground">
-                          {activeGuest.idType ? `${activeGuest.idType.toUpperCase()}: ` : "ID: "}
-                          {activeGuest.idNumber || activeGuest.passportNumber || activeGuest.nationalId || "Verified on file"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Guest Type / Code</span>
-                        <span className="font-mono text-muted-foreground">
-                          {activeGuest.guestCode || activeGuest.guestType || "Individual"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECTION B: RESERVATION INFORMATION */}
-                  <div className="p-3.5 rounded-lg border border-border bg-card/60 space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                        <Calendar className="w-4 h-4" />
-                        <span>B. Reservation Information</span>
-                      </div>
-                      <span className="font-mono text-xs font-semibold px-2.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                        #{activeReservation.reservationNumber || activeReservation.id.slice(0, 8).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Booking Type / Source</span>
-                        <span className="font-medium text-foreground capitalize">
-                          {(resType || activeReservation.reservationType || "Walk-in").replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Check-in Date</span>
-                        <span className="font-medium text-foreground">
-                          {resCheckIn || activeReservation.checkInDate || "Today"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Check-out Date</span>
-                        <span className="font-medium text-foreground">
-                          {resCheckOut || activeReservation.checkOutDate || "Tomorrow"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Duration & Occupancy</span>
-                        <span className="font-medium text-foreground">
-                          {nightsCount} {nightsCount === 1 ? "Night" : "Nights"} ({resAdults} Adult{Number(resChildren) > 0 ? `, ${resChildren} Child` : ""})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECTION C: ROOM ASSIGNMENT INFORMATION */}
-                  <div className="p-3.5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-emerald-500/15">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                        <BedDouble className="w-4 h-4" />
-                        <span>C. Room Assignment Information</span>
-                      </div>
-                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-xs">
-                        <CheckCircle2 className="w-3 h-3 mr-1" /> Clean & Ready for Occupancy
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Assigned Room</span>
-                        <span className="font-bold text-base text-foreground font-mono block mt-0.5">
-                          Room {roomDisplayNum}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Room Type</span>
-                        <span className="font-medium text-foreground block mt-0.5">
-                          {assignedRoom?.roomTypeName || "Standard Room"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Nightly Rate</span>
-                        <span className="font-semibold text-foreground block mt-0.5">
-                          {roomPrice > 0 ? `${roomPrice.toLocaleString()} ETB / night` : "Standard Rate"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECTION D: PAYMENT & DEPOSIT INFORMATION */}
-                  <div className="p-3.5 rounded-lg border border-border bg-card/60 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                        <CreditCard className="w-4 h-4" />
-                        <span>D. Payment and Deposit Information</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[11px] text-muted-foreground block">Estimated Total Stay</span>
-                        <span className="text-sm font-bold text-foreground">
-                          {calculatedTotal > 0 ? `${calculatedTotal.toLocaleString()} ETB` : "0.00 ETB"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isOnlinePrePaid ? (
-                      <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-semibold text-xs text-emerald-700 dark:text-emerald-300">
-                              Payment & Security Deposit Pre-Settled Online
-                            </span>
-                          </div>
-                          <Badge className="bg-emerald-600 text-white text-[10px] font-mono">
-                            PAID IN FULL
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Accommodation charges and security deposit were settled in advance via online digital payment. Front desk staff does not need to collect any payment from this guest.
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-                          <div>
-                            <span className="text-[11px] text-muted-foreground block">Arrangement</span>
-                            <span className="font-medium text-foreground">Pre-paid in Advance (Online)</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-muted-foreground block">Settlement Method</span>
-                            <span className="font-medium text-foreground capitalize">
-                              {activeReservation.notes?.includes("Telebirr")
-                                ? "Telebirr Mobile Money"
-                                : activeReservation.notes?.includes("CBE")
-                                ? "CBE Birr / Direct Transfer"
-                                : "Chapa Card Gateway"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-muted-foreground block">Deposit Status</span>
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                              {depositAmount ? `${Number(depositAmount).toLocaleString()} ETB (Verified)` : "Pre-Authorized"}
-                            </span>
-                          </div>
-                        </div>
-                        {activeReservation.notes && (
-                          <div className="text-[11px] font-mono text-emerald-800 dark:text-emerald-200 bg-background/60 p-2 rounded border border-emerald-500/20">
-                            {activeReservation.notes}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                          {/* Payment Settlement Arrangement */}
-                          <div className="grid gap-1.5">
-                            <Label htmlFor="paymentStatus" className="text-xs font-medium">Payment Settlement Arrangement</Label>
-                            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                              <SelectTrigger id="paymentStatus" className="h-8 text-xs">
-                                <SelectValue placeholder="Select arrangement" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="settle_on_checkout">Settle Full Balance on Check-out</SelectItem>
-                                <SelectItem value="paid_in_advance">Pre-paid in Advance (Full Payment)</SelectItem>
-                                <SelectItem value="direct_billing">Direct Corporate Billing / City Ledger</SelectItem>
-                                <SelectItem value="partial_prepayment">Partial Pre-payment Received</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Deposit Payment Method */}
-                          <div className="grid gap-1.5">
-                            <Label htmlFor="depositMethod" className="text-xs font-medium">Deposit / Payment Method</Label>
-                            <Select value={depositMethod} onValueChange={setDepositMethod}>
-                              <SelectTrigger id="depositMethod" className="h-8 text-xs">
-                                <SelectValue placeholder="Select payment method" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="card">Credit / Debit Card (POS)</SelectItem>
-                                <SelectItem value="cash">Cash Settlement (ETB / USD)</SelectItem>
-                                <SelectItem value="mobile_money">Telebirr / Mobile Money</SelectItem>
-                                <SelectItem value="bank_transfer">CBE Birr / Direct Bank Transfer</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        {/* Security Deposit Amount */}
-                        <div className="p-2.5 rounded-md border border-border/80 bg-muted/20 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                id="depositCollected"
-                                checked={depositCollected}
-                                onChange={(e) => setDepositCollected(e.target.checked)}
-                                className="h-4 w-4 rounded accent-primary cursor-pointer"
-                              />
-                              <label htmlFor="depositCollected" className="text-xs font-medium cursor-pointer">
-                                Collect Security / Incidentals Deposit Now
-                              </label>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground">(Refundable on check-out)</span>
-                          </div>
-
-                          {depositCollected && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5">
-                              <div>
-                                <Input
-                                  id="depositAmount"
-                                  type="number"
-                                  step="0.01"
-                                  value={depositAmount}
-                                  onChange={(e) => setDepositAmount(e.target.value)}
-                                  placeholder="Deposit Amount (e.g. 1000 ETB)"
-                                  className="h-8 text-xs font-mono"
-                                />
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-[11px] px-2 flex-1"
-                                  onClick={() => setDepositAmount("500")}
-                                >
-                                  500 ETB
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-[11px] px-2 flex-1"
-                                  onClick={() => setDepositAmount("1000")}
-                                >
-                                  1,000 ETB
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-[11px] px-2 flex-1"
-                                  onClick={() => setDepositAmount("2000")}
-                                >
-                                  2,000 ETB
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Key Issuance Selection: RFID Generator vs Manual Key */}
-                    <div className="p-3 rounded-lg border border-border/80 bg-muted/20 space-y-2.5">
-                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-primary" /> Key Issuance Method
-                      </Label>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {/* Option 1: RFID Keycard Generator */}
-                        <div
-                          onClick={() => {
-                            setKeyIssuanceType("rfid");
-                            const uid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
-                            setKeyCardNumber(uid);
-                          }}
-                          className={`flex items-start gap-2.5 p-2.5 rounded-md border cursor-pointer transition-all ${
-                            keyIssuanceType === "rfid"
-                              ? "border-primary bg-primary/10 shadow-sm"
-                              : "border-border hover:border-border/80 bg-background/50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="keyIssuanceType"
-                            id="key_rfid"
-                            checked={keyIssuanceType === "rfid"}
-                            onChange={() => {
-                              setKeyIssuanceType("rfid");
-                              const uid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
-                              setKeyCardNumber(uid);
-                            }}
-                            className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
-                          />
-                          <div className="flex-1 space-y-1">
-                            <label htmlFor="key_rfid" className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
-                              <span className="text-primary font-bold text-sm leading-none">•</span> RFID Generator
-                            </label>
-                            <p className="text-[11px] text-muted-foreground leading-tight">
-                              Generate digital RFID keycard for contactless room door lock.
-                            </p>
-                            {keyIssuanceType === "rfid" && (
-                              <div className="mt-2 flex items-center justify-between gap-1.5 p-1.5 rounded bg-background border border-primary/30">
-                                <span className="font-mono text-xs font-bold text-primary truncate">
-                                  {keyCardNumber || `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`}
-                                </span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const newUid = `RFID-${roomDisplayNum}-${Date.now().toString(36).toUpperCase()}`;
-                                    setKeyCardNumber(newUid);
-                                    toast({ title: "RFID Keycard Generated", description: newUid });
-                                  }}
-                                >
-                                  Re-generate
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Option 2: Manual Physical Key */}
-                        <div
-                          onClick={() => {
-                            setKeyIssuanceType("manual");
-                            setKeyCardNumber(`Manual Key #${roomDisplayNum}`);
-                          }}
-                          className={`flex items-start gap-2.5 p-2.5 rounded-md border cursor-pointer transition-all ${
-                            keyIssuanceType === "manual"
-                              ? "border-primary bg-primary/10 shadow-sm"
-                              : "border-border hover:border-border/80 bg-background/50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="keyIssuanceType"
-                            id="key_manual"
-                            checked={keyIssuanceType === "manual"}
-                            onChange={() => {
-                              setKeyIssuanceType("manual");
-                              setKeyCardNumber(`Manual Key #${roomDisplayNum}`);
-                            }}
-                            className="mt-0.5 h-4 w-4 accent-primary cursor-pointer"
-                          />
-                          <div className="flex-1 space-y-1">
-                            <label htmlFor="key_manual" className="text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
-                              <span className="text-primary font-bold text-sm leading-none">•</span> Manual Key
-                            </label>
-                            <p className="text-[11px] text-muted-foreground leading-tight">
-                              Issue traditional physical brass key from front desk cabinet.
-                            </p>
-                            {keyIssuanceType === "manual" && (
-                              <div className="mt-2 p-1.5 rounded bg-background border border-primary/30">
-                                <span className="font-mono text-xs font-semibold text-foreground">
-                                  🔑 Physical Key: Room #{roomDisplayNum}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Receptionist */}
-                    <div className="grid gap-1 pt-2 border-t border-border/60">
-                      <Label htmlFor="checkedInBy" className="text-xs font-medium">Checked In By</Label>
-                      <Input
-                        id="checkedInBy"
-                        value={checkedInBy || currentStaffName}
-                        readOnly
-                        disabled
-                        placeholder="Signed-in staff name"
-                        className="h-8 text-xs bg-muted/50 cursor-not-allowed font-medium text-text select-none border-border/70"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Step 3 Actions */}
-                  <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setCurrentStep(2)}
-                    >
-                      <ArrowLeft className="mr-1 h-4 w-4" /> Back to Reservation
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => {
-                          setIsAddOpen(false);
-                          resetStepper();
-                          toast({
-                            title: "Reservation Retained",
-                            description: "Reservation confirmed. You can check in the guest later via the Check-in tab.",
-                          });
-                        }}
-                      >
-                        Skip Check-in
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={checkInMutation.isPending}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        {checkInMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <LogIn className="mr-2 h-4 w-4" />
-                        )}
-                        Complete Check-in
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              );
-            })()}
-          </DialogContent>
-        </Dialog>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Guests</h1>
       </div>
 
-      {/* Stats Cards (Compact & Standardized) */}
+      {/* ── 3-TIER DEDICATED MODALS (Register -> Reserve -> Check-In) ── */}
+      <GuestRegistrationModal
+        open={isRegisterModalOpen}
+        onOpenChange={setIsRegisterModalOpen}
+        onSuccessSaveOnly={() => {
+          queryClient.invalidateQueries({ queryKey: ["guests"] });
+          queryClient.invalidateQueries({ queryKey: ["guests-stats"] });
+          setIsRegisterModalOpen(false);
+        }}
+        onProceedToReservation={(guest) => {
+          setSelectedGuestForReservation(guest);
+          setIsRegisterModalOpen(false);
+          refetchAvailableRooms();
+          setIsReservationModalOpen(true);
+        }}
+      />
+
+      <ReservationBookingModal
+        open={isReservationModalOpen}
+        onOpenChange={setIsReservationModalOpen}
+        guest={selectedGuestForReservation}
+        roomTypes={roomTypes}
+        availableRooms={availableRooms}
+        onSuccessReserveOnly={() => {
+          queryClient.invalidateQueries({ queryKey: ["reservations"] });
+          queryClient.invalidateQueries({ queryKey: ["guests-page-reservations"] });
+          queryClient.invalidateQueries({ queryKey: ["available-rooms"] });
+          setIsReservationModalOpen(false);
+        }}
+        onProceedToCheckIn={(res, guest) => {
+          setSelectedReservationForCheckIn(res);
+          setSelectedGuestForCheckIn(guest);
+          setIsReservationModalOpen(false);
+          refetchAvailableRooms();
+          setIsCheckInModalOpen(true);
+        }}
+        onBack={() => {
+          setIsReservationModalOpen(false);
+          setIsRegisterModalOpen(true);
+        }}
+      />
+
+      <RoomCheckInModal
+        open={isCheckInModalOpen}
+        onOpenChange={setIsCheckInModalOpen}
+        reservation={selectedReservationForCheckIn}
+        guest={selectedGuestForCheckIn}
+        roomTypes={roomTypes}
+        availableRooms={availableRooms}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["reservations"] });
+          queryClient.invalidateQueries({ queryKey: ["guests-page-reservations"] });
+          queryClient.invalidateQueries({ queryKey: ["guests-page-checkins"] });
+          queryClient.invalidateQueries({ queryKey: ["available-rooms"] });
+          queryClient.invalidateQueries({ queryKey: ["guests"] });
+          queryClient.invalidateQueries({ queryKey: ["guests-stats"] });
+          setIsCheckInModalOpen(false);
+          setMainTab("checkin");
+        }}
+        onBack={() => {
+          setIsCheckInModalOpen(false);
+          if (selectedGuestForReservation) {
+            setIsReservationModalOpen(true);
+          }
+        }}
+      />
+
+      {/* 4 Real-time KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {statCards.map((s) => (
-          <Card key={s.label} className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
-            <div className="text-xs font-medium text-text-muted truncate">{s.label}</div>
-            <div className="mt-2">
-              {statsLoading ? (
-                <Skeleton className="h-7 w-16" />
-              ) : (
-                <div className={`text-2xl font-bold font-mono tracking-tight ${s.color}`}>{s.value ?? 0}</div>
-              )}
-            </div>
-          </Card>
-        ))}
+        {statCards.map((s) => {
+          const Icon = s.icon;
+          return (
+            <Card
+              key={s.label}
+              className="bg-surface/50 border-border p-4 shadow-none min-h-[102px] flex flex-col justify-between rounded-xl hover:border-primary/30 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-muted truncate">{s.label}</span>
+                <div className={`p-1.5 rounded-lg ${s.iconBg}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                {statsLoading ? (
+                  <Skeleton className="h-7 w-16" />
+                ) : (
+                  <div>
+                    <div className={`text-2xl font-bold font-mono tracking-tight ${s.color}`}>
+                      {s.value ?? 0}
+                    </div>
+                    {s.subtext && (
+                      <div className="text-[11px] text-text-muted mt-0.5 truncate">
+                        {s.subtext}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {/* ── 3-STEP NUMBERED WORKFLOW TABS ─────────────────────────────────── */}
       <Card className="border-primary/20 shadow-sm overflow-hidden rounded-xl">
-        <CardHeader className="pb-3 border-b border-border bg-muted/20">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Front Desk Operational Lifecycle</CardTitle>
-          </div>
-
-          {/* Stepper Buttons (1 -> 2 -> 3) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-4">
-            {/* Step 1 Button */}
+        <CardHeader className="p-3 border-b border-border bg-muted/20">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {/* Register Guest Tab */}
             <button
               onClick={() => setMainTab("guests")}
-              className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+              className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
                 mainTab === "guests"
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-surface hover:bg-muted/40 border-border text-text"
               }`}
             >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bold text-xs ${
-                  mainTab === "guests"
-                    ? "bg-white text-primary"
-                    : "bg-primary/10 text-primary border border-primary/20"
-                }`}
-              >
-                1
-              </div>
+              <User className={`h-5 w-5 shrink-0 ${mainTab === "guests" ? "text-primary-foreground" : "text-primary"}`} />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Step 1</div>
-                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  <span>Register Guest</span>
+                <div className="text-sm font-semibold truncate">
+                  Register Guest
                 </div>
               </div>
               <ChevronRight className={`h-4 w-4 shrink-0 ${mainTab === "guests" ? "opacity-100" : "opacity-40"}`} />
             </button>
 
-            {/* Step 2 Button */}
+            {/* The Reservation Tab */}
             <button
               onClick={() => setMainTab("reservations")}
-              className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+              className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
                 mainTab === "reservations"
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-surface hover:bg-muted/40 border-border text-text"
               }`}
             >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bold text-xs ${
-                  mainTab === "reservations"
-                    ? "bg-white text-primary"
-                    : "bg-primary/10 text-primary border border-primary/20"
-                }`}
-              >
-                2
-              </div>
+              <Calendar className={`h-5 w-5 shrink-0 ${mainTab === "reservations" ? "text-primary-foreground" : "text-primary"}`} />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Step 2</div>
-                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  <span>The Reservation</span>
+                <div className="text-sm font-semibold truncate">
+                  The Reservation
                 </div>
               </div>
               <ChevronRight className={`h-4 w-4 shrink-0 ${mainTab === "reservations" ? "opacity-100" : "opacity-40"}`} />
             </button>
 
-            {/* Step 3 Button */}
+            {/* The Check-In Tab */}
             <button
               onClick={() => setMainTab("checkin")}
-              className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+              className={`flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
                 mainTab === "checkin"
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-surface hover:bg-muted/40 border-border text-text"
               }`}
             >
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bold text-xs ${
-                  mainTab === "checkin"
-                    ? "bg-white text-primary"
-                    : "bg-primary/10 text-primary border border-primary/20"
-                }`}
-              >
-                3
-              </div>
+              <LogIn className={`h-5 w-5 shrink-0 ${mainTab === "checkin" ? "text-primary-foreground" : "text-primary"}`} />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Step 3</div>
-                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                  <LogIn className="h-3.5 w-3.5 shrink-0" />
-                  <span>The Check-In</span>
+                <div className="text-sm font-semibold truncate">
+                  The Check-In
                 </div>
               </div>
-              <CheckCircle2 className={`h-4 w-4 shrink-0 ${mainTab === "checkin" ? "opacity-100 text-white" : "opacity-40"}`} />
+              <CheckCircle2 className={`h-4 w-4 shrink-0 ${mainTab === "checkin" ? "opacity-100 text-primary-foreground" : "opacity-40"}`} />
             </button>
           </div>
         </CardHeader>
@@ -2130,21 +1366,37 @@ export default function GuestsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="couple">Couple</SelectItem>
+                    <SelectItem value="friends">Friends / Companions</SelectItem>
+                    <SelectItem value="family">Family</SelectItem>
                     <SelectItem value="corporate">Corporate</SelectItem>
                     <SelectItem value="travel_agency">Travel Agency</SelectItem>
                     <SelectItem value="government">Government</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
-                  variant={vipOnly ? "default" : "outline"}
+                  variant="outline"
                   onClick={() => { setVipOnly(!vipOnly); setPage(1); }}
-                  className="gap-1"
+                  className={cn(
+                    "gap-1.5 transition-all cursor-pointer font-medium",
+                    vipOnly
+                      ? "border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-sm shadow-amber-500/10 hover:bg-amber-500/20"
+                      : "text-muted-foreground hover:text-foreground hover:border-border"
+                  )}
                 >
-                  <Star className="h-4 w-4" /> VIP Only
+                  <Star
+                    className={cn(
+                      "h-4 w-4 transition-all duration-200",
+                      vipOnly
+                        ? "text-amber-500 fill-amber-400 drop-shadow-sm scale-110"
+                        : "text-muted-foreground fill-none"
+                    )}
+                  />
+                  <span>VIP Only</span>
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => { resetStepper(); setIsAddOpen(true); }}
+                  onClick={() => setIsRegisterModalOpen(true)}
                   className="gap-1.5 ml-auto"
                 >
                   <Plus className="h-4 w-4" /> Register Guest
@@ -2164,7 +1416,7 @@ export default function GuestsPage() {
                       <TableHead>Email</TableHead>
                       <TableHead>Nationality</TableHead>
                       <TableHead>Stays</TableHead>
-                      <TableHead className="w-[160px] text-right">Actions</TableHead>
+                      <TableHead className="w-[80px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2182,8 +1434,6 @@ export default function GuestsPage() {
                       </TableRow>
                     ) : (
                       guests.map((guest) => {
-                        const activeRes = activeReservationByGuest.get(guest.id) || activeReservationByGuest.get(guest.guestCode);
-                        const isReserved = Boolean(activeRes);
                         return (
                           <TableRow
                             key={guest.id}
@@ -2204,56 +1454,27 @@ export default function GuestsPage() {
                             <TableCell>{guest.totalStays ?? 0}</TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
                               <div className="flex items-center justify-end gap-1">
-                                {isReserved ? (
-                                  activeRes?.status === "checked_in" ? (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled
-                                      className="h-7 px-2.5 text-xs font-semibold gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 opacity-90 cursor-not-allowed shadow-none"
-                                      title={`Checked-In • Room ${activeRes?.roomNumber || "Assigned"}`}
-                                    >
-                                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                      <span>Checked In</span>
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      className="h-7 px-2.5 text-xs font-semibold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-none cursor-pointer"
-                                      title={`Proceed to Express Check-in for Res #${activeRes?.reservationNumber || ""}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (activeRes) openCheckInForReservation(activeRes);
-                                      }}
-                                    >
-                                      <LogIn className="h-3.5 w-3.5" />
-                                      <span>Check-In</span>
-                                    </Button>
-                                  )
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
-                                    title="Reserve Room"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openReservationForGuest(guest);
-                                    }}
-                                  >
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    <span>Reserve</span>
-                                  </Button>
-                                )}
                                 <Button
-                                  variant="ghost" size="sm" className="h-7 w-7 p-0"
-                                  onClick={(e) => { e.stopPropagation(); setEditGuest(guest); }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  title="Edit Guest"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditGuest(guest);
+                                  }}
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button
-                                  variant="ghost" size="sm" className="h-7 w-7 p-0 text-danger hover:text-danger"
-                                  onClick={(e) => { e.stopPropagation(); setDeleteGuest(guest); }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-danger hover:text-danger"
+                                  title="Delete Guest"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteGuest(guest);
+                                  }}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -2285,22 +1506,37 @@ export default function GuestsPage() {
           {mainTab === "reservations" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="relative flex-1 min-w-[240px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-                  <Input
-                    placeholder="Search reservation #, guest name, room, or status..."
-                    value={resSearch}
-                    onChange={(e) => { setResSearch(e.target.value); setResPage(1); }}
-                    className="pl-9"
-                  />
+                <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                    <Input
+                      placeholder="Search reservation #, guest name, room, or status..."
+                      value={resSearch}
+                      onChange={(e) => { setResSearch(e.target.value); setResPage(1); }}
+                      className="pl-9 h-9 text-xs"
+                    />
+                  </div>
+                  <Select
+                    value={resCategoryFilter}
+                    onValueChange={(val: "all" | "reserve" | "reserved") => {
+                      setResCategoryFilter(val);
+                      setResPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[185px] h-9 text-xs font-medium bg-surface shrink-0">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="reserve">Not Reserved</SelectItem>
+                      <SelectItem value="reserved">Reserved</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs px-2.5 py-1">
-                    Total Reservations: <span className="font-semibold text-text ml-1">{filteredReservations.length}</span>
+                    Total Records: <span className="font-semibold text-text ml-1">{filteredReservationItems.length}</span>
                   </Badge>
-                  <Button size="sm" onClick={() => router.push("/reservations")} className="gap-1.5">
-                    <Calendar className="h-4 w-4" /> Go to Full Reservations
-                  </Button>
                 </div>
               </div>
 
@@ -2310,7 +1546,7 @@ export default function GuestsPage() {
                     <TableRow>
                       <TableHead>Res #</TableHead>
                       <TableHead>Guest Name</TableHead>
-                      <TableHead>Room / Room Type</TableHead>
+                      <TableHead>Room</TableHead>
                       <TableHead>Dates</TableHead>
                       <TableHead>Total (ETB)</TableHead>
                       <TableHead>Status</TableHead>
@@ -2326,22 +1562,22 @@ export default function GuestsPage() {
                           ))}
                         </TableRow>
                       ))
-                    ) : paginatedReservations.length === 0 ? (
+                    ) : paginatedReservationItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center text-text-muted">
                           No reservation records found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedReservations.map((res) => (
-                        <TableRow key={res.id} className="hover:bg-muted/40">
+                      paginatedReservationItems.map((item) => (
+                        <TableRow key={item.id} className="hover:bg-muted/40">
                           <TableCell className="font-mono text-xs font-semibold text-text">
-                            {res.reservationNumber}
+                            {item.reservationNumber}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-medium text-sm">{res.guestName ?? "—"}</span>
-                              {(res.reservationType === "online" || res.bookingSource === "online" || res.bookingSource === "ota") && (
+                              <span className="font-medium text-sm">{item.guestName}</span>
+                              {item.isOnlineBooking && (
                                 <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 gap-1 text-[9px] px-1.5 py-0 font-semibold">
                                   <Globe className="w-2.5 h-2.5" /> Online
                                 </Badge>
@@ -2351,57 +1587,58 @@ export default function GuestsPage() {
                           <TableCell>
                             <div className="flex items-center gap-1 text-sm font-medium">
                               <BedDouble className="h-3.5 w-3.5 text-text-muted" />
-                              <span>{res.roomNumber ? `Room ${res.roomNumber}` : "Unassigned"}</span>
+                              <span>{item.roomDisplay}</span>
                             </div>
-                            <div className="text-xs text-text-muted">{res.roomTypeName ?? "—"}</div>
+                            {item.roomTypeName ? (
+                              <div className="text-xs text-text-muted">{item.roomTypeName}</div>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-xs">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3 text-text-muted" />
                               <span>
-                                {res.checkInDate ? new Date(res.checkInDate).toLocaleDateString() : "—"} →{" "}
-                                {res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}
+                                {item.checkInDate ? new Date(item.checkInDate).toLocaleDateString() : "—"}
+                                {item.checkOutDate ? ` → ${new Date(item.checkOutDate).toLocaleDateString()}` : ""}
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium text-sm">
-                            {res.totalAmount != null ? `$${Number(res.totalAmount).toFixed(2)}` : "—"}
+                          <TableCell className="font-medium text-sm font-mono">
+                            {item.totalAmount != null ? `${Number(item.totalAmount).toLocaleString()} ETB` : "—"}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                res.status === "confirmed"
-                                  ? "info"
-                                  : res.status === "checked_in"
-                                  ? "success"
-                                  : res.status === "checked_out"
-                                  ? "muted"
-                                  : res.status === "cancelled"
-                                  ? "danger"
-                                  : "warning"
-                              }
-                              className="text-[10px] uppercase"
-                            >
-                              {(res.status ?? "").replace("_", " ")}
-                            </Badge>
+                            {item.isReserved ? (
+                              <Badge
+                                variant="info"
+                                className="text-[10px] uppercase font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
+                              >
+                                Reserved
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] uppercase border-dashed text-text-muted font-medium">
+                                Not Reserved
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {["pending", "confirmed", "guaranteed"].includes(res.status) ? (
+                            {item.isReserved ? (
                               <Button
                                 size="sm"
-                                className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                                onClick={() => openCheckInForReservation(res)}
+                                variant="outline"
+                                className="h-8 gap-1.5 text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/20 font-semibold cursor-pointer rounded-lg px-2.5 shadow-xs"
+                                onClick={() => setViewingReservationDetails(item.resObj || item)}
+                                title="View Reservation Details"
                               >
-                                <LogIn className="h-3 w-3" /> Check-In
+                                <Eye className="h-3.5 w-3.5 text-indigo-500" /> Details
                               </Button>
                             ) : (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-8 text-xs text-text-muted"
-                                onClick={() => router.push(`/reservations`)}
+                                className="h-8 gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer shadow-sm rounded-lg px-3"
+                                onClick={() => {
+                                  if (item.guestObj) openReservationForGuest(item.guestObj);
+                                }}
                               >
-                                View Folio
+                                <Calendar className="h-3.5 w-3.5" /> Reserve
                               </Button>
                             )}
                           </TableCell>
@@ -2416,7 +1653,7 @@ export default function GuestsPage() {
               <TablePagination
                 currentPage={resPage}
                 totalPages={resTotalPages}
-                totalItems={filteredReservations.length}
+                totalItems={filteredReservationItems.length}
                 pageSize={resPageSize}
                 onPrev={() => setResPage((p) => Math.max(1, p - 1))}
                 onNext={() => setResPage((p) => Math.min(resTotalPages, p + 1))}
@@ -2430,22 +1667,37 @@ export default function GuestsPage() {
           {mainTab === "checkin" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="relative flex-1 min-w-[240px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-                  <Input
-                    placeholder="Search check-in #, guest, room, or keycard..."
-                    value={checkinSearch}
-                    onChange={(e) => { setCheckinSearch(e.target.value); setCheckinPage(1); }}
-                    className="pl-9"
-                  />
+                <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                    <Input
+                      placeholder="Search reservation #, guest, room, or status..."
+                      value={checkinSearch}
+                      onChange={(e) => { setCheckinSearch(e.target.value); setCheckinPage(1); }}
+                      className="pl-9 h-9 text-xs"
+                    />
+                  </div>
+                  <Select
+                    value={checkinStatusFilter}
+                    onValueChange={(val: "all" | "checkin" | "checked_in") => {
+                      setCheckinStatusFilter(val);
+                      setCheckinPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[195px] h-9 text-xs font-medium bg-surface shrink-0">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="checkin">Check-In (Ready)</SelectItem>
+                      <SelectItem value="checked_in">Checked-In (In-House)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs px-2.5 py-1">
-                    Total Check-in Records: <span className="font-semibold text-text ml-1">{filteredCheckins.length}</span>
+                    Total Check-in Records: <span className="font-semibold text-text ml-1">{filteredCheckinItems.length}</span>
                   </Badge>
-                  <Button size="sm" onClick={() => router.push("/check-in")} className="gap-1.5">
-                    <LogIn className="h-4 w-4" /> Check-In Desk
-                  </Button>
                 </div>
               </div>
 
@@ -2453,88 +1705,107 @@ export default function GuestsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Check-in #</TableHead>
+                      <TableHead>Res #</TableHead>
                       <TableHead>Guest Name</TableHead>
                       <TableHead>Room</TableHead>
-                      <TableHead>Keycard RFID</TableHead>
-                      <TableHead>ID Verified</TableHead>
-                      <TableHead>Deposit</TableHead>
-                      <TableHead>Checked In At</TableHead>
-                      <TableHead>Staff</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead>Total (ETB)</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {checkinsLoading ? (
+                    {resLoading ? (
                       [...Array(5)].map((_, i) => (
                         <TableRow key={i}>
-                          {[...Array(8)].map((__, j) => (
+                          {[...Array(7)].map((__, j) => (
                             <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                           ))}
                         </TableRow>
                       ))
-                    ) : paginatedCheckins.length === 0 ? (
+                    ) : paginatedCheckinItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-24 text-center text-text-muted">
-                          No check-in records found.
+                        <TableCell colSpan={7} className="h-24 text-center text-text-muted">
+                          No check-in reservation records found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedCheckins.map((chk) => {
-                        const guestName =
-                          chk.guestName ||
-                          [chk.guestFirstName, chk.guestLastName].filter(Boolean).join(" ") ||
-                          "—";
-                        const checkInNum = chk.checkInNumber || chk.checkinNumber || chk.id.slice(0, 8);
+                      paginatedCheckinItems.map((res) => {
+                        const isOnline =
+                          res.reservationType === "online" ||
+                          res.bookingSource === "online" ||
+                          res.bookingSource === "ota";
                         return (
-                          <TableRow key={chk.id} className="hover:bg-muted/40">
+                          <TableRow key={res.id} className="hover:bg-muted/40">
                             <TableCell className="font-mono text-xs font-semibold text-text">
-                              {checkInNum}
-                            </TableCell>
-                            <TableCell className="font-medium text-sm">
-                              {guestName}
-                              {chk.reservationNumber && (
-                                <div className="text-[11px] text-text-muted font-mono">
-                                  Res #{chk.reservationNumber}
-                                </div>
-                              )}
+                              {res.reservationNumber}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="text-xs font-semibold">
-                                Room {chk.roomNumber ?? "—"}
-                              </Badge>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-sm">{res.guestName ?? "—"}</span>
+                                {isOnline && (
+                                  <Badge className="bg-sky-500/15 text-sky-400 border border-sky-500/30 gap-1 text-[9px] px-1.5 py-0 font-semibold">
+                                    <Globe className="w-2.5 h-2.5" /> Online
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              {chk.keyCardNumber ? (
-                                <span className="inline-flex items-center gap-1 font-mono text-xs bg-muted/60 px-2 py-0.5 rounded">
-                                  <Key className="h-3 w-3 text-text-muted" /> {chk.keyCardNumber}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {chk.identityVerified ? (
-                                <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30 gap-1 text-[10px]">
-                                  <ShieldCheck className="h-3 w-3" /> Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="muted" className="text-[10px]">Pending</Badge>
-                              )}
+                              <div className="flex items-center gap-1 text-sm font-medium">
+                                <BedDouble className="h-3.5 w-3.5 text-text-muted" />
+                                <span>{res.roomNumber ? `Room ${res.roomNumber}` : "Unassigned"}</span>
+                              </div>
+                              <div className="text-xs text-text-muted">{res.roomTypeName ?? "—"}</div>
                             </TableCell>
                             <TableCell className="text-xs">
-                              {chk.depositCollected ? (
-                                <span className="text-success font-medium">
-                                  ${Number(chk.depositAmount ?? 0).toFixed(2)}
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-text-muted" />
+                                <span>
+                                  {res.checkInDate ? new Date(res.checkInDate).toLocaleDateString() : "—"} →{" "}
+                                  {res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}
                                 </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium text-sm font-mono">
+                              {res.totalAmount != null ? `${Number(res.totalAmount).toLocaleString()} ETB` : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  res.status === "confirmed"
+                                    ? "info"
+                                    : res.status === "checked_in"
+                                    ? "success"
+                                    : res.status === "guaranteed"
+                                    ? "info"
+                                    : "warning"
+                                }
+                                className="text-[10px] uppercase"
+                              >
+                                {(res.status ?? "").replace("_", " ")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {res.status === "checked_in" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 shadow-xs cursor-pointer rounded-lg px-2.5 transition-colors"
+                                  onClick={() => setViewingCheckInDetails(res)}
+                                  title={`View Checked-In Details • Room ${res.roomNumber || "Assigned"}`}
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Details</span>
+                                </Button>
                               ) : (
-                                <span className="text-text-muted">None</span>
+                                <Button
+                                  size="sm"
+                                  className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer shadow-sm rounded-lg px-3"
+                                  onClick={() => openCheckInForReservation(res)}
+                                >
+                                  <LogIn className="h-3.5 w-3.5" /> Check-In
+                                </Button>
                               )}
-                            </TableCell>
-                            <TableCell className="text-xs text-text-muted">
-                              {chk.createdAt ? new Date(chk.createdAt).toLocaleString() : "—"}
-                            </TableCell>
-                            <TableCell className="text-xs font-medium">
-                              {chk.checkedInBy || "Front Desk"}
                             </TableCell>
                           </TableRow>
                         );
@@ -2548,7 +1819,7 @@ export default function GuestsPage() {
               <TablePagination
                 currentPage={checkinPage}
                 totalPages={checkinTotalPages}
-                totalItems={filteredCheckins.length}
+                totalItems={filteredCheckinItems.length}
                 pageSize={checkinPageSize}
                 onPrev={() => setCheckinPage((p) => Math.max(1, p - 1))}
                 onNext={() => setCheckinPage((p) => Math.min(checkinTotalPages, p + 1))}
@@ -2595,6 +1866,279 @@ export default function GuestsPage() {
               Delete
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reservation Details Dialog */}
+      <Dialog open={!!viewingReservationDetails} onOpenChange={(o) => !o && setViewingReservationDetails(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold">Reservation Information</DialogTitle>
+                  <p className="text-xs text-text-muted font-mono">
+                    {viewingReservationDetails?.reservationNumber || "—"}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="info" className="text-xs font-semibold uppercase bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                Reserved
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          {viewingReservationDetails && (
+            <div className="space-y-4 pt-2 text-sm">
+              {/* Guest Profile Card */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-primary" /> Guest Information
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Full Name:</span>{" "}
+                    <span className="font-semibold text-text">{viewingReservationDetails.guestName || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Phone:</span>{" "}
+                    <span className="font-mono text-text">{viewingReservationDetails.guestPhone || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Email:</span>{" "}
+                    <span className="text-text truncate block">{viewingReservationDetails.guestEmail || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Booking Channel:</span>{" "}
+                    <span className="font-medium capitalize text-text">
+                      {viewingReservationDetails.bookingSource || viewingReservationDetails.reservationType || "Direct"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room & Stay Details */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <BedDouble className="h-3.5 w-3.5 text-primary" /> Room & Stay Information
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Assigned Room:</span>{" "}
+                    <span className="font-semibold text-text">
+                      {viewingReservationDetails.roomNumber ? `Room ${viewingReservationDetails.roomNumber}` : (viewingReservationDetails.roomDisplay || "Unassigned")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Room Type:</span>{" "}
+                    <span className="text-text">{viewingReservationDetails.roomTypeName || "Standard Room"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Check-In:</span>{" "}
+                    <span className="font-medium text-text">
+                      {viewingReservationDetails.checkInDate ? new Date(viewingReservationDetails.checkInDate).toLocaleDateString() : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Check-Out:</span>{" "}
+                    <span className="font-medium text-text">
+                      {viewingReservationDetails.checkOutDate ? new Date(viewingReservationDetails.checkOutDate).toLocaleDateString() : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Guests:</span>{" "}
+                    <span className="text-text">
+                      {viewingReservationDetails.adults ?? 1} Adults, {viewingReservationDetails.children ?? 0} Children
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Status:</span>{" "}
+                    <span className="font-semibold text-indigo-500 uppercase">Reserved</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial & Notes */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 text-primary" /> Billing & Requests
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Total Amount:</span>{" "}
+                    <span className="font-mono font-bold text-text">
+                      {viewingReservationDetails.totalAmount != null ? `${Number(viewingReservationDetails.totalAmount).toLocaleString()} ETB` : "0 ETB"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Paid / Settled:</span>{" "}
+                    <span className="font-mono text-emerald-500 font-semibold">
+                      {viewingReservationDetails.paidAmount != null ? `${Number(viewingReservationDetails.paidAmount).toLocaleString()} ETB` : "0 ETB"}
+                    </span>
+                  </div>
+                </div>
+                {(viewingReservationDetails.specialRequests || viewingReservationDetails.notes) && (
+                  <div className="text-xs pt-1 border-t border-border/60">
+                    <span className="text-text-muted">Special Requests:</span>{" "}
+                    <span className="text-text">{viewingReservationDetails.specialRequests || viewingReservationDetails.notes}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" size="sm" onClick={() => setViewingReservationDetails(null)}>
+                  Close
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => {
+                    const res = viewingReservationDetails;
+                    setViewingReservationDetails(null);
+                    openCheckInForReservation(res);
+                  }}
+                >
+                  <LogIn className="h-3.5 w-3.5" /> Proceed to Check-In
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-In Details Dialog */}
+      <Dialog open={!!viewingCheckInDetails} onOpenChange={(o) => !o && setViewingCheckInDetails(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <LogIn className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold">In-House Guest Stay Details</DialogTitle>
+                  <p className="text-xs text-text-muted font-mono">
+                    {viewingCheckInDetails?.reservationNumber || "—"}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="success" className="text-xs font-semibold uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                Checked In
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          {viewingCheckInDetails && (
+            <div className="space-y-4 pt-2 text-sm">
+              {/* Guest Profile Card */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-emerald-500" /> Guest Information
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Guest Name:</span>{" "}
+                    <span className="font-semibold text-text">{viewingCheckInDetails.guestName || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Phone:</span>{" "}
+                    <span className="font-mono text-text">{viewingCheckInDetails.guestPhone || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Email:</span>{" "}
+                    <span className="text-text truncate block">{viewingCheckInDetails.guestEmail || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Identity Status:</span>{" "}
+                    <span className="font-semibold text-emerald-500 inline-flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room & Stay Details */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <BedDouble className="h-3.5 w-3.5 text-emerald-500" /> Room & Access Card
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Current Room:</span>{" "}
+                    <span className="font-bold text-text text-sm">
+                      {viewingCheckInDetails.roomNumber ? `Room ${viewingCheckInDetails.roomNumber}` : "Assigned"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Room Type:</span>{" "}
+                    <span className="text-text">{viewingCheckInDetails.roomTypeName || "Standard Room"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Keycard RFID:</span>{" "}
+                    <span className="font-mono text-xs bg-muted/60 px-2 py-0.5 rounded text-text inline-flex items-center gap-1">
+                      <Key className="h-3 w-3 text-text-muted" /> {viewingCheckInDetails.keyCardNumber || `KEY-${viewingCheckInDetails.roomNumber || "101"}`}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Staff:</span>{" "}
+                    <span className="text-text font-medium">{viewingCheckInDetails.checkedInBy || currentStaffName}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Check-In Date:</span>{" "}
+                    <span className="font-medium text-text">
+                      {viewingCheckInDetails.checkInDate ? new Date(viewingCheckInDetails.checkInDate).toLocaleDateString() : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Scheduled Check-Out:</span>{" "}
+                    <span className="font-medium text-text">
+                      {viewingCheckInDetails.checkOutDate ? new Date(viewingCheckInDetails.checkOutDate).toLocaleDateString() : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Billing Details */}
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 text-emerald-500" /> Folio & Billing
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-text-muted">Total Folio Charges:</span>{" "}
+                    <span className="font-mono font-bold text-text">
+                      {viewingCheckInDetails.totalAmount != null ? `${Number(viewingCheckInDetails.totalAmount).toLocaleString()} ETB` : "0 ETB"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Deposit Collected:</span>{" "}
+                    <span className="font-mono text-emerald-500 font-semibold">
+                      {viewingCheckInDetails.depositAmount != null ? `${Number(viewingCheckInDetails.depositAmount).toLocaleString()} ETB` : "Settled"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <Button variant="outline" size="sm" onClick={() => setViewingCheckInDetails(null)}>
+                  Close
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setViewingCheckInDetails(null);
+                    router.push("/reservations");
+                  }}
+                >
+                  <CreditCard className="h-3.5 w-3.5" /> View Guest Folio
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

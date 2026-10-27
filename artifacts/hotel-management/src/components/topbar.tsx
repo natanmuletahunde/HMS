@@ -34,11 +34,8 @@ const ROUTE_BREADCRUMBS: Record<string, string> = {
   "/room-amenities": "Room Setup / Amenities",
   "/room-pricing": "Room Setup / Pricing",
   "/dashboard": "Front Desk / Dashboard",
-  "/guests": "Front Desk / Guests",
   "/rooms": "Front Desk / Rooms",
   "/reservations": "Front Desk / Reservations",
-  "/stay": "Front Office / Stay Management",
-  "/check-out": "Front Office / Check-out",
   "/housekeeping": "Operations / Housekeeping",
   "/maintenance": "Operations / Maintenance",
   "/restaurant": "Operations / Restaurant",
@@ -68,7 +65,13 @@ export function Topbar() {
     setCurrentThemeState(theme);
   };
 
-  const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
+  const currentBreadcrumb = (
+    pathname === "/hotel" ||
+    pathname === "/branches" ||
+    pathname === "/check-out" ||
+    pathname === "/check-in" ||
+    pathname.startsWith("/stay")
+  ) ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-10 transition-colors select-none">

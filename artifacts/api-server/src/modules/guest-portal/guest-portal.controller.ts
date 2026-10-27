@@ -13,7 +13,16 @@ export class GuestPortalController {
   }
 
   @Post('login')
-  login(@Body() body: { roomNumber: string; accessCode?: string }) {
+  login(
+    @Body()
+    body: {
+      roomNumber?: string;
+      accessCode?: string;
+      fullName?: string;
+      phone?: string;
+      nationalId?: string;
+    },
+  ) {
     return this.svc.login(body);
   }
 
@@ -29,7 +38,7 @@ export class GuestPortalController {
       phone?: string;
       alternativePhone?: string;
       email?: string;
-      roomNumber: string;
+      roomNumber?: string;
       country?: string;
       region?: string;
       city?: string;
@@ -46,6 +55,21 @@ export class GuestPortalController {
       smokingPreference?: string;
       specialRequests?: string;
       fullName?: string;
+      vipStatus?: boolean;
+      guestType?: string;
+      hasRelationshipDoc?: boolean;
+      relationshipStatus?: string;
+      relationshipDocNumber?: string;
+      relationshipDocName?: string;
+      relationshipDocUrl?: string;
+      partnerFullName?: string;
+      partnerRelationship?: string;
+      partnerGender?: string;
+      partnerAgeCategory?: string;
+      partnerIdType?: string;
+      partnerIdNumber?: string;
+      hasAccompanyingGuests?: boolean;
+      accompanyingGuests?: any[];
     },
   ) {
     return this.svc.register(body);

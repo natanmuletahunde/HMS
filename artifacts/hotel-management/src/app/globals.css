@@ -105,6 +105,14 @@
 
   --color-bg-page: var(--bg-page);
   --color-surface: var(--surface);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text-primary);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-primary);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text-primary);
+  --color-muted: var(--surface-hover);
+  --color-muted-foreground: var(--text-muted);
   --color-border: var(--border);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -164,4 +172,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Explicit solid background fallbacks for modals and cards */
+.bg-card {
+  background-color: #FFFFFF;
+}
+.dark .bg-card, [data-theme="dark"] .bg-card, html.dark .bg-card {
+  background-color: #0E172E;
+}
+
+[data-radix-portal] [role="dialog"] {
+  background-color: #FFFFFF;
+}
+.dark [data-radix-portal] [role="dialog"], [data-theme="dark"] [data-radix-portal] [role="dialog"], html.dark [data-radix-portal] [role="dialog"] {
+  background-color: #0E172E;
 }

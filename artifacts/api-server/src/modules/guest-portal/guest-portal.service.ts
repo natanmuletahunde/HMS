@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { eq, and, or, sql, desc } from 'drizzle-orm';
+import { eq, and, or, sql, desc, like, ilike, getTableColumns } from 'drizzle-orm';
 import * as QRCode from 'qrcode';
 import {
   db,
   roomsTable,
+  roomTypesTable,
   reservationsTable,
   guestsTable,
   roomServiceRequestsTable,
@@ -129,110 +130,250 @@ export class GuestPortalService {
   }
 
   /**
-   * Guest Login: verifies room number and matches an active in-house reservation.
-   * Accepts roomNumber and optional accessCode (guestCode, phone digits, or last name).
-   * Generates and returns a signed JWT token for all in-room portal operations.
+   * Guest Login: authenticates guest by Full Name and Phone Number (or Fayda National ID).
+   * Generates and returns a signed JWT token for all guest portal operations.
+   * Room number is NOT required.
    */
-  async login(body: { roomNumber: string; accessCode?: string }) {
+  async login(body: {
+    roomNumber?: string;
+    accessCode?: string;
+    fullName?: string;
+    phone?: string;
+    nationalId?: string;
+  }) {
+    const rawPhone = body.phone?.trim();
+    const phoneDigits = rawPhone?.replace(/\D/g, '') || '';
+    const fullName = body.fullName?.trim();
+    const nationalId = body.nationalId?.trim();
     const roomNum = body.roomNumber?.trim();
-    if (!roomNum) throw new BadRequestException('Room number is required');
 
-    // Find the room
-    const [room] = await db
-      .select()
-      .from(roomsTable)
-      .where(eq(roomsTable.number, roomNum));
-
-    if (!room) {
-      throw new NotFoundException(`Room ${roomNum} was not found in the hotel.`);
+    if (!phoneDigits && !fullName && !nationalId && !roomNum) {
+      throw new BadRequestException('Full Name and Phone Number are required to sign in.');
     }
 
-    // Find active checked-in reservation for this room
-    const [reservation] = await db
-      .select({
-        reservationId: reservationsTable.id,
-        reservationNumber: reservationsTable.reservationNumber,
-        checkInDate: reservationsTable.checkInDate,
-        checkOutDate: reservationsTable.checkOutDate,
-        nights: reservationsTable.nights,
-        actualCheckIn: reservationsTable.actualCheckIn,
-        status: reservationsTable.status,
-        guestId: guestsTable.id,
-        guestCode: guestsTable.guestCode,
-        firstName: guestsTable.firstName,
-        lastName: guestsTable.lastName,
-        phone: guestsTable.phone,
-        email: guestsTable.email,
-        vipStatus: guestsTable.vipStatus,
-      })
-      .from(reservationsTable)
-      .innerJoin(guestsTable, eq(reservationsTable.guestId, guestsTable.id))
-      .where(
-        and(
-          eq(reservationsTable.roomId, room.id),
-          or(eq(reservationsTable.status, 'checked_in'), eq(reservationsTable.status, 'confirmed')),
-        ),
-      )
-      .orderBy(desc(reservationsTable.createdAt))
-      .limit(1);
+    let guest: any = null;
 
-    if (!reservation) {
-      throw new NotFoundException(
-        `No active checked-in guest found for Room ${roomNum}. Please contact the front desk.`,
-      );
-    }
+    // 1. Try finding guest by phone or nationalId
+    if (phoneDigits || nationalId) {
+      const matchConds: any[] = [];
+      if (phoneDigits) {
+        if (rawPhone) matchConds.push(eq(guestsTable.phone, rawPhone));
+        matchConds.push(eq(guestsTable.phone, phoneDigits));
+        if (phoneDigits.length >= 9) {
+          const suffix = phoneDigits.slice(-9);
+          matchConds.push(like(guestsTable.phone, `%${suffix}`));
+        }
+      }
+      if (nationalId) {
+        matchConds.push(eq(guestsTable.nationalId, nationalId));
+        matchConds.push(eq(guestsTable.idNumber, nationalId));
+      }
 
-    // If an access code was provided, verify it
-    if (body.accessCode && body.accessCode.trim() !== '') {
-      const code = body.accessCode.trim().toLowerCase();
-      const matchCode =
-        reservation.guestCode?.toLowerCase() === code ||
-        reservation.lastName?.toLowerCase() === code ||
-        reservation.reservationNumber?.toLowerCase() === code ||
-        (reservation.phone && reservation.phone.endsWith(code));
+      const [found] = await db
+        .select()
+        .from(guestsTable)
+        .where(or(...matchConds))
+        .orderBy(desc(guestsTable.createdAt))
+        .limit(1);
 
-      if (!matchCode) {
-        throw new BadRequestException('Access code, reservation #, or last name does not match guest on file.');
+      if (found) {
+        guest = found;
       }
     }
 
+    // 2. If not found yet and fullName provided, search by name
+    if (!guest && fullName) {
+      const parts = fullName.split(/\s+/);
+      const fName = parts[0];
+      const lName = parts.slice(1).join(' ');
+
+      const [foundByName] = await db
+        .select()
+        .from(guestsTable)
+        .where(
+          or(
+            and(ilike(guestsTable.firstName, `%${fName}%`), ilike(guestsTable.lastName, `%${lName || fName}%`)),
+            ilike(guestsTable.firstName, `%${fName}%`),
+            ilike(guestsTable.lastName, `%${fName}%`),
+          ),
+        )
+        .orderBy(desc(guestsTable.createdAt))
+        .limit(1);
+
+      if (foundByName) {
+        guest = foundByName;
+      }
+    }
+
+    // 3. Fallback: if room number was supplied and still no guest, find guest through room
+    let room: any = null;
+    let reservation: any = null;
+
+    if (guest) {
+      // Find latest reservation for this guest
+      const [res] = await db
+        .select({
+          reservationId: reservationsTable.id,
+          reservationNumber: reservationsTable.reservationNumber,
+          checkInDate: reservationsTable.checkInDate,
+          checkOutDate: reservationsTable.checkOutDate,
+          nights: reservationsTable.nights,
+          actualCheckIn: reservationsTable.actualCheckIn,
+          status: reservationsTable.status,
+          roomId: reservationsTable.roomId,
+        })
+        .from(reservationsTable)
+        .where(eq(reservationsTable.guestId, guest.id))
+        .orderBy(desc(reservationsTable.createdAt))
+        .limit(1);
+
+      reservation = res;
+
+      if (reservation?.roomId) {
+        const [r] = await db.select().from(roomsTable).where(eq(roomsTable.id, reservation.roomId)).limit(1);
+        room = r;
+      }
+    } else if (roomNum) {
+      // Room number fallback
+      const [r] = await db.select().from(roomsTable).where(eq(roomsTable.number, roomNum)).limit(1);
+      if (r) {
+        room = r;
+        const [res] = await db
+          .select({
+            reservationId: reservationsTable.id,
+            reservationNumber: reservationsTable.reservationNumber,
+            checkInDate: reservationsTable.checkInDate,
+            checkOutDate: reservationsTable.checkOutDate,
+            nights: reservationsTable.nights,
+            actualCheckIn: reservationsTable.actualCheckIn,
+            status: reservationsTable.status,
+            guestId: guestsTable.id,
+            guestCode: guestsTable.guestCode,
+            firstName: guestsTable.firstName,
+            lastName: guestsTable.lastName,
+            phone: guestsTable.phone,
+            email: guestsTable.email,
+            vipStatus: guestsTable.vipStatus,
+            roomId: reservationsTable.roomId,
+          })
+          .from(reservationsTable)
+          .innerJoin(guestsTable, eq(reservationsTable.guestId, guestsTable.id))
+          .where(
+            and(
+              eq(reservationsTable.roomId, room.id),
+              or(eq(reservationsTable.status, 'checked_in'), eq(reservationsTable.status, 'confirmed')),
+            ),
+          )
+          .orderBy(desc(reservationsTable.createdAt))
+          .limit(1);
+
+        if (res) {
+          reservation = res;
+          guest = {
+            id: res.guestId,
+            guestCode: res.guestCode,
+            firstName: res.firstName,
+            lastName: res.lastName,
+            phone: res.phone,
+            email: res.email,
+            vipStatus: res.vipStatus,
+          };
+        }
+      }
+    }
+
+    if (!guest) {
+      throw new NotFoundException(
+        'No registered guest account found for this name and phone number. Please register your account first.',
+      );
+    }
+
+    // Ensure there is an assigned active room & reservation for in-portal features
+    if (!room) {
+      const [firstRoom] = await db.select().from(roomsTable).where(eq(roomsTable.isActive, true)).limit(1);
+      room = firstRoom;
+    }
+
+    if (!reservation && room) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const resNum = `RES-ONL-${Math.floor(100000 + Math.random() * 900000)}`;
+      const confNum = `CONF-${Date.now().toString(36).toUpperCase()}`;
+
+      const [newRes] = await db
+        .insert(reservationsTable)
+        .values({
+          reservationNumber: resNum,
+          confirmationNumber: confNum,
+          guestId: guest.id,
+          roomId: room.id,
+          roomTypeId: room.roomTypeId,
+          checkInDate: todayStr,
+          checkOutDate: tomorrowStr,
+          nights: 1,
+          adults: 1,
+          reservationType: 'online',
+          bookingSource: 'online',
+          status: 'confirmed',
+          totalAmount: room.currentPrice ? String(room.currentPrice) : '0',
+          notes: 'Auto-linked active session on guest portal sign-in',
+        })
+        .returning();
+
+      reservation = {
+        reservationId: newRes.id,
+        reservationNumber: newRes.reservationNumber,
+        checkInDate: newRes.checkInDate,
+        checkOutDate: newRes.checkOutDate,
+        nights: newRes.nights,
+        actualCheckIn: newRes.actualCheckIn,
+        status: newRes.status,
+      };
+    }
+
     const token = this.generateGuestToken({
-      guestId: reservation.guestId,
-      guestName: `${reservation.firstName} ${reservation.lastName}`.trim(),
-      roomNumber: room.number,
-      roomId: room.id,
-      reservationId: reservation.reservationId,
-      email: reservation.email,
-      phone: reservation.phone,
+      guestId: guest.id,
+      guestName: `${guest.firstName} ${guest.lastName || ''}`.trim(),
+      roomNumber: room?.number || '101',
+      roomId: room?.id || 'default-room',
+      reservationId: reservation?.reservationId || reservation?.id || 'default-res',
+      email: guest.email,
+      phone: guest.phone,
     });
 
     return {
       success: true,
       token,
-      room: {
-        id: room.id,
-        number: room.number,
-        floor: room.floor,
-        type: room.roomTypeId,
-      },
-      reservation: {
-        id: reservation.reservationId,
-        reservationNumber: reservation.reservationNumber,
-        checkInDate: reservation.checkInDate,
-        checkOutDate: reservation.checkOutDate,
-        nights: reservation.nights,
-        actualCheckIn: reservation.actualCheckIn,
-        status: reservation.status,
-      },
+      room: room
+        ? {
+            id: room.id,
+            number: room.number,
+            floor: room.floor,
+            type: room.roomTypeId,
+          }
+        : null,
+      reservation: reservation
+        ? {
+            id: reservation.reservationId || reservation.id,
+            reservationNumber: reservation.reservationNumber,
+            checkInDate: reservation.checkInDate,
+            checkOutDate: reservation.checkOutDate,
+            nights: reservation.nights,
+            actualCheckIn: reservation.actualCheckIn,
+            status: reservation.status,
+          }
+        : null,
       guest: {
-        id: reservation.guestId,
-        guestCode: reservation.guestCode,
-        fullName: `${reservation.firstName} ${reservation.lastName}`.trim(),
-        firstName: reservation.firstName,
-        lastName: reservation.lastName,
-        phone: reservation.phone,
-        email: reservation.email,
-        vipStatus: reservation.vipStatus,
+        id: guest.id,
+        guestCode: guest.guestCode,
+        fullName: `${guest.firstName} ${guest.lastName || ''}`.trim(),
+        firstName: guest.firstName,
+        lastName: guest.lastName,
+        phone: guest.phone,
+        email: guest.email,
+        vipStatus: guest.vipStatus,
       },
     };
   }
@@ -243,13 +384,13 @@ export class GuestPortalService {
   async getCatalog() {
     return {
       dining: [
-        { id: 'cat-1', name: 'Traditional Doro Wat Feast', category: 'food', price: 18.5, desc: 'Slow-cooked spiced chicken with boiled egg and fresh injera' },
-        { id: 'cat-2', name: 'Deluxe Angus Burger & Fries', category: 'food', price: 14.0, desc: 'Grass-fed beef, cheddar, caramelized onions, brioche bun' },
-        { id: 'cat-3', name: 'Continental Club Sandwich', category: 'food', price: 11.5, desc: 'Smoked turkey, bacon, lettuce, tomato with crisps' },
-        { id: 'cat-4', name: 'Fresh Seasonal Fruit Platter', category: 'food', price: 8.0, desc: 'Selection of fresh sliced tropical and local fruits' },
-        { id: 'cat-5', name: 'Signature Ethiopian Jebena Coffee', category: 'drinks', price: 4.5, desc: 'Freshly roasted clay pot organic coffee with popcorn' },
-        { id: 'cat-6', name: 'Fresh Mango & Avocado Smoothie', category: 'drinks', price: 5.5, desc: 'Layered fresh organic juice' },
-        { id: 'cat-7', name: 'Sparkling Mineral Water (750ml)', category: 'drinks', price: 3.5, desc: 'Chilled Ambo mineral water' },
+        { id: 'cat-1', name: 'Traditional Doro Wat Feast', category: 'food', price: 2300, desc: 'Slow-cooked spiced chicken with boiled egg and fresh injera' },
+        { id: 'cat-2', name: 'Deluxe Angus Burger & Fries', category: 'food', price: 1750, desc: 'Grass-fed beef, cheddar, caramelized onions, brioche bun' },
+        { id: 'cat-3', name: 'Continental Club Sandwich', category: 'food', price: 1450, desc: 'Smoked turkey, bacon, lettuce, tomato with crisps' },
+        { id: 'cat-4', name: 'Fresh Seasonal Fruit Platter', category: 'food', price: 950, desc: 'Selection of fresh sliced tropical and local fruits' },
+        { id: 'cat-5', name: 'Signature Ethiopian Jebena Coffee', category: 'drinks', price: 550, desc: 'Freshly roasted clay pot organic coffee with popcorn' },
+        { id: 'cat-6', name: 'Fresh Mango & Avocado Smoothie', category: 'drinks', price: 650, desc: 'Layered fresh organic juice' },
+        { id: 'cat-7', name: 'Sparkling Mineral Water (750ml)', category: 'drinks', price: 450, desc: 'Chilled Ambo mineral water' },
       ],
       amenities: [
         { id: 'am-1', name: 'Extra Feather Pillows (x2)', category: 'housekeeping', price: 0.0, desc: 'Hypoallergenic soft feather pillows' },
@@ -259,7 +400,7 @@ export class GuestPortalService {
         { id: 'am-5', name: 'Room Evening Turn-down Service', category: 'housekeeping', price: 0.0, desc: 'Tidy up, fresh water, and curtains drawn' },
       ],
       services: [
-        { id: 'sv-1', name: 'Express Laundry & Pressing', category: 'laundry', price: 12.0, desc: 'Same-day wash and press for up to 3 garments' },
+        { id: 'sv-1', name: 'Express Laundry & Pressing', category: 'laundry', price: 1500, desc: 'Same-day wash and press for up to 3 garments' },
         { id: 'sv-2', name: 'AC / Climate Adjustment Assistance', category: 'maintenance', price: 0.0, desc: 'Technician visit for temperature or ventilation check' },
         { id: 'sv-3', name: 'High-Speed Wi-Fi Tech Support', category: 'maintenance', price: 0.0, desc: 'In-room assistance for device connection' },
         { id: 'sv-4', name: 'Morning Wake-up Call', category: 'wake_up', price: 0.0, desc: 'Scheduled front desk phone wake-up call' },
@@ -269,7 +410,7 @@ export class GuestPortalService {
           id: 'tr-1',
           name: 'Airport Chauffeur Transfer (Drop-off)',
           category: 'transport',
-          price: 25.0,
+          price: 3000,
           desc: 'Private executive sedan to Addis Ababa Bole International Airport (Terminal 1/2)',
           vehicleType: 'Executive Sedan',
           duration: '35 mins',
@@ -278,7 +419,7 @@ export class GuestPortalService {
           id: 'tr-2',
           name: 'Airport Arrival VIP Meet & Pickup',
           category: 'transport',
-          price: 30.0,
+          price: 3750,
           desc: 'Chauffeur with personalized name board & baggage assistance at arrivals hall',
           vehicleType: 'Executive Sedan / SUV',
           duration: '40 mins',
@@ -287,7 +428,7 @@ export class GuestPortalService {
           id: 'tr-3',
           name: 'Half-Day City Tour Chauffeur (4 Hours)',
           category: 'transport',
-          price: 55.0,
+          price: 6800,
           desc: 'Dedicated vehicle & driver for Entoto Park, National Museum, and local markets',
           vehicleType: 'Luxury SUV',
           duration: '4 Hours',
@@ -296,7 +437,7 @@ export class GuestPortalService {
           id: 'tr-4',
           name: 'Full-Day Business Chauffeur (8 Hours)',
           category: 'transport',
-          price: 90.0,
+          price: 11200,
           desc: 'On-demand standby vehicle for meetings, diplomatic missions, and embassy visits',
           vehicleType: 'Executive Sedan / Van',
           duration: '8 Hours',
@@ -318,6 +459,53 @@ export class GuestPortalService {
           desc: 'Assistance loading/unloading heavy baggage and transfers within hotel grounds',
           vehicleType: 'Electric Cart / Van',
           duration: 'Immediate',
+        },
+      ],
+      stay: [
+        {
+          id: 'st-1',
+          name: 'Stay Extension Request',
+          category: 'stay',
+          price: 2500,
+          desc: 'Request additional nights or extended stay checkout dates at current room rates.',
+          prepTime: 'Front Desk Review',
+          badge: 'Room Rate',
+        },
+        {
+          id: 'st-2',
+          name: 'Late Check-Out Request (Until 2:00 PM)',
+          category: 'stay',
+          price: 800,
+          desc: 'Request extended late room access before afternoon departure. Tier 1 late departure fee applies.',
+          prepTime: 'Subject to Availability',
+          badge: 'Late Departure',
+        },
+        {
+          id: 'st-3',
+          name: 'Guaranteed Late Check-Out (Until 4:00 PM)',
+          category: 'stay',
+          price: 1500,
+          desc: 'Guaranteed extended late room access for evening flight or relaxed departure. Tier 2 fee applies.',
+          prepTime: 'Front Desk Confirmation',
+          badge: 'Popular',
+        },
+        {
+          id: 'st-4',
+          name: 'Room Move / Suite Upgrade Request',
+          category: 'stay',
+          price: 1800,
+          desc: 'Inquire about moving to a quieter wing, higher floor, or executive suite upgrades. Rate difference charged to folio.',
+          prepTime: 'Front Desk Review',
+          badge: 'Suite Upgrade',
+        },
+        {
+          id: 'st-5',
+          name: 'Luggage Pickup & Bellhop at Departure',
+          category: 'stay',
+          price: 250,
+          desc: 'Concierge porter luggage collection directly from your suite at requested checkout time.',
+          prepTime: '15 mins',
+          badge: 'Porter Service',
         },
       ],
     };
@@ -390,6 +578,89 @@ export class GuestPortalService {
       }
     } catch {
       // Notification insert best-effort
+    }
+
+    // Auto-tally to guest stay folio / invoice for automated checkout billing
+    if (body.chargeAmount && Number(body.chargeAmount) > 0 && (body.reservationId || body.guestId)) {
+      try {
+        let invoice: any = null;
+        if (body.reservationId) {
+          const [inv] = await db
+            .select()
+            .from(invoicesTable)
+            .where(
+              and(
+                eq(invoicesTable.reservationId, body.reservationId),
+                or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+              ),
+            )
+            .orderBy(desc(invoicesTable.createdAt))
+            .limit(1);
+          invoice = inv;
+        }
+        if (!invoice && body.guestId) {
+          const [inv] = await db
+            .select()
+            .from(invoicesTable)
+            .where(
+              and(
+                eq(invoicesTable.guestId, body.guestId),
+                or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+              ),
+            )
+            .orderBy(desc(invoicesTable.createdAt))
+            .limit(1);
+          invoice = inv;
+        }
+
+        const descText = `In-Room Online Portal #${requestNumber} (${body.serviceType}: ${body.description || 'Request'})`;
+        const amt = Number(body.chargeAmount);
+
+        if (invoice) {
+          await db.insert(invoiceLineItemsTable).values({
+            invoiceId: invoice.id,
+            description: descText,
+            quantity: '1',
+            unitPrice: String(amt.toFixed(2)),
+            total: String(amt.toFixed(2)),
+          });
+          const newSubtotal = parseFloat(invoice.subtotal || '0') + amt;
+          const newTotal = parseFloat(invoice.totalAmount || '0') + amt;
+          await db
+            .update(invoicesTable)
+            .set({
+              subtotal: String(newSubtotal.toFixed(2)),
+              totalAmount: String(newTotal.toFixed(2)),
+            })
+            .where(eq(invoicesTable.id, invoice.id));
+        } else {
+          const invNum = 'INV-' + Date.now().toString(36).toUpperCase();
+          const [newInv] = await db
+            .insert(invoicesTable)
+            .values({
+              invoiceNumber: invNum,
+              guestId: body.guestId ?? null,
+              reservationId: body.reservationId ?? null,
+              subtotal: String(amt.toFixed(2)),
+              taxAmount: '0.00',
+              totalAmount: String(amt.toFixed(2)),
+              status: 'draft',
+              notes: 'Stay folio auto-tallied from In-Room Portal',
+            })
+            .returning();
+          if (newInv) {
+            await db.insert(invoiceLineItemsTable).values({
+              invoiceId: newInv.id,
+              description: descText,
+              quantity: '1',
+              unitPrice: String(amt.toFixed(2)),
+              total: String(amt.toFixed(2)),
+            });
+          }
+        }
+      } catch {
+        // Folio line insert best-effort
+      }
     }
 
     return req;
@@ -542,12 +813,17 @@ export class GuestPortalService {
    * Guest views their active room requests
    */
   async getRoomOrders(roomNumber: string) {
-    return db
-      .select()
+    const rows = await db
+      .select({
+        ...getTableColumns(roomServiceRequestsTable),
+        assignedToName: sql<string>`${usersTable.firstName} || ' ' || ${usersTable.lastName}`,
+      })
       .from(roomServiceRequestsTable)
+      .leftJoin(usersTable, eq(roomServiceRequestsTable.assignedToId, usersTable.id))
       .where(eq(roomServiceRequestsTable.roomNumber, roomNumber))
       .orderBy(desc(roomServiceRequestsTable.createdAt))
       .limit(20);
+    return rows;
   }
 
   /**
@@ -706,7 +982,7 @@ export class GuestPortalService {
     phone?: string;
     alternativePhone?: string;
     email?: string;
-    roomNumber: string;
+    roomNumber?: string;
     country?: string;
     region?: string;
     city?: string;
@@ -723,6 +999,21 @@ export class GuestPortalService {
     smokingPreference?: string;
     specialRequests?: string;
     fullName?: string;
+    vipStatus?: boolean;
+    guestType?: string;
+    hasRelationshipDoc?: boolean;
+    relationshipStatus?: string;
+    relationshipDocNumber?: string;
+    relationshipDocName?: string;
+    relationshipDocUrl?: string;
+    partnerFullName?: string;
+    partnerRelationship?: string;
+    partnerGender?: string;
+    partnerAgeCategory?: string;
+    partnerIdType?: string;
+    partnerIdNumber?: string;
+    hasAccompanyingGuests?: boolean;
+    accompanyingGuests?: any[];
   }) {
     let fName = body.firstName?.trim();
     let lName = body.lastName?.trim();
@@ -754,6 +1045,21 @@ export class GuestPortalService {
       room = firstRoom;
       roomNum = room?.number || '101';
     }
+
+    // Build companion / metadata notes
+    const extraNotes: string[] = [];
+    if (body.hasRelationshipDoc || body.partnerFullName) {
+      extraNotes.push(
+        `[Couple/Marital]: Status=${body.relationshipStatus || 'married'}, Partner=${body.partnerFullName || 'Provided'}, Doc#=${body.relationshipDocNumber || (body.relationshipDocUrl ? 'Uploaded Card' : 'Pending Verification')}`,
+      );
+    }
+    if (body.hasAccompanyingGuests && Array.isArray(body.accompanyingGuests) && body.accompanyingGuests.length > 0) {
+      const familySummary = body.accompanyingGuests
+        .map((g: any) => `${g.fullName || 'Guest'} (${g.relationship || 'family'}, ${g.ageCategory || 'adult'})`)
+        .join('; ');
+      extraNotes.push(`[Family Members x${body.accompanyingGuests.length}]: ${familySummary}`);
+    }
+    const remarksCombined = extraNotes.length > 0 ? extraNotes.join(' | ') : null;
 
     // 2. Find or create guest with full contact details
     let guest: any = null;
@@ -798,6 +1104,9 @@ export class GuestPortalService {
             smokingPreference: body.smokingPreference || existingGuest.smokingPreference,
             bedPreference: body.bedPreference || existingGuest.bedPreference,
             specialRequests: body.specialRequests || existingGuest.specialRequests,
+            vipStatus: body.vipStatus ?? existingGuest.vipStatus,
+            guestType: body.guestType || existingGuest.guestType || 'individual',
+            remarks: remarksCombined || existingGuest.remarks,
             totalStays: (existingGuest.totalStays || 0) + 1,
           })
           .where(eq(guestsTable.id, existingGuest.id))
@@ -835,7 +1144,9 @@ export class GuestPortalService {
           smokingPreference: body.smokingPreference || null,
           bedPreference: body.bedPreference || null,
           specialRequests: body.specialRequests || null,
-          guestType: 'individual',
+          vipStatus: body.vipStatus ?? false,
+          guestType: body.guestType || 'individual',
+          remarks: remarksCombined || null,
           totalStays: 1,
         })
         .returning();
@@ -991,15 +1302,41 @@ export class GuestPortalService {
       throw new BadRequestException('Check-in and check-out dates are required');
     }
 
-    // 1. Locate or assign room
-    let assignedRoomId = body.roomId;
-    if (!assignedRoomId && body.roomTypeId) {
+    // 1. Locate and safely validate room and room type
+    let validRoomTypeId: string | null = null;
+    if (body.roomTypeId) {
+      const [typeMatch] = await db
+        .select()
+        .from(roomTypesTable)
+        .where(eq(roomTypesTable.id, body.roomTypeId))
+        .limit(1);
+      if (typeMatch) {
+        validRoomTypeId = typeMatch.id;
+      }
+    }
+
+    let assignedRoomId: string | null = null;
+    if (body.roomId) {
+      const [roomMatch] = await db
+        .select()
+        .from(roomsTable)
+        .where(eq(roomsTable.id, body.roomId))
+        .limit(1);
+      if (roomMatch) {
+        assignedRoomId = roomMatch.id;
+        if (!validRoomTypeId && roomMatch.roomTypeId) {
+          validRoomTypeId = roomMatch.roomTypeId;
+        }
+      }
+    }
+
+    if (!assignedRoomId && validRoomTypeId) {
       const [room] = await db
         .select()
         .from(roomsTable)
         .where(
           and(
-            eq(roomsTable.roomTypeId, body.roomTypeId),
+            eq(roomsTable.roomTypeId, validRoomTypeId),
             eq(roomsTable.status, 'available'),
             eq(roomsTable.isActive, true),
           ),
@@ -1007,13 +1344,19 @@ export class GuestPortalService {
         .limit(1);
       if (room) assignedRoomId = room.id;
     }
+
     if (!assignedRoomId) {
       const [room] = await db
         .select()
         .from(roomsTable)
         .where(eq(roomsTable.isActive, true))
         .limit(1);
-      if (room) assignedRoomId = room.id;
+      if (room) {
+        assignedRoomId = room.id;
+        if (!validRoomTypeId && room.roomTypeId) {
+          validRoomTypeId = room.roomTypeId;
+        }
+      }
     }
 
     const resNumber = `RES-ONL-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1034,7 +1377,7 @@ export class GuestPortalService {
         confirmationNumber: confNumber,
         guestId: body.guestId,
         roomId: assignedRoomId || null,
-        roomTypeId: body.roomTypeId || null,
+        roomTypeId: validRoomTypeId || null,
         checkInDate: body.checkInDate,
         checkOutDate: body.checkOutDate,
         nights,

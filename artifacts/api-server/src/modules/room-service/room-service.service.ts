@@ -100,6 +100,8 @@ export class RoomServiceService {
     if (q.serviceType) conds.push(eq(roomServiceRequestsTable.serviceType, q.serviceType));
     if (q.department) conds.push(eq(roomServiceRequestsTable.department, q.department));
     if (q.priority) conds.push(eq(roomServiceRequestsTable.priority, q.priority));
+    if (q.reservationId) conds.push(eq(roomServiceRequestsTable.reservationId, q.reservationId));
+    if (q.roomNumber) conds.push(eq(roomServiceRequestsTable.roomNumber, q.roomNumber));
     if (q.search) {
       const s = `%${q.search}%`;
       conds.push(
@@ -115,11 +117,109 @@ export class RoomServiceService {
     return rows.map(fmt);
   }
 
+  private async postChargeToInvoice(req: any, staffName?: string | null) {
+    const amountToAdd = parseFloat(req.chargeAmount || '0');
+    if (amountToAdd <= 0 || (!req.guestId && !req.reservationId)) return;
+
+    // Check if line item already exists for this request
+    const existingItems = await db
+      .select()
+      .from(invoiceLineItemsTable)
+      .where(like(invoiceLineItemsTable.description, `%${req.requestNumber}%`));
+    if (existingItems.length > 0) return; // already posted to avoid double counting
+
+    // Find open or draft invoice for reservation or guest
+    let invoice: any = null;
+    if (req.reservationId) {
+      const [inv] = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.reservationId, req.reservationId),
+            or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+          ),
+        )
+        .orderBy(desc(invoicesTable.createdAt))
+        .limit(1);
+      invoice = inv;
+    }
+    if (!invoice && req.guestId) {
+      const [inv] = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.guestId, req.guestId),
+            or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+          ),
+        )
+        .orderBy(desc(invoicesTable.createdAt))
+        .limit(1);
+      invoice = inv;
+    }
+
+    const isPhoneOrder = req.requestNumber?.startsWith('RS-PHONE-') || req.notes?.includes('[Phone Order');
+    const sourceLabel = isPhoneOrder ? 'Phone Order (Reception)' : 'In-Room Online Portal';
+    const staffLabel = staffName ? ` | Staff: ${staffName}` : '';
+    const descText = `${sourceLabel} #${req.requestNumber} (${req.serviceType}: ${req.description || 'Service'})${staffLabel}`;
+
+    if (invoice) {
+      await db.insert(invoiceLineItemsTable).values({
+        invoiceId: invoice.id,
+        description: descText,
+        quantity: '1',
+        unitPrice: String(amountToAdd.toFixed(2)),
+        total: String(amountToAdd.toFixed(2)),
+      });
+
+      const newSubtotal = parseFloat(invoice.subtotal || '0') + amountToAdd;
+      const newTotal = parseFloat(invoice.totalAmount || '0') + amountToAdd;
+
+      await db
+        .update(invoicesTable)
+        .set({
+          subtotal: String(newSubtotal.toFixed(2)),
+          totalAmount: String(newTotal.toFixed(2)),
+        })
+        .where(eq(invoicesTable.id, invoice.id));
+    } else {
+      const invoiceNumber = 'INV-' + Date.now().toString(36).toUpperCase();
+      const [newInv] = await db
+        .insert(invoicesTable)
+        .values({
+          invoiceNumber,
+          guestId: req.guestId ?? null,
+          reservationId: req.reservationId ?? null,
+          subtotal: String(amountToAdd.toFixed(2)),
+          taxAmount: '0.00',
+          totalAmount: String(amountToAdd.toFixed(2)),
+          status: 'draft',
+          notes: `Stay folio with ${sourceLabel}`,
+        })
+        .returning();
+
+      if (newInv) {
+        await db.insert(invoiceLineItemsTable).values({
+          invoiceId: newInv.id,
+          description: descText,
+          quantity: '1',
+          unitPrice: String(amountToAdd.toFixed(2)),
+          total: String(amountToAdd.toFixed(2)),
+        });
+      }
+    }
+  }
+
   async create(b: any) {
-    const requestNumber = 'RS-' + Date.now().toString(36).toUpperCase();
-    const department = getDepartment(b.serviceType) as any;
+    const isPhone = b.orderSource === 'phone' || b.source === 'phone';
+    const prefix = isPhone ? 'RS-PHONE-' : (b.orderSource === 'online' ? 'RS-GUEST-' : 'RS-');
+    const requestNumber = prefix + Date.now().toString(36).toUpperCase();
+    const department = (b.department || getDepartment(b.serviceType)) as any;
     const slaMinutes = getSla(b.serviceType);
     const estimatedCompletion = new Date(Date.now() + slaMinutes * 60000);
+    const initialStatus = b.status || (b.assignedToId ? 'assigned' : 'requested');
+    const notes = b.notes || (isPhone ? '[Phone Order logged by Receptionist]' : null);
 
     const [req] = await db
       .insert(roomServiceRequestsTable)
@@ -132,7 +232,7 @@ export class RoomServiceService {
         guestName: b.guestName ?? null,
         serviceType: b.serviceType,
         department,
-        status: 'requested',
+        status: initialStatus,
         priority: b.priority ?? 'normal',
         description: b.description ?? null,
         specialInstructions: b.specialInstructions ?? null,
@@ -141,7 +241,7 @@ export class RoomServiceService {
         estimatedCompletion,
         chargeAmount: b.chargeAmount != null ? String(b.chargeAmount) : '0',
         chargeToRoom: b.chargeToRoom ?? false,
-        notes: b.notes ?? null,
+        notes,
       })
       .returning();
 
@@ -162,6 +262,12 @@ export class RoomServiceService {
     }
 
     const [row] = await base().where(eq(roomServiceRequestsTable.id, req.id));
+
+    // If charged to room upon creation (standard for Reception Phone Orders), post to invoice immediately
+    if (req.chargeToRoom && parseFloat(req.chargeAmount || '0') > 0) {
+      await this.postChargeToInvoice(req, row?.assignedToName);
+    }
+
     return fmt(row);
   }
 
@@ -177,11 +283,15 @@ export class RoomServiceService {
 
   async update(id: string, b: any) {
     const u: any = {};
-    for (const k of ['status', 'assignedToId', 'notes', 'priority', 'chargeAmount', 'paymentStatus', 'cancelReason']) {
+    for (const k of ['status', 'assignedToId', 'notes', 'priority', 'chargeAmount', 'paymentStatus', 'cancelReason', 'department']) {
       if (b[k] !== undefined) u[k] = b[k];
     }
     if (b.chargeAmount !== undefined) u.chargeAmount = String(b.chargeAmount);
     if (b.status === 'completed') u.actualCompletion = new Date();
+    // Auto-progress to assigned if assignedToId is set on a requested task
+    if (b.assignedToId && !b.status) {
+      u.status = 'assigned';
+    }
 
     const [req] = await db
       .update(roomServiceRequestsTable)
@@ -190,45 +300,13 @@ export class RoomServiceService {
       .returning();
     if (!req) throw new NotFoundException(`Room service request ${id} not found`);
 
-    // Automatic Folio Billing when order is completed & charged to room
-    if (req.status === 'completed' && req.chargeToRoom && parseFloat(req.chargeAmount || '0') > 0 && req.guestId) {
-      // Find open or draft invoice for guest or reservation
-      const [invoice] = await db
-        .select()
-        .from(invoicesTable)
-        .where(
-          and(
-            eq(invoicesTable.guestId, req.guestId),
-            or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
-          ),
-        )
-        .orderBy(desc(invoicesTable.createdAt))
-        .limit(1);
+    const [row] = await base().where(eq(roomServiceRequestsTable.id, id));
 
-      if (invoice) {
-        const amountToAdd = parseFloat(req.chargeAmount || '0');
-        await db.insert(invoiceLineItemsTable).values({
-          invoiceId: invoice.id,
-          description: `Room Service Order #${req.requestNumber} (${req.serviceType})`,
-          quantity: '1',
-          unitPrice: String(amountToAdd.toFixed(2)),
-          total: String(amountToAdd.toFixed(2)),
-        });
-
-        const newSubtotal = parseFloat(invoice.subtotal || '0') + amountToAdd;
-        const newTotal = parseFloat(invoice.totalAmount || '0') + amountToAdd;
-
-        await db
-          .update(invoicesTable)
-          .set({
-            subtotal: String(newSubtotal.toFixed(2)),
-            totalAmount: String(newTotal.toFixed(2)),
-          })
-          .where(eq(invoicesTable.id, invoice.id));
-      }
+    // Sync folio billing when order is completed or charged to room
+    if ((req.status === 'completed' || req.chargeToRoom) && parseFloat(req.chargeAmount || '0') > 0) {
+      await this.postChargeToInvoice(req, row?.assignedToName);
     }
 
-    const [row] = await base().where(eq(roomServiceRequestsTable.id, id));
     return fmt(row);
   }
 }

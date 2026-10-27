@@ -102,9 +102,6 @@ export function FaydaScanner({ onDecoded, onClear, className = "" }: FaydaScanne
                 Auto-Fill
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Scan the QR on the back of the Ethiopian Fayda ID to auto-fill guest profile & verify identity
-            </p>
           </div>
         </div>
 

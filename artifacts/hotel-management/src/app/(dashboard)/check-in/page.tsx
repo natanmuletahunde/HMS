@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, BedDouble, CheckCircle2, ShieldCheck, Key } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -89,8 +90,8 @@ export default function CheckInPage() {
             Audit history of completed guest check-in transactions, keycard encodings, and digital signatures.
           </p>
         </div>
-        <div className="w-full sm:w-[260px]">
-          <div className="relative">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <Input
               placeholder="Search check-in, guest, room..."

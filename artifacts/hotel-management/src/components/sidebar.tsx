@@ -8,15 +8,9 @@ import {
   Sparkles, Wrench, UtensilsCrossed, FileText, 
   CreditCard, Package, UserCog, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
   Shield, Lock, ClipboardList,
-<<<<<<< HEAD
-  CalendarSearch, UserPlus, LogIn, LogOut, Bed, ShoppingCart, ConciergeBell,
-  ShoppingBag, Car, Users2,
-  BarChart2, FolderOpen, Bell,
-=======
   CalendarDays, ShoppingCart, Bed, LogOut,
   ShoppingBag, Users2,
   BarChart2, Bell,
->>>>>>> origin/feature/hotel-setup-and-room-hierarchy
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
   TrendingUp, ShieldCheck, QrCode,
 } from "lucide-react";

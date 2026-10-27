@@ -13,7 +13,7 @@ import {
   LogIn, LogOut, Sparkles, CheckCircle2, Clock, AlertTriangle, 
   ArrowRight, ShoppingCart, ConciergeBell, CalendarDays, ShieldCheck,
   BarChart2, TrendingUp, Users2, Globe, Star, Percent, UserPlus,
-  Calendar, ChevronDown, Info
+  Calendar, ChevronDown, Info, Check
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +21,60 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TablePagination } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/auth-provider";
 import { normalizeRole } from "@/lib/rbac";
 import { usePagination } from "@/hooks/use-pagination";
 
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#3b82f6','#ec4899','#8b5cf6','#14b8a6'];
+
+type PeriodType = "Daily" | "Weekly" | "Monthly";
+
+function PeriodFilterDropdown({
+  value,
+  onChange,
+  className = "",
+}: {
+  value: PeriodType;
+  onChange: (val: PeriodType) => void;
+  className?: string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`text-[10px] text-text-muted hover:text-text bg-surface/80 hover:bg-surface border border-border/80 hover:border-border px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors outline-none select-none cursor-pointer ${className}`}
+        >
+          <Calendar className="w-3 h-3 text-text-muted" />
+          <span>{value}</span>
+          <ChevronDown className="w-3 h-3 text-text-muted opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[100px] p-1 bg-surface border-border text-xs z-50 shadow-lg">
+        {(["Daily", "Weekly", "Monthly"] as PeriodType[]).map((period) => (
+          <DropdownMenuItem
+            key={period}
+            onClick={() => onChange(period)}
+            className={`flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer rounded transition-colors ${
+              value === period
+                ? "text-primary font-semibold bg-primary/10"
+                : "text-text hover:bg-muted/50"
+            }`}
+          >
+            <span>{period}</span>
+            {value === period && <Check className="w-3 h-3 text-primary ml-1.5" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -71,8 +120,10 @@ export default function DashboardPage() {
 // 1. FRONT DESK / RECEPTIONIST DASHBOARD
 // ============================================================================
 function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
-  const [timeframe, setTimeframe] = useState<"D" | "W" | "M" | "Y">("M");
-  const [revenuePeriod, setRevenuePeriod] = useState<"Weekly" | "Monthly">("Weekly");
+  const [donutPeriod, setDonutPeriod] = useState<PeriodType>("Weekly");
+  const [checkInOutPeriod, setCheckInOutPeriod] = useState<PeriodType>("Weekly");
+  const [revenuePeriod, setRevenuePeriod] = useState<PeriodType>("Weekly");
+  const [bookingsPeriod, setBookingsPeriod] = useState<PeriodType>("Monthly");
 
   const { data: arrivals = [], isLoading: arrLoading } = useQuery<any[]>({
     queryKey: ["receptionist-arrivals"],
@@ -102,35 +153,189 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
   const allRooms = roomsRes?.data || [];
   const availableRooms = allRooms.filter((r: any) => r.status === "available" || r.status === "ready");
 
-  // Donut chart distribution (Confirmed, Checked In, Checked Out)
-  const donutData = [
-    { name: "Confirmed", value: Math.max(arrivals.length * 8, 142), color: "#94a3b8" },
-    { name: "Checked In", value: Math.max(inHouse.length * 12, 185), color: "#00c5c8" },
-    { name: "Checked Out", value: Math.max(departures.length * 6, 35), color: "#334155" },
-  ];
+  // 1. Donut chart distribution (Confirmed, Checked In, Checked Out) by period
+  const donutDataByPeriod: Record<PeriodType, { data: { name: string; value: number; color: string }[]; totalSales: string; periodLabel: string }> = {
+    Daily: {
+      data: [
+        { name: "Confirmed", value: Math.max(arrivals.length * 2, 28), color: "#94a3b8" },
+        { name: "Checked In", value: Math.max(inHouse.length * 3, 42), color: "#00c5c8" },
+        { name: "Checked Out", value: Math.max(departures.length * 2, 12), color: "#334155" },
+      ],
+      totalSales: "$14,250",
+      periodLabel: "Total Sales Today",
+    },
+    Weekly: {
+      data: [
+        { name: "Confirmed", value: Math.max(arrivals.length * 8, 142), color: "#94a3b8" },
+        { name: "Checked In", value: Math.max(inHouse.length * 12, 185), color: "#00c5c8" },
+        { name: "Checked Out", value: Math.max(departures.length * 6, 35), color: "#334155" },
+      ],
+      totalSales: "$86,000",
+      periodLabel: "Total Sales This Week",
+    },
+    Monthly: {
+      data: [
+        { name: "Confirmed", value: Math.max(arrivals.length * 32, 580), color: "#94a3b8" },
+        { name: "Checked In", value: Math.max(inHouse.length * 45, 720), color: "#00c5c8" },
+        { name: "Checked Out", value: Math.max(departures.length * 20, 160), color: "#334155" },
+      ],
+      totalSales: "$342,000",
+      periodLabel: "Total Sales This Month",
+    },
+  };
+
+  const activeDonut = donutDataByPeriod[donutPeriod];
+  const donutData = activeDonut.data;
   const totalReservations = donutData.reduce((acc, curr) => acc + curr.value, 0);
 
-  // Check-In vs Check-Out trend (Aug 15 - Aug 21)
-  const checkInOutTrend = [
-    { day: "Aug 15", checkIns: 42, checkOuts: 32 },
-    { day: "Aug 16", checkIns: 28, checkOuts: 18 },
-    { day: "Aug 17", checkIns: 56, checkOuts: 38 },
-    { day: "Aug 18", checkIns: 84, checkOuts: 64 },
-    { day: "Aug 19", checkIns: 132, checkOuts: 110 },
-    { day: "Aug 20", checkIns: 48, checkOuts: 72 },
-    { day: "Aug 21", checkIns: 118, checkOuts: 94 },
-  ];
+  // 2. Check-In vs Check-Out trend by period
+  const checkInOutDataByPeriod: Record<PeriodType, {
+    trend: { day: string; checkIns: number; checkOuts: number }[];
+    booked: number;
+    visited: number;
+    growth: string;
+    compLabel: string;
+    yDomain: [number, number];
+    yTicks: number[];
+  }> = {
+    Daily: {
+      trend: [
+        { day: "08:00", checkIns: 8, checkOuts: 4 },
+        { day: "11:00", checkIns: 16, checkOuts: 18 },
+        { day: "14:00", checkIns: 38, checkOuts: 24 },
+        { day: "17:00", checkIns: 42, checkOuts: 14 },
+        { day: "20:00", checkIns: 24, checkOuts: 8 },
+        { day: "23:00", checkIns: 10, checkOuts: 2 },
+      ],
+      booked: 48,
+      visited: 92,
+      growth: "+8%",
+      compLabel: "Compared to yesterday",
+      yDomain: [0, 50],
+      yTicks: [0, 15, 30, 45],
+    },
+    Weekly: {
+      trend: [
+        { day: "Aug 15", checkIns: 42, checkOuts: 32 },
+        { day: "Aug 16", checkIns: 28, checkOuts: 18 },
+        { day: "Aug 17", checkIns: 56, checkOuts: 38 },
+        { day: "Aug 18", checkIns: 84, checkOuts: 64 },
+        { day: "Aug 19", checkIns: 132, checkOuts: 110 },
+        { day: "Aug 20", checkIns: 48, checkOuts: 72 },
+        { day: "Aug 21", checkIns: 118, checkOuts: 94 },
+      ],
+      booked: 290,
+      visited: 638,
+      growth: "+12%",
+      compLabel: "Compared to last week",
+      yDomain: [0, 140],
+      yTicks: [0, 35, 70, 105, 140],
+    },
+    Monthly: {
+      trend: [
+        { day: "Week 1", checkIns: 240, checkOuts: 190 },
+        { day: "Week 2", checkIns: 320, checkOuts: 280 },
+        { day: "Week 3", checkIns: 440, checkOuts: 390 },
+        { day: "Week 4", checkIns: 380, checkOuts: 340 },
+      ],
+      booked: 1180,
+      visited: 2490,
+      growth: "+19%",
+      compLabel: "Compared to last month",
+      yDomain: [0, 500],
+      yTicks: [0, 125, 250, 375, 500],
+    },
+  };
 
-  // Revenue trend (Sat - Fri)
-  const revenueTrend = [
-    { day: "Sat", revenue: 3200 },
-    { day: "Sun", revenue: 5100 },
-    { day: "Mon", revenue: 4200 },
-    { day: "Tue", revenue: 7800 },
-    { day: "Wed", revenue: 5400 },
-    { day: "Thu", revenue: 6900 },
-    { day: "Fri", revenue: 4800 },
-  ];
+  const activeCheckInOut = checkInOutDataByPeriod[checkInOutPeriod];
+  const checkInOutTrend = activeCheckInOut.trend;
+
+  // 3. Revenue trend by period
+  const revenueDataByPeriod: Record<PeriodType, {
+    total: string;
+    growth: string;
+    compLabel: string;
+    trend: { day: string; revenue: number }[];
+    yTicks: number[];
+  }> = {
+    Daily: {
+      total: "$3,450.00",
+      growth: "↗ 8%",
+      compLabel: "from yesterday",
+      trend: [
+        { day: "08:00", revenue: 450 },
+        { day: "11:00", revenue: 950 },
+        { day: "14:00", revenue: 1600 },
+        { day: "17:00", revenue: 2400 },
+        { day: "20:00", revenue: 3100 },
+        { day: "23:00", revenue: 3450 },
+      ],
+      yTicks: [0, 1000, 2000, 3000, 4000],
+    },
+    Weekly: {
+      total: "$12,480.00",
+      growth: "↗ 16%",
+      compLabel: "from last week",
+      trend: [
+        { day: "Sat", revenue: 3200 },
+        { day: "Sun", revenue: 5100 },
+        { day: "Mon", revenue: 4200 },
+        { day: "Tue", revenue: 7800 },
+        { day: "Wed", revenue: 5400 },
+        { day: "Thu", revenue: 6900 },
+        { day: "Fri", revenue: 4800 },
+      ],
+      yTicks: [0, 2000, 4000, 6000, 8000, 10000],
+    },
+    Monthly: {
+      total: "$48,920.00",
+      growth: "↗ 22%",
+      compLabel: "from last month",
+      trend: [
+        { day: "Wk 1", revenue: 10500 },
+        { day: "Wk 2", revenue: 12200 },
+        { day: "Wk 3", revenue: 14800 },
+        { day: "Wk 4", revenue: 11420 },
+      ],
+      yTicks: [0, 5000, 10000, 15000, 20000],
+    },
+  };
+
+  const activeRevenue = revenueDataByPeriod[revenuePeriod];
+  const revenueTrend = activeRevenue.trend;
+
+  // 4. Bookings (Online vs Walk-in) by period
+  const bookingsDataByPeriod: Record<PeriodType, {
+    onlineCount: string;
+    walkinCount: string;
+    onlinePct: number;
+    walkinPct: number;
+    totalCount: string;
+  }> = {
+    Daily: {
+      onlineCount: "142",
+      walkinCount: "58",
+      onlinePct: 71.0,
+      walkinPct: 29.0,
+      totalCount: "200.00",
+    },
+    Weekly: {
+      onlineCount: "1,240",
+      walkinCount: "446",
+      onlinePct: 73.5,
+      walkinPct: 26.5,
+      totalCount: "1,686.00",
+    },
+    Monthly: {
+      onlineCount: "14,839",
+      walkinCount: "5,556",
+      onlinePct: 72.8,
+      walkinPct: 27.2,
+      totalCount: "20,395.50",
+    },
+  };
+
+  const activeBookings = bookingsDataByPeriod[bookingsPeriod];
 
   // Recent activities list
   const recentActivities = [
@@ -170,12 +375,9 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
 
   return (
     <div className="space-y-3.5">
-      {/* Role Context Header (Top right button removed per instruction) */}
-      <div className="flex items-center justify-between pb-1.5 border-b border-border">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold tracking-tight text-text">Front Desk Operations</h1>
-          <Badge className="bg-primary/10 text-primary border-primary/20">{currentRole}</Badge>
-        </div>
+      {/* Role Context Header */}
+      <div className="pb-1.5 border-b border-border">
+        <h1 className="text-xl font-bold tracking-tight text-text">Front Desk Operations</h1>
       </div>
 
       {/* Front Desk KPIs (Standardized - Kept completely intact) */}
@@ -233,7 +435,10 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
         <Card className="col-span-12 lg:col-span-4 bg-surface/50 border-border p-3.5 rounded-xl shadow-none flex flex-col justify-between">
           <div className="flex items-center justify-between pb-1">
             <span className="text-xs font-semibold text-text uppercase tracking-wider">Reservation Breakdown</span>
-            <span className="text-[10px] text-text-muted">Live Sync</span>
+            <PeriodFilterDropdown
+              value={donutPeriod}
+              onChange={setDonutPeriod}
+            />
           </div>
 
           <div className="relative flex items-center justify-center my-1">
@@ -274,8 +479,8 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
           </div>
 
           <div className="pt-2 border-t border-border/60 mt-auto">
-            <div className="text-xl font-bold font-mono tracking-tight text-text leading-none">$86,000</div>
-            <div className="text-[11px] text-text-muted font-medium mt-0.5">Total Sales This Week</div>
+            <div className="text-xl font-bold font-mono tracking-tight text-text leading-none">{activeDonut.totalSales}</div>
+            <div className="text-[11px] text-text-muted font-medium mt-0.5">{activeDonut.periodLabel}</div>
           </div>
         </Card>
 
@@ -285,20 +490,26 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
             <div className="flex items-center gap-3">
               <div className="bg-surface/80 border border-border/80 px-3 py-1 rounded-lg">
                 <div className="text-[10px] text-text-muted font-medium uppercase tracking-wider">Booked</div>
-                <div className="text-lg font-bold font-mono text-text">290</div>
+                <div className="text-lg font-bold font-mono text-text">{activeCheckInOut.booked}</div>
               </div>
               <div className="bg-surface/80 border border-border/80 px-3 py-1 rounded-lg">
                 <div className="text-[10px] text-text-muted font-medium uppercase tracking-wider">Visited</div>
-                <div className="text-lg font-bold font-mono text-text">638</div>
+                <div className="text-lg font-bold font-mono text-text">{activeCheckInOut.visited}</div>
               </div>
             </div>
 
-            <div className="text-right">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Performance</div>
-              <div className="text-xs font-semibold text-emerald-400 flex items-center justify-end gap-1">
-                <span>+12%</span>
-                <span className="text-text-muted text-[10px] font-normal">Compared to last week</span>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">Performance</div>
+                <div className="text-xs font-semibold text-emerald-400 flex items-center justify-end gap-1">
+                  <span>{activeCheckInOut.growth}</span>
+                  <span className="text-text-muted text-[10px] font-normal">{activeCheckInOut.compLabel}</span>
+                </div>
               </div>
+              <PeriodFilterDropdown
+                value={checkInOutPeriod}
+                onChange={setCheckInOutPeriod}
+              />
             </div>
           </div>
 
@@ -317,7 +528,7 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#22222b" vertical={false} />
                 <XAxis dataKey="day" stroke="#8b8b9a" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#8b8b9a" fontSize={10} tickLine={false} axisLine={false} domain={[0, 140]} ticks={[0, 35, 70, 105, 140]} />
+                <YAxis stroke="#8b8b9a" fontSize={10} tickLine={false} axisLine={false} domain={activeCheckInOut.yDomain} ticks={activeCheckInOut.yTicks} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "#141417", borderColor: "#1e1e24", borderRadius: "8px", fontSize: "11px", color: "#fff" }}
                 />
@@ -329,7 +540,7 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
         </Card>
       </div>
 
-      {/* Lower Chart Row: Recent Activities, Revenue Stat, Bookings (Online vs Offline) */}
+      {/* Lower Chart Row: Recent Activities, Revenue Stat, Bookings (Online vs Walk-in) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {/* Card 1: Recent activities */}
         <Card className="bg-surface/50 border-border p-3.5 rounded-xl shadow-none flex flex-col justify-between">
@@ -366,21 +577,17 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
         <Card className="bg-surface/50 border-border p-3.5 rounded-xl shadow-none flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text">Revenue Stat</span>
-            <button
-              onClick={() => setRevenuePeriod(prev => prev === "Weekly" ? "Monthly" : "Weekly")}
-              className="text-[10px] text-text-muted bg-surface/80 hover:bg-surface border border-border/80 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
-            >
-              <Calendar className="w-3 h-3 text-text-muted" />
-              <span>{revenuePeriod}</span>
-              <ChevronDown className="w-3 h-3 text-text-muted" />
-            </button>
+            <PeriodFilterDropdown
+              value={revenuePeriod}
+              onChange={setRevenuePeriod}
+            />
           </div>
 
           <div className="flex items-baseline justify-between mt-1 mb-1">
-            <div className="text-xl font-bold font-mono text-text">$12,480.00</div>
+            <div className="text-xl font-bold font-mono text-text">{activeRevenue.total}</div>
             <div className="text-[11px] font-semibold text-emerald-400 flex items-center gap-0.5">
-              <span>↗ 16%</span>
-              <span className="text-[9px] text-text-muted font-normal">from last month</span>
+              <span>{activeRevenue.growth}</span>
+              <span className="text-[9px] text-text-muted font-normal">{activeRevenue.compLabel}</span>
             </div>
           </div>
 
@@ -389,7 +596,7 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
               <BarChart data={revenueTrend} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#22222b" vertical={false} />
                 <XAxis dataKey="day" stroke="#8b8b9a" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#8b8b9a" fontSize={9} tickLine={false} axisLine={false} ticks={[0, 2000, 4000, 6000, 8000, 10000]} tickFormatter={(v) => `${v / 1000}K`} />
+                <YAxis stroke="#8b8b9a" fontSize={9} tickLine={false} axisLine={false} ticks={activeRevenue.yTicks} tickFormatter={(v) => `${v / 1000}K`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "#141417", borderColor: "#1e1e24", borderRadius: "8px", fontSize: "11px", color: "#fff" }}
                   formatter={(val: any) => [`$${val.toLocaleString()}`, "Revenue"]}
@@ -400,41 +607,34 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
           </div>
         </Card>
 
-        {/* Card 3: Bookings (Online vs Offline) */}
+        {/* Card 3: Bookings (Online vs Walk-in) */}
         <Card className="bg-surface/50 border-border p-3.5 rounded-xl shadow-none flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text">Bookings</span>
-            <div className="flex items-center bg-surface/80 border border-border/80 rounded-md p-0.5 text-[10px]">
-              {(["D", "W", "M", "Y"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setTimeframe(tab)}
-                  className={`px-1.5 py-0.5 rounded ${timeframe === tab ? "bg-primary text-black font-bold" : "text-text-muted hover:text-text"}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+            <PeriodFilterDropdown
+              value={bookingsPeriod}
+              onChange={setBookingsPeriod}
+            />
           </div>
 
           <div className="mt-1">
             <div className="text-xl font-bold font-mono text-text">
-              20,395.50 <span className="text-xs font-normal text-text-muted">Total Bookings</span>
+              {activeBookings.totalCount} <span className="text-xs font-normal text-text-muted">Total Bookings</span>
             </div>
           </div>
 
-          {/* Segmented Dual Progress Bar (Green: Online, Red: Offline) */}
+          {/* Segmented Dual Progress Bar (Green: Online, Red: Walk-in) */}
           <div className="mt-2">
             <div className="h-2.5 w-full bg-surface rounded-full overflow-hidden flex p-0.5 border border-border/80">
               <div
                 className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
-                style={{ width: "72.8%" }}
-                title="Online: 72.8%"
+                style={{ width: `${activeBookings.onlinePct}%` }}
+                title={`Online: ${activeBookings.onlinePct}%`}
               />
               <div
                 className="h-full bg-rose-500 rounded-r-full transition-all duration-500"
-                style={{ width: "27.2%" }}
-                title="Offline: 27.2%"
+                style={{ width: `${activeBookings.walkinPct}%` }}
+                title={`Walk-in: ${activeBookings.walkinPct}%`}
               />
             </div>
 
@@ -444,14 +644,14 @@ function FrontDeskDashboard({ currentRole }: { currentRole: string }) {
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
                   Online Booking
                 </div>
-                <div className="text-base font-bold font-mono text-text mt-0.5">14,839</div>
+                <div className="text-base font-bold font-mono text-text mt-0.5">{activeBookings.onlineCount}</div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] text-text-muted flex items-center justify-end gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                  Offline Booking
+                  Walk-in Booking
                 </div>
-                <div className="text-base font-bold font-mono text-text mt-0.5">5,556</div>
+                <div className="text-base font-bold font-mono text-text mt-0.5">{activeBookings.walkinCount}</div>
               </div>
             </div>
           </div>
@@ -1326,6 +1526,9 @@ function StaffDashboard({ currentRole }: { currentRole: string }) {
 // 9. SYSTEM ADMINISTRATOR EXECUTIVE DASHBOARD
 // ============================================================================
 function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
+  const [execRevenuePeriod, setExecRevenuePeriod] = useState<PeriodType>("Monthly");
+  const [execOccupancyPeriod, setExecOccupancyPeriod] = useState<PeriodType>("Monthly");
+
   const today = new Date();
   const thirtyAgo = new Date(today);
   thirtyAgo.setDate(today.getDate() - 30);
@@ -1339,13 +1542,13 @@ function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
   });
 
   const { data: revenue, isLoading: revenueLoading } = useQuery({
-    queryKey: ["dashboard-revenue"],
-    queryFn: () => apiFetch<any[]>("/dashboard/revenue?period=month"),
+    queryKey: ["dashboard-revenue", execRevenuePeriod],
+    queryFn: () => apiFetch<any[]>(`/dashboard/revenue?period=${execRevenuePeriod.toLowerCase()}`).catch(() => []),
   });
 
   const { data: occupancy, isLoading: occupancyLoading } = useQuery({
-    queryKey: ["dashboard-occupancy"],
-    queryFn: () => apiFetch<any[]>("/dashboard/occupancy?period=month"),
+    queryKey: ["dashboard-occupancy", execOccupancyPeriod],
+    queryFn: () => apiFetch<any[]>(`/dashboard/occupancy?period=${execOccupancyPeriod.toLowerCase()}`).catch(() => []),
   });
 
   const { data: activity, isLoading: activityLoading } = useQuery({
@@ -1443,9 +1646,12 @@ function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
       {/* Revenue and Occupancy Charts */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-surface border-border">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">30-Day Revenue Trend</CardTitle>
-            <CardDescription>Consolidated stay and F&B revenue (ETB)</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div>
+              <CardTitle className="text-base font-semibold">Revenue Trend</CardTitle>
+              <CardDescription>Consolidated stay and F&B revenue (ETB)</CardDescription>
+            </div>
+            <PeriodFilterDropdown value={execRevenuePeriod} onChange={setExecRevenuePeriod} />
           </CardHeader>
           <CardContent>
             {revenueLoading ? (
@@ -1467,9 +1673,12 @@ function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
         </Card>
 
         <Card className="bg-surface border-border">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Occupancy Trend</CardTitle>
-            <CardDescription>Daily occupied rooms across all buildings</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <div>
+              <CardTitle className="text-base font-semibold">Occupancy Trend</CardTitle>
+              <CardDescription>Occupied rooms across all buildings</CardDescription>
+            </div>
+            <PeriodFilterDropdown value={execOccupancyPeriod} onChange={setExecOccupancyPeriod} />
           </CardHeader>
           <CardContent>
             {occupancyLoading ? (

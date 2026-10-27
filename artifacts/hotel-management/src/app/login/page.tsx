@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BedDouble } from "lucide-react";
+import { BedDouble, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -256,13 +256,19 @@ export default function LoginPage() {
               >
                 {mfaSubmitting ? "Verifying..." : "Verify & Sign In"}
               </Button>
-              <button
-                type="button"
-                className="w-full text-sm text-text-muted hover:text-text underline"
-                onClick={() => { setStep("credentials"); setError(""); setTotpCode(""); setMfaToken(""); }}
-              >
-                ← Back to sign in
-              </button>
+              <div className="flex justify-center pt-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-text-muted hover:text-text rounded-full"
+                  onClick={() => { setStep("credentials"); setError(""); setTotpCode(""); setMfaToken(""); }}
+                  title="Back to sign in"
+                  aria-label="Back to sign in"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </div>

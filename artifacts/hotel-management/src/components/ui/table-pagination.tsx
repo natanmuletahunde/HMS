@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface TablePaginationProps {
@@ -15,6 +15,7 @@ export interface TablePaginationProps {
   onPageChange?: (page: number) => void;
   className?: string;
   pagination?: any;
+  showEntriesCount?: boolean;
 }
 
 export function TablePagination(props: TablePaginationProps) {
@@ -26,6 +27,7 @@ export function TablePagination(props: TablePaginationProps) {
   const onPrev = p.onPrev ?? (() => {});
   const onNext = p.onNext ?? (() => {});
   const className = props.className;
+  const showEntriesCount = p.showEntriesCount ?? false;
 
   // If explicitly 0 items, don't show pagination
   if (totalItems !== undefined && totalItems === 0) return null;
@@ -37,35 +39,38 @@ export function TablePagination(props: TablePaginationProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-border bg-surface text-sm text-text-muted rounded-b-md select-none",
+        "flex flex-wrap items-center justify-end gap-4 px-4 py-3 border-t border-border bg-surface text-sm text-text-muted rounded-b-md select-none",
         className
       )}
     >
-      <div className="text-xs sm:text-sm font-medium">
-        {totalItems !== undefined ? (
-          <>
-            Showing <span className="font-semibold text-text">{start}</span> to{" "}
-            <span className="font-semibold text-text">{end}</span> of{" "}
-            <span className="font-semibold text-text">{totalItems}</span> entries (Limit: 5)
-          </>
-        ) : (
-          <>
-            Page <span className="font-semibold text-text">{currentPage}</span> of{" "}
-            <span className="font-semibold text-text">{validTotalPages}</span> (Limit: 5)
-          </>
-        )}
-      </div>
+      {showEntriesCount && (
+        <div className="text-xs sm:text-sm font-medium mr-auto">
+          {totalItems !== undefined ? (
+            <>
+              Showing <span className="font-semibold text-text">{start}</span> to{" "}
+              <span className="font-semibold text-text">{end}</span> of{" "}
+              <span className="font-semibold text-text">{totalItems}</span> entries (Limit: {pageSize})
+            </>
+          ) : (
+            <>
+              Page <span className="font-semibold text-text">{currentPage}</span> of{" "}
+              <span className="font-semibold text-text">{validTotalPages}</span> (Limit: {pageSize})
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onPrev}
           disabled={currentPage <= 1}
-          className="h-8 px-3 text-xs flex items-center gap-1.5 hover:bg-muted font-medium transition-colors"
+          className="h-8 w-8 hover:bg-muted transition-colors rounded-md"
+          title="Previous page"
+          aria-label="Previous page"
         >
-          <ChevronLeft className="h-4 w-4" />
-          <span>Previous</span>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
 
         <div className="text-xs font-semibold px-2.5 py-1 rounded bg-muted/50 border border-border text-text">
@@ -74,13 +79,14 @@ export function TablePagination(props: TablePaginationProps) {
 
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onNext}
           disabled={currentPage >= validTotalPages}
-          className="h-8 px-3 text-xs flex items-center gap-1.5 hover:bg-muted font-medium transition-colors"
+          className="h-8 w-8 hover:bg-muted transition-colors rounded-md"
+          title="Next page"
+          aria-label="Next page"
         >
-          <span>Next</span>
-          <ChevronRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

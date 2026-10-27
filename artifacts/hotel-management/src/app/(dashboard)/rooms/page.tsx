@@ -411,21 +411,34 @@ function RoomsContent() {
               setIsAddOpen(open);
               if (!open) setEditItem(null);
             }}>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editItem ? "Edit Room" : "Add Room"}</DialogTitle>
-                </DialogHeader>
-                <form className="space-y-6" onSubmit={onInventorySubmit}>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Room Number</Label>
-                      <Input name="number" defaultValue={editItem?.number} required />
+              <DialogContent className="max-w-3xl p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
+                <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                      <BedDouble className="h-5 w-5" />
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Room Name</Label>
-                      <Input name="roomName" defaultValue={editItem?.roomName} />
+                    <div>
+                      <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                        {editItem ? "Edit Room Inventory" : "Register New Room"}
+                      </DialogTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {editItem ? `Modify configuration and pricing for Room ${editItem.number}` : "Configure room specifications, category, capacity, and rate"}
+                      </p>
                     </div>
                   </div>
+                </DialogHeader>
+                <form className="flex-1 flex flex-col min-h-0 overflow-hidden" onSubmit={onInventorySubmit}>
+                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Room Number</Label>
+                        <Input name="number" defaultValue={editItem?.number} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Room Name</Label>
+                        <Input name="roomName" defaultValue={editItem?.roomName} />
+                      </div>
+                    </div>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
@@ -578,11 +591,16 @@ function RoomsContent() {
                     <Input name="notes" defaultValue={editItem?.notes} />
                   </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={saveMutation.isPending}>
+                  </div>
+
+                  {/* Sticky Action Footer */}
+                  <div className="px-6 py-4 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">
+                    <Button type="button" variant="outline" className="h-10 px-4 rounded-xl text-xs" onClick={() => setIsAddOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={saveMutation.isPending} className="h-10 px-5 rounded-xl text-xs font-semibold shadow-sm">
                       {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Room
+                      {editItem ? "Save Changes" : "Create Room"}
                     </Button>
                   </div>
                 </form>

@@ -41,6 +41,11 @@ type Hotel = {
   starRating?: number;
   checkInTime?: string;
   checkOutTime?: string;
+  lateCheckoutGraceMinutes?: number;
+  lateCheckoutHourlyFee?: number | string;
+  lateCheckoutTier1Percent?: number | string;
+  lateCheckoutTier2Percent?: number | string;
+  lateCheckoutCutoffTime?: string;
   status?: string;
   taxNumber?: string;
   licenseNumber?: string;
@@ -92,6 +97,10 @@ export default function HotelPage() {
     saveMutation.mutate({
       ...data,
       starRating: Number(data.starRating) || 5,
+      lateCheckoutGraceMinutes: data.lateCheckoutGraceMinutes !== undefined ? Number(data.lateCheckoutGraceMinutes) : 30,
+      lateCheckoutHourlyFee: data.lateCheckoutHourlyFee !== undefined ? String(data.lateCheckoutHourlyFee) : "25",
+      lateCheckoutTier1Percent: data.lateCheckoutTier1Percent !== undefined ? String(data.lateCheckoutTier1Percent) : "25",
+      lateCheckoutTier2Percent: data.lateCheckoutTier2Percent !== undefined ? String(data.lateCheckoutTier2Percent) : "50",
     } as Partial<Hotel>);
   };
 
@@ -487,18 +496,121 @@ export default function HotelPage() {
 
               {/* Check-Out Time */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
+                <div>
+                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-Out</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">Official hotel departure deadline</span>
+                </div>
                 {isEditing ? (
                   <input
                     type="text"
                     name="checkOutTime"
                     defaultValue={hotel?.checkOutTime || "12:00"}
                     required
-                    className="flex-1 h-9 px-3 text-sm rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    placeholder="12:00"
+                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
                   />
                 ) : (
-                  <span className="text-sm font-semibold font-mono text-[var(--text-primary)]">
-                    {hotel?.checkOutTime || "12:00"}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                      {hotel?.checkOutTime || "12:00"}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Folios)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Late Check-Out Grace Period */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <div>
+                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Check-Out Grace Period</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">Buffer window before any late penalty is levied</span>
+                </div>
+                {isEditing ? (
+                  <div className="flex items-center gap-2 max-w-xs flex-1">
+                    <input
+                      type="number"
+                      name="lateCheckoutGraceMinutes"
+                      defaultValue={hotel?.lateCheckoutGraceMinutes ?? 30}
+                      min="0"
+                      max="180"
+                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">Minutes</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.lateCheckoutGraceMinutes ?? 30} minutes <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Zero charge)</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Late Check-Out Tier 1 Fee (1h–3h) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <div>
+                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 1 Rate (1h – 3h late)</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">Percentage of daily room accommodation rate</span>
+                </div>
+                {isEditing ? (
+                  <div className="flex items-center gap-2 max-w-xs flex-1">
+                    <input
+                      type="number"
+                      name="lateCheckoutTier1Percent"
+                      defaultValue={hotel?.lateCheckoutTier1Percent ?? 25}
+                      min="0"
+                      max="100"
+                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.lateCheckoutTier1Percent ?? 25}% of daily rate
+                  </span>
+                )}
+              </div>
+
+              {/* Late Check-Out Tier 2 Fee (3h–6h) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <div>
+                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 2 Rate (3h – 6h late)</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">Half-day charge percentage</span>
+                </div>
+                {isEditing ? (
+                  <div className="flex items-center gap-2 max-w-xs flex-1">
+                    <input
+                      type="number"
+                      name="lateCheckoutTier2Percent"
+                      defaultValue={hotel?.lateCheckoutTier2Percent ?? 50}
+                      min="0"
+                      max="100"
+                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                    />
+                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate (Half-day)</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.lateCheckoutTier2Percent ?? 50}% of daily rate (Half-day)
+                  </span>
+                )}
+              </div>
+
+              {/* Late Check-Out Cut-Off Deadline */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                <div>
+                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Cut-Off Time</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">After this hour, 100% full night rate is charged</span>
+                </div>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="lateCheckoutCutoffTime"
+                    defaultValue={hotel?.lateCheckoutCutoffTime || "18:00"}
+                    placeholder="18:00"
+                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {hotel?.lateCheckoutCutoffTime || "18:00"} <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">(Full night rate applies thereafter)</span>
                   </span>
                 )}
               </div>

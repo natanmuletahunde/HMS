@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   CreditCard,
   Wifi,
@@ -29,6 +30,9 @@ import {
   Building,
   Check,
   Compass,
+  Plus,
+  X,
+  BedDouble,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,12 +63,57 @@ interface AvailableRoom {
   status: string;
 }
 
+const SPECIAL_REQUEST_CATALOG = [
+  {
+    category: "🍽️ In-Room Dining & Breakfast",
+    items: [
+      "Traditional Doro Wat Feast ($18.50)",
+      "Deluxe Angus Burger & Fries ($14.00)",
+      "Continental Club Sandwich ($11.50)",
+      "Fresh Seasonal Fruit Platter ($8.00)",
+      "Signature Ethiopian Jebena Coffee ($4.50)",
+      "Fresh Mango & Avocado Smoothie ($5.50)",
+      "Sparkling Mineral Water (750ml, $3.50)",
+    ],
+  },
+  {
+    category: "🛏️ Room Amenities & Comfort",
+    items: [
+      "Extra Feather Pillows (x2)",
+      "Extra Warm Wool Blanket",
+      "Fresh Bath Towels & Robe Set",
+      "Baby Cot / Crib Setup",
+      "Room Evening Turn-down Service",
+    ],
+  },
+  {
+    category: "🛎️ Guest & Stay Services",
+    items: [
+      "Morning Wake-up Call",
+      "Express Laundry & Pressing ($12.00)",
+      "Quiet Room / High Floor Preference",
+      "Early Check-In Request",
+      "Late Check-Out Request",
+      "AC / Climate Adjustment Assistance",
+    ],
+  },
+  {
+    category: "🚗 Airport & Chauffeur Transport",
+    items: [
+      "Airport Arrival VIP Meet & Pickup (3,750 ETB)",
+      "Airport Chauffeur Drop-off (3,000 ETB)",
+      "Complimentary Downtown / UNECA Shuttle",
+      "Half-Day City Tour Chauffeur (6,800 ETB)",
+      "Luggage & Bellhop Vehicle Dispatch",
+    ],
+  },
+];
+
 export default function LuxuryLandingPage() {
   const router = useRouter();
 
   // Guest Auth State
   const [guestSession, setGuestSession] = useState<any | null>(null);
-  const [currency, setCurrency] = useState<"USD" | "ETB">("USD");
 
   // Booking Bar State
   const todayStr = new Date().toISOString().split("T")[0];
@@ -92,6 +141,11 @@ export default function LuxuryLandingPage() {
   const [bookingGuestEmail, setBookingGuestEmail] = useState("");
   const [bookingGuestFayda, setBookingGuestFayda] = useState("");
   const [bookingSpecialRequests, setBookingSpecialRequests] = useState("");
+  const [selectedSpecialPresets, setSelectedSpecialPresets] = useState<string[]>([]);
+  const [customSpecialRequest, setCustomSpecialRequest] = useState("");
+  const [showServiceDropdown, setShowServiceDropdown] = useState(false);
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [otherText, setOtherText] = useState("");
 
   // Payment Selection (Telebirr, CBE, Chapa)
   const [paymentMethod, setPaymentMethod] = useState<"telebirr" | "cbe" | "chapa" | "card">("telebirr");
@@ -99,14 +153,11 @@ export default function LuxuryLandingPage() {
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
   const [confirmedReservation, setConfirmedReservation] = useState<any | null>(null);
 
-  // Currency Converter (1 USD = 125 ETB approx)
+  // Hotel Currency: Ethiopian Birr (ETB)
   const ETB_RATE = 125;
   const formatPrice = (usdAmount: number) => {
-    if (currency === "ETB") {
-      const etb = Math.round(usdAmount * ETB_RATE);
-      return `${etb.toLocaleString()} ETB`;
-    }
-    return `$${usdAmount.toLocaleString()}`;
+    const etb = Math.round(usdAmount * ETB_RATE);
+    return `${etb.toLocaleString()} ETB`;
   };
 
   // Check login on mount
@@ -121,6 +172,7 @@ export default function LuxuryLandingPage() {
             setBookingGuestName(parsed.guest.fullName || `${parsed.guest.firstName} ${parsed.guest.lastName}`.trim());
             setBookingGuestPhone(parsed.guest.phone || "");
             setBookingGuestEmail(parsed.guest.email || "");
+            setBookingGuestFayda(parsed.guest.nationalId || parsed.guest.idNumber || "");
           }
         } catch {
           // ignore
@@ -241,7 +293,28 @@ export default function LuxuryLandingPage() {
 
   // Initiate Booking
   const openBookingForSuite = (suite: RoomType) => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("nexus_guest_session") || localStorage.getItem("nexus_guest_session");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.guest) {
+            setGuestSession(parsed);
+            setBookingGuestName(parsed.guest.fullName || `${parsed.guest.firstName} ${parsed.guest.lastName}`.trim());
+            setBookingGuestPhone(parsed.guest.phone || "");
+            setBookingGuestEmail(parsed.guest.email || "");
+            setBookingGuestFayda(parsed.guest.nationalId || parsed.guest.idNumber || "");
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
     setSelectedSuite(suite);
+    setShowServiceDropdown(false);
+    setShowOtherInput(false);
+    setOtherText("");
+    setSelectedSpecialPresets([]);
     setBookingStep("review");
     setBookingModalOpen(true);
   };
@@ -250,13 +323,15 @@ export default function LuxuryLandingPage() {
   const handleConfirmAndPay = async () => {
     if (!selectedSuite) return;
 
-    if (!bookingGuestName.trim()) {
-      alert("Please provide your full name.");
-      return;
-    }
-    if (!bookingGuestPhone || bookingGuestPhone.length !== 10) {
-      alert("Please enter a valid 10-digit mobile phone number (e.g. 0911318622).");
-      return;
+    if (!guestSession?.guest) {
+      if (!bookingGuestName.trim()) {
+        alert("Please provide your full name.");
+        return;
+      }
+      if (!bookingGuestPhone || bookingGuestPhone.length !== 10) {
+        alert("Please enter a valid 10-digit mobile phone number (e.g. 0911318622).");
+        return;
+      }
     }
 
     setPaymentSubmitting(true);
@@ -280,16 +355,34 @@ export default function LuxuryLandingPage() {
             email: bookingGuestEmail.trim() || undefined,
             nationalId: bookingGuestFayda.trim() || "1234567890123456",
             idNumber: bookingGuestFayda.trim() || "1234567890123456",
-            idType: "fayida_id",
+            idType: "national_id",
+            nationality: "Ethiopian",
+            country: "Ethiopia",
+            city: "Addis Ababa",
+            guestType: "individual",
           }),
         });
 
-        const regData = await regRes.json();
-        if (regRes.ok && regData.guest?.id) {
+        const regText = await regRes.text();
+        let regData: any = {};
+        try {
+          regData = JSON.parse(regText);
+        } catch {
+          throw new Error(
+            regRes.ok
+              ? "Invalid registration response from server."
+              : `Server error (${regRes.status}): Please make sure backend is running.`
+          );
+        }
+        if (!regRes.ok) {
+          throw new Error(regData.message || regData.error || "Could not register guest profile.");
+        }
+        if (regData.guest?.id) {
           guestId = regData.guest.id;
           if (regData.token) {
             sessionStorage.setItem("nexus_guest_token", regData.token);
             localStorage.setItem("nexus_guest_token", regData.token);
+            document.cookie = `nexus_guest_token=${regData.token}; path=/; max-age=604800; SameSite=Lax`;
           }
           sessionStorage.setItem("nexus_guest_session", JSON.stringify(regData));
           localStorage.setItem("nexus_guest_session", JSON.stringify(regData));
@@ -305,7 +398,14 @@ export default function LuxuryLandingPage() {
       const targetRoom = availableRooms.find((r) => r.roomTypeId === selectedSuite.id) || availableRooms[0];
       const assignedRoomId = targetRoom?.id;
 
-      // 3. Create pre-paid online reservation
+      // 3. Build composite special requests from selected presets + custom text
+      const compositeSpecialRequests = [
+        ...selectedSpecialPresets,
+        customSpecialRequest.trim(),
+        bookingSpecialRequests.trim(),
+      ].filter(Boolean).join(" • ");
+
+      // 4. Create pre-paid online reservation
       const res = await fetch("/api/guest-portal/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,7 +417,7 @@ export default function LuxuryLandingPage() {
           checkOutDate,
           adults: Number(adults) || 2,
           children: Number(children) || 0,
-          specialRequests: bookingSpecialRequests.trim() || undefined,
+          specialRequests: compositeSpecialRequests || undefined,
           paymentMethod,
           paymentReference: paymentReference.trim() || `ONL-${paymentMethod.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`,
           paidAmount: totalEtb,
@@ -325,10 +425,34 @@ export default function LuxuryLandingPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Reservation could not be completed.");
+      const resText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(resText);
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Invalid reservation response format."
+            : `Reservation server error (${res.status}): Please check connection.`
+        );
+      }
+      if (!res.ok) throw new Error(data.message || data.error || "Reservation could not be completed.");
 
       setConfirmedReservation(data.reservation);
+      if (data.reservation) {
+        const updatedSession = {
+          ...guestSession,
+          reservation: data.reservation,
+          reservationId: data.reservation.id,
+          room: data.room || data.reservation.room || { number: targetRoom?.number || "101" },
+          roomNumber: data.room?.number || targetRoom?.number || "101",
+        };
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("nexus_guest_session", JSON.stringify(updatedSession));
+          localStorage.setItem("nexus_guest_session", JSON.stringify(updatedSession));
+        }
+        setGuestSession(updatedSession);
+      }
       setBookingStep("confirmed");
     } catch (err: any) {
       alert("Booking error: " + err.message);
@@ -342,34 +466,43 @@ export default function LuxuryLandingPage() {
     sessionStorage.removeItem("nexus_guest_session");
     localStorage.removeItem("nexus_guest_token");
     localStorage.removeItem("nexus_guest_session");
+    document.cookie = "nexus_guest_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setGuestSession(null);
+    router.push("/guest-portal/register");
   };
 
   return (
     <div className="min-h-screen bg-[#0b0c10] text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950">
       {/* ─── 1. TOP LUXURY HEADER ──────────────────────────────────────────────── */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0b0c10]/85 backdrop-blur-md border-b border-white/10 px-6 lg:px-12 h-20 flex items-center justify-between transition-all">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#090a10]/80 backdrop-blur-xl border-b border-white/[0.08] px-6 lg:px-12 h-20 flex items-center justify-between transition-all">
         {/* Brand Logo matching AURA */}
-        <Link href="/" className="flex flex-col group">
-          <span className="font-serif text-2xl lg:text-3xl tracking-[0.25em] font-semibold text-white group-hover:text-amber-400 transition-colors">
-            AURA
-          </span>
-          <span className="text-[9px] tracking-[0.35em] text-amber-400 uppercase font-light -mt-1">
-            Luxury Hotel & Villas
-          </span>
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400/20 via-amber-500/10 to-transparent border border-amber-400/30 flex items-center justify-center text-amber-300 shadow-inner group-hover:border-amber-400/60 transition-colors">
+            <span className="font-serif text-lg font-bold">A</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-serif text-2xl tracking-[0.25em] font-semibold text-white group-hover:text-amber-300 transition-colors">
+              AURA
+            </span>
+            <span className="text-[9px] tracking-[0.35em] text-amber-400/90 uppercase font-light -mt-0.5">
+              Luxury Hotel & Villas
+            </span>
+          </div>
         </Link>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          {/* Currency Toggle */}
-          <button
-            type="button"
-            onClick={() => setCurrency((c) => (c === "USD" ? "ETB" : "USD"))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/15 bg-white/5 text-xs text-slate-200 hover:border-amber-400 hover:text-white transition-all font-medium"
-          >
-            <span>🌐</span>
-            <span className="font-mono">EN / {currency}</span>
-          </button>
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Request Service Button */}
+          <Link href="/guest-portal/services">
+            <Button
+              variant="outline"
+              className="border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 hover:border-amber-400/60 font-medium text-xs tracking-wider uppercase px-4 h-10 rounded-xl gap-2 transition-all shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Request In-Room Service</span>
+              <span className="sm:hidden">Services</span>
+            </Button>
+          </Link>
 
           {/* Reserve Now Accent Button */}
           <Button
@@ -377,27 +510,26 @@ export default function LuxuryLandingPage() {
               const el = document.getElementById("suites-section");
               el?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="bg-[#d97736] hover:bg-[#c86627] text-white font-semibold text-xs tracking-wider uppercase px-5 h-10 rounded-sm shadow-lg shadow-orange-900/30 transition-transform active:scale-95"
+            className="bg-gradient-to-r from-[#d97736] to-[#e68a49] hover:from-[#c86627] hover:to-[#d97736] text-white font-semibold text-xs tracking-wider uppercase px-5 h-10 rounded-xl shadow-lg shadow-orange-950/40 transition-all active:scale-95"
           >
-            Reserve Now
+            Reserve Suite
           </Button>
 
           {/* User Profile / Portal Access */}
           {guestSession?.guest ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-white/15">
-              <Link
-                href="/guest-portal"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs hover:bg-amber-500/20 transition-colors"
-                title="Go to In-Room Portal"
+            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium"
+                title="Verified Guest Profile"
               >
-                <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-[11px]">
+                <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-[10px]">
                   {guestSession.guest.firstName?.[0] || "G"}
                 </div>
-                <span className="hidden md:inline font-medium">{guestSession.guest.firstName}</span>
-              </Link>
+                <span className="hidden md:inline font-semibold">{guestSession.guest.firstName}</span>
+              </div>
               <button
                 onClick={handleLogoutGuest}
-                className="text-slate-400 hover:text-rose-400 p-1 text-xs"
+                className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 text-xs transition-colors"
                 title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -406,7 +538,7 @@ export default function LuxuryLandingPage() {
           ) : (
             <Link
               href="/guest-portal/register"
-              className="w-9 h-9 rounded-full bg-[#e5a67c]/20 hover:bg-[#e5a67c]/30 text-[#e5a67c] flex items-center justify-center border border-[#e5a67c]/30 transition-colors"
+              className="w-10 h-10 rounded-xl bg-white/[0.04] hover:bg-amber-500/10 text-amber-300 flex items-center justify-center border border-white/10 hover:border-amber-500/30 transition-all shadow-sm"
               title="Guest Authentication & Register"
             >
               <User className="w-4 h-4" />
@@ -416,15 +548,15 @@ export default function LuxuryLandingPage() {
           {/* Staff Login Link */}
           <Link
             href="/login"
-            className="hidden lg:inline text-[11px] text-slate-400 hover:text-slate-200 tracking-wider transition-colors ml-2"
+            className="hidden lg:inline text-[11px] text-slate-400 hover:text-slate-200 tracking-wider transition-colors ml-1 px-2 py-1 rounded-md hover:bg-white/5"
           >
             Staff Portal
           </Link>
         </div>
       </header>
 
-      {/* ─── 2. HERO LUXURY SANCTUARY (MATCHING UPLOADED IMAGE) ───────────────────── */}
-      <section className="relative min-h-[92vh] pt-24 pb-36 flex flex-col justify-center px-6 lg:px-16 overflow-hidden">
+      {/* ─── 2. HERO LUXURY SANCTUARY ────────────────────────────────────────────── */}
+      <section className="relative min-h-[95vh] pt-28 pb-20 flex flex-col justify-center px-6 lg:px-16 overflow-hidden">
         {/* Dark Golden Hour Luxury Suite Background */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0 scale-105 transition-transform duration-1000"
@@ -433,22 +565,22 @@ export default function LuxuryLandingPage() {
           }}
         >
           {/* Multi-layered cinematic gradient overlays */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0b0c10]/95 via-[#0b0c10]/80 to-[#0b0c10]/40" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c10] via-transparent to-[#0b0c10]/70" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#090a10]/95 via-[#090a10]/80 to-[#090a10]/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#090a10] via-transparent to-[#090a10]/70" />
           <div className="absolute inset-0 bg-radial from-amber-500/10 via-transparent to-black/80" />
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 max-w-3xl space-y-6 pt-12">
+        <div className="relative z-10 max-w-4xl space-y-6 pt-8 pb-10">
           {/* Forbes 5-Star Tagline Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md text-[11px] text-slate-200 uppercase tracking-widest font-medium">
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/15 backdrop-blur-xl text-[11px] text-slate-200 uppercase tracking-widest font-medium shadow-lg">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span>Haute Hôtellerie & Private Residences</span>
-            <span className="text-white/40">|</span>
+            <span className="text-white/30">|</span>
             <span className="text-amber-300 font-semibold">Forbes Five-Star 2026</span>
           </div>
 
-          {/* Main Title matching Screenshot */}
+          {/* Main Title */}
           <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-white leading-[1.08]">
             Transcendent <span className="italic font-serif font-light text-[#e2a87a]">Luxury</span>,
             <br />
@@ -460,117 +592,17 @@ export default function LuxuryLandingPage() {
             Experience bespoke hospitality, sanctuary suites, and Michelin-starred dining nestled majestically between the golden hour sky and urban horizon.
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          {/* Quick CTA */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button
-              onClick={() => {
-                const el = document.getElementById("booking-bar");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="bg-[#d97736] hover:bg-[#c86627] text-white font-semibold text-xs tracking-wider uppercase px-6 h-12 rounded-sm gap-2 shadow-xl shadow-orange-950/40"
-            >
-              <span>Check Availability</span>
-              <Calendar className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
               onClick={() => {
                 const el = document.getElementById("suites-section");
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="border-white/20 bg-white/5 hover:bg-white/15 text-white text-xs tracking-wider uppercase px-6 h-12 rounded-sm gap-2 backdrop-blur-sm"
+              className="bg-gradient-to-r from-[#d97736] to-[#e68a49] hover:from-[#c86627] hover:to-[#d97736] text-white font-semibold text-xs tracking-wider uppercase px-7 h-12 rounded-xl gap-2 shadow-xl shadow-orange-950/40 transition-transform active:scale-95"
             >
-              <span>Explore Suites</span>
+              <span>Explore Suites & Residences</span>
               <span className="text-xs">&darr;</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* ─── FLOATING LUXURY BOOKING BAR (BOTTOM OF HERO) ────────────────────────── */}
-        <div id="booking-bar" className="relative z-20 mt-16 max-w-5xl w-full mx-auto">
-          <div className="bg-[#12141a]/95 border border-white/15 backdrop-blur-xl rounded-xl p-3 sm:p-4 shadow-2xl shadow-black/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
-            {/* 1. Check-In */}
-            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors">
-              <div className="flex items-center gap-2 text-[10px] tracking-wider uppercase text-amber-400 font-semibold mb-1">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Check-In</span>
-              </div>
-              <input
-                type="date"
-                value={checkInDate}
-                min={todayStr}
-                onChange={(e) => setCheckInDate(e.target.value)}
-                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none cursor-pointer"
-              />
-              <span className="text-[10px] text-slate-400 block mt-0.5">Standard 15:00 Arrival</span>
-            </div>
-
-            {/* 2. Check-Out */}
-            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors">
-              <div className="flex items-center gap-2 text-[10px] tracking-wider uppercase text-amber-400 font-semibold mb-1">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Check-Out</span>
-              </div>
-              <input
-                type="date"
-                value={checkOutDate}
-                min={checkInDate || todayStr}
-                onChange={(e) => setCheckOutDate(e.target.value)}
-                className="w-full bg-transparent text-white font-mono text-sm focus:outline-none cursor-pointer"
-              />
-              <span className="text-[10px] text-slate-400 block mt-0.5">{nightsCount} Nights Selected</span>
-            </div>
-
-            {/* 3. Guests & Rooms */}
-            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors">
-              <div className="flex items-center gap-2 text-[10px] tracking-wider uppercase text-amber-400 font-semibold mb-1">
-                <Users className="w-3.5 h-3.5" />
-                <span>Guests & Rooms</span>
-              </div>
-              <select
-                value={adults}
-                onChange={(e) => setAdults(e.target.value)}
-                className="w-full bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="1" className="bg-slate-900">1 Guest, 1 Suite</option>
-                <option value="2" className="bg-slate-900">2 Guests, 1 Suite</option>
-                <option value="3" className="bg-slate-900">3 Guests, Royal Suite</option>
-                <option value="4" className="bg-slate-900">4 Guests, Presidential</option>
-              </select>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Butler Service Included</span>
-            </div>
-
-            {/* 4. Sanctuary Tier */}
-            <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-amber-400/40 transition-colors">
-              <div className="flex items-center gap-2 text-[10px] tracking-wider uppercase text-amber-400 font-semibold mb-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Sanctuary Tier</span>
-              </div>
-              <select
-                value={selectedTier}
-                onChange={(e) => setSelectedTier(e.target.value)}
-                className="w-full bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer truncate"
-              >
-                <option value="all" className="bg-slate-900">All Signature Suites</option>
-                {roomTypes.map((t) => (
-                  <option key={t.id} value={t.id} className="bg-slate-900">
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Best Available Rate</span>
-            </div>
-
-            {/* 5. Find Sanctuary Button */}
-            <Button
-              onClick={() => {
-                const el = document.getElementById("suites-section");
-                el?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="w-full h-full min-h-[58px] bg-[#d97736] hover:bg-[#c86627] text-white font-bold text-xs tracking-wider uppercase rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-950/40 transition-transform active:scale-95"
-            >
-              <span>Find Sanctuary</span>
-              <Search className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -597,7 +629,7 @@ export default function LuxuryLandingPage() {
           {filteredSuites.map((suite) => (
             <Card
               key={suite.id}
-              className="bg-[#12141a] border-white/10 overflow-hidden rounded-xl hover:border-amber-500/40 transition-all duration-300 flex flex-col group shadow-2xl"
+              className="bg-[#10121a]/95 border-white/[0.08] hover:border-amber-500/40 overflow-hidden rounded-2xl transition-all duration-500 flex flex-col group shadow-xl hover:shadow-2xl hover:shadow-amber-500/5"
             >
               {/* Suite Photo */}
               <div className="relative h-64 sm:h-72 w-full overflow-hidden">
@@ -606,15 +638,15 @@ export default function LuxuryLandingPage() {
                   alt={suite.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#12141a] via-transparent to-black/30" />
-                <Badge className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-amber-300 border-amber-500/30 text-[10px] tracking-widest uppercase">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#10121a] via-transparent to-black/30" />
+                <Badge className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-amber-300 border-amber-500/30 text-[10px] tracking-widest uppercase rounded-lg px-2.5 py-1 font-semibold">
                   {suite.size || 75} m² &bull; Max {suite.capacityAdults || 2} Adults
                 </Badge>
-                <div className="absolute bottom-4 right-4 text-right">
-                  <span className="text-2xl font-serif font-bold text-white block">
+                <div className="absolute bottom-4 right-4 text-right bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 shadow-lg">
+                  <span className="text-2xl font-serif font-bold text-white block leading-tight">
                     {formatPrice(Number(suite.basePrice || 220))}
                   </span>
-                  <span className="text-[10px] text-slate-300 uppercase tracking-wider">Per Night</span>
+                  <span className="text-[10px] text-amber-400/90 uppercase tracking-wider font-semibold">Per Night</span>
                 </div>
               </div>
 
@@ -624,36 +656,36 @@ export default function LuxuryLandingPage() {
                   <h3 className="font-serif text-2xl text-white font-medium group-hover:text-amber-300 transition-colors">
                     {suite.name}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-3 font-light">
                     {suite.description}
                   </p>
                 </div>
 
                 {/* Amenity Badges */}
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-white/10 text-[11px] text-slate-300">
-                  <span className="px-2.5 py-1 rounded-sm bg-white/5 border border-white/10 flex items-center gap-1">
-                    <Wifi className="w-3 h-3 text-amber-400" /> High-Speed Wi-Fi
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-white/[0.08] text-[11px] text-slate-300">
+                  <span className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] flex items-center gap-1.5 font-medium">
+                    <Wifi className="w-3.5 h-3.5 text-amber-400" /> High-Speed Wi-Fi
                   </span>
-                  <span className="px-2.5 py-1 rounded-sm bg-white/5 border border-white/10 flex items-center gap-1">
-                    <Coffee className="w-3 h-3 text-amber-400" /> In-Room Espresso
+                  <span className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] flex items-center gap-1.5 font-medium">
+                    <Coffee className="w-3.5 h-3.5 text-amber-400" /> In-Room Espresso
                   </span>
-                  <span className="px-2.5 py-1 rounded-sm bg-white/5 border border-white/10 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-400" /> 24/7 Butler
+                  <span className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] flex items-center gap-1.5 font-medium">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> 24/7 Butler
                   </span>
-                  <span className="px-2.5 py-1 rounded-sm bg-white/5 border border-white/10 flex items-center gap-1">
-                    <Tv className="w-3 h-3 text-amber-400" /> Smart TV
+                  <span className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] flex items-center gap-1.5 font-medium">
+                    <Tv className="w-3.5 h-3.5 text-amber-400" /> Smart TV
                   </span>
                 </div>
 
                 {/* Reserve Suite CTA */}
-                <div className="pt-2 flex items-center justify-between gap-3">
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/[0.06]">
                   <div className="text-xs text-slate-400 font-mono">
                     Total for {nightsCount} night{nightsCount > 1 ? "s" : ""}:{" "}
-                    <strong className="text-white font-bold">{formatPrice(Number(suite.basePrice || 220) * nightsCount)}</strong>
+                    <strong className="text-white font-bold text-sm">{formatPrice(Number(suite.basePrice || 220) * nightsCount)}</strong>
                   </div>
                   <Button
                     onClick={() => openBookingForSuite(suite)}
-                    className="bg-[#d97736] hover:bg-[#c86627] text-white font-semibold text-xs tracking-wider uppercase px-5 h-10 rounded-sm shadow-md transition-all active:scale-95"
+                    className="bg-gradient-to-r from-[#d97736] to-[#e68a49] hover:from-[#c86627] hover:to-[#d97736] text-white font-semibold text-xs tracking-wider uppercase px-6 h-11 rounded-xl shadow-md transition-all active:scale-95"
                   >
                     Reserve Suite &rarr;
                   </Button>
@@ -664,28 +696,7 @@ export default function LuxuryLandingPage() {
         </div>
       </section>
 
-      {/* ─── 4. GUEST IN-ROOM SERVICES CALLOUT ───────────────────────────────────── */}
-      <section className="py-16 px-6 lg:px-16 bg-gradient-to-b from-transparent via-amber-500/5 to-transparent border-y border-white/5">
-        <div className="max-w-5xl mx-auto bg-[#12141a]/80 border border-amber-500/30 rounded-2xl p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-8 backdrop-blur-md">
-          <div className="space-y-3">
-            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs">
-              Checked-In Guests
-            </Badge>
-            <h3 className="font-serif text-2xl sm:text-3xl text-white">
-              Already Staying With Us?
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed">
-              Access in-room chef dining, private airport chauffeur transfers, housekeeping amenities, or report room maintenance directly from your room device.
-            </p>
-          </div>
-          <Link href="/guest-portal">
-            <Button className="bg-white text-slate-950 hover:bg-slate-200 font-bold text-xs uppercase tracking-wider px-6 h-12 rounded-sm shadow-xl shrink-0 gap-2">
-              <span>Open In-Room Portal</span>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-      </section>
+
 
       {/* ─── 5. RESERVATION & ONLINE PAYMENT MODAL ──────────────────────────────── */}
       <Dialog open={bookingModalOpen} onOpenChange={setBookingModalOpen}>
@@ -718,95 +729,275 @@ export default function LuxuryLandingPage() {
                 </div>
               </div>
 
-              {/* Guest Information (Only 4 Fields!) */}
+              {/* Guest Information: Verified Identity or Registration */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-semibold text-amber-300 uppercase tracking-wider">
-                    Guest Identification & Contact
+                    Guest Identification & Verification
                   </Label>
-                  <span className="text-[10px] text-slate-400">Auto-links to your reservation</span>
+                  <span className="text-[10px] text-emerald-400 font-medium">✓ Online Identity System</span>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-300">Full Name *</Label>
-                  <Input
-                    placeholder="e.g. Abebe Tadesse"
-                    value={bookingGuestName}
-                    onChange={(e) => setBookingGuestName(e.target.value)}
-                    className="bg-black/50 border-slate-700 text-white h-9 text-xs"
-                    required
-                  />
-                </div>
+                {guestSession?.guest ? (
+                  /* Authenticated Guest Profile Card - ZERO duplicate inputs */
+                  <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+                          {guestSession.guest.firstName?.[0] || "G"}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-white">
+                              {guestSession.guest.fullName || `${guestSession.guest.firstName} ${guestSession.guest.lastName}`.trim()}
+                            </span>
+                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] py-0 px-1.5 font-normal">
+                              ✓ Verified Guest
+                            </Badge>
+                          </div>
+                          <div className="text-[11px] text-slate-300 font-mono mt-0.5 flex flex-wrap gap-x-3">
+                            <span>Phone: <strong className="text-white">{guestSession.guest.phone || "—"}</strong></span>
+                            {guestSession.guest.email && (
+                              <span>Email: <strong className="text-white">{guestSession.guest.email}</strong></span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <Label className="text-[11px] text-slate-300">Phone * (10 Digits)</Label>
-                      <span className="text-[10px] font-mono text-slate-400">{bookingGuestPhone.length}/10</span>
+                      {(guestSession.guest.nationalId || guestSession.guest.idNumber || bookingGuestFayda) && (
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-slate-400 block">Fayda National ID</span>
+                          <span className="text-xs font-mono font-semibold text-emerald-300 tracking-wider">
+                            {guestSession.guest.nationalId || guestSession.guest.idNumber || bookingGuestFayda}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <Input
-                      type="tel"
-                      placeholder="0911318622"
-                      value={bookingGuestPhone}
-                      maxLength={10}
-                      onChange={(e) => setBookingGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="bg-black/50 border-slate-700 text-white h-9 text-xs font-mono"
-                      required
-                    />
-                  </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-300">Email Address (Optional)</Label>
-                    <Input
-                      type="email"
-                      placeholder="abebe@example.com"
-                      value={bookingGuestEmail}
-                      onChange={(e) => setBookingGuestEmail(e.target.value)}
-                      className="bg-black/50 border-slate-700 text-white h-9 text-xs"
-                    />
+                    <div className="pt-2 border-t border-emerald-500/20 flex items-center gap-1.5 text-[11px] text-emerald-300">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>
+                        Your contact and identity are recorded in the hotel system. The receptionist will fast-track your room key without re-entering your details.
+                      </span>
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between">
-                    <Label className="text-[11px] text-slate-300">Fayda National ID * (16 Digits)</Label>
-                    <span className="text-[10px] font-mono text-slate-400">{bookingGuestFayda.length}/16</span>
+                ) : (
+                  /* Not yet registered or signed in callout (no duplicate input fields) */
+                  <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3 text-center">
+                    <div className="mx-auto w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Guest Registration Required</h4>
+                      <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
+                        Please register or sign in with your Phone & Fayda ID first. Your personal details will be securely saved in Nexus HMS, ensuring you never have to re-enter them here or at the front desk.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs h-9 px-4 gap-1.5 shadow-md"
+                      onClick={() => router.push("/guest-portal/register")}
+                    >
+                      <span>Register or Sign In with Phone &rarr;</span>
+                    </Button>
                   </div>
-                  <Input
-                    type="text"
-                    placeholder="1234567890123456"
-                    value={bookingGuestFayda}
-                    maxLength={16}
-                    onChange={(e) => setBookingGuestFayda(e.target.value.replace(/\D/g, "").slice(0, 16))}
-                    className="bg-black/50 border-slate-700 text-white h-9 text-xs font-mono tracking-widest"
-                    required
-                  />
-                </div>
+                )}
 
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-300">Special Preferences / Requests (Optional)</Label>
-                  <textarea
-                    rows={2}
-                    placeholder="e.g. High floor preference, airport transfer flight arrival, extra feather pillows"
-                    value={bookingSpecialRequests}
-                    onChange={(e) => setBookingSpecialRequests(e.target.value)}
-                    className="w-full rounded-md border border-slate-700 bg-black/50 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
-                  />
-                </div>
+                {/* Special Requests & In-Room Services - visible only after guest signs in or registers */}
+                {guestSession?.guest && (
+                  <div className="pt-3 border-t border-white/10 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        Special Requests & In-Room Services
+                      </span>
+                      <div className="flex items-center gap-1.5 relative">
+                        {/* + Add from Online Service Menu button */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2.5 text-[11px] border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 gap-1 font-medium rounded-md shadow-sm"
+                          onClick={() => {
+                            setShowServiceDropdown((v) => !v);
+                            setShowOtherInput(false);
+                          }}
+                        >
+                          <span>+ Add from Online Service Menu...</span>
+                          <ChevronDown className={`w-3 h-3 text-amber-400 transition-transform ${showServiceDropdown ? "rotate-180" : ""}`} />
+                        </Button>
+
+                        {/* + Other button */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={`h-7 px-2.5 text-[11px] font-medium rounded-md gap-1 shadow-sm transition-all ${
+                            showOtherInput
+                              ? "bg-amber-500 text-slate-950 border-amber-500 font-bold"
+                              : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                          }`}
+                          onClick={() => {
+                            setShowOtherInput((v) => !v);
+                            setShowServiceDropdown(false);
+                          }}
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Other</span>
+                        </Button>
+
+                        {/* Online Service Menu Popover Dropdown */}
+                        {showServiceDropdown && (
+                          <div className="absolute right-0 top-9 z-50 w-80 max-w-[90vw] bg-[#12141a] border border-white/20 rounded-lg shadow-2xl p-2.5 space-y-2.5 max-h-64 overflow-y-auto">
+                            <div className="flex items-center justify-between pb-1.5 border-b border-white/10 text-[11px] text-slate-400 font-medium">
+                              <span className="text-white font-semibold flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-amber-400" /> Catalog Services
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowServiceDropdown(false)}
+                                className="text-slate-400 hover:text-white"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            {SPECIAL_REQUEST_CATALOG.map((cat) => (
+                              <div key={cat.category} className="space-y-1">
+                                <span className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider block">
+                                  {cat.category}
+                                </span>
+                                <div className="space-y-0.5">
+                                  {cat.items.map((item) => {
+                                    const isSelected = selectedSpecialPresets.includes(item);
+                                    return (
+                                      <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => {
+                                          if (isSelected) {
+                                            setSelectedSpecialPresets((prev) => prev.filter((x) => x !== item));
+                                          } else {
+                                            setSelectedSpecialPresets((prev) => [...prev, item]);
+                                          }
+                                        }}
+                                        className={`w-full text-left px-2 py-1.5 rounded text-[11px] flex items-center justify-between transition-colors ${
+                                          isSelected
+                                            ? "bg-amber-500/20 text-amber-200 border border-amber-500/30"
+                                            : "text-slate-300 hover:bg-white/10"
+                                        }`}
+                                      >
+                                        <span className="truncate">{item}</span>
+                                        {isSelected && <Check className="w-3 h-3 text-amber-400 shrink-0 ml-1.5" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Compact "Other" Input: appears only when "+ Other" is clicked, no permanent large input */}
+                    {showOtherInput && (
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <Input
+                          value={otherText}
+                          onChange={(e) => setOtherText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (otherText.trim()) {
+                                if (!selectedSpecialPresets.includes(otherText.trim())) {
+                                  setSelectedSpecialPresets((prev) => [...prev, otherText.trim()]);
+                                }
+                                setOtherText("");
+                                setShowOtherInput(false);
+                              }
+                            }
+                          }}
+                          placeholder="Type custom request (e.g. Quiet top floor, feather-free pillows, late arrival)..."
+                          className="h-8 text-xs bg-black/40 border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500"
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 px-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shrink-0"
+                          onClick={() => {
+                            if (otherText.trim()) {
+                              if (!selectedSpecialPresets.includes(otherText.trim())) {
+                                setSelectedSpecialPresets((prev) => [...prev, otherText.trim()]);
+                              }
+                              setOtherText("");
+                              setShowOtherInput(false);
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-slate-400 hover:text-white text-xs shrink-0"
+                          onClick={() => {
+                            setOtherText("");
+                            setShowOtherInput(false);
+                          }}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Selected Requests Chips Display */}
+                    {selectedSpecialPresets.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedSpecialPresets.map((item, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="outline"
+                            className="bg-amber-500/10 border-amber-500/30 text-amber-200 text-[11px] py-0.5 px-2 flex items-center gap-1.5 font-normal rounded-md"
+                          >
+                            <span className="truncate max-w-[280px]">{item}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSpecialPresets((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-slate-400 hover:text-red-400 transition-colors ml-0.5"
+                              title="Remove item"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <DialogFooter className="flex gap-2 pt-3 border-t border-white/10">
                 <Button variant="ghost" size="sm" onClick={() => setBookingModalOpen(false)} className="text-slate-400">
                   Cancel
                 </Button>
-                <Button
-                  className="bg-[#d97736] hover:bg-[#c86627] text-white font-bold text-xs gap-1.5"
-                  disabled={!bookingGuestName.trim() || bookingGuestPhone.length !== 10}
-                  onClick={() => setBookingStep("payment")}
-                >
-                  <span>Proceed to Online Payment</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
+                {guestSession?.guest ? (
+                  <Button
+                    className="bg-[#d97736] hover:bg-[#c86627] text-white font-bold text-xs gap-1.5"
+                    onClick={() => setBookingStep("payment")}
+                  >
+                    <span>Proceed to Online Payment</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs gap-1.5"
+                    onClick={() => router.push("/guest-portal/register")}
+                  >
+                    <span>Register / Sign In First</span>
+                  </Button>
+                )}
               </DialogFooter>
             </div>
           )}
@@ -818,7 +1009,7 @@ export default function LuxuryLandingPage() {
                 <div>
                   <span className="text-[11px] text-amber-300 block font-medium">Pre-Paid Amount Due</span>
                   <span className="text-lg font-mono font-bold text-white">
-                    {totalEtb.toLocaleString()} ETB <span className="text-xs text-slate-400 font-normal">(${totalUsd} USD)</span>
+                    {totalEtb.toLocaleString()} ETB
                   </span>
                 </div>
                 <Badge variant="outline" className="text-emerald-400 border-emerald-500/40 text-[10px]">
@@ -829,43 +1020,43 @@ export default function LuxuryLandingPage() {
               {/* Payment Method Switcher */}
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-slate-300">Choose Online Payment Channel</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("telebirr")}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       paymentMethod === "telebirr"
-                        ? "border-amber-500 bg-amber-500/15 text-white"
-                        : "border-slate-800 bg-black/40 text-slate-400 hover:border-slate-700"
+                        ? "border-amber-500 bg-amber-500/15 text-white ring-2 ring-amber-500/30 shadow-md shadow-amber-500/10"
+                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200"
                     }`}
                   >
-                    <p className="font-bold text-sm text-amber-400">Telebirr</p>
+                    <p className="font-bold text-xs sm:text-sm text-amber-400">Telebirr</p>
                     <p className="text-[10px] text-slate-300 mt-0.5">SuperApp / QR</p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("cbe")}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       paymentMethod === "cbe"
-                        ? "border-purple-500 bg-purple-500/15 text-white"
-                        : "border-slate-800 bg-black/40 text-slate-400 hover:border-slate-700"
+                        ? "border-purple-500 bg-purple-500/15 text-white ring-2 ring-purple-500/30 shadow-md shadow-purple-500/10"
+                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200"
                     }`}
                   >
-                    <p className="font-bold text-sm text-purple-400">CBE Birr</p>
+                    <p className="font-bold text-xs sm:text-sm text-purple-400">CBE Birr</p>
                     <p className="text-[10px] text-slate-300 mt-0.5">Commercial Bank</p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("chapa")}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       paymentMethod === "chapa"
-                        ? "border-emerald-500 bg-emerald-500/15 text-white"
-                        : "border-slate-800 bg-black/40 text-slate-400 hover:border-slate-700"
+                        ? "border-emerald-500 bg-emerald-500/15 text-white ring-2 ring-emerald-500/30 shadow-md shadow-emerald-500/10"
+                        : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-200"
                     }`}
                   >
-                    <p className="font-bold text-sm text-emerald-400">Chapa</p>
+                    <p className="font-bold text-xs sm:text-sm text-emerald-400">Chapa</p>
                     <p className="text-[10px] text-slate-300 mt-0.5">Visa / Debit</p>
                   </button>
                 </div>
@@ -938,9 +1129,9 @@ export default function LuxuryLandingPage() {
                 </p>
               </div>
 
-              <DialogFooter className="flex gap-2 pt-3 border-t border-white/10">
-                <Button variant="ghost" size="sm" onClick={() => setBookingStep("review")} className="text-slate-400">
-                  &larr; Back
+              <DialogFooter className="flex items-center justify-between gap-2 pt-3 border-t border-white/10">
+                <Button variant="ghost" size="icon" onClick={() => setBookingStep("review")} className="h-8 w-8 text-slate-400" title="Back" aria-label="Back">
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-lg shadow-emerald-950/40"
@@ -995,18 +1186,41 @@ export default function LuxuryLandingPage() {
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed max-w-sm mx-auto">
-                When you arrive at the hotel front desk on <strong>{checkInDate}</strong>, our receptionist system will automatically detect your pre-paid status. You will only collect your RFID or Manual key and head straight to your suite!
+                When you arrive at the hotel front desk on <strong>{checkInDate}</strong>, our receptionist system will automatically detect your pre-paid status. You will only collect your room key and head straight to your suite!
               </p>
+
+              {/* Request In-Room Services Banner */}
+              <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Need In-Room Dining, Airport Pickup, or Extra Amenities?</span>
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Order gourmet room service, schedule chauffeur airport transfers, or request extra amenities anytime.
+                  </p>
+                </div>
+                <Button
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs h-9 px-3 shrink-0 gap-1"
+                  onClick={() => {
+                    setBookingModalOpen(false);
+                    router.push("/guest-portal/services");
+                  }}
+                >
+                  <span>Request Services &rarr;</span>
+                </Button>
+              </div>
 
               <div className="pt-2 flex flex-col sm:flex-row gap-2">
                 <Button
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs h-10"
+                  className="flex-1 bg-[#d97736] hover:bg-[#c86627] text-white font-bold text-xs h-10 gap-1.5"
                   onClick={() => {
                     setBookingModalOpen(false);
-                    router.push("/guest-portal");
+                    router.push("/guest-portal/services");
                   }}
                 >
-                  Go to In-Room Guest Portal &rarr;
+                  <Sparkles className="w-4 h-4" />
+                  <span>Request Services Now &rarr;</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -1058,10 +1272,10 @@ export default function LuxuryLandingPage() {
               Guest Experience
             </h4>
             <ul className="space-y-2 font-light">
-              <li><Link href="/guest-portal" className="hover:text-amber-400 transition-colors">In-Room Dining Menu</Link></li>
-              <li><Link href="/guest-portal" className="hover:text-amber-400 transition-colors">Airport Chauffeur Dispatch</Link></li>
-              <li><Link href="/guest-portal" className="hover:text-amber-400 transition-colors">Housekeeping & Amenities</Link></li>
-              <li><Link href="/guest-portal" className="hover:text-amber-400 transition-colors">Room Maintenance & Defect Alert</Link></li>
+              <li><a href="#suites-section" className="hover:text-amber-400 transition-colors">Michelin In-Room Dining</a></li>
+              <li><a href="#suites-section" className="hover:text-amber-400 transition-colors">Private Airport VIP Chauffeur</a></li>
+              <li><a href="#suites-section" className="hover:text-amber-400 transition-colors">24/7 Dedicated Butler Service</a></li>
+              <li><a href="#suites-section" className="hover:text-amber-400 transition-colors">Bespoke Concierge & Spa</a></li>
             </ul>
           </div>
 
