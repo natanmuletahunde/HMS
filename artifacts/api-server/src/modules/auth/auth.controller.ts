@@ -47,6 +47,48 @@ export class AuthController {
     return this.auth.refresh(body.refreshToken);
   }
 
+  @Public()
+  @Post('forgot-password/request-otp')
+  @HttpCode(200)
+  requestStaffOtp(@Body() body: { identifier: string }) {
+    if (!body?.identifier) {
+      throw new BadRequestException('Please provide your work email or registered mobile phone number');
+    }
+    return this.auth.requestStaffOtp(body.identifier);
+  }
+
+  @Public()
+  @Post('forgot-password/verify-otp')
+  @HttpCode(200)
+  verifyStaffOtp(@Body() body: { phone?: string; identifier?: string; code: string }) {
+    const phone = body?.phone || body?.identifier;
+    if (!phone || !body?.code) {
+      throw new BadRequestException('Phone number and verification code are required');
+    }
+    return this.auth.verifyStaffOtp(phone, body.code);
+  }
+
+  @Public()
+  @Post('forgot-password/reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: { resetToken: string; newPassword: string }) {
+    if (!body?.resetToken || !body?.newPassword) {
+      throw new BadRequestException('Reset token and new password are required');
+    }
+    return this.auth.resetPasswordWithToken(body.resetToken, body.newPassword);
+  }
+
+  @Public()
+  @Post('otp-login')
+  @HttpCode(200)
+  otpLogin(@Body() body: { phone?: string; identifier?: string; code: string }) {
+    const phone = body?.phone || body?.identifier;
+    if (!phone || !body?.code) {
+      throw new BadRequestException('Phone number and verification code are required');
+    }
+    return this.auth.otpLogin(phone, body.code);
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

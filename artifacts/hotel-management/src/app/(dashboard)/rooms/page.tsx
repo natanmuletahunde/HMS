@@ -302,13 +302,6 @@ function RoomsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xs font-semibold tracking-wider text-text-muted uppercase">Front Desk / Rooms & Availability</h1>
-          <h2 className="text-2xl font-bold tracking-tight">Rooms & Availability</h2>
-        </div>
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">

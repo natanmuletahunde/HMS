@@ -33,7 +33,6 @@ const ROUTE_BREADCRUMBS: Record<string, string> = {
   "/bed-types": "Room Setup / Bed Types",
   "/room-amenities": "Room Setup / Amenities",
   "/room-pricing": "Room Setup / Pricing",
-  "/dashboard": "Front Desk / Dashboard",
   "/rooms": "Front Desk / Rooms",
   "/reservations": "Front Desk / Reservations",
   "/housekeeping": "Operations / Housekeeping",
@@ -66,10 +65,12 @@ export function Topbar() {
   };
 
   const currentBreadcrumb = (
+    pathname === "/dashboard" ||
     pathname === "/hotel" ||
     pathname === "/branches" ||
     pathname === "/check-out" ||
     pathname === "/check-in" ||
+    pathname === "/restaurant" ||
     pathname.startsWith("/stay")
   ) ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
@@ -86,20 +87,6 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-
-        {/* Quiet Notifications Icon with subtle Badge */}
-        <button
-          type="button"
-          onClick={() => router.push("/notifications")}
-          className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] border border-transparent hover:border-[var(--border)] transition-all"
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4 stroke-[1.5]" />
-          {guestAlerts.length > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--blue-600)]" />
-          )}
-        </button>
-
         {/* Theme Toggle (Capsule) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

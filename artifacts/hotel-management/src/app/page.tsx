@@ -18,7 +18,6 @@ import {
   Wifi,
   Coffee,
   Tv,
-  Droplets,
   Star,
   MapPin,
   Phone,
@@ -37,7 +36,8 @@ import {
   Award,
   Shield,
   Utensils,
-  Dumbbell,
+  UtensilsCrossed,
+  Cigarette,
   Car,
   Menu,
   Clock,
@@ -127,57 +127,6 @@ const heroSlides = [
   },
 ];
 
-const mockServices = [
-  {
-    id: "srv-1",
-    category: "Food & Dining",
-    title: "Restaurant & Room Service",
-    description:
-      "Enjoy delicious Ethiopian and international food delivered straight to your room or served fresh in our main restaurant.",
-    icon: Utensils,
-  },
-  {
-    id: "srv-2",
-    category: "Spa & Relaxation",
-    title: "Spa, Massage & Sauna",
-    description:
-      "Relax your body and mind with soothing massages, herbal steam baths, and quiet sauna rooms.",
-    icon: Sparkles,
-  },
-  {
-    id: "srv-3",
-    category: "Transportation",
-    title: "Airport Pickup & Car Rides",
-    description:
-      "Free airport pickup, friendly help with your luggage, and comfortable air-conditioned car rides around the city.",
-    icon: Car,
-  },
-  {
-    id: "srv-4",
-    category: "Guest Support",
-    title: "24/7 Front Desk & Room Help",
-    description:
-      "Our team is available 24 hours a day to assist you with room orders, taxi bookings, and city directions.",
-    icon: ShieldCheck,
-  },
-  {
-    id: "srv-5",
-    category: "Swimming Pool",
-    title: "Warm Swimming Pool & Drinks",
-    description:
-      "Swim in our warm rooftop pool with beautiful city views, or relax on sun loungers with cold drinks and snacks.",
-    icon: Droplets,
-  },
-  {
-    id: "srv-6",
-    category: "Gym & Fitness",
-    title: "Gym & Exercise Center",
-    description:
-      "Modern workout equipment open 24/7, personal trainers to guide you, yoga classes, and hot steam showers.",
-    icon: Dumbbell,
-  },
-];
-
 const mockTestimonials = [
   {
     id: 1,
@@ -194,7 +143,7 @@ const mockTestimonials = [
     role: "Tech Executive, Singapore",
     rating: 5,
     comment:
-      "Flawless high-speed Wi-Fi, serene work atmosphere, and the 24/7 concierge took care of every airport transfer. Nexus Grand is my definitive choice in East Africa.",
+      "Flawless high-speed Wi-Fi, serene work atmosphere, and the 24/7 front desk team took care of every airport transfer. Nexus Grand is my definitive choice in East Africa.",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80",
   },
   {
@@ -290,6 +239,12 @@ export default function LuxuryLandingPage() {
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherText, setOtherText] = useState("");
 
+  // Room Preferences for Online Reservation (Smoking, Bed Type, Dining, In-Room)
+  const [smokingPreference, setSmokingPreference] = useState<"non_smoking" | "smoking">("non_smoking");
+  const [bedPreference, setBedPreference] = useState<"king" | "queen" | "twin" | "single">("king");
+  const [foodPreference, setFoodPreference] = useState<"none" | "halal" | "vegetarian" | "vegan">("none");
+  const [inRoomPreferences, setInRoomPreferences] = useState("");
+
   // Payment Selection (Telebirr, CBE, Chapa, Card)
   const [paymentMethod, setPaymentMethod] = useState<"telebirr" | "cbe" | "chapa" | "card">("telebirr");
   const [paymentReference, setPaymentReference] = useState("");
@@ -322,23 +277,52 @@ export default function LuxuryLandingPage() {
 
   // Check login on mount and restore pending reservation if returning from login
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("nexus_guest_session") || localStorage.getItem("nexus_guest_session");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed && parsed.guest) {
-            setGuestSession(parsed);
-            setBookingGuestName(parsed.guest.fullName || `${parsed.guest.firstName} ${parsed.guest.lastName}`.trim());
-            setBookingGuestPhone(parsed.guest.phone || "");
-            setBookingGuestEmail(parsed.guest.email || "");
-            setBookingGuestFayda(parsed.guest.nationalId || parsed.guest.idNumber || "");
+    const refreshSession = async () => {
+      if (typeof window !== "undefined") {
+        const token = sessionStorage.getItem("nexus_guest_token") || localStorage.getItem("nexus_guest_token");
+        if (token) {
+          try {
+            const res = await fetch("/api/guest-portal/me", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.valid) {
+                setGuestSession(data);
+                if (data.guest) {
+                  setBookingGuestName(data.guest.fullName || `${data.guest.firstName} ${data.guest.lastName}`.trim());
+                  setBookingGuestPhone(data.guest.phone || "");
+                  setBookingGuestEmail(data.guest.email || "");
+                }
+                sessionStorage.setItem("nexus_guest_session", JSON.stringify(data));
+                localStorage.setItem("nexus_guest_session", JSON.stringify(data));
+                return;
+              }
+            }
+          } catch {
+            // fallback to stored
           }
-        } catch {
-          // ignore
+        }
+
+        const saved = sessionStorage.getItem("nexus_guest_session") || localStorage.getItem("nexus_guest_session");
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.guest) {
+              setGuestSession(parsed);
+              setBookingGuestName(parsed.guest.fullName || `${parsed.guest.firstName} ${parsed.guest.lastName}`.trim());
+              setBookingGuestPhone(parsed.guest.phone || "");
+              setBookingGuestEmail(parsed.guest.email || "");
+              setBookingGuestFayda(parsed.guest.nationalId || parsed.guest.idNumber || "");
+            }
+          } catch {
+            // ignore
+          }
         }
       }
-    }
+    };
+
+    refreshSession();
 
     // Fetch Room Types and Availability
     Promise.all([
@@ -495,7 +479,7 @@ export default function LuxuryLandingPage() {
               type: "Extended",
               code: "ROYAL",
               description:
-                "Lavish penthouse suite with a 360-degree terrace, private dining pavilion, freestanding soaking bath, and personal concierge attendant.",
+                "Lavish penthouse suite with a 360-degree terrace, private dining pavilion, freestanding soaking bath, and personal butler attendant.",
               basePrice: 420,
               capacityAdults: 3,
               capacity: 3,
@@ -650,6 +634,10 @@ export default function LuxuryLandingPage() {
     setShowOtherInput(false);
     setOtherText("");
     setSelectedSpecialPresets([]);
+    setSmokingPreference("non_smoking");
+    setBedPreference("king");
+    setFoodPreference("none");
+    setInRoomPreferences("");
     setBookingStep("review");
     setBookingModalOpen(true);
     setRoomDetailsModalOpen(false);
@@ -743,8 +731,27 @@ export default function LuxuryLandingPage() {
       const targetRoom = availableRooms.find((r) => r.roomTypeId === selectedSuite.id) || availableRooms[0];
       const assignedRoomId = targetRoom?.id;
 
-      // 3. Build composite special requests from selected presets + custom text
+      // 3. Build composite special requests from room preferences, presets, and custom requests
+      const prefDetails: string[] = [];
+      prefDetails.push(smokingPreference === "smoking" ? "Smoking Room: Smoking Allowed" : "Smoking Room: Non-Smoking");
+      const bedMap: Record<string, string> = {
+        king: "King Bed",
+        queen: "Queen Bed",
+        twin: "Twin Beds",
+        single: "Single Bed",
+      };
+      if (bedPreference) prefDetails.push(`Bed: ${bedMap[bedPreference] || bedPreference}`);
+      const foodMap: Record<string, string> = {
+        none: "Dining: Standard",
+        halal: "Dining: Halal Certified",
+        vegetarian: "Dining: Vegetarian",
+        vegan: "Dining: Strict Vegan",
+      };
+      if (foodPreference) prefDetails.push(foodMap[foodPreference] || `Dining: ${foodPreference}`);
+      if (inRoomPreferences.trim()) prefDetails.push(`In-Room Request: ${inRoomPreferences.trim()}`);
+
       const compositeSpecialRequests = [
+        prefDetails.join(" • "),
         ...selectedSpecialPresets,
         customSpecialRequest.trim(),
         bookingSpecialRequests.trim(),
@@ -822,7 +829,7 @@ export default function LuxuryLandingPage() {
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setContactFeedback("Thank you! Your inquiry has been sent to our 24/7 concierge desk.");
+    setContactFeedback("Thank you! Your inquiry has been sent to our 24/7 front desk.");
     setContactForm({ name: "", email: "", subject: "", message: "" });
     setTimeout(() => setContactFeedback(""), 6000);
   };
@@ -867,8 +874,8 @@ export default function LuxuryLandingPage() {
             <nav className="hidden lg:flex items-center gap-8 text-xs font-bold tracking-wider uppercase">
               {[
                 { label: "Rooms & Suites", href: "#rooms" },
+                { label: "Reserve Room", href: "#rooms" },
                 { label: "About", href: "#about" },
-                { label: "Services", href: "#services" },
                 { label: "Contact", href: "#contact" },
               ].map((item) => (
                 <a
@@ -883,6 +890,16 @@ export default function LuxuryLandingPage() {
 
             {/* Right Actions: Clean & Non-Cluttered */}
             <div className="hidden sm:flex items-center gap-3.5 shrink-0">
+              {/* Services Button (Pill button placed on the left side of My Reservations) */}
+              <Link
+                href="/guest-portal/services"
+                className="relative px-3.5 py-2 text-xs font-semibold text-gray-200 hover:text-white bg-slate-900 hover:bg-slate-850 border border-slate-700/80 hover:border-amber-500/40 rounded-full transition-all flex items-center gap-2 shadow-sm cursor-pointer group"
+                title="Hotel & In-Room Services"
+              >
+                <Sparkles size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>Services</span>
+              </Link>
+
               {/* My Reservations Pill */}
               <button
                 onClick={() => setIsBookingsModalOpen(true)}
@@ -900,16 +917,35 @@ export default function LuxuryLandingPage() {
               {/* Guest Auth State */}
               {guestSession?.guest ? (
                 <div className="flex items-center gap-2 pl-1 border-l border-slate-800">
-                  <Link
-                    href="/guest-portal/services"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/25 transition-colors"
-                    title="Open In-Room Guest Portal"
-                  >
-                    <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-[10px]">
-                      {guestSession.guest.firstName?.[0] || "G"}
-                    </div>
-                    <span className="font-semibold">{guestSession.guest.firstName}</span>
-                  </Link>
+                  {guestSession?.isStayActive || guestSession?.reservation?.status === "checked_in" ? (
+                    <Link
+                      href="/guest-portal/services"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/25 transition-colors"
+                      title={`Checked In — Room ${guestSession?.room?.number || ""}`}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                        {guestSession.guest.firstName?.[0] || "G"}
+                      </div>
+                      <span className="font-semibold">{guestSession.guest.firstName}</span>
+                      <span className="text-[10px] text-emerald-400 font-mono">
+                        (Rm {guestSession?.room?.number || "In-Room"})
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/guest-portal/services"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                      title="Reservation Confirmed — Check-In Pending"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                        {guestSession.guest.firstName?.[0] || "G"}
+                      </div>
+                      <span className="font-semibold">{guestSession.guest.firstName}</span>
+                      <span className="text-[10px] text-amber-400 font-medium">
+                        (Pre-Arrival)
+                      </span>
+                    </Link>
+                  )}
                   <button
                     onClick={handleLogoutGuest}
                     className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 text-xs transition-colors cursor-pointer"
@@ -927,18 +963,17 @@ export default function LuxuryLandingPage() {
                   <span>Sign In</span>
                 </Link>
               )}
-
-              {/* Reserve Now CTA Button */}
-              <a
-                href="#rooms"
-                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs uppercase tracking-wider rounded-full shadow-lg shadow-amber-500/25 hover:scale-105 transition-all"
-              >
-                Reserve Room
-              </a>
             </div>
 
             {/* Mobile Hamburger Controls */}
             <div className="lg:hidden flex items-center gap-2">
+              <Link
+                href="/guest-portal/services"
+                className="p-2 text-amber-400 bg-slate-900 border border-slate-800 rounded-lg relative cursor-pointer"
+                title="Hotel Services"
+              >
+                <Sparkles size={18} />
+              </Link>
               <button
                 onClick={() => setIsBookingsModalOpen(true)}
                 className="p-2 text-amber-400 bg-slate-900 border border-slate-800 rounded-lg relative cursor-pointer"
@@ -967,9 +1002,9 @@ export default function LuxuryLandingPage() {
           <div className="lg:hidden bg-slate-950/98 border-b border-amber-500/20 px-6 py-6 space-y-4 shadow-2xl">
             {[
               { label: "Rooms & Suites", href: "#rooms" },
+              { label: "Reserve Room", href: "#rooms" },
               { label: "About Resort", href: "#about" },
-              { label: "Our Services", href: "#services" },
-              { label: "Contact & Concierge", href: "#contact" },
+              { label: "Contact & Front Desk", href: "#contact" },
             ].map((link) => (
               <a
                 key={link.label}
@@ -981,6 +1016,14 @@ export default function LuxuryLandingPage() {
               </a>
             ))}
             <div className="pt-4 border-t border-slate-800 flex flex-col gap-2.5">
+              <Link
+                href="/guest-portal/services"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-2.5 bg-slate-900 text-amber-400 font-bold rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-800 hover:border-amber-500/40 cursor-pointer"
+              >
+                <Sparkles size={14} />
+                <span>Hotel Services</span>
+              </Link>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -1015,13 +1058,6 @@ export default function LuxuryLandingPage() {
               >
                 Staff &amp; Operations Portal
               </Link>
-              <a
-                href="#rooms"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-center font-black rounded-xl text-xs uppercase tracking-wider shadow-md"
-              >
-                Reserve A Room
-              </a>
             </div>
           </div>
         )}
@@ -1058,13 +1094,6 @@ export default function LuxuryLandingPage() {
         {/* Hero Content */}
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 w-full flex flex-col justify-center">
           <div className="max-w-3xl space-y-6">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 backdrop-blur-md shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-              <span className="text-xs font-bold uppercase tracking-widest text-amber-300">
-                {heroSlides[currentSlide].badge}
-              </span>
-            </div>
 
             {/* Heading */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.1] tracking-tight">
@@ -1117,9 +1146,6 @@ export default function LuxuryLandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold uppercase tracking-widest mb-3">
-              Handcrafted Accommodations
-            </div>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Explore Our Luxury <span className="text-amber-500">Rooms &amp; Suites</span>
             </h2>
@@ -1294,9 +1320,6 @@ export default function LuxuryLandingPage() {
 
             {/* Right Column: Story & Features */}
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100/70 border border-amber-300 text-amber-800 text-xs font-bold uppercase tracking-widest">
-                About Our Heritage
-              </div>
 
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-tight">
                 A Symphony of <br />
@@ -1312,7 +1335,7 @@ export default function LuxuryLandingPage() {
               {/* Core Pillars */}
               <div className="space-y-3 pt-2">
                 {[
-                  "Personalized 24/7 concierge & round-the-clock in-room dining",
+                  "Personalized 24/7 guest services & round-the-clock in-room dining",
                   "Eco-conscious luxury architecture with climate-controlled suites",
                   "World-class private spa, infinity pool & culinary dining hotspots",
                 ].map((item, idx) => (
@@ -1339,72 +1362,10 @@ export default function LuxuryLandingPage() {
         </div>
       </section>
 
-      {/* ─── 5. SERVICES SECTION ────────────────────────────────────────────── */}
-      <section id="services" className="py-20 bg-slate-900 text-white relative overflow-hidden">
-        {/* Glowing gradient backdrops */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-amber-500/10 blur-[140px] rounded-full pointer-events-none"></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          {/* Header */}
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider mb-3">
-              Hotel Services
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Explore Our Hotel <span className="text-amber-400">Services</span>
-            </h2>
-            <p className="mt-3 text-sm sm:text-base text-gray-400">
-              Enjoy fresh food, spa treatments, airport pickup, and 24/7 care during your stay.
-            </p>
-          </div>
-
-          {/* Services Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockServices.map((srv) => {
-              const IconComp = srv.icon;
-              return (
-                <div
-                  key={srv.id}
-                  className="group relative bg-slate-800/60 border border-slate-700/80 hover:border-amber-500/50 rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1.5 shadow-lg overflow-hidden flex flex-col justify-between"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                  <div className="relative z-10">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shadow-md">
-                      <IconComp size={26} />
-                    </div>
-
-                    <span className="text-[11px] font-bold text-amber-400 uppercase tracking-widest">
-                      {srv.category}
-                    </span>
-
-                    <h3 className="text-xl font-bold text-white mt-1 mb-2 group-hover:text-amber-300 transition-colors">
-                      {srv.title}
-                    </h3>
-
-                    <p className="text-sm text-gray-400 leading-relaxed">{srv.description}</p>
-                  </div>
-
-                  <div className="pt-5 mt-4 border-t border-slate-700/60 relative z-10 flex items-center justify-between text-xs font-semibold text-gray-400 group-hover:text-amber-400">
-                    <span>Included with stay</span>
-                    <Link href="/guest-portal/services" className="text-amber-400 group-hover:translate-x-1 transition-transform">
-                      Request service &rarr;
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 6. CONTACT & CONCIERGE SECTION ─────────────────────────────────── */}
+      {/* ─── 5. CONTACT & FRONT DESK SECTION ─────────────────────────────────── */}
       <section id="contact" className="py-20 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold uppercase tracking-widest mb-3">
-              Concierge Assistance
-            </div>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               We Are Here to <span className="text-amber-500">Assist You</span>
             </h2>
@@ -1422,9 +1383,6 @@ export default function LuxuryLandingPage() {
                 <div>
                   <span className="text-amber-400 text-xs font-bold uppercase tracking-wider">Direct Reach</span>
                   <h3 className="text-2xl font-bold mt-1 text-white">{hotelInfo.name}</h3>
-                  <p className="text-sm text-gray-400 mt-2">
-                    Our front desk and concierge desks operate 24 hours a day, 7 days a week.
-                  </p>
                 </div>
 
                 <div className="space-y-5 text-sm">
@@ -1471,13 +1429,9 @@ export default function LuxuryLandingPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="pt-8 border-t border-slate-800 text-xs text-gray-400 relative z-10">
-                Immediate assistance is always available on-site at the main reception lobby.
-              </div>
             </div>
 
-            {/* Concierge Message Form */}
+            {/* Contact Message Form */}
             <div className="bg-slate-50 border border-gray-200 rounded-3xl p-8 sm:p-10 shadow-lg flex flex-col justify-between">
               <form onSubmit={handleContactSubmit} className="space-y-4">
                 <div>
@@ -1547,7 +1501,7 @@ export default function LuxuryLandingPage() {
                   type="submit"
                   className="w-full py-3 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
                 >
-                  Send Concierge Inquiry
+                  Send Guest Inquiry
                 </button>
               </form>
             </div>
@@ -1556,50 +1510,21 @@ export default function LuxuryLandingPage() {
       </section>
 
       {/* ─── 7. FOOTER ──────────────────────────────────────────────────────── */}
-      <footer className="relative bg-slate-950 text-gray-400 py-10 border-t border-amber-500/20 overflow-hidden">
+      <footer className="relative bg-slate-950 text-gray-400 py-8 border-t border-amber-500/20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-900">
-            {/* Brand & Micro Description */}
-            <div className="flex flex-col sm:flex-row items-center gap-3.5 text-center sm:text-left">
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="relative w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center p-1 border border-amber-500/30">
-                  <Image src="/Images/logowb.png" alt="Nexus Grand Logo" width={28} height={28} className="object-contain" />
-                </div>
-                <span className="text-base font-black text-white tracking-wide uppercase">{hotelInfo.shortName}</span>
-              </Link>
-              <span className="hidden sm:inline-block text-slate-700">&bull;</span>
-              <p className="text-xs text-slate-400">
-                5-Star Luxury Resort &amp; Suites &bull; Addis Ababa, Ethiopia
-              </p>
-            </div>
-
-            {/* Concise Navigation Links */}
-            <nav className="flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              <a href="#rooms" className="hover:text-amber-400 transition-colors">Rooms &amp; Suites</a>
-              <a href="#about" className="hover:text-amber-400 transition-colors">About</a>
-              <a href="#services" className="hover:text-amber-400 transition-colors">Services</a>
-              <a href="#contact" className="hover:text-amber-400 transition-colors">Contact</a>
-              <Link href="/guest-portal/services" className="text-amber-400 hover:text-amber-300 transition-colors font-bold">
-                Guest Portal
-              </Link>
-              <Link href="/login" className="hover:text-slate-200 transition-colors">
-                Staff Login
-              </Link>
-            </nav>
-          </div>
-
-          {/* Bottom Copyright */}
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-gray-500">
-            <p>&copy; {new Date().getFullYear()} {hotelInfo.name}. All rights reserved.</p>
-            <div className="flex items-center gap-4">
-              <span>Privacy Policy</span>
-              <span>&bull;</span>
-              <span>Terms of Service</span>
-              <span>&bull;</span>
-              <span className="text-amber-500/80">Powered by Nexus HMS</span>
+            {/* Copyright & Info */}
+            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-[11px] text-gray-500">
+              <p>&copy; {new Date().getFullYear()} {hotelInfo.name}. All rights reserved.</p>
+              <span className="hidden sm:inline">&bull;</span>
+              <div className="flex items-center gap-3">
+                <span>Privacy Policy</span>
+                <span>&bull;</span>
+                <span>Terms of Service</span>
+                <span>&bull;</span>
+                <span className="text-amber-500/80">Powered by Nexus HMS</span>
+              </div>
             </div>
           </div>
-        </div>
       </footer>
 
       {/* ─── MODAL: ROOM DETAILS ────────────────────────────────────────────── */}
@@ -1982,7 +1907,81 @@ export default function LuxuryLandingPage() {
                 </div>
               </div>
 
-              {/* 3. Special Requests with Enlarged & Polished Dropdown Menu */}
+              {/* 3. Room & Stay Preferences (Smoking, Bed Type, Dining, In-Room Preferences) */}
+              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.03] space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    Room Preferences
+                  </Label>
+                  <span className="text-[10px] text-amber-400 font-medium font-mono">Guaranteed Room Setup</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="modal-smokingPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Cigarette className="w-3.5 h-3.5 text-slate-400" /> Smoking Room
+                    </Label>
+                    <select
+                      id="modal-smokingPreference"
+                      value={smokingPreference}
+                      onChange={(e) => setSmokingPreference(e.target.value as any)}
+                      className="w-full h-9 rounded-lg border border-slate-700 bg-slate-950/80 px-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500/70 cursor-pointer"
+                    >
+                      <option value="non_smoking">Non-Smoking</option>
+                      <option value="smoking">Smoking Allowed</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="modal-bedPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <BedDouble className="w-3.5 h-3.5 text-slate-400" /> Bed Type
+                    </Label>
+                    <select
+                      id="modal-bedPreference"
+                      value={bedPreference}
+                      onChange={(e) => setBedPreference(e.target.value as any)}
+                      className="w-full h-9 rounded-lg border border-slate-700 bg-slate-950/80 px-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500/70 cursor-pointer"
+                    >
+                      <option value="king">King Bed</option>
+                      <option value="queen">Queen Bed</option>
+                      <option value="twin">Twin Beds</option>
+                      <option value="single">Single Bed</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="modal-foodPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <UtensilsCrossed className="w-3.5 h-3.5 text-slate-400" /> Dining / Food
+                    </Label>
+                    <select
+                      id="modal-foodPreference"
+                      value={foodPreference}
+                      onChange={(e) => setFoodPreference(e.target.value as any)}
+                      className="w-full h-9 rounded-lg border border-slate-700 bg-slate-950/80 px-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500/70 cursor-pointer"
+                    >
+                      <option value="none">Standard</option>
+                      <option value="halal">Halal Certified</option>
+                      <option value="vegetarian">Vegetarian</option>
+                      <option value="vegan">Strict Vegan</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="modal-inRoomPreferences" className="text-xs font-semibold text-slate-300">
+                    Other Special Requests / In-Room Preferences
+                  </Label>
+                  <Input
+                    id="modal-inRoomPreferences"
+                    value={inRoomPreferences}
+                    onChange={(e) => setInRoomPreferences(e.target.value)}
+                    placeholder="e.g. High floor, extra pillows, foam mattress, late check-in notification..."
+                    className="h-9 bg-slate-950/80 border-slate-700 text-slate-100 text-xs focus-visible:ring-amber-500/40 rounded-lg placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              {/* 4. Special Requests with Enlarged & Polished Dropdown Menu */}
               {guestSession?.guest && (
                 <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
                   <div className="flex items-center justify-between gap-2">

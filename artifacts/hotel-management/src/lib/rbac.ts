@@ -1,6 +1,7 @@
 /**
  * Nexus HMS Enterprise - Role-Based Access Control (RBAC) Architecture
  * Governs navigation visibility, route protection, and dashboard view customization.
+ * Strictly enforces Separation of Duties: One Account = One Dedicated Operational Domain.
  */
 
 export type RoleCategory =
@@ -10,8 +11,14 @@ export type RoleCategory =
   | 'housekeeping'
   | 'maintenance'
   | 'cashier'
+  | 'restaurant_manager'
+  | 'waiter'
+  | 'kitchen_officer'
+  | 'coordinator'
+  | 'restaurant'
   | 'accountant'
   | 'storekeeper'
+  | 'front_desk_officer'
   | 'general';
 
 export interface RoleInfo {
@@ -52,11 +59,20 @@ export const ROLE_DEFINITIONS: Record<RoleCategory, RoleInfo> = {
     portalTitle: 'Front Desk Portal',
     testEmail: 'receptionist@nexushms.com',
   },
+  front_desk_officer: {
+    category: 'front_desk_officer',
+    name: 'Front Desk Officer',
+    badge: 'Front Desk Officer',
+    description: 'Guest check-in/out, stay management, room service order processing, waiter assignments, and folio settlements.',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    portalTitle: 'Front Desk Operations Portal',
+    testEmail: 'frontdesk.officer@nexushms.com',
+  },
   housekeeping: {
     category: 'housekeeping',
     name: 'Housekeeping',
     badge: 'Housekeeping Staff',
-    description: 'Room turnaround status, cleaning inspections, linen and amenity replenishment.',
+    description: 'Room turnaround status, cleaning inspections, linen replenishment, and inspection.',
     badgeClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
     portalTitle: 'Housekeeping Portal',
     testEmail: 'housekeeper@nexushms.com',
@@ -73,11 +89,56 @@ export const ROLE_DEFINITIONS: Record<RoleCategory, RoleInfo> = {
   cashier: {
     category: 'cashier',
     name: 'Cashier',
-    badge: 'POS Cashier & F&B',
-    description: 'Point of sale, restaurant dining tables, room service billing, and shift registers.',
+    badge: 'POS Cashier & Billing',
+    description: 'POS billing register, cash & digital settlements, stay invoices, and payment reconciliation.',
     badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-    portalTitle: 'POS & Cashier Portal',
+    portalTitle: 'Cashier & Settlement Portal',
     testEmail: 'cashier@nexushms.com',
+  },
+  restaurant_manager: {
+    category: 'restaurant_manager',
+    name: 'Restaurant Manager',
+    badge: 'Restaurant Manager & F&B',
+    description: 'Executive Food & Beverage leadership: Revenue overview, menu engineering, table allocation, reservations and AI insights.',
+    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    portalTitle: 'Restaurant & F&B Manager Portal',
+    testEmail: 'restaurant.manager@nexushms.com',
+  },
+  waiter: {
+    category: 'waiter',
+    name: 'Waiter',
+    badge: 'Dining Server & Waiter',
+    description: 'Restaurant table order taking, floor dining service, customer care, and kitchen KDS dispatch.',
+    badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+    portalTitle: 'Dining Server & Waiter Portal',
+    testEmail: 'waiter@nexushms.com',
+  },
+  kitchen_officer: {
+    category: 'kitchen_officer',
+    name: 'Kitchen Officer',
+    badge: 'Kitchen Officer & Chef',
+    description: 'Executive culinary control: Kitchen display system (KDS), line stations, cooking progress, and ready notifications.',
+    badgeClass: 'bg-red-500/10 text-red-400 border-red-500/30',
+    portalTitle: 'Kitchen',
+    testEmail: 'kitchen.officer@nexushms.com',
+  },
+  coordinator: {
+    category: 'coordinator',
+    name: 'Coordinator',
+    badge: 'F&B Coordinator',
+    description: 'Inter-departmental liaison: Order validation, inventory stock verification, and kitchen dispatch buffer.',
+    badgeClass: 'bg-teal-500/10 text-teal-400 border-teal-500/30',
+    portalTitle: 'Coordinator',
+    testEmail: 'coordinator@nexushms.com',
+  },
+  restaurant: {
+    category: 'restaurant',
+    name: 'Restaurant',
+    badge: 'Dining Server & Waiter',
+    description: 'Restaurant dining floor, table allocation, menu availability, and kitchen KDS orders.',
+    badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+    portalTitle: 'Waiter',
+    testEmail: 'waiter@nexushms.com',
   },
   accountant: {
     category: 'accountant',
@@ -113,12 +174,29 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   const r = roleName.toLowerCase().trim();
 
   if (r.includes('admin') || r.includes('super')) return 'admin';
+  if (
+    r.includes('restaurant manager') ||
+    r.includes('f&b manager') ||
+    r.includes('dining manager') ||
+    r.includes('food and beverage manager')
+  ) {
+    return 'restaurant_manager';
+  }
   if (r.includes('manager') || r.includes('director') || r.includes('gm')) return 'manager';
+  if (
+    r.includes('front desk officer') ||
+    r.includes('front-desk-officer') ||
+    r.includes('frontdesk officer') ||
+    r.includes('frontdesk.officer')
+  ) {
+    return 'front_desk_officer';
+  }
   if (
     r.includes('front desk') ||
     r.includes('receptionist') ||
     r.includes('reservation') ||
-    r.includes('concierge') ||
+    r.includes('guest relations') ||
+    r.includes('guest services') ||
     r.includes('front office')
   ) {
     return 'receptionist';
@@ -129,8 +207,44 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   if (r.includes('maintenance') || r.includes('technician') || r.includes('engineer')) {
     return 'maintenance';
   }
-  if (r.includes('cashier') || r.includes('waiter') || r.includes('bar') || r.includes('restaurant')) {
+  // Dedicated Cashier (Financial billing & settlement)
+  if (r.includes('cashier')) {
     return 'cashier';
+  }
+  // Dedicated Kitchen Officer & Executive Chef
+  if (
+    r.includes('kitchen officer') ||
+    r.includes('head chef') ||
+    r.includes('executive chef') ||
+    r.includes('kitchen manager') ||
+    r.includes('kitchen supervisor') ||
+    r === 'chef'
+  ) {
+    return 'kitchen_officer';
+  }
+  // Dedicated F&B Coordinator
+  if (
+    r.includes('coordinator') ||
+    r.includes('f&b coordinator') ||
+    r.includes('food coordinator') ||
+    r.includes('expediter')
+  ) {
+    return 'coordinator';
+  }
+  // Dedicated Waiter / Dining Server
+  if (
+    r.includes('waiter') ||
+    r.includes('server') ||
+    r.includes('restaurant staff')
+  ) {
+    return 'waiter';
+  }
+  // Standalone 'restaurant' or 'kitchen' fallback
+  if (r.includes('restaurant')) {
+    return 'restaurant_manager';
+  }
+  if (r.includes('kitchen')) {
+    return 'kitchen_officer';
   }
   if (r.includes('accountant') || r.includes('finance') || r.includes('auditor')) {
     return 'accountant';
@@ -144,11 +258,12 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
 
 export function getRoleInfo(roleName?: string | null): RoleInfo {
   const category = normalizeRole(roleName);
-  return ROLE_DEFINITIONS[category];
+  return ROLE_DEFINITIONS[category] || ROLE_DEFINITIONS.general;
 }
 
 /**
  * Checks whether a given path is authorized for a specific role category.
+ * Strictly separates Restaurant Manager vs Waiter vs Cashier vs Housekeeping vs Front Desk.
  */
 export function isRouteAuthorized(roleName: string | undefined | null, pathname: string): boolean {
   if (!roleName) return false;
@@ -176,8 +291,8 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
     return !restrictedForManager.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
 
-  // Front Desk / Receptionist / Concierge:
-  if (category === 'receptionist') {
+  // Front Desk / Receptionist / Guest Relations / Front Desk Officer:
+  if (category === 'receptionist' || category === 'front_desk_officer') {
     const allowed = [
       '/dashboard',
       '/guests',
@@ -193,7 +308,6 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
       '/reservations/calendar',
       '/invoices',
       '/payments',
-      '/room-service',
       '/transport',
       '/documents',
       '/customer-service',
@@ -202,27 +316,61 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
 
-  // Housekeeping:
+  // Housekeeping: Strictly Room Turnaround & Cleaning + Staff Supplies Requisitions
   if (category === 'housekeeping') {
-    const allowed = ['/dashboard', '/housekeeping', '/rooms', '/customer-service'];
+    const allowed = ['/dashboard', '/housekeeping', '/rooms', '/customer-service', '/staff-supplies'];
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
 
-  // Maintenance:
+  // Maintenance: Strictly Engineering & Repairs (NO POS, NO Restaurant, NO Cashier)
   if (category === 'maintenance') {
-    const allowed = ['/dashboard', '/maintenance', '/rooms', '/inventory'];
+    const allowed = ['/dashboard', '/maintenance', '/rooms', '/inventory', '/staff-supplies'];
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
 
-  // Cashier / Food & Beverage:
+  // Cashier: Dedicated to Billing, Settlement Register, Invoices & Payments (NO Restaurant Floor, NO Housekeeping)
   if (category === 'cashier') {
     const allowed = [
       '/dashboard',
+      '/cashier',
       '/pos',
-      '/restaurant',
-      '/room-service',
       '/invoices',
       '/payments',
+    ];
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  }
+
+  // Restaurant Manager: F&B Executive Operations & Oversight (Dashboard, Floor Operations, Inventory, Reports)
+  if (category === 'restaurant_manager') {
+    const allowed = [
+      '/dashboard',
+      '/restaurant',
+      '/inventory',
+      '/staff-supplies',
+      '/reports',
+    ];
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  }
+
+  // Kitchen Officer: Strictly Kitchen Command Center & KDS (NO Floor Waiter POS, NO Coordinator Buffer)
+  if (category === 'kitchen_officer') {
+    const allowed = ['/dashboard', '/kitchen', '/staff-supplies'];
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  }
+
+  // F&B & Store Coordinator: Dedicated Expediting Buffer, Stock Management & Staff Distribution
+  if (category === 'coordinator') {
+    const allowed = ['/dashboard', '/coordinator', '/inventory', '/staff-supplies'];
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  }
+
+  // Waiter / Floor Server: Dedicated to Floor Table Orders, Waiter POS & Floor Supplies Requisitions
+  if (category === 'waiter') {
+    const allowed = [
+      '/dashboard',
+      '/restaurant',
+      '/pos',
+      '/staff-supplies',
     ];
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
@@ -242,10 +390,14 @@ export function isRouteAuthorized(roleName: string | undefined | null, pathname:
 
   // Storekeeper / Inventory:
   if (category === 'storekeeper') {
-    const allowed = ['/dashboard', '/inventory', '/procurement'];
+    const allowed = ['/dashboard', '/inventory', '/procurement', '/staff-supplies'];
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  }
+
+  if (category === 'general') {
+    const allowed = ['/dashboard', '/staff-supplies'];
     return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'));
   }
 
   return false;
 }
-

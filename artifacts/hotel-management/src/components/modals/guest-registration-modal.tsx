@@ -48,38 +48,38 @@ export const getIdTypeSpec = (type: string): IdTypeSpec => {
     case "national_id":
     case "fayda":
       return {
-        label: "Fayda FAN (16 Digits)",
+        label: "Fayda FAN",
         placeholder: "",
         maxLength: 16,
         format: (val) => val.replace(/\D/g, "").slice(0, 16),
-        badge: (val) => `${val.length}/16 digits`,
+        badge: () => "",
         isComplete: (val) => val.length === 16,
       };
     case "passport":
       return {
-        label: "Passport Number (Max 9)",
+        label: "Passport Number",
         placeholder: "",
         maxLength: 9,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9),
-        badge: (val) => `${val.length}/9 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 7 && val.length <= 9,
       };
     case "driver_license":
       return {
-        label: "Driver's License # (Max 15)",
+        label: "Driver's License #",
         placeholder: "",
         maxLength: 15,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 15),
-        badge: (val) => `${val.length}/15 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 6,
       };
     case "birth_certificate":
       return {
-        label: "Birth Certificate # (Max 15)",
+        label: "Birth Certificate #",
         placeholder: "",
         maxLength: 15,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 15),
-        badge: (val) => `${val.length}/15 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 4,
       };
     case "none":
@@ -240,7 +240,13 @@ export function GuestRegistrationModal({
     const newGuest: AccompanyingGuest = {
       id: `acc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       fullName: "",
-      relationship: defaultRelationship || (selectedGuestType === "friends" ? "friend" : "spouse"),
+      relationship:
+        defaultRelationship ||
+        (selectedGuestType === "corporate"
+          ? "colleague"
+          : selectedGuestType === "friends"
+          ? "friend"
+          : "spouse"),
       gender: "female",
       ageCategory: "adult",
       idType: "national_id",
@@ -580,7 +586,7 @@ export function GuestRegistrationModal({
                         if (val !== "couple") {
                           setHasRelationshipDoc(false);
                         }
-                        if (val !== "family" && val !== "friends") {
+                        if (val !== "family" && val !== "friends" && val !== "corporate") {
                           setHasAccompanyingGuests(false);
                         }
                       }}
@@ -729,20 +735,9 @@ export function GuestRegistrationModal({
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-[11px] font-semibold">
-                              {getIdTypeSpec(partnerIdType).label}
-                            </Label>
-                            <span
-                              className={`text-[10px] font-medium ${
-                                getIdTypeSpec(partnerIdType).isComplete(partnerIdNumber)
-                                  ? "text-emerald-500 font-bold"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {getIdTypeSpec(partnerIdType).badge(partnerIdNumber)}
-                            </span>
-                          </div>
+                          <Label className="text-[11px] font-semibold">
+                            {getIdTypeSpec(partnerIdType).label}
+                          </Label>
                           <Input
                             placeholder={getIdTypeSpec(partnerIdType).placeholder}
                             value={partnerIdNumber}
@@ -857,9 +852,9 @@ export function GuestRegistrationModal({
             )}
 
               {/* ══════════════════════════════════════════════════════════════
-                  SECTION: OPTIONAL MULTI-GUEST / FAMILY / FRIENDS REGISTRATION
+                  SECTION: OPTIONAL MULTI-GUEST / FAMILY / FRIENDS / CORPORATE REGISTRATION
                  ══════════════════════════════════════════════════════════════ */}
-              {(selectedGuestType === "family" || selectedGuestType === "friends") && (
+              {(selectedGuestType === "family" || selectedGuestType === "friends" || selectedGuestType === "corporate") && (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3 animate-in fade-in-50 duration-200">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5">
@@ -871,7 +866,13 @@ export function GuestRegistrationModal({
                         const checked = e.target.checked;
                         setHasAccompanyingGuests(checked);
                         if (checked && accompanyingGuests.length === 0) {
-                          addAccompanyingGuest();
+                          addAccompanyingGuest(
+                            selectedGuestType === "corporate"
+                              ? "colleague"
+                              : selectedGuestType === "friends"
+                              ? "friend"
+                              : "spouse"
+                          );
                         }
                       }}
                       className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
@@ -880,13 +881,17 @@ export function GuestRegistrationModal({
                       <Label htmlFor="hasAccompanyingGuests" className="text-xs font-bold text-foreground flex items-center gap-1.5 cursor-pointer">
                         <Users className="w-3.5 h-3.5 text-primary" />
                         <span>
-                          {selectedGuestType === "friends"
+                          {selectedGuestType === "corporate"
+                            ? "Register Accompanying Corporate Delegates / Colleagues (Optional)"
+                            : selectedGuestType === "friends"
                             ? "Register Accompanying Friends / Companions (Optional)"
                             : "Register Accompanying Guests / Family Members (Optional)"}
                         </span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {selectedGuestType === "friends"
+                        {selectedGuestType === "corporate"
+                          ? "Add colleagues, employees, or delegates traveling under this corporate booking. Primary guest reserves for all; all guests must be present and verified at check-in."
+                          : selectedGuestType === "friends"
                           ? "For friends traveling together (male/male, female/female, or group companions sharing room). All companions must present verified IDs at check-in."
                           : "Add family members or companions. Primary guest reserves for all; all guests must be present and verified at check-in."}
                       </p>
@@ -897,10 +902,23 @@ export function GuestRegistrationModal({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => addAccompanyingGuest(selectedGuestType === "friends" ? "friend" : "spouse")}
+                      onClick={() =>
+                        addAccompanyingGuest(
+                          selectedGuestType === "corporate"
+                            ? "colleague"
+                            : selectedGuestType === "friends"
+                            ? "friend"
+                            : "spouse"
+                        )
+                      }
                       className="h-7 text-xs font-semibold gap-1 px-2.5 border-primary/30 text-primary hover:bg-primary/10"
                     >
-                      <Plus className="w-3 h-3" /> {selectedGuestType === "friends" ? "Add Friend" : "Add Guest"}
+                      <Plus className="w-3 h-3" />{" "}
+                      {selectedGuestType === "corporate"
+                        ? "Add Colleague"
+                        : selectedGuestType === "friends"
+                        ? "Add Friend"
+                        : "Add Guest"}
                     </Button>
                   )}
                 </div>
@@ -909,7 +927,13 @@ export function GuestRegistrationModal({
                   <div className="pt-2 border-t border-border/60 space-y-3 animate-in fade-in-50 duration-200">
                     {accompanyingGuests.length === 0 ? (
                       <div className="text-center py-3 text-xs text-muted-foreground">
-                        No companions added yet. Click &quot;{selectedGuestType === "friends" ? "Add Friend" : "Add Guest"}&quot; above.
+                        No companions added yet. Click &quot;
+                        {selectedGuestType === "corporate"
+                          ? "Add Colleague"
+                          : selectedGuestType === "friends"
+                          ? "Add Friend"
+                          : "Add Guest"}
+                        &quot; above.
                       </div>
                     ) : (
                       accompanyingGuests.map((guest, idx) => (
@@ -923,7 +947,9 @@ export function GuestRegistrationModal({
                                 {idx + 2}
                               </span>
                               <span>
-                                {selectedGuestType === "friends"
+                                {selectedGuestType === "corporate"
+                                  ? `Accompanying Colleague #${idx + 1}`
+                                  : selectedGuestType === "friends"
                                   ? `Accompanying Friend #${idx + 1}`
                                   : `Accompanying Guest #${idx + 1}`}
                               </span>
@@ -1019,20 +1045,9 @@ export function GuestRegistrationModal({
                             </div>
 
                             <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <Label className="text-[11px] font-semibold">
-                                  {getIdTypeSpec(guest.idType || "national_id").label}
-                                </Label>
-                                <span
-                                  className={`text-[10px] font-medium ${
-                                    getIdTypeSpec(guest.idType || "national_id").isComplete(guest.idNumber || "")
-                                      ? "text-emerald-500 font-bold"
-                                      : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {getIdTypeSpec(guest.idType || "national_id").badge(guest.idNumber || "")}
-                                </span>
-                              </div>
+                              <Label className="text-[11px] font-semibold">
+                                {getIdTypeSpec(guest.idType || "national_id").label}
+                              </Label>
                               <Input
                                 placeholder={getIdTypeSpec(guest.idType || "national_id").placeholder}
                                 value={guest.idNumber || ""}

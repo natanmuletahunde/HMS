@@ -128,7 +128,7 @@ export default function StayHistoryPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <History className="h-6 w-6 text-primary" />
-              Stay Modifications History
+              Stay History
             </h1>
           </div>
         </div>

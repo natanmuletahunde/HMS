@@ -31,6 +31,27 @@ export class InventoryController {
   @Post('stock-adjustment')
   stockAdjustment(@Body() b: any) { return this.svc.stockAdjustment(b); }
 
+  @Get('locations')
+  getLocations() { return this.svc.getLocations(); }
+
+  @Get('locations/:id/stocks')
+  getLocationStocks(@Param('id') id: string, @Query() q: any) { return this.svc.getLocationStocks(id, q); }
+
+  @Post('transfer')
+  transferStock(@Body() b: any) { return this.svc.transferStock(b); }
+
+  @Get('staff-supplies')
+  getStaffSupplies(@Query() q: any) { return this.svc.getStaffSupplies(q); }
+
+  @Get('floor-requisitions')
+  getFloorRequisitions(@Query() q: any) { return this.svc.getFloorRequisitions(q); }
+
+  @Post('floor-requisitions')
+  createFloorRequisition(@Body() b: any) { return this.svc.createFloorRequisition(b); }
+
+  @Post('floor-requisitions/:id/issue')
+  issueFloorRequisition(@Param('id') id: string, @Body() b: any) { return this.svc.issueFloorRequisition(id, b); }
+
   @Get()
   findAll(@Query() q: any) { return this.svc.findAll(q); }
 

@@ -7,7 +7,7 @@ import {
   Loader2,
   Settings,
   Bed,
-  ConciergeBell,
+  Bell,
   History,
   Plus,
   MoreHorizontal,
@@ -69,6 +69,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
+import { getInHouseRequests, assignWaiterToInHouseRequest, AVAILABLE_WAITERS, InHouseServiceRequest } from "@/lib/in-house-requests";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type InHouseReservation = {
@@ -164,7 +165,7 @@ const HOTEL_DEPARTMENTS = [
   { value: "transport", label: "Transport & Chauffeur", emoji: "🚗" },
   { value: "laundry", label: "Laundry & Dry Cleaning", emoji: "👕" },
   { value: "maintenance", label: "Engineering & Maintenance", emoji: "🔧" },
-  { value: "reception", label: "Front Desk & Concierge", emoji: "🛎️" },
+  { value: "reception", label: "Front Desk", emoji: "🛎️" },
 ];
 
 const DEFAULT_HOTEL_STAFF = [
@@ -199,7 +200,8 @@ const DEPT_BADGE: Record<string, string> = {
   food_beverage: "warning",
   housekeeping: "info",
   maintenance: "default",
-  concierge: "success",
+  guest_services: "success",
+  services: "success",
   reception: "default",
   transport: "success",
   spa: "info",
@@ -271,6 +273,41 @@ export default function StayManagementHubPage() {
 
   const [cancelRequest, setCancelRequest] = useState<RoomServiceRequest | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+
+  // In-House Guest Room Service Orders & Receptionist Waiter Assignment
+  const [inHouseRequests, setInHouseRequests] = useState<InHouseServiceRequest[]>([]);
+  const [assignWaiterModalOpen, setAssignWaiterModalOpen] = useState(false);
+  const [assignTargetReq, setAssignTargetReq] = useState<InHouseServiceRequest | null>(null);
+  const [selectedWaiterId, setSelectedWaiterId] = useState<string>(AVAILABLE_WAITERS[0].id);
+
+  useEffect(() => {
+    setInHouseRequests(getInHouseRequests());
+    const handleSync = (e: any) => {
+      if (e?.detail) {
+        setInHouseRequests(e.detail);
+      } else {
+        setInHouseRequests(getInHouseRequests());
+      }
+    };
+    window.addEventListener("nexus_inhouse_requests_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("nexus_inhouse_requests_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  const handleConfirmAssignWaiter = () => {
+    if (!assignTargetReq) return;
+    const waiter = AVAILABLE_WAITERS.find((w) => w.id === selectedWaiterId) || AVAILABLE_WAITERS[0];
+    assignWaiterToInHouseRequest(assignTargetReq.id, waiter.id, waiter.name);
+    setAssignWaiterModalOpen(false);
+    setAssignTargetReq(null);
+    toast({
+      title: "Waiter Assigned & SMS Alert Dispatched",
+      description: `Assigned ${waiter.name} to Room ${assignTargetReq.roomNumber} order. AfroMessage SMS sent to 0954123456.`,
+    });
+  };
 
   const { data: rawUsers = [] } = useQuery<any>({
     queryKey: ["users-staff-list"],
@@ -586,7 +623,7 @@ export default function StayManagementHubPage() {
         <Card className="bg-surface/50 border-border p-4 shadow-none min-h-[96px] flex flex-col justify-between rounded-xl">
           <div className="text-xs font-medium text-text-muted flex items-center justify-between">
             <span>Pending Service Requests</span>
-            <ConciergeBell className="h-4 w-4 text-warning" />
+            <Bell className="h-4 w-4 text-warning" />
           </div>
           <div className="mt-2">
             {rsDashLoading ? <Skeleton className="h-7 w-16" /> : <div className="text-2xl font-bold font-mono tracking-tight text-warning">{rsDashboard?.requested ?? 0}</div>}
@@ -637,7 +674,7 @@ export default function StayManagementHubPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium border border-transparent"
             }`}
           >
-            <ConciergeBell className={`w-4 h-4 transition-colors ${activeHubTab === "changes" ? "text-primary" : "text-muted-foreground"}`} />
+            <Bell className={`w-4 h-4 transition-colors ${activeHubTab === "changes" ? "text-primary" : "text-muted-foreground"}`} />
             <span>In-Room & Guest Services</span>
           </button>
         </div>
@@ -651,7 +688,7 @@ export default function StayManagementHubPage() {
             className="h-9 gap-1.5 text-xs font-medium"
           >
             <History className="h-3.5 w-3.5 text-primary" />
-            Stay Modifications History &rarr;
+            Stay History
           </Button>
         </div>
       </div>
@@ -770,7 +807,7 @@ export default function StayManagementHubPage() {
                                     className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 hover:underline"
                                     title={`Pending: ${pendingService?.description || "In-room service"}`}
                                   >
-                                    {isTransport ? <Car className="h-3 w-3" /> : <ConciergeBell className="h-3 w-3" />}
+                                    {isTransport ? <Car className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
                                     {isTransport ? "Transport Alert" : "Order Alert"}
                                   </button>
                                   <button
@@ -800,7 +837,7 @@ export default function StayManagementHubPage() {
                                     Manage Stay (Room / Dates)
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => openServiceForInHouseGuest(res)}>
-                                    <ConciergeBell className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                                    <Bell className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
                                     Order In-Room Service
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -884,6 +921,110 @@ export default function StayManagementHubPage() {
             </Select>
 
           </div>
+
+          {/* In-House Food & Drink Room Service Orders (Shifted to Receptionist for Waiter Assignment) */}
+          <Card className="overflow-hidden border border-amber-500/30 bg-white dark:bg-card shadow-xs">
+            <CardHeader className="bg-amber-50/50 dark:bg-amber-950/20 py-3.5 px-4 border-b border-amber-500/20 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
+                  In-House Guest Food & Drinks Orders (Assign Waiter)
+                </CardTitle>
+                <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold">
+                  {inHouseRequests.filter((r) => r.status === "pending").length} Pending Assignment
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Room</TableHead>
+                    <TableHead>Guest & Phone</TableHead>
+                    <TableHead>Ordered Dishes</TableHead>
+                    <TableHead>Charge</TableHead>
+                    <TableHead>Assigned Waiter</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {inHouseRequests.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-20 text-center text-xs text-text-muted">
+                        No in-house food or drink requests currently pending.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    inHouseRequests.map((req) => {
+                      const hasWaiter = !!req.assignedWaiterId;
+                      return (
+                        <TableRow key={req.id} className="hover:bg-muted/40">
+                          <TableCell className="font-mono text-xs font-semibold">
+                            {req.requestNumber.replace(/#/g, "").replace(/-/g, " ")}
+                          </TableCell>
+                          <TableCell className="font-bold text-primary text-xs">
+                            Room {req.roomNumber}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="font-semibold text-slate-900 dark:text-slate-100">{req.guestName}</div>
+                            {req.phone && (
+                              <div className="font-mono text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                <span>{req.phone}</span>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-xs">
+                            <div className="line-clamp-2 text-slate-700 dark:text-slate-300">
+                              {Array.isArray(req.items)
+                                ? req.items.map((it) => `${it.quantity}× ${it.name}`).join(", ")
+                                : String(req.items || "—")}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            {req.totalAmount ? `ETB ${req.totalAmount.toLocaleString()}` : "Folio"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {hasWaiter ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{req.assignedWaiterName}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                Awaiting Assignment
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <Badge variant={req.status === "served" ? "success" : req.status === "dispatched" ? "warning" : "default"} className="text-[10px] uppercase">
+                              {req.stage === "waiter_assigned" ? "Assigned" : req.stage === "cooking" ? "Cooking" : req.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setAssignTargetReq(req);
+                                setAssignWaiterModalOpen(true);
+                              }}
+                              className="h-7 px-2.5 text-xs font-semibold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 rounded-lg shadow-2xs gap-1"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>{hasWaiter ? "Reassign Waiter" : "Assign Waiter"}</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
           {/* Service Requests Table */}
           <Card className="overflow-hidden">
@@ -1248,7 +1389,7 @@ export default function StayManagementHubPage() {
           <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                <ConciergeBell className="w-5 h-5" />
+                <Bell className="w-5 h-5" />
               </div>
               <div>
                 <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -1661,7 +1802,7 @@ export default function StayManagementHubPage() {
                   Notify Guest: Item Unavailable
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Send polite concierge cancellation notice to in-house guest.
+                  Send polite front desk cancellation notice to in-house guest.
                 </DialogDescription>
               </div>
             </div>
@@ -1710,12 +1851,12 @@ export default function StayManagementHubPage() {
                   type="button"
                   onClick={() =>
                     setCancelReason(
-                      `Dear ${cancelRequest?.guestName || "Guest"}, our concierge reached out regarding your request. We apologize for any inconvenience as this service cannot be fulfilled at this specific time.`
+                      `Dear ${cancelRequest?.guestName || "Guest"}, our front desk team reached out regarding your request. We apologize for any inconvenience as this service cannot be fulfilled at this specific time.`
                     )
                   }
                   className="px-2.5 py-1 text-[11px] rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground border border-border transition-colors"
                 >
-                  General Concierge Note
+                  General Front Desk Note
                 </button>
               </div>
             </div>
@@ -1758,6 +1899,98 @@ export default function StayManagementHubPage() {
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: ASSIGN WAITER TO IN-HOUSE ROOM SERVICE ORDER ────────── */}
+      <Dialog open={assignWaiterModalOpen} onOpenChange={setAssignWaiterModalOpen}>
+        <DialogContent className="max-w-md p-6 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader className="p-0 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <DialogTitle className="text-base font-bold text-slate-950 dark:text-white flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-amber-500" />
+              <span>Assign Waiter to Room Service Order</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {assignTargetReq && (
+            <div className="space-y-4 pt-2">
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Order ID:</span>
+                  <span className="font-mono font-bold">{assignTargetReq.requestNumber.replace(/#/g, "").replace(/-/g, " ")}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Delivery Room:</span>
+                  <span className="font-bold text-primary">Room {assignTargetReq.roomNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Guest Name:</span>
+                  <span className="font-semibold">{assignTargetReq.guestName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Phone:</span>
+                  <span className="font-mono">{assignTargetReq.phone || "0954123456"}</span>
+                </div>
+                <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 block mb-0.5">Dishes:</span>
+                  <p className="font-medium text-slate-700 dark:text-slate-300">
+                    {Array.isArray(assignTargetReq.items)
+                      ? assignTargetReq.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")
+                      : String(assignTargetReq.items || "—")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Select Available Waiter</Label>
+                <Select value={selectedWaiterId} onValueChange={setSelectedWaiterId}>
+                  <SelectTrigger className="w-full h-10 text-xs">
+                    <SelectValue placeholder="Choose a waiter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AVAILABLE_WAITERS.map((w) => (
+                      <SelectItem key={w.id} value={w.id} className="text-xs py-2">
+                        <div className="flex items-center justify-between w-full gap-3">
+                          <span className="font-medium">{w.name} ({w.role})</span>
+                          <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
+                            {w.status}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
+                <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>AfroMessage SMS Notification</span>
+                </div>
+                <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
+                  Upon assignment, an automated AfroMessage SMS dispatch will be sent to the waiter&apos;s phone at <strong>0954123456</strong>, alerting them to fulfill the order for Room {assignTargetReq.roomNumber}.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAssignWaiterModalOpen(false)}
+                  className="h-9 px-4 text-xs font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmAssignWaiter}
+                  className="h-9 px-5 text-xs font-bold bg-[#084C42] hover:bg-[#063a32] text-white rounded-lg shadow-sm cursor-pointer"
+                >
+                  Confirm & Dispatch SMS Alert
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

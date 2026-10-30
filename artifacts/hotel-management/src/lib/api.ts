@@ -52,10 +52,15 @@ export async function attemptTokenRecovery(): Promise<string | null> {
           const email = savedUser.email;
           const staffPasswords: Record<string, string> = {
             'receptionist@nexushms.com': 'Nexus@1234',
+            'frontdesk.officer@nexushms.com': 'Nexus@1234',
             'manager@nexushms.com': 'Nexus@1234',
             'housekeeper@nexushms.com': 'Nexus@1234',
             'maintenance@nexushms.com': 'Nexus@1234',
             'cashier@nexushms.com': 'Nexus@1234',
+            'restaurant.manager@nexushms.com': 'Nexus@1234',
+            'waiter@nexushms.com': 'Nexus@1234',
+            'kitchen.officer@nexushms.com': 'Nexus@1234',
+            'coordinator@nexushms.com': 'Nexus@1234',
             'admin@nexushms.com': 'Admin@1234',
           };
           const pass = staffPasswords[email];
@@ -101,7 +106,10 @@ export async function apiFetch<T>(path: string, options?: RequestInit, isRetry =
     }
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const cleanPath = path.startsWith('/api/') ? path.slice(4) : path.startsWith('api/') ? path.slice(3) : path;
+  const normalizedPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+
+  const res = await fetch(`${BASE}${normalizedPath}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

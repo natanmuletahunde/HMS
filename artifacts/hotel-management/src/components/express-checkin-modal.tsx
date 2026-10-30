@@ -763,7 +763,7 @@ export function ExpressCheckInModal({
                 {[
                   { id: "online_prepaid", label: "Online Pre-Paid", badge: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" },
                   { id: "walk_in", label: "Front-Desk Walk-In", badge: "bg-amber-500/15 text-amber-600 border-amber-500/30" },
-                  { id: "phone_hold", label: "Phone / Concierge Hold", badge: "bg-sky-500/15 text-sky-600 border-sky-500/30" },
+                  { id: "phone_hold", label: "Phone / Front Desk Hold", badge: "bg-sky-500/15 text-sky-600 border-sky-500/30" },
                   { id: "corporate", label: "Corporate / Embassy", badge: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
                 ].map((type) => (
                   <div

@@ -578,7 +578,7 @@ export function ReservationBookingModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="resAdults" className="text-xs font-semibold">
                     Adults
@@ -606,22 +606,6 @@ export function ReservationBookingModal({
                     onChange={(e) => setResChildren(e.target.value)}
                     className="h-10 text-sm"
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="resType" className="text-xs font-semibold">
-                    Reservation Type
-                  </Label>
-                  <select
-                    id="resType"
-                    value={resType}
-                    onChange={(e) => setResType(e.target.value)}
-                    className="h-10 w-full rounded-md border border-border bg-white dark:bg-[#0E172E] px-2 text-sm text-foreground"
-                  >
-                    <option value="walk_in">Walk-In Guest</option>
-                    <option value="direct">Direct Booking</option>
-                    <option value="corporate">Corporate</option>
-                    <option value="online">Online / Web Portal</option>
-                  </select>
                 </div>
               </div>
 

@@ -21,9 +21,29 @@ export class GuestPortalController {
       fullName?: string;
       phone?: string;
       nationalId?: string;
+      identifier?: string;
+      password?: string;
     },
   ) {
     return this.svc.login(body);
+  }
+
+  @Post('request-otp')
+  requestOtp(@Body() body: { phone: string }) {
+    return this.svc.requestGuestOtp(body.phone);
+  }
+
+  @Post('verify-otp')
+  verifyOtp(@Body() body: { phone: string; code: string; isReset?: boolean }) {
+    return this.svc.verifyGuestOtp(body.phone, body.code, body.isReset);
+  }
+
+  @Post('update-password')
+  updatePassword(
+    @Body() body: { password: string; phone?: string; guestId?: string },
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.svc.updateGuestPassword(body, authHeader);
   }
 
   @Post('register')
@@ -70,6 +90,7 @@ export class GuestPortalController {
       partnerIdNumber?: string;
       hasAccompanyingGuests?: boolean;
       accompanyingGuests?: any[];
+      password?: string;
     },
   ) {
     return this.svc.register(body);

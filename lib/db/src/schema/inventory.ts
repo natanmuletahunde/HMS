@@ -65,3 +65,60 @@ export const stockMovementsTable = pgTable("stock_movements", {
 export type InventoryCategory = typeof inventoryCategoriesTable.$inferSelect;
 export type InventoryItem     = typeof inventoryItemsTable.$inferSelect;
 export type StockMovement     = typeof stockMovementsTable.$inferSelect;
+
+// ─── Multi-Tier Inventory Locations (Main vs Mini Stocks) ─────────────────────
+export const inventoryLocationsTable = pgTable("inventory_locations", {
+  id:         text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  code:       text("code").notNull().unique(), // e.g. MAIN_WH, MINI_REST, MINI_HK
+  name:       text("name").notNull(),
+  type:       text("type").notNull().default("mini"), // 'main' | 'mini'
+  department: text("department").notNull().default("general"), // 'central' | 'restaurant' | 'housekeeping' | 'maintenance'
+  managedBy:  text("managed_by"),
+  isActive:   boolean("is_active").notNull().default(true),
+  createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Location Specific Stock Balances ─────────────────────────────────────────
+export const inventoryLocationStocksTable = pgTable("inventory_location_stocks", {
+  id:           text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  locationId:   text("location_id").notNull().references(() => inventoryLocationsTable.id),
+  itemId:       text("item_id").notNull().references(() => inventoryItemsTable.id),
+  currentStock: numeric("current_stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  minStock:     numeric("min_stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  reorderLevel: numeric("reorder_level", { precision: 10, scale: 2 }).notNull().default("0"),
+  status:       text("status").notNull().default("adequate"), // 'adequate', 'running_low', 'depleted'
+  updatedAt:    timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+// ─── Frontline Floor Requisitions (Housekeeping & Waiters -> Coordinator) ─────
+export const floorRequisitionsTable = pgTable("floor_requisitions", {
+  id:                 text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  requisitionNumber:  text("requisition_number").notNull().unique(), // e.g. REQ-XXXXX
+  department:         text("department").notNull(), // 'housekeeping' | 'waiters' | 'restaurant'
+  requestedBy:        text("requested_by").notNull(),
+  stationName:        text("station_name"), // e.g. Cart #3, Dining Station 2
+  sourceLocationId:   text("source_location_id").references(() => inventoryLocationsTable.id),
+  status:             text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  urgency:            text("urgency").notNull().default("normal"), // 'normal', 'urgent'
+  notes:              text("notes"),
+  approvedBy:         text("approved_by"),
+  approvedAt:         timestamp("approved_at", { withTimezone: true }),
+  createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const floorRequisitionItemsTable = pgTable("floor_requisition_items", {
+  id:                 text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  requisitionId:      text("requisition_id").notNull().references(() => floorRequisitionsTable.id),
+  itemId:             text("item_id").references(() => inventoryItemsTable.id),
+  itemName:           text("item_name").notNull(),
+  unit:               text("unit").notNull(),
+  quantityRequested:  numeric("quantity_requested", { precision: 10, scale: 2 }).notNull(),
+  quantityIssued:     numeric("quantity_issued", { precision: 10, scale: 2 }).notNull().default("0"),
+  notes:              text("notes"),
+});
+
+export type InventoryLocation       = typeof inventoryLocationsTable.$inferSelect;
+export type InventoryLocationStock  = typeof inventoryLocationStocksTable.$inferSelect;
+export type FloorRequisition        = typeof floorRequisitionsTable.$inferSelect;
+export type FloorRequisitionItem    = typeof floorRequisitionItemsTable.$inferSelect;
+

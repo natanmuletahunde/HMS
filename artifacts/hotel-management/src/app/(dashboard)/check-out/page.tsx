@@ -1193,12 +1193,12 @@ export default function CheckOutPage() {
           {/* Guest Departure Comments */}
           <div className="grid gap-1.5">
             <Label htmlFor="feedbackNotes" className="text-xs font-semibold text-foreground">
-              Guest Departure Comments &amp; Concierge Notes
+              Guest Departure Comments &amp; Front Desk Notes
             </Label>
             <Input
               id="feedbackNotes"
               name="feedbackNotes"
-              placeholder="Guest comments on stay / concierge remarks"
+              placeholder="Guest comments on stay / staff remarks"
               className="h-10 text-xs"
             />
           </div>

@@ -122,6 +122,13 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in-up: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in-down: fadeInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in-scale: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-in-right: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-in-left: slideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-ken-burns: kenBurnsSlow 35s ease-in-out infinite alternate;
   
   @keyframes pulse {
     0%, 100% {
@@ -130,6 +137,42 @@
     50% {
       opacity: .5;
     }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(14px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-14px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes kenBurnsSlow {
+    0% { transform: scale(1) translate(0, 0); }
+    50% { transform: scale(1.05) translate(-1%, -0.8%); }
+    100% { transform: scale(1) translate(0, 0); }
   }
 }
 
@@ -187,4 +230,63 @@ h1, h2, h3, h4, h5, h6 {
 }
 .dark [data-radix-portal] [role="dialog"], [data-theme="dark"] [data-radix-portal] [role="dialog"], html.dark [data-radix-portal] [role="dialog"] {
   background-color: #0E172E;
+}
+
+/* ========================================================================= */
+/* HMS UNIFIED ANIMATION & MICRO-INTERACTION SYSTEM                         */
+/* ========================================================================= */
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-ken-burns {
+  animation: kenBurnsSlow 35s ease-in-out infinite alternate;
+}
+
+/* Subtle staggered delays */
+.animation-delay-75 { animation-delay: 75ms; }
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-150 { animation-delay: 150ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+
+/* Interactive element transitions */
+button:not(:disabled), .btn {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button:not(:disabled):active, .btn:active {
+  transform: scale(0.98);
+}
+
+/* Accessible reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -25,6 +25,9 @@ export const posOrdersTable = pgTable("pos_orders", {
   roomNumber:           text("room_number"),
   waiterId:             text("waiter_id").references(() => usersTable.id),
   status:               text("status").notNull().default("open").$type<PosOrderStatus>(),
+  diningCase:           text("dining_case").notNull().default("walk_in"), // 'walk_in' | 'in_house_table' | 'room_service'
+  settlementType:       text("settlement_type").default("direct_payment"), // 'complimentary_breakfast' | 'room_charge' | 'direct_payment'
+  complimentaryDiscountAmount: numeric("complimentary_discount_amount", { precision: 10, scale: 2 }).default("0"),
   // Pricing
   subtotal:             numeric("subtotal", { precision: 10, scale: 2 }).notNull().default("0"),
   discountType:         text("discount_type").notNull().default("none").$type<PosDiscountType>(),
@@ -62,6 +65,7 @@ export const posOrderItemsTable = pgTable("pos_order_items", {
   unitPrice:      numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
   discountAmount: numeric("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   total:          numeric("total", { precision: 10, scale: 2 }).notNull(),
+  isComplimentary: boolean("is_complimentary").notNull().default(false),
   notes:          text("notes"),
   kitchenStatus:  text("kitchen_status").notNull().default("pending"), // pending, preparing, ready, served
   createdAt:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

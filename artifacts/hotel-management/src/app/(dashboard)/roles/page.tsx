@@ -296,7 +296,7 @@ export default function RolesPage() {
                 <Label htmlFor="role-name">Role Name *</Label>
                 <Input 
                   id="role-name"
-                  placeholder="e.g. VIP Concierge Supervisor" 
+                  placeholder="e.g. VIP Services Supervisor" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)}
                   required

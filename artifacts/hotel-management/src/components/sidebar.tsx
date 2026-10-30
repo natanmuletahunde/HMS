@@ -12,13 +12,19 @@ import {
   ShoppingBag, Users2,
   BarChart2, Bell,
   Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
-  TrendingUp, ShieldCheck, QrCode,
+  TrendingUp, ShieldCheck, QrCode, ChefHat, Receipt, Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
-import { isRouteAuthorized } from "@/lib/rbac";
+import { isRouteAuthorized, normalizeRole } from "@/lib/rbac";
 
 const NAV_GROUPS = [
+  {
+    title: "Overview",
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ]
+  },
   {
     title: "Hotel Setup",
     items: [
@@ -41,7 +47,6 @@ const NAV_GROUPS = [
   {
     title: "Front Desk",
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Guests", href: "/guests", icon: Users },
       { name: "Rooms", href: "/rooms", icon: BedDouble },
       { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
@@ -60,6 +65,10 @@ const NAV_GROUPS = [
       { name: "Housekeeping", href: "/housekeeping", icon: Sparkles },
       { name: "Maintenance", href: "/maintenance", icon: Wrench },
       { name: "Restaurant", href: "/restaurant", icon: UtensilsCrossed },
+      { name: "Kitchen", href: "/kitchen", icon: ChefHat },
+      { name: "Coordinator", href: "/coordinator", icon: GitMerge },
+      { name: "Staff Supplies", href: "/staff-supplies", icon: Boxes },
+      { name: "Cashier Desk", href: "/cashier", icon: Receipt },
       { name: "POS", href: "/pos", icon: ShoppingCart },
     ]
   },
@@ -121,6 +130,7 @@ export function Sidebar() {
   const router = useRouter();
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
+  const isWaiter = normalizeRole(currentRole) === "waiter";
 
   // Filter navigation groups based on role authorization
   const filteredNavGroups = useMemo(() => {
@@ -128,13 +138,18 @@ export function Sidebar() {
       const authorizedItems = group.items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
         return isRouteAuthorized(currentRole, pathOnly);
+      }).map((item) => {
+        if (isWaiter && item.href === "/restaurant") {
+          return { ...item, name: "Waiter" };
+        }
+        return item;
       });
       return {
         ...group,
         items: authorizedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [currentRole]);
+  }, [currentRole, isWaiter]);
 
   return (
     <aside className="w-64 flex flex-col bg-[#071039] border-r border-[#0F2270] h-screen sticky top-0 overflow-y-auto z-20 select-none">

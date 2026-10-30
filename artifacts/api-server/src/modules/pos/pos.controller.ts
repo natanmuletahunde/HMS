@@ -12,6 +12,11 @@ export class PosController {
     return this.svc.getSummary();
   }
 
+  @Get('verify-resident')
+  verifyResident(@Query('roomNumber') roomNumber: string) {
+    return this.svc.verifyResident(roomNumber);
+  }
+
   @Get('orders')
   getOrders(@Query() q: any) {
     return this.svc.getOrders(q);

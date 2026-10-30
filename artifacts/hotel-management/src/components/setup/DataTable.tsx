@@ -134,19 +134,21 @@ export function DataTable<T extends { id?: string | number }>({
               type="button"
               onClick={onPrev}
               disabled={currentPage <= 1}
-              className="w-8 h-8 rounded-lg border border-[var(--border)] flex items-center justify-center hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-2.5 h-8 rounded-lg border border-[var(--border)] flex items-center gap-1 font-mono text-xs font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Previous Page"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>&lt;-</span>
             </button>
             <button
               type="button"
               onClick={onNext}
               disabled={currentPage >= totalPages}
-              className="w-8 h-8 rounded-lg border border-[var(--border)] flex items-center justify-center hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-2.5 h-8 rounded-lg border border-[var(--border)] flex items-center gap-1 font-mono text-xs font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Next Page"
             >
-              <ArrowRight className="w-4 h-4" />
+              <span>-&gt;</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

@@ -17,12 +17,18 @@ import {
   QrCode,
   Sparkles,
   ChevronLeft,
+  ArrowLeft,
   Shield,
+  MessageSquare,
+  KeyRound,
+  Eye,
+  EyeOff,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FaydaScanner } from "@/components/fayda-scanner";
 import type { ParsedFaydaGuest } from "@/lib/fayda";
@@ -35,10 +41,12 @@ function LoginForm() {
   const queryPhone = searchParams.get("phone") || "";
   const isJustRegistered = searchParams.get("registered") === "true";
 
-  const [fullName, setFullName] = useState(queryName);
-  const [phone, setPhone] = useState(queryPhone);
-  const [nationalId, setNationalId] = useState("");
+  // Login form states
+  const [identifier, setIdentifier] = useState(queryPhone || queryName || "");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
+  // Fayda scanner state
   const [showScanner, setShowScanner] = useState(false);
   const [faydaScanned, setFaydaScanned] = useState<ParsedFaydaGuest | null>(null);
 
@@ -46,12 +54,29 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [existingSession, setExistingSession] = useState<any | null>(null);
 
-  // Phone: strictly numeric, max 10 digits (e.g. 0911318622)
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
-    setPhone(raw);
-    if (error && raw.length === 10) setError("");
-  };
+  // Dual auth mode: standard (password / identifier) vs. direct SMS OTP
+  const [loginMode, setLoginMode] = useState<"standard" | "otp">("standard");
+
+  // Direct SMS OTP states
+  const [guestOtpPhone, setGuestOtpPhone] = useState(queryPhone || "");
+  const [guestOtpStep, setGuestOtpStep] = useState<"request" | "verify">("request");
+  const [guestOtpCode, setGuestOtpCode] = useState("");
+  const [guestOtpMasked, setGuestOtpMasked] = useState("");
+  const [guestOtpDevCode, setGuestOtpDevCode] = useState("");
+  const [guestOtpCooldown, setGuestOtpCooldown] = useState(0);
+  const [guestOtpLoading, setGuestOtpLoading] = useState(false);
+  const [guestOtpError, setGuestOtpError] = useState("");
+
+  // Forgot Password via SMS OTP modal state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState<"phone" | "verify">("phone");
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotMasked, setForgotMasked] = useState("");
+  const [forgotDevCode, setForgotDevCode] = useState("");
+  const [forgotCooldown, setForgotCooldown] = useState(0);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState("");
 
   // Check if session already exists
   useEffect(() => {
@@ -70,63 +95,203 @@ function LoginForm() {
     }
   }, []);
 
+  // Cooldown countdown for direct SMS OTP
+  useEffect(() => {
+    if (guestOtpCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setGuestOtpCooldown((c) => (c > 1 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [guestOtpCooldown]);
+
+  // Cooldown countdown for Forgot Password SMS OTP
+  useEffect(() => {
+    if (forgotCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setForgotCooldown((c) => (c > 1 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [forgotCooldown]);
+
+  const handleRequestGuestOtp = async () => {
+    const raw = guestOtpPhone.replace(/\D/g, "");
+    if (raw.length < 9) {
+      setGuestOtpError("Please enter a valid Ethiopian mobile phone number (e.g. 0911318622)");
+      return;
+    }
+    setGuestOtpLoading(true);
+    setGuestOtpError("");
+    setGuestOtpDevCode("");
+    try {
+      const res = await fetch("/api/guest-portal/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: raw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to send verification SMS");
+      setGuestOtpMasked(data.maskedPhone || raw);
+      setGuestOtpCooldown(data.cooldownSeconds || 60);
+      if (data.devCode) setGuestOtpDevCode(data.devCode);
+      setGuestOtpStep("verify");
+    } catch (err: any) {
+      setGuestOtpError(err.message || "Failed to dispatch SMS code");
+    } finally {
+      setGuestOtpLoading(false);
+    }
+  };
+
+  const handleVerifyGuestOtp = async () => {
+    if (guestOtpCode.trim().length !== 6) {
+      setGuestOtpError("Please enter the 6-digit verification code");
+      return;
+    }
+    setGuestOtpLoading(true);
+    setGuestOtpError("");
+    try {
+      const res = await fetch("/api/guest-portal/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: guestOtpPhone, code: guestOtpCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Invalid or expired verification code");
+
+      if (typeof window !== "undefined") {
+        if (data.token) {
+          sessionStorage.setItem("nexus_guest_token", data.token);
+          localStorage.setItem("nexus_guest_token", data.token);
+          document.cookie = `nexus_guest_token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        }
+        sessionStorage.setItem("nexus_guest_session", JSON.stringify(data));
+        localStorage.setItem("nexus_guest_session", JSON.stringify(data));
+      }
+      router.push("/");
+    } catch (err: any) {
+      setGuestOtpError(err.message || "Invalid verification code");
+    } finally {
+      setGuestOtpLoading(false);
+    }
+  };
+
+  // Forgot Password SMS OTP handlers
+  const openForgotPasswordModal = () => {
+    const rawDigits = identifier.replace(/\D/g, "");
+    setForgotPhone(rawDigits.length >= 9 ? identifier : "");
+    setForgotStep("phone");
+    setForgotCode("");
+    setForgotError("");
+    setForgotDevCode("");
+    setShowForgotModal(true);
+  };
+
+  const handleRequestForgotOtp = async () => {
+    const raw = forgotPhone.replace(/\D/g, "");
+    if (raw.length < 9) {
+      setForgotError("Please enter a valid Ethiopian mobile phone number (e.g. 0911318622)");
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError("");
+    setForgotDevCode("");
+    try {
+      const res = await fetch("/api/guest-portal/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: raw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to dispatch reset code");
+      setForgotMasked(data.maskedPhone || raw);
+      setForgotCooldown(data.cooldownSeconds || 60);
+      if (data.devCode) setForgotDevCode(data.devCode);
+      setForgotStep("verify");
+    } catch (err: any) {
+      setForgotError(err.message || "Failed to dispatch reset code via SMS");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyForgotOtp = async () => {
+    if (forgotCode.trim().length !== 6) {
+      setForgotError("Please enter the 6-digit verification code");
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError("");
+    try {
+      const res = await fetch("/api/guest-portal/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: forgotPhone,
+          code: forgotCode.trim(),
+          isReset: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Invalid or expired verification code");
+
+      if (typeof window !== "undefined") {
+        if (data.token) {
+          sessionStorage.setItem("nexus_guest_token", data.token);
+          localStorage.setItem("nexus_guest_token", data.token);
+          document.cookie = `nexus_guest_token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        }
+        sessionStorage.setItem("nexus_guest_session", JSON.stringify(data));
+        localStorage.setItem("nexus_guest_session", JSON.stringify(data));
+      }
+      setShowForgotModal(false);
+      router.push("/guest-portal/profile?changePassword=true");
+    } catch (err: any) {
+      setForgotError(err.message || "Invalid verification code");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleFaydaDecoded = (data: ParsedFaydaGuest) => {
     setFaydaScanned(data);
     setError("");
 
+    const phoneClean = data.phone ? data.phone.replace(/\D/g, "") : "";
     const name = data.fullName || `${data.firstName || ""} ${data.lastName || ""}`.trim();
-    if (name) setFullName(name);
-
-    if (data.fan || data.nationalId) {
-      const cleanFan = (data.fan || data.nationalId || "").replace(/\D/g, "").slice(0, 16);
-      if (cleanFan) setNationalId(cleanFan);
-    }
-
-    if (data.phone) {
-      const cleanPhone = data.phone.replace(/\D/g, "");
-      const formatted = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone;
-      if (formatted.length === 10) {
-        setPhone(formatted);
-      }
+    if (phoneClean.length >= 9) {
+      setIdentifier(phoneClean.length > 10 ? phoneClean.slice(-10) : phoneClean);
+    } else if (name) {
+      setIdentifier(name);
     }
   };
 
-  const handleLogin = async (overrideName?: string, overridePhone?: string, overrideNid?: string) => {
+  const handleLogin = async (overrideIdentifier?: string, overridePass?: string) => {
     setError("");
-    const targetName = (overrideName !== undefined ? overrideName : fullName).trim();
-    const targetPhone = (overridePhone !== undefined ? overridePhone : phone).trim();
-    const targetNid = (overrideNid !== undefined ? overrideNid : nationalId).trim();
+    const targetId = (overrideIdentifier !== undefined ? overrideIdentifier : identifier).trim();
+    const targetPass = overridePass !== undefined ? overridePass : password;
 
-    if (!targetName) {
-      setError("Please enter your full name.");
-      return;
-    }
-
-    if (!targetPhone && !targetNid) {
-      setError("Please enter your 10-digit mobile phone number or scan Fayda National ID.");
-      return;
-    }
-
-    if (targetPhone && targetPhone.length !== 10) {
-      setError("Please enter a valid 10-digit phone number (e.g. 0911318622).");
+    if (!targetId) {
+      setError("Please enter your registered mobile phone number or full name.");
       return;
     }
 
     setLoading(true);
     try {
+      const isDigitsOrPhone = /^[+0-9\s\-()]+$/.test(targetId) && targetId.replace(/\D/g, "").length >= 4;
+
       const res = await fetch("/api/guest-portal/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: targetName,
-          phone: targetPhone || undefined,
-          nationalId: targetNid || undefined,
+          identifier: targetId,
+          phone: isDigitsOrPhone ? targetId.replace(/\D/g, "") : undefined,
+          fullName: !isDigitsOrPhone ? targetId : undefined,
+          password: targetPass || undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Authentication failed. Please verify your name and phone number.");
+        throw new Error(data.message || data.error || "Authentication failed. Please verify your credentials.");
       }
 
       // Persist JWT token and verified session in storage & cookie
@@ -141,10 +306,13 @@ function LoginForm() {
         localStorage.setItem("nexus_guest_session", JSON.stringify(data));
       }
 
-      // Navigate to the luxury hotel landing page
-      router.push("/");
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      } else {
+        router.push("/");
+      }
     } catch (err: any) {
-      setError(err.message || "No registered guest account found for this name and phone number.");
+      setError(err.message || "No registered guest account found for this name or phone number.");
     } finally {
       setLoading(false);
     }
@@ -178,7 +346,7 @@ function LoginForm() {
               Registration Complete{queryName ? `, ${queryName}` : ""}!
             </p>
             <p className="text-slate-300 leading-relaxed">
-              Your guest identity has been verified in the hotel registry. Sign in below using your name and phone number to access your reservation suite and in-room amenities.
+              Your guest identity has been verified in the hotel registry. Sign in below using your registered phone or full name and password.
             </p>
           </div>
         </div>
@@ -221,233 +389,613 @@ function LoginForm() {
         </div>
       )}
 
-      <Card className="border-white/10 bg-[#10121a]/95 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl rounded-2xl overflow-hidden">
-        <CardHeader className="text-center pb-4 pt-7 px-6 border-b border-white/5">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 shadow-inner">
-            <Lock className="h-5 w-5" />
+      <Card className="border-amber-500/20 bg-[#10121a]/95 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),0_0_40px_rgba(217,119,54,0.06)] backdrop-blur-2xl rounded-2xl overflow-hidden">
+        <CardHeader className="text-center pb-4 pt-6 px-6 sm:px-8 border-b border-white/5 relative flex flex-col items-center justify-center">
+          {/* Centered Luxury Hotel Crest Logo */}
+          <div className="relative flex items-center justify-center">
+            {/* Outer Subtle Ambient Gold Glow */}
+            <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-amber-500/30 via-amber-400/20 to-amber-600/30 blur-md opacity-75" />
+            
+            {/* Circular Luxury Emblem Badge */}
+            <div className="relative w-20 h-20 rounded-full bg-[#0a0d18] border-2 border-amber-400/50 p-1 flex items-center justify-center shadow-[0_0_25px_rgba(217,119,54,0.35)] overflow-hidden">
+              <img
+                src="/hotel-logo.png"
+                alt="Hotel Logo"
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
           </div>
-          <CardTitle className="text-xl font-serif font-bold text-white tracking-wide">
-            Guest Portal Sign In
-          </CardTitle>
-          <p className="text-xs text-slate-400 mt-1 font-light">
-            Enter your reservation credentials to manage your stay and room service orders.
-          </p>
         </CardHeader>
 
-        <CardContent className="space-y-4 pt-5 px-6 pb-6">
-          {/* Fayda Scanner Section */}
-          <div className="space-y-2.5 p-3 rounded-xl border border-white/5 bg-black/30">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Fast-Track with Fayda ID</span>
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowScanner(!showScanner)}
-                className="text-[11px] h-7 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
-              >
-                {showScanner ? "Hide Scanner" : "Scan / Upload Fayda"}
-              </Button>
-            </div>
-
-            {showScanner && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200 pt-2">
-                <FaydaScanner
-                  onDecoded={handleFaydaDecoded}
-                  onClear={() => setFaydaScanned(null)}
-                />
-              </div>
-            )}
-
-            {faydaScanned && (
-              <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-950/40 flex items-center justify-between text-xs text-emerald-300">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    Fayda ID: <strong className="text-white">{faydaScanned.fullName}</strong>
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  type="button"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-[11px] h-7 px-3 rounded-lg"
-                  onClick={() =>
-                    handleLogin(
-                      faydaScanned.fullName,
-                      faydaScanned.phone?.replace(/\D/g, "").slice(-10),
-                      faydaScanned.fan?.replace(/\D/g, "").slice(0, 16)
-                    )
-                  }
-                >
-                  Instant Sign In &rarr;
-                </Button>
-              </div>
-            )}
+        <CardContent className="space-y-4 pt-6 px-6 sm:px-8 pb-7">
+          {/* Auth Method Selector */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-black/40 border border-white/10 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode("standard");
+                setError("");
+                setGuestOtpError("");
+              }}
+              className={`py-2 px-3 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                loginMode === "standard"
+                  ? "bg-gradient-to-r from-[#d97736] to-[#b85e24] text-white shadow-md font-semibold"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Password Sign In</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode("otp");
+                setError("");
+                setGuestOtpError("");
+              }}
+              className={`py-2 px-3 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                loginMode === "otp"
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md font-bold"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>SMS OTP Login</span>
+            </button>
           </div>
 
-          {error && (
-            <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-start gap-2.5 animate-in fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
-              <span className="leading-relaxed">{error}</span>
+          {loginMode === "standard" ? (
+            <>
+              {/* Fayda Scanner Section */}
+              <div className="space-y-2.5 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-950/20 backdrop-blur-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Fast-Track with Fayda ID</span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowScanner(!showScanner)}
+                    className="text-[11px] h-7 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+                  >
+                    {showScanner ? "Hide Scanner" : "Scan / Upload Fayda"}
+                  </Button>
+                </div>
+
+                {showScanner && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-200 pt-2">
+                    <FaydaScanner
+                      onDecoded={handleFaydaDecoded}
+                      onClear={() => setFaydaScanned(null)}
+                    />
+                  </div>
+                )}
+
+                {faydaScanned && (
+                  <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-950/40 flex items-center justify-between text-xs text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>
+                        Fayda ID: <strong className="text-white">{faydaScanned.fullName}</strong>
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      type="button"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-[11px] h-7 px-3 rounded-lg"
+                      onClick={() =>
+                        handleLogin(
+                          faydaScanned.phone?.replace(/\D/g, "").slice(-10) || faydaScanned.fullName
+                        )
+                      }
+                    >
+                      Fill Identifier &rarr;
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {error && (
+                <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-start gap-2.5 animate-in fade-in">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                  <span className="leading-relaxed">{error}</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleLogin();
+                }}
+                className="space-y-4"
+              >
+                {/* 1. Identifier Field (Registered Phone Number or Full Name) */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="loginIdentifier" className="text-xs font-medium text-slate-300">
+                    Registered Phone Number or Full Name <span className="text-amber-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      id="loginIdentifier"
+                      type="text"
+                      placeholder="e.g. 0911318622 or Almaz Bekele"
+                      value={identifier}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIdentifier(e.target.value)}
+                      className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-500 pl-10 text-sm h-11 rounded-xl"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Password Field with "Forgot Password?" placed cleanly right above */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="loginPassword" className="text-xs font-medium text-slate-300">
+                      Password <span className="text-amber-400">*</span>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={openForgotPasswordModal}
+                      className="text-xs text-amber-400 hover:text-amber-300 transition-colors font-medium hover:underline focus:outline-none"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      id="loginPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                      className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-500 pl-10 pr-10 text-sm h-11 rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || !identifier.trim()}
+                  className="w-full bg-gradient-to-r from-[#d97736] via-[#ea833f] to-[#b85e24] hover:brightness-110 active:scale-[0.99] text-white font-semibold h-12 text-sm shadow-[0_10px_25px_-5px_rgba(217,119,54,0.35)] transition-all rounded-xl"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                      Verifying Guest Credentials...
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In to Guest Portal</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </>
+          ) : (
+            /* AfroMessage Direct SMS OTP Flow */
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-300">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>AfroMessage Ethiopian SMS Gateway</span>
+                </span>
+                <span className="text-[10px] text-amber-400/80 font-mono">EthioTel &bull; Safaricom</span>
+              </div>
+
+              {guestOtpError && (
+                <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-start gap-2.5 animate-in fade-in">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                  <span className="leading-relaxed">{guestOtpError}</span>
+                </div>
+              )}
+
+              {guestOtpStep === "request" ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="guestOtpPhoneInput" className="text-xs font-medium text-slate-300">
+                      Mobile Phone Number <span className="text-amber-400">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                      <Input
+                        id="guestOtpPhoneInput"
+                        type="tel"
+                        placeholder="0911318622 or 07..."
+                        value={guestOtpPhone}
+                        onChange={(e) => setGuestOtpPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        maxLength={10}
+                        className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-500 pl-10 text-sm font-mono tracking-wider h-11 rounded-xl"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Enter the Ethiopian phone number linked to your hotel reservation or guest profile.
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleRequestGuestOtp}
+                    disabled={guestOtpLoading || guestOtpPhone.length < 9}
+                    className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:brightness-110 active:scale-[0.99] text-slate-950 font-bold h-12 text-sm shadow-[0_10px_25px_-5px_rgba(217,119,54,0.35)] transition-all rounded-xl"
+                  >
+                    {guestOtpLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-950" />
+                        Dispatching SMS via AfroMessage...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Send 6-Digit SMS Code</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-1">
+                    <p className="text-xs text-slate-300">
+                      Verification code dispatched to:
+                    </p>
+                    <p className="text-sm font-mono font-bold text-amber-300">
+                      {guestOtpMasked || guestOtpPhone}
+                    </p>
+                  </div>
+
+                  {guestOtpDevCode && (
+                    <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between text-xs">
+                      <span className="text-amber-300 font-medium">Sandbox SMS OTP:</span>
+                      <code className="font-mono font-bold text-amber-400 bg-black/60 px-2 py-0.5 rounded text-sm tracking-widest">
+                        {guestOtpDevCode}
+                      </code>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="guestOtpCodeInput" className="text-xs font-medium text-slate-300">
+                      Enter 6-Digit Code <span className="text-amber-400">*</span>
+                    </Label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                      <Input
+                        id="guestOtpCodeInput"
+                        type="text"
+                        placeholder="••••••"
+                        value={guestOtpCode}
+                        onChange={(e) => setGuestOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        maxLength={6}
+                        className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-600 pl-10 text-center text-lg font-mono tracking-[0.3em] font-bold h-12 rounded-xl"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleVerifyGuestOtp}
+                    disabled={guestOtpLoading || guestOtpCode.trim().length !== 6}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 active:scale-[0.99] text-slate-950 font-bold h-12 text-sm shadow-[0_10px_25px_-5px_rgba(16,185,129,0.35)] transition-all rounded-xl"
+                  >
+                    {guestOtpLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-950" />
+                        Verifying Code...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-slate-950" />
+                        <span>Verify & Enter Guest Portal &rarr;</span>
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <button
+                      type="button"
+                      disabled={guestOtpCooldown > 0 || guestOtpLoading}
+                      onClick={handleRequestGuestOtp}
+                      className="text-amber-400 hover:text-amber-300 disabled:text-slate-500 font-medium transition-colors"
+                    >
+                      {guestOtpCooldown > 0 ? `Resend code in ${guestOtpCooldown}s` : "Resend SMS code"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGuestOtpStep("request");
+                        setGuestOtpCode("");
+                        setGuestOtpError("");
+                      }}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      Change Phone Number
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-            className="space-y-4"
-          >
-            {/* 1. Full Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="loginFullName" className="text-xs font-medium text-slate-300">
-                Full Name <span className="text-amber-400">*</span>
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                <Input
-                  id="loginFullName"
-                  type="text"
-                  placeholder="e.g. Almaz Bekele"
-                  value={fullName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
-                  className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-500 pl-10 text-sm h-11 rounded-xl"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            {/* 2. Phone Number (10 digits) */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="loginPhone" className="text-xs font-medium text-slate-300">
-                  Mobile Phone Number <span className="text-amber-400">*</span>
-                </Label>
-                <span className="text-[10px] text-slate-400 font-mono">10 digits</span>
-              </div>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                <Input
-                  id="loginPhone"
-                  type="tel"
-                  placeholder="0911318622"
-                  value={phone}
-                  onChange={handlePhoneChange}
-                  maxLength={10}
-                  className="bg-black/40 border-white/10 focus-visible:border-amber-500 focus-visible:ring-1 focus-visible:ring-amber-500/30 text-white placeholder:text-slate-500 pl-10 text-sm font-mono tracking-wider h-11 rounded-xl"
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading || !fullName.trim() || (phone.length !== 10 && !nationalId)}
-              className="w-full bg-gradient-to-r from-[#d97736] via-[#d97736] to-[#b85e24] hover:from-[#e08342] hover:to-[#c4682c] text-white font-semibold h-11 text-sm shadow-lg shadow-amber-500/20 transition-all rounded-xl"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
-                  Verifying Guest Credentials...
-                </>
-              ) : (
-                <>
-                  <span>Sign In to Guest Portal</span>
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
 
           {/* Registration Callout */}
           <div className="pt-3 border-t border-white/10 text-center">
             <Button
               type="button"
               variant="outline"
-              className="w-full border-amber-500/30 bg-amber-500/5 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/50 h-10 text-xs font-medium rounded-xl"
+              className="w-full border-amber-500/30 bg-amber-500/5 text-amber-300 hover:bg-amber-500/15 hover:border-amber-500/50 h-10 text-xs font-medium rounded-xl transition-all"
               onClick={() => router.push("/guest-portal/register")}
             >
               First Time Guest? Pre-Register Profile &rarr;
             </Button>
           </div>
+
         </CardContent>
       </Card>
+
+      {/* Forgot Password via SMS OTP Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-[#0f121d] border border-amber-500/30 rounded-2xl shadow-2xl p-6 space-y-4">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1 pr-6">
+              <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                <KeyRound className="w-4 h-4" />
+                <span>Reset Password via SMS OTP</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {forgotStep === "phone"
+                  ? "Enter your registered mobile phone number. We'll send an AfroMessage 6-digit verification code to verify your identity and let you set a new secure password."
+                  : `Enter the 6-digit verification code sent to ${forgotMasked || forgotPhone}.`}
+              </p>
+            </div>
+
+            {forgotError && (
+              <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {forgotStep === "phone" ? (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-300">
+                    Registered Mobile Phone Number <span className="text-amber-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      type="tel"
+                      placeholder="0911318622 or 07..."
+                      value={forgotPhone}
+                      onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      maxLength={10}
+                      className="bg-black/40 border-white/10 focus-visible:border-amber-500 text-white pl-10 text-sm font-mono tracking-wider h-11 rounded-xl"
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    We will search the hotel registry for your active or confirmed profile.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={handleRequestForgotOtp}
+                  disabled={forgotLoading || forgotPhone.replace(/\D/g, "").length < 9}
+                  className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:brightness-110 text-slate-950 font-bold h-11 text-xs rounded-xl shadow-lg"
+                >
+                  {forgotLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-950" />
+                      Sending SMS OTP...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      <span>Send 6-Digit SMS Code</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {forgotDevCode && (
+                  <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 flex items-center justify-between text-xs">
+                    <span className="text-amber-300 font-medium">Sandbox SMS OTP:</span>
+                    <code className="font-mono font-bold text-amber-400 bg-black/60 px-2 py-0.5 rounded text-sm tracking-widest">
+                      {forgotDevCode}
+                    </code>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-300">
+                    Enter 6-Digit Code <span className="text-amber-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      type="text"
+                      placeholder="••••••"
+                      value={forgotCode}
+                      onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      maxLength={6}
+                      className="bg-black/40 border-white/10 focus-visible:border-amber-500 text-white pl-10 text-center text-lg font-mono tracking-[0.3em] font-bold h-12 rounded-xl"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={handleVerifyForgotOtp}
+                  disabled={forgotLoading || forgotCode.trim().length !== 6}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-slate-950 font-bold h-11 text-xs rounded-xl shadow-lg"
+                >
+                  {forgotLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-950" />
+                      Verifying Code...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4 text-slate-950" />
+                      <span>Verify & Set New Password &rarr;</span>
+                    </>
+                  )}
+                </Button>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <button
+                    type="button"
+                    disabled={forgotCooldown > 0 || forgotLoading}
+                    onClick={handleRequestForgotOtp}
+                    className="text-amber-400 hover:text-amber-300 disabled:text-slate-500 font-medium transition-colors"
+                  >
+                    {forgotCooldown > 0 ? `Resend code in ${forgotCooldown}s` : "Resend SMS code"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotStep("phone");
+                      setForgotCode("");
+                      setForgotError("");
+                    }}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    Change Phone Number
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+const GUEST_DESTINATIONS = [
+  {
+    id: "fountain",
+    number: "01",
+    title: "Grand Resort & Fountains",
+    location: "Bellagio • Las Vegas",
+    image: "/login-assets/hotel-fountain.jpg",
+    highlight: "Majestic dancing fountains & luxury tower",
+  },
+  {
+    id: "ocean-villa",
+    number: "02",
+    title: "Horizon Oceanfront Villa",
+    location: "Overwater Lagoon • Maldives",
+    image: "/login-assets/hotel-ocean-villa.jpg",
+    highlight: "Open-air teak terrace with ocean panorama",
+  },
+  {
+    id: "palace",
+    number: "03",
+    title: "Royal Palace Courtyard",
+    location: "Emirates Heritage • Abu Dhabi",
+    image: "/login-assets/hotel-palace.png",
+    highlight: "Illuminated star fountain & grand domes",
+  },
+  {
+    id: "suite-round",
+    number: "04",
+    title: "Signature Botanical Suite",
+    location: "Modern Penthouse • Milan",
+    image: "/login-assets/hotel-suite-round.png",
+    highlight: "Bespoke circular bed & botanical wall mural",
+  },
+];
+
 export default function GuestPortalLoginPage() {
   return (
-    <div className="min-h-screen bg-[#090a10] text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative selection:bg-amber-500/30">
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-80 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,54,0.12),_transparent_70%)] pointer-events-none" />
-
-      {/* Hotel Top Banner */}
-      <header className="flex items-center justify-between max-w-4xl mx-auto w-full pt-2 z-10">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:border-amber-500 transition-colors">
-            <Hotel className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-lg tracking-[0.2em] font-semibold text-white">
-                AURA
-              </span>
-              <Badge variant="outline" className="border-amber-500/40 text-amber-400 bg-amber-500/10 text-[9px] px-1.5 py-0">
-                5-STAR LUXURY
-              </Badge>
-            </div>
-            <p className="text-[10px] text-amber-400/80 font-mono tracking-widest uppercase">
-              Guest Portal Authentication
-            </p>
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/10"
+    <div className="h-screen w-screen max-h-screen overflow-hidden bg-[#030614] text-slate-100 flex flex-col justify-center items-center relative selection:bg-amber-500/30 select-none">
+      {/* 4-Quadrant Full-Viewport Luxury Architectural Background Gallery - Interactive Hover View */}
+      <div className="fixed inset-0 grid grid-cols-1 md:grid-cols-2 grid-rows-2 w-screen h-screen z-0 pointer-events-auto select-none">
+        {GUEST_DESTINATIONS.map((dest) => (
+          <div
+            key={dest.id}
+            className="group relative overflow-hidden border-white/5 border-[0.5px] cursor-pointer"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Hotel Home</span>
-          </Link>
-          <div className="text-right hidden md:flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-xl text-xs">
-            <PhoneCall className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <div>
-              <span className="text-[10px] text-slate-400 block font-light">Front Desk Concierge</span>
-              <span className="text-xs font-semibold text-amber-300 font-mono">Ext. 000 | (011) 555-0199</span>
+            {/* Background Hotel Image with Smooth Zoom and Brightness on Hover */}
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-out transform scale-100 brightness-[0.50] contrast-[1.02] group-hover:scale-110 group-hover:brightness-[1.15] group-hover:contrast-[1.10]"
+              style={{ backgroundImage: `url('${dest.image}')` }}
+            />
+            {/* Deep dark gradient overlay that fades away on hover to reveal the neat, bright hotel photo */}
+            <div className="absolute inset-0 transition-all duration-700 ease-out bg-gradient-to-t from-[#020512]/90 via-[#030718]/65 to-[#020512]/75 group-hover:opacity-15 group-hover:bg-gradient-to-t group-hover:from-black/40 group-hover:via-transparent group-hover:to-black/30" />
+
+            {/* Subtle destination badge revealing cleanly on hover in the corner of the quadrant */}
+            <div className="absolute bottom-5 left-5 z-10 transition-all duration-500 ease-out transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 pointer-events-none">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-xs font-medium text-amber-300 shadow-xl">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="font-serif tracking-wide">{dest.title}</span>
+                <span className="text-white/30">•</span>
+                <span className="text-slate-300 text-[11px] font-sans">{dest.location}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        ))}
+      </div>
 
-      {/* Main Authentication Section */}
-      <main className="max-w-md mx-auto w-full my-auto py-8 z-10">
-        <Suspense
-          fallback={
-            <Card className="border-white/10 bg-[#10121a]/95 p-8 text-center rounded-2xl">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400" />
-            </Card>
-          }
+      {/* Atmospheric Vignette for Center Contrast */}
+      <div
+        className="fixed inset-0 pointer-events-none z-1"
+        style={{
+          background: "radial-gradient(circle at center, rgba(3, 7, 24, 0.72) 0%, rgba(3, 7, 24, 0.35) 45%, rgba(2, 5, 18, 0.35) 100%)",
+        }}
+      />
+
+      {/* Minimal Top-Left Back Arrow Navigation Only (No text, no other elements) */}
+      <div className="absolute top-5 left-5 sm:top-6 sm:left-6 z-30">
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/15 bg-black/60 backdrop-blur-md text-amber-400 hover:text-white hover:bg-white/15 hover:border-amber-500/60 transition-all shadow-lg group cursor-pointer"
+          title="Back"
+          aria-label="Back"
         >
-          <LoginForm />
-        </Suspense>
-      </main>
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
 
-      {/* Footer */}
-      <footer className="text-center text-xs text-slate-500 pt-6 border-t border-white/5 max-w-2xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 z-10">
-        <span>&copy; {new Date().getFullYear()} AURA Luxury Hotel & Suites. Powered by Nexus HMS.</span>
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <Link href="/" className="hover:text-amber-400 transition-colors">Home</Link>
-          <span>&bull;</span>
-          <Link href="/guest-portal/register" className="hover:text-amber-400 transition-colors">Register</Link>
-          <span>&bull;</span>
-          <span>Concierge Ext. 000</span>
+      {/* Main Authentication Section - Static, Centered, Shifted slightly upward, Non-scrollable */}
+      <main className="w-full h-full flex items-center justify-center p-4 sm:p-6 z-10 relative -translate-y-4 sm:-translate-y-6 pointer-events-none">
+        <div className="w-full max-w-md pointer-events-auto">
+          <Suspense
+            fallback={
+              <Card className="border-white/10 bg-[#10121a]/95 p-8 text-center rounded-2xl">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400" />
+              </Card>
+            }
+          >
+            <LoginForm />
+          </Suspense>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }

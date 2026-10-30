@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { GuestPortalController } from './guest-portal.controller';
 import { GuestPortalService } from './guest-portal.service';
+import { AuthModule } from '../auth/auth.module';
 import { requireSessionSecret } from '../../common/config/runtime-secrets';
 
 @Module({
@@ -10,6 +11,7 @@ import { requireSessionSecret } from '../../common/config/runtime-secrets';
       secret: requireSessionSecret(),
       signOptions: { expiresIn: '7d' },
     }),
+    AuthModule,
   ],
   controllers: [GuestPortalController],
   providers: [GuestPortalService],

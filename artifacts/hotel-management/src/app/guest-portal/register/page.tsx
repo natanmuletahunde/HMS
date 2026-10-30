@@ -28,6 +28,10 @@ import {
   Hotel,
   PhoneCall,
   ChevronLeft,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +63,7 @@ const getIdTypeSpec = (type: string): IdTypeSpec => {
         label: "Fayda FAN",
         maxLength: 16,
         format: (val) => val.replace(/\D/g, "").slice(0, 16),
-        badge: (val) => `${val.length}/16 digits`,
+        badge: () => "",
         isComplete: (val) => val.length === 16,
       };
     case "passport":
@@ -67,7 +71,7 @@ const getIdTypeSpec = (type: string): IdTypeSpec => {
         label: "Passport Number",
         maxLength: 9,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9),
-        badge: (val) => `${val.length}/9 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 7 && val.length <= 9,
       };
     case "driver_license":
@@ -75,7 +79,7 @@ const getIdTypeSpec = (type: string): IdTypeSpec => {
         label: "Driver's License #",
         maxLength: 15,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 15),
-        badge: (val) => `${val.length}/15 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 6,
       };
     case "birth_certificate":
@@ -83,7 +87,7 @@ const getIdTypeSpec = (type: string): IdTypeSpec => {
         label: "Birth Certificate #",
         maxLength: 15,
         format: (val) => val.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 15),
-        badge: (val) => `${val.length}/15 chars`,
+        badge: () => "",
         isComplete: (val) => val.length >= 4,
       };
     case "none":
@@ -138,6 +142,12 @@ function RegisterForm() {
   const [phone, setPhone] = useState("");
   const [alternativePhone, setAlternativePhone] = useState("");
   const [email, setEmail] = useState("");
+
+  // Step 2: Account Security & Password
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Step 2: Address & Geography
   const [selectedCountry, setSelectedCountry] = useState("Ethiopia");
@@ -224,7 +234,9 @@ function RegisterForm() {
     const newGuest: AccompanyingGuest = {
       id: `acc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       fullName: "",
-      relationship: defaultRel || "child",
+      relationship:
+        defaultRel ||
+        (selectedGuestType === "corporate" ? "colleague" : "child"),
       gender: "female",
       ageCategory: "adult",
       idType: "national_id",
@@ -319,6 +331,14 @@ function RegisterForm() {
       setError("Please enter a valid 10-digit mobile phone number.");
       return false;
     }
+    if (!password || password.trim().length < 4) {
+      setError("Please choose a secure account password (at least 4 characters).");
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setError("Password and Confirm Password do not match.");
+      return false;
+    }
     setError("");
     return true;
   };
@@ -363,10 +383,10 @@ function RegisterForm() {
     }
 
     // Accompanying guests validation
-    if (selectedGuestType === "family" && hasAccompanyingGuests && accompanyingGuests.length > 0) {
+    if ((selectedGuestType === "family" || selectedGuestType === "corporate") && hasAccompanyingGuests && accompanyingGuests.length > 0) {
       const invalid = accompanyingGuests.some((g) => !g.fullName.trim());
       if (invalid) {
-        setError("Please enter the full name for all accompanying family members, or remove empty cards.");
+        setError("Please enter the full name for all accompanying members, or remove empty cards.");
         return;
       }
     }
@@ -375,7 +395,7 @@ function RegisterForm() {
 
     try {
       let finalAccompanyingGuests: AccompanyingGuest[] =
-        selectedGuestType === "family" && hasAccompanyingGuests ? [...accompanyingGuests] : [];
+        (selectedGuestType === "family" || selectedGuestType === "corporate") && hasAccompanyingGuests ? [...accompanyingGuests] : [];
 
       if (selectedGuestType === "couple" && hasRelationshipDoc && partnerFullName.trim()) {
         const partnerGuest: AccompanyingGuest = {
@@ -432,6 +452,7 @@ function RegisterForm() {
         partnerIdNumber: selectedGuestType === "couple" && hasRelationshipDoc ? partnerIdNumber.trim() : undefined,
         hasAccompanyingGuests: finalAccompanyingGuests.length > 0,
         accompanyingGuests: finalAccompanyingGuests,
+        password: password.trim() || undefined,
       };
 
       const res = await fetch("/api/guest-portal/register", {
@@ -501,11 +522,23 @@ function RegisterForm() {
   }
 
   return (
-    <Card className="border-white/10 bg-[#10121a]/95 text-slate-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-2xl rounded-2xl max-w-3xl mx-auto overflow-hidden">
-      <CardHeader className="space-y-2 text-center pb-5 pt-7 border-b border-white/5">
-        <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-1 text-amber-400 shadow-inner">
-          <ShieldCheck className="w-6 h-6" />
+    <Card className="border-amber-500/20 bg-[#10121a]/95 text-slate-100 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8),0_0_40px_rgba(217,119,54,0.06)] backdrop-blur-2xl rounded-2xl max-w-3xl mx-auto overflow-hidden">
+      <CardHeader className="space-y-2 text-center pb-4 pt-6 px-6 sm:px-8 border-b border-white/5 relative flex flex-col items-center justify-center">
+        {/* Centered Luxury Hotel Crest Logo */}
+        <div className="relative mb-2 flex items-center justify-center">
+          {/* Outer Subtle Ambient Gold Glow */}
+          <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-amber-500/30 via-amber-400/20 to-amber-600/30 blur-md opacity-75" />
+          
+          {/* Circular Luxury Emblem Badge */}
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#0a0d18] border-2 border-amber-400/50 p-1 flex items-center justify-center shadow-[0_0_25px_rgba(217,119,54,0.35)] overflow-hidden">
+            <img
+              src="/hotel-logo.png"
+              alt="Hotel Logo"
+              className="w-full h-full object-cover rounded-full"
+            />
+          </div>
         </div>
+
         <CardTitle className="text-2xl font-serif font-bold tracking-wide text-white">
           Guest Online Registration
         </CardTitle>
@@ -737,14 +770,9 @@ function RegisterForm() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="idNumber" className="text-xs font-semibold text-slate-300">
-                        {idSpec.label} *
-                      </Label>
-                      <span className="text-[10px] font-mono text-slate-400">
-                        {idSpec.badge(idNumber)}
-                      </span>
-                    </div>
+                    <Label htmlFor="idNumber" className="text-xs font-semibold text-slate-300">
+                      {idSpec.label} *
+                    </Label>
                     <Input
                       id="idNumber"
                       value={idNumber}
@@ -755,21 +783,6 @@ function RegisterForm() {
                     />
                   </div>
                 </div>
-
-                {idType !== "passport" && (
-                  <div className="space-y-1">
-                    <Label htmlFor="passportNumber" className="text-xs font-semibold text-slate-400">
-                      Passport Number
-                    </Label>
-                    <Input
-                      id="passportNumber"
-                      value={passportNumber}
-                      onChange={(e) => setPassportNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9))}
-                      maxLength={9}
-                      className="h-9 bg-slate-950/80 border-slate-700 text-slate-100 text-xs font-mono uppercase"
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Step 1 Actions */}
@@ -799,10 +812,7 @@ function RegisterForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="phone" className="text-xs font-semibold text-slate-300">Mobile Phone *</Label>
-                      <span className="text-[10px] font-mono text-slate-400">{phone.length}/10 digits</span>
-                    </div>
+                    <Label htmlFor="phone" className="text-xs font-semibold text-slate-300">Mobile Phone *</Label>
                     <div className="relative">
                       <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                       <Input
@@ -839,6 +849,68 @@ function RegisterForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         className="h-9 pl-8 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
                       />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Security & Password */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-800 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Account Security & Password</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="regPassword" className="text-xs font-semibold text-slate-300">
+                      Create Password *
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        id="regPassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="At least 4 characters"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="h-9 pl-8 pr-8 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-200 focus:outline-none"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="regConfirmPassword" className="text-xs font-semibold text-slate-300">
+                      Confirm Password *
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        id="regConfirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="h-9 pl-8 pr-8 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-200 focus:outline-none"
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -915,14 +987,17 @@ function RegisterForm() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="address" className="text-xs font-semibold text-slate-300">Physical Address / Street</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="h-9 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="address" className="text-xs font-semibold text-slate-300">Physical Address / Street</Label>
+                    <Input
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. House No. or Street Name"
+                      className="h-8 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1001,7 +1076,7 @@ function RegisterForm() {
                           setRelationshipDocName("");
                           setRelationshipDocUrl("");
                         }
-                        if (val !== "family") {
+                        if (val !== "family" && val !== "corporate") {
                           setHasAccompanyingGuests(false);
                           setAccompanyingGuests([]);
                         }
@@ -1029,69 +1104,6 @@ function RegisterForm() {
                       ⭐ VIP Guest Status / Priority Services
                     </Label>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div className="space-y-1">
-                    <Label htmlFor="smokingPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                      <Cigarette className="w-3 h-3 text-slate-400" /> Smoking Room
-                    </Label>
-                    <select
-                      id="smokingPreference"
-                      value={smokingPreference}
-                      onChange={(e) => setSmokingPreference(e.target.value)}
-                      className="w-full h-9 rounded-md border border-slate-700 bg-slate-950/80 px-2 text-xs text-slate-100"
-                    >
-                      <option value="non_smoking">Non-Smoking</option>
-                      <option value="smoking">Smoking Allowed</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="bedPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                      <BedDouble className="w-3 h-3 text-slate-400" /> Bed Type
-                    </Label>
-                    <select
-                      id="bedPreference"
-                      value={bedPreference}
-                      onChange={(e) => setBedPreference(e.target.value)}
-                      className="w-full h-9 rounded-md border border-slate-700 bg-slate-950/80 px-2 text-xs text-slate-100"
-                    >
-                      <option value="king">King Bed</option>
-                      <option value="queen">Queen Bed</option>
-                      <option value="twin">Twin Beds</option>
-                      <option value="single">Single Bed</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="foodPreference" className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-                      <UtensilsCrossed className="w-3 h-3 text-slate-400" /> Dining / Food
-                    </Label>
-                    <select
-                      id="foodPreference"
-                      value={foodPreference}
-                      onChange={(e) => setFoodPreference(e.target.value)}
-                      className="w-full h-9 rounded-md border border-slate-700 bg-slate-950/80 px-2 text-xs text-slate-100"
-                    >
-                      <option value="none">Standard</option>
-                      <option value="halal">Halal Certified</option>
-                      <option value="vegetarian">Vegetarian</option>
-                      <option value="vegan">Strict Vegan</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1 pt-1">
-                  <Label htmlFor="specialRequests" className="text-xs font-semibold text-slate-300">
-                    Other Special Requests / In-Room Preferences
-                  </Label>
-                  <Input
-                    id="specialRequests"
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
-                    className="h-9 bg-slate-950/80 border-slate-700 text-slate-100 text-xs"
-                  />
                 </div>
               </div>
 
@@ -1256,8 +1268,8 @@ function RegisterForm() {
                 </div>
               )}
 
-              {/* CONDITIONAL FAMILY SECTION (Strictly visible ONLY when selectedGuestType === 'family') */}
-              {selectedGuestType === "family" && (
+              {/* CONDITIONAL FAMILY & CORPORATE SECTION (Visible when selectedGuestType === 'family' || selectedGuestType === 'corporate') */}
+              {(selectedGuestType === "family" || selectedGuestType === "corporate") && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-950/10 p-4 space-y-4 animate-in fade-in-50 duration-200">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5">
@@ -1269,7 +1281,9 @@ function RegisterForm() {
                           const checked = e.target.checked;
                           setHasAccompanyingGuests(checked);
                           if (checked && accompanyingGuests.length === 0) {
-                            addAccompanyingGuest();
+                            addAccompanyingGuest(
+                              selectedGuestType === "corporate" ? "colleague" : "child"
+                            );
                           }
                         }}
                         className="mt-0.5 h-4 w-4 rounded border-amber-500/50 bg-slate-950 text-amber-500 focus:ring-amber-500 cursor-pointer"
@@ -1277,10 +1291,16 @@ function RegisterForm() {
                       <div>
                         <Label htmlFor="hasAccompanyingGuests" className="text-xs font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer">
                           <Users className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Register Accompanying Family Members</span>
+                          <span>
+                            {selectedGuestType === "corporate"
+                              ? "Register Accompanying Corporate Delegates / Colleagues"
+                              : "Register Accompanying Family Members"}
+                          </span>
                         </Label>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Register family members or companions. Primary guest books for all; individual details are recorded for municipal and safety compliance.
+                          {selectedGuestType === "corporate"
+                            ? "Register colleagues, corporate team members, or delegates. Primary contact books for all; individual details are recorded for security and check-in."
+                            : "Register family members or companions. Primary guest books for all; individual details are recorded for municipal and safety compliance."}
                         </p>
                       </div>
                     </div>
@@ -1289,10 +1309,17 @@ function RegisterForm() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => addAccompanyingGuest()}
+                    onClick={() =>
+                      addAccompanyingGuest(
+                        selectedGuestType === "corporate" ? "colleague" : "child"
+                      )
+                    }
                     className="h-7 text-xs font-semibold gap-1 px-2.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
                   >
-                    <Plus className="w-3 h-3" /> Add Family Member
+                    <Plus className="w-3 h-3" />{" "}
+                    {selectedGuestType === "corporate"
+                      ? "Add Colleague"
+                      : "Add Family Member"}
                   </Button>
                 )}
               </div>
@@ -1301,7 +1328,11 @@ function RegisterForm() {
                 <div className="pt-2 border-t border-amber-500/20 space-y-3 animate-in fade-in-50 duration-200">
                   {accompanyingGuests.length === 0 ? (
                     <div className="text-center py-4 text-xs text-slate-400">
-                      No family members added yet. Click &quot;Add Family Member&quot; above.
+                      No members added yet. Click &quot;
+                      {selectedGuestType === "corporate"
+                        ? "Add Colleague"
+                        : "Add Family Member"}
+                      &quot; above.
                     </div>
                   ) : (
                     accompanyingGuests.map((guest, idx) => (
@@ -1312,7 +1343,12 @@ function RegisterForm() {
                         <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-amber-400">#{idx + 1}</span>
-                            <span className="font-semibold">{guest.fullName || "New Family Member"}</span>
+                            <span className="font-semibold">
+                              {guest.fullName ||
+                                (selectedGuestType === "corporate"
+                                  ? "New Colleague / Delegate"
+                                  : "New Family Member")}
+                            </span>
                           </div>
                           <Button
                             type="button"
@@ -1457,78 +1493,107 @@ function RegisterForm() {
   );
 }
 
+const REGISTER_DESTINATIONS = [
+  {
+    id: "fountain",
+    number: "01",
+    title: "Grand Resort & Fountains",
+    location: "Bellagio • Las Vegas",
+    image: "/login-assets/hotel-fountain.jpg",
+    highlight: "Majestic dancing fountains & luxury tower",
+  },
+  {
+    id: "ocean-villa",
+    number: "02",
+    title: "Horizon Oceanfront Villa",
+    location: "Overwater Lagoon • Maldives",
+    image: "/login-assets/hotel-ocean-villa.jpg",
+    highlight: "Open-air teak terrace with ocean panorama",
+  },
+  {
+    id: "palace",
+    number: "03",
+    title: "Royal Palace Courtyard",
+    location: "Emirates Heritage • Abu Dhabi",
+    image: "/login-assets/hotel-palace.png",
+    highlight: "Illuminated star fountain & grand domes",
+  },
+  {
+    id: "suite-round",
+    number: "04",
+    title: "Signature Botanical Suite",
+    location: "Modern Penthouse • Milan",
+    image: "/login-assets/hotel-suite-round.png",
+    highlight: "Bespoke circular bed & botanical wall mural",
+  },
+];
+
 export default function GuestRegisterPage() {
   return (
-    <div className="min-h-screen bg-[#090a10] text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative selection:bg-amber-500/30 overflow-x-hidden">
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-96 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,54,0.12),_transparent_70%)] pointer-events-none" />
-      <div className="absolute top-1/3 -left-32 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/3 -right-32 w-96 h-96 bg-amber-600/5 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Hotel Top Banner */}
-      <header className="flex items-center justify-between max-w-4xl mx-auto w-full pt-2 pb-6 z-10">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:border-amber-500 transition-colors">
-            <Hotel className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-lg tracking-[0.2em] font-semibold text-white">
-                AURA
-              </span>
-              <Badge variant="outline" className="border-amber-500/40 text-amber-400 bg-amber-500/10 text-[9px] px-1.5 py-0">
-                5-STAR LUXURY
-              </Badge>
-            </div>
-            <p className="text-[10px] text-amber-400/80 font-mono tracking-widest uppercase">
-              Guest Identity Pre-Registration
-            </p>
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/10"
+    <div className="h-screen w-screen max-h-screen overflow-hidden bg-[#030614] text-slate-100 flex flex-col justify-center items-center relative selection:bg-amber-500/30 select-none">
+      {/* 4-Quadrant Full-Viewport Luxury Architectural Background Gallery - Interactive Hover View */}
+      <div className="fixed inset-0 grid grid-cols-1 md:grid-cols-2 grid-rows-2 w-screen h-screen z-0 pointer-events-auto select-none">
+        {REGISTER_DESTINATIONS.map((dest) => (
+          <div
+            key={dest.id}
+            className="group relative overflow-hidden border-white/5 border-[0.5px] cursor-pointer"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Hotel Home</span>
-          </Link>
-          <div className="text-right hidden md:flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-xl text-xs">
-            <PhoneCall className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <div>
-              <span className="text-[10px] text-slate-400 block font-light">Front Desk Concierge</span>
-              <span className="text-xs font-semibold text-amber-300 font-mono">Ext. 000 | (011) 555-0199</span>
+            {/* Background Hotel Image with Smooth Zoom and Brightness on Hover */}
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-out transform scale-100 brightness-[0.50] contrast-[1.02] group-hover:scale-110 group-hover:brightness-[1.15] group-hover:contrast-[1.10]"
+              style={{ backgroundImage: `url('${dest.image}')` }}
+            />
+            {/* Deep dark gradient overlay that fades away on hover to reveal the neat, bright hotel photo */}
+            <div className="absolute inset-0 transition-all duration-700 ease-out bg-gradient-to-t from-[#020512]/90 via-[#030718]/65 to-[#020512]/75 group-hover:opacity-15 group-hover:bg-gradient-to-t group-hover:from-black/40 group-hover:via-transparent group-hover:to-black/30" />
+
+            {/* Subtle destination badge revealing cleanly on hover in the corner of the quadrant */}
+            <div className="absolute bottom-5 left-5 z-10 transition-all duration-500 ease-out transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 pointer-events-none">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-xs font-medium text-amber-300 shadow-xl">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span className="font-serif tracking-wide">{dest.title}</span>
+                <span className="text-white/30">•</span>
+                <span className="text-slate-300 text-[11px] font-sans">{dest.location}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        ))}
+      </div>
 
-      {/* Main Registration Form Container */}
-      <main className="w-full max-w-3xl mx-auto my-auto py-4 z-10">
-        <Suspense
-          fallback={
-            <div className="text-center py-12 text-slate-400 bg-[#10121a]/95 border border-white/10 rounded-2xl p-8">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400 mb-2" />
-              <p className="text-xs font-light">Initializing luxury guest registration...</p>
-            </div>
-          }
+      {/* Atmospheric Vignette for Center Contrast */}
+      <div
+        className="fixed inset-0 pointer-events-none z-1"
+        style={{
+          background: "radial-gradient(circle at center, rgba(3, 7, 24, 0.72) 0%, rgba(3, 7, 24, 0.35) 45%, rgba(2, 5, 18, 0.35) 100%)",
+        }}
+      />
+
+      {/* Minimal Top-Left Back Arrow Navigation Only (No text, no other elements) */}
+      <div className="absolute top-5 left-5 sm:top-6 sm:left-6 z-30">
+        <Link
+          href="/"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/15 bg-black/60 backdrop-blur-md text-amber-400 hover:text-white hover:bg-white/15 hover:border-amber-500/60 transition-all shadow-lg group cursor-pointer"
+          title="Back"
+          aria-label="Back"
         >
-          <RegisterForm />
-        </Suspense>
-      </main>
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
 
-      {/* Footer */}
-      <footer className="text-center text-xs text-slate-500 pt-6 border-t border-white/5 max-w-3xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 z-10">
-        <span>&copy; {new Date().getFullYear()} AURA Luxury Hotel & Suites. Powered by Nexus HMS.</span>
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <Link href="/" className="hover:text-amber-400 transition-colors">Home</Link>
-          <span>&bull;</span>
-          <Link href="/guest-portal/login" className="hover:text-amber-400 transition-colors">Sign In</Link>
-          <span>&bull;</span>
-          <span>Concierge Ext. 000</span>
+      {/* Main Registration Form Container - Static, Centered, Shifted slightly upward, Non-scrollable page */}
+      <main className="w-full h-full flex items-center justify-center p-3 sm:p-5 z-10 relative pointer-events-none -translate-y-2 sm:-translate-y-4">
+        <div className="w-full max-w-3xl pointer-events-auto max-h-[92vh] overflow-y-auto pr-0.5 custom-scrollbar">
+          <Suspense
+            fallback={
+              <div className="text-center py-12 text-slate-400 bg-[#10121a]/95 border border-white/10 rounded-2xl p-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-amber-400 mb-2" />
+                <p className="text-xs font-light">Initializing luxury guest registration...</p>
+              </div>
+            }
+          >
+            <RegisterForm />
+          </Suspense>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }

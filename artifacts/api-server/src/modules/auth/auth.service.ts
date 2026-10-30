@@ -2,12 +2,14 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { db, usersTable, rolesTable, mfaConfigsTable } from '@workspace/db';
 import type { JwtPayload } from './jwt.strategy';
 import { mfaDecrypt, mfaDecryptCodes, mfaEncryptCodes } from '../../common/utils/mfa-crypto';
 import { consumeMfaBackupCode } from '../../common/utils/mfa-backup-codes';
 import { requireSessionSecret } from '../../common/config/runtime-secrets';
+import { OtpService } from './otp.service';
+import { AfroMessageService } from './afromessage.service';
 
 const ACCESS_SECRET = requireSessionSecret();
 const REFRESH_SECRET = ACCESS_SECRET + '-refresh';
@@ -15,7 +17,11 @@ const MFA_PENDING_SECRET = ACCESS_SECRET + '-mfa-pending';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly otpService: OtpService,
+    private readonly afroMessage: AfroMessageService,
+  ) {}
 
   async login(email: string, password: string) {
     const [user] = await db
@@ -169,5 +175,145 @@ export class AuthService {
       isActive: u.isActive,
       createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
     };
+  }
+
+  /**
+   * Step 1: Request SMS OTP for Staff Password Reset or OTP Login
+   * Accepts either staff work email or mobile phone number
+   */
+  async requestStaffOtp(identifier: string) {
+    const raw = (identifier || '').trim();
+    if (!raw) {
+      throw new BadRequestException('Please provide your work email or registered mobile phone number');
+    }
+
+    const isEmail = raw.includes('@');
+    let matchedUser: any = null;
+
+    if (isEmail) {
+      const [u] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, raw.toLowerCase()))
+        .limit(1);
+      matchedUser = u;
+    } else {
+      const normalized = this.afroMessage.normalizePhone(raw);
+      // Look up by phone in usersTable
+      const allUsers = await db.select().from(usersTable).where(eq(usersTable.isActive, true));
+      matchedUser = allUsers.find(u => {
+        if (!u.phone) return false;
+        const norm = this.afroMessage.normalizePhone(u.phone);
+        return norm === normalized || norm.endsWith(normalized.slice(-9));
+      });
+    }
+
+    if (!matchedUser || !matchedUser.isActive) {
+      throw new BadRequestException('No active staff account found with this email or phone number');
+    }
+
+    // Determine target phone to dispatch OTP
+    const phoneToUse = matchedUser.phone || (!isEmail ? raw : null);
+    if (!phoneToUse) {
+      throw new BadRequestException(
+        'This staff account does not have a registered mobile phone number on file. Please contact your Hotel System Administrator.',
+      );
+    }
+
+    // Dispatch OTP via AfroMessage
+    const otpRes = await this.otpService.requestOtp(phoneToUse, 'staff', {
+      userId: matchedUser.id,
+      email: matchedUser.email,
+    });
+
+    return {
+      success: true,
+      phone: this.afroMessage.normalizePhone(phoneToUse),
+      maskedPhone: otpRes.maskedPhone,
+      cooldownSeconds: otpRes.cooldownSeconds,
+      ...(otpRes.devCode ? { devCode: otpRes.devCode } : {}),
+    };
+  }
+
+  /**
+   * Step 2: Verify Staff OTP and return single-use reset authorization token
+   */
+  async verifyStaffOtp(phone: string, code: string) {
+    const res = await this.otpService.verifyOtp(phone, code, 'staff');
+    if (!res.userId) {
+      throw new BadRequestException('Invalid OTP session. Please request a new verification code.');
+    }
+    const resetToken = this.otpService.createResetToken(res.userId);
+    return {
+      success: true,
+      resetToken,
+      phone: res.phone,
+    };
+  }
+
+  /**
+   * Step 3: Complete Password Reset using verified reset token
+   */
+  async resetPasswordWithToken(resetToken: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 6) {
+      throw new BadRequestException('New password must be at least 6 characters long');
+    }
+
+    const userId = this.otpService.consumeResetToken(resetToken);
+    if (!userId) {
+      throw new BadRequestException('Password reset token is invalid or has expired. Please request a new code.');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await db
+      .update(usersTable)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+
+    // Auto-login user with fresh tokens
+    const [user] = await db
+      .select({
+        id: usersTable.id, email: usersTable.email, passwordHash: usersTable.passwordHash,
+        firstName: usersTable.firstName, lastName: usersTable.lastName,
+        phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
+        roleId: usersTable.roleId, roleName: rolesTable.name,
+        tenantId: usersTable.tenantId,
+        isActive: usersTable.isActive, createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id))
+      .where(eq(usersTable.id, userId));
+
+    if (!user) throw new UnauthorizedException('User not found');
+    return this.issueTokens(user);
+  }
+
+  /**
+   * Direct Staff Login via SMS OTP (Passwordless Login)
+   */
+  async otpLogin(phone: string, code: string) {
+    const res = await this.otpService.verifyOtp(phone, code, 'staff');
+    if (!res.userId) {
+      throw new BadRequestException('Invalid OTP session. Please request a new verification code.');
+    }
+
+    const [user] = await db
+      .select({
+        id: usersTable.id, email: usersTable.email, passwordHash: usersTable.passwordHash,
+        firstName: usersTable.firstName, lastName: usersTable.lastName,
+        phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
+        roleId: usersTable.roleId, roleName: rolesTable.name,
+        tenantId: usersTable.tenantId,
+        isActive: usersTable.isActive, createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id))
+      .where(eq(usersTable.id, res.userId));
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Staff account not found or deactivated');
+    }
+
+    return this.issueTokens(user);
   }
 }

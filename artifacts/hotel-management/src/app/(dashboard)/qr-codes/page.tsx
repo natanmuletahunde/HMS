@@ -188,7 +188,7 @@ export default function QrCodesPage() {
             <div>
               <h2 className="text-xl font-extrabold tracking-wider text-amber-400">NEXUS HOTEL & SUITES</h2>
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">
-                Smart Guest Concierge Portal
+                Smart Guest Portal
               </p>
             </div>
 

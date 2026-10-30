@@ -67,8 +67,48 @@ export class RestaurantController {
     return this.svc.getOrder(id);
   }
 
+  @Get('verify-resident')
+  verifyResident(@Query('roomNumber') roomNumber: string) {
+    return this.svc.verifyResident(roomNumber);
+  }
+
+  @Get('coordinators')
+  getCoordinators() {
+    return this.svc.getCoordinators();
+  }
+
   @Patch('orders/:id')
   updateOrder(@Param('id') id: string, @Body() b: any) {
     return this.svc.updateOrder(id, b);
+  }
+
+  @Patch('orders/:id/dispatch-kitchen')
+  dispatchToKitchen(@Param('id') id: string, @Body() b: any) {
+    return this.svc.dispatchToKitchen(id, b?.coordinatorId, b?.notes);
+  }
+
+  @Patch('orders/:id/notify-ready')
+  notifyReady(@Param('id') id: string, @Body() b: any) {
+    return this.svc.notifyReady(id, b?.notifiedParty, b?.kitchenOfficerId, b?.notes);
+  }
+
+  @Get('cashier-feed')
+  getCashierOrders(@Query() q: any) {
+    return this.svc.getCashierOrders(q);
+  }
+
+  @Patch('orders/:id/request-bill')
+  requestBill(@Param('id') id: string, @Body() b: any) {
+    return this.svc.requestBill(id, b?.notes);
+  }
+
+  @Patch('orders/:id/print-receipt')
+  printReceipt(@Param('id') id: string, @Body() b: any) {
+    return this.svc.printReceipt(id, b?.cashierId, b?.notes);
+  }
+
+  @Patch('orders/:id/deliver-receipt')
+  deliverReceipt(@Param('id') id: string) {
+    return this.svc.deliverReceipt(id);
   }
 }

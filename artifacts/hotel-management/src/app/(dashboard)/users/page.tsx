@@ -350,7 +350,7 @@ export default function UsersPage() {
                 required
               />
               <p className="text-[11px] text-text-muted">
-                Must include at least 1 uppercase letter, 1 number, and 1 symbol (e.g. Concierge@2026).
+                Must include at least 1 uppercase letter, 1 number, and 1 symbol (e.g. HotelAdmin@2026).
               </p>
             </div>
 

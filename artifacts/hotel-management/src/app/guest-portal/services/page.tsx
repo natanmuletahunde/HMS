@@ -29,8 +29,7 @@ import {
   Calendar,
   Layers,
   Check,
-  History,
-  RotateCcw,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,71 +49,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  ROOM_SERVICE_CATEGORIES, 
+  FULL_ROOM_SERVICE_MENU, 
+  getInHouseRequests, 
+  saveInHouseRequest, 
+  InHouseServiceRequest 
+} from "@/lib/in-house-requests";
 
 // Fallback catalog in case backend endpoint is slow or offline
 const DEFAULT_CATALOG = {
-  dining: [
-    {
-      id: "cat-1",
-      name: "Traditional Doro Wat Feast",
-      category: "food",
-      price: 2300,
-      desc: "Slow-cooked spiced chicken with boiled egg and fresh injera served warm.",
-      prepTime: "25-35 mins",
-      badge: "Chef's Signature",
-    },
-    {
-      id: "cat-2",
-      name: "Deluxe Angus Burger & Fries",
-      category: "food",
-      price: 1750,
-      desc: "Grass-fed beef, aged cheddar, caramelized onions, toasted brioche bun, and sea-salt potato crisps.",
-      prepTime: "20-25 mins",
-      badge: "Popular",
-    },
-    {
-      id: "cat-3",
-      name: "Continental Club Sandwich",
-      category: "food",
-      price: 1450,
-      desc: "Smoked turkey, crispy bacon, organic lettuce, heirloom tomato with seasoned hand-cut fries.",
-      prepTime: "15-20 mins",
-    },
-    {
-      id: "cat-4",
-      name: "Fresh Seasonal Fruit Platter",
-      category: "food",
-      price: 950,
-      desc: "Selection of freshly sliced tropical papaya, sweet pineapple, mango, and mint sprigs.",
-      prepTime: "10-15 mins",
-      badge: "Healthy Choice",
-    },
-    {
-      id: "cat-5",
-      name: "Signature Ethiopian Jebena Coffee",
-      category: "drinks",
-      price: 550,
-      desc: "Freshly roasted single-origin organic coffee brewed in a traditional clay pot, served with complimentary popcorn.",
-      prepTime: "10-15 mins",
-      badge: "Local Experience",
-    },
-    {
-      id: "cat-6",
-      name: "Fresh Mango & Avocado Smoothie",
-      category: "drinks",
-      price: 650,
-      desc: "Velvety layered natural organic fruit juice made fresh without added sugar.",
-      prepTime: "10 mins",
-    },
-    {
-      id: "cat-7",
-      name: "Sparkling Mineral Water (750ml)",
-      category: "drinks",
-      price: 450,
-      desc: "Chilled natural Ambo mineral water served with fresh lime slices.",
-      prepTime: "5-10 mins",
-    },
-  ],
+  dining: FULL_ROOM_SERVICE_MENU.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.categoryId,
+    categoryName: item.categoryName,
+    price: item.price,
+    desc: item.desc,
+    prepTime: item.prepTime,
+    badge: item.badge,
+    station: item.station,
+  })),
   amenities: [
     {
       id: "am-1",
@@ -258,7 +213,7 @@ const DEFAULT_CATALOG = {
       name: "Morning Wake-up Call",
       category: "wake_up",
       price: 0.0,
-      desc: "Bespoke front desk concierge wake-up phone call at your exact designated morning time.",
+      desc: "Bespoke front desk wake-up phone call at your exact designated morning time.",
       prepTime: "Scheduled",
       badge: "Complimentary",
     },
@@ -305,12 +260,184 @@ const DEFAULT_CATALOG = {
       name: "Luggage Pickup & Bellhop at Departure",
       category: "stay",
       price: 250,
-      desc: "Concierge porter luggage collection directly from your suite at requested checkout time.",
+      desc: "Porter luggage collection directly from your suite at requested checkout time.",
       prepTime: "15 mins",
       badge: "Porter Service",
     },
   ],
 };
+
+export const COMPLIMENTARY_BREAKFAST_ITEMS = [
+  {
+    id: "comp-bf-1",
+    name: "Chechebsa (ጨጨብሳ)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 850,
+    desc: "Torn flatbread shallow fried in niter kibbeh & berbere, drizzled with pure highland honey. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-2",
+    name: "Kinche (ቅንጬ)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 750,
+    desc: "Warm cracked wheat porridge gently tossed with spiced Ethiopian butter. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-3",
+    name: "Morning Injera Firfir (ፍርፍር)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 900,
+    desc: "Morning breakfast injera firfir in mild spiced stew with warm crusty bread. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-4",
+    name: "Enkulal Firfir (እንቁላል ፍርፍር)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 950,
+    desc: "Scrambled farm eggs with diced red onion, tomato, jalapeño, and warm injera. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-5",
+    name: "Scrambled Farm Eggs",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 700,
+    desc: "Creamy butter-scrambled farm eggs served with toasted artisan loaf. Served with complimentary breakfast.",
+    prepTime: "10 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-6",
+    name: "Sunny-Side Fried Eggs",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 700,
+    desc: "Two sunny-side up or over-easy eggs with grilled breakfast tomato and toast. Served with complimentary breakfast.",
+    prepTime: "10 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-7",
+    name: "Fluffy Cheese & Herb Omelette",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 850,
+    desc: "Three-egg fluffy omelette with cheese, diced bell pepper, mushroom, and herbs. Served with complimentary breakfast.",
+    prepTime: "12 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-8",
+    name: "Ful Medames (ፉል)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 800,
+    desc: "Simmered fava beans with olive oil, cumin, chopped tomato, onion, and fresh bread. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-9",
+    name: "Fresh Bread with Honey & Butter",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 650,
+    desc: "Warm fresh-baked baguette slices served with wild forest honey and sweet cream butter. Served with complimentary breakfast.",
+    prepTime: "5 mins",
+    badge: "Complimentary Breakfast",
+    station: "cold",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-10",
+    name: "Golden Pancakes with Maple Syrup",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 850,
+    desc: "Stack of fluffy golden pancakes served with maple syrup and whipped butter. Served with complimentary breakfast.",
+    prepTime: "15 mins",
+    badge: "Complimentary Breakfast",
+    station: "pastry",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-11",
+    name: "Ethiopian Highland Coffee (ቡና)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 350,
+    desc: "Freshly roasted highland arabica coffee brewed to order in authentic jebena clay pot. Complimentary morning beverage.",
+    prepTime: "10 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-12",
+    name: "Spiced Morning Tea (ሻይ)",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 300,
+    desc: "Traditional infused tea with cinnamon, cloves, cardamom, and fresh ginger. Complimentary morning beverage.",
+    prepTime: "8 mins",
+    badge: "Complimentary Breakfast",
+    station: "hot",
+    isComplimentary: true,
+  },
+  {
+    id: "comp-bf-13",
+    name: "Freshly Squeezed Orange Juice",
+    category: "breakfast",
+    categoryName: "Complimentary Breakfast",
+    price: 0,
+    originalPrice: 600,
+    desc: "100% freshly squeezed sweet Valencia oranges. Chilled morning juice.",
+    prepTime: "10 mins",
+    badge: "Complimentary Breakfast",
+    station: "cold",
+    isComplimentary: true,
+  },
+];
 
 interface TrayItem {
   id: string;
@@ -321,49 +448,71 @@ interface TrayItem {
   desc?: string;
 }
 
-interface ServiceOrder {
-  id: string;
-  requestNumber: string;
-  roomNumber: string;
-  guestName: string;
-  serviceType: string;
-  department: string;
-  status: string;
-  priority: string;
-  description: string;
-  specialInstructions?: string;
-  chargeAmount?: string;
-  createdAt: string;
-  estimatedCompletion?: string;
-  assignedToName?: string;
-  assignedToId?: string;
-  cancelReason?: string;
-}
+const AVAILABLE_WAITERS = [
+  { id: "waiter-1", name: "Dawit Tadesse", role: "Floor Captain", status: "Available" },
+  { id: "waiter-2", name: "Almaz Bekele", role: "Room Service", status: "Available" },
+  { id: "waiter-3", name: "Kidus Yohannes", role: "Senior Server", status: "Available" },
+];
 
 function ServicesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Active view tabs
-  const [activeTab, setActiveTab] = useState<"catalog" | "orders">("catalog");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedWaiterId, setSelectedWaiterId] = useState<string>("waiter-1");
 
   // Pagination state (Limit 5 items per page)
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  // Guest & Room identification
+  // Guest & Room identification & Live Stay Status
   const [roomNumber, setRoomNumber] = useState(searchParams.get("room") || "");
   const [guestName, setGuestName] = useState(searchParams.get("name") || "");
   const [guestId, setGuestId] = useState("");
   const [reservationId, setReservationId] = useState("");
   const [isRecognizedGuest, setIsRecognizedGuest] = useState(false);
+  const [stayStatus, setStayStatus] = useState<"checked_in" | "confirmed" | "checked_out" | "none">("none");
+  const [isStayActive, setIsStayActive] = useState<boolean>(false);
+  const [checkingStay, setCheckingStay] = useState<boolean>(true);
+  const [reservationDetails, setReservationDetails] = useState<any | null>(null);
+
+  const [diningCategoryFilter, setDiningCategoryFilter] = useState<string>("all");
+
+  // Track My Orders Modal & Live Store
+  const [isTrackOrdersOpen, setIsTrackOrdersOpen] = useState(false);
+  const [allInHouseOrders, setAllInHouseOrders] = useState<InHouseServiceRequest[]>([]);
+
+  useEffect(() => {
+    setAllInHouseOrders(getInHouseRequests());
+    const handleSync = (e: any) => {
+      if (e?.detail) setAllInHouseOrders(e.detail);
+      else setAllInHouseOrders(getInHouseRequests());
+    };
+    window.addEventListener("nexus_inhouse_requests_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("nexus_inhouse_requests_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  const myOrders = useMemo(() => {
+    const currentRoom = roomNumber.trim().toLowerCase();
+    const currentGuest = guestName.trim().toLowerCase();
+    if (!currentRoom && !currentGuest) return allInHouseOrders.slice(0, 5);
+    return allInHouseOrders.filter((o) => {
+      return (
+        (currentRoom && o.roomNumber.toLowerCase() === currentRoom) ||
+        (currentGuest && o.guestName.toLowerCase().includes(currentGuest.split(" ")[0]))
+      );
+    });
+  }, [allInHouseOrders, roomNumber, guestName]);
 
   // Reset pagination on category or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, diningCategoryFilter, searchQuery]);
 
   // Catalog state
   const [catalog, setCatalog] = useState<typeof DEFAULT_CATALOG>(DEFAULT_CATALOG);
@@ -384,71 +533,112 @@ function ServicesContent() {
   // Order placed confirmation dialog
   const [confirmedOrder, setConfirmedOrder] = useState<any | null>(null);
 
-  // Active orders tracking state
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [trackingSubTab, setTrackingSubTab] = useState<"active" | "history">("active");
+  // 1. Verify live stay status from backend & browser storage
+  const verifyStayStatus = async () => {
+    try {
+      const token =
+        (typeof window !== "undefined" &&
+          (sessionStorage.getItem("nexus_guest_token") || localStorage.getItem("nexus_guest_token"))) ||
+        null;
 
-  const activeOrders = useMemo(
-    () => orders.filter((o) => ["requested", "assigned", "in_progress"].includes(o.status)),
-    [orders]
-  );
-  const historyOrders = useMemo(
-    () => orders.filter((o) => ["completed", "cancelled"].includes(o.status)),
-    [orders]
-  );
-
-  const handleReorder = (pastOrder: ServiceOrder) => {
-    const customItem: TrayItem = {
-      id: "reorder-" + Date.now(),
-      name: pastOrder.description || "Repeated Hotel Request",
-      category: pastOrder.serviceType || "custom",
-      price: pastOrder.chargeAmount ? Number(pastOrder.chargeAmount) : 0,
-      quantity: 1,
-      desc: `Re-requested from Folio #${pastOrder.requestNumber}`,
-    };
-    setTray((prev) => [...prev, customItem]);
-    setActiveTab("catalog");
-  };
-
-  // 1. Detect Guest Session from browser storage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("nexus_guest_session") || localStorage.getItem("nexus_guest_session");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed) {
-            const guest = parsed.guest || parsed;
-            const derivedName =
-              guest.fullName ||
-              `${guest.firstName || ""} ${guest.lastName || ""}`.trim() ||
-              guestName;
-            if (derivedName && !guestName) setGuestName(derivedName);
-            if (guest.id && !guestId) setGuestId(guest.id);
-
-            const derivedRoom =
-              parsed.roomNumber ||
-              parsed.room?.number ||
-              parsed.reservation?.roomNumber ||
-              parsed.reservation?.room?.number ||
-              guest.roomNumber;
-            if (derivedRoom && !roomNumber) setRoomNumber(derivedRoom);
-            if (!derivedRoom && !roomNumber) setRoomNumber("101");
-
-            if (parsed.reservation?.id || parsed.reservationId) {
-              setReservationId(parsed.reservation?.id || parsed.reservationId);
+      if (token) {
+        const res = await fetch("/api/guest-portal/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.valid) {
+            const resObj = data.reservation;
+            const status = (resObj?.status || "confirmed") as "checked_in" | "confirmed" | "checked_out" | "none";
+            const active = Boolean(data.isStayActive || status === "checked_in");
+            setIsStayActive(active);
+            setStayStatus(status);
+            setReservationDetails(resObj);
+            if (data.room?.number) {
+              setRoomNumber(data.room.number);
             }
-            if (derivedName || derivedRoom || guest.id) {
-              setIsRecognizedGuest(true);
+            if (data.guest?.fullName) {
+              setGuestName(data.guest.fullName);
             }
+            if (data.guest?.id) {
+              setGuestId(data.guest.id);
+            }
+            if (resObj?.id) {
+              setReservationId(resObj.id);
+            }
+            setIsRecognizedGuest(true);
+            setCheckingStay(false);
+            return;
           }
-        } catch {
-          // ignore corrupted JSON
         }
       }
+
+      // Fallback check from stored guest session
+      if (typeof window !== "undefined") {
+        const saved = sessionStorage.getItem("nexus_guest_session") || localStorage.getItem("nexus_guest_session");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const resObj = parsed.reservation;
+          const status = (resObj?.status || parsed.status || "confirmed") as "checked_in" | "confirmed" | "checked_out" | "none";
+          const active = Boolean(parsed.isStayActive || status === "checked_in");
+          setIsStayActive(active);
+          setStayStatus(status);
+          setReservationDetails(resObj || null);
+
+          const guest = parsed.guest || parsed;
+          const derivedName =
+            guest.fullName ||
+            `${guest.firstName || ""} ${guest.lastName || ""}`.trim() ||
+            guestName;
+          if (derivedName) setGuestName(derivedName);
+          if (guest.id) setGuestId(guest.id);
+
+          const derivedRoom =
+            parsed.roomNumber ||
+            parsed.room?.number ||
+            parsed.reservation?.roomNumber ||
+            parsed.reservation?.room?.number ||
+            guest.roomNumber;
+          if (derivedRoom) setRoomNumber(derivedRoom);
+
+          if (parsed.reservation?.id || parsed.reservationId) {
+            setReservationId(parsed.reservation?.id || parsed.reservationId);
+          }
+          if (derivedName || derivedRoom || guest.id) {
+            setIsRecognizedGuest(true);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not verify stay status", e);
+    } finally {
+      setCheckingStay(false);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    verifyStayStatus();
+
+    const handleFocus = () => {
+      verifyStayStatus();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    // Auto-poll every 6 seconds if not yet checked in so the portal automatically unlocks
+    // the moment front desk staff checks the guest in
+    const interval = setInterval(() => {
+      if (!isStayActive) {
+        verifyStayStatus();
+      }
+    }, 6000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+      clearInterval(interval);
+    };
+  }, [isStayActive]);
 
   // 2. Fetch Catalog from backend
   useEffect(() => {
@@ -477,53 +667,45 @@ function ServicesContent() {
     fetchCatalog();
   }, []);
 
-  // 3. Fetch orders when viewing orders tab
-  const fetchMyOrders = async () => {
-    if (!roomNumber.trim()) return;
-    setOrdersLoading(true);
-    try {
-      const res = await fetch(`/api/guest-portal/my-orders?roomNumber=${encodeURIComponent(roomNumber.trim())}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setOrders(data);
-        }
-      }
-    } catch {
-      // ignore
-    } finally {
-      setOrdersLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "orders" && roomNumber.trim()) {
-      fetchMyOrders();
-    }
-  }, [activeTab, roomNumber]);
-
   // Combine catalog items for filtering
   const allItems = useMemo(() => {
     const list: Array<any & { section: string; sectionLabel: string }> = [];
     catalog.dining.forEach((i) => list.push({ ...i, section: "dining", sectionLabel: "Dining & Drinks" }));
     catalog.amenities.forEach((i) => list.push({ ...i, section: "amenities", sectionLabel: "Housekeeping & Amenities" }));
     catalog.transport.forEach((i) => list.push({ ...i, section: "transport", sectionLabel: "Airport & Transport" }));
-    catalog.services.forEach((i) => list.push({ ...i, section: "services", sectionLabel: "Concierge & Services" }));
+    catalog.services.forEach((i) => list.push({ ...i, section: "services", sectionLabel: "Guest Services" }));
     catalog.stay?.forEach((i) => list.push({ ...i, section: "stay", sectionLabel: "Stay & Room Requests" }));
+    COMPLIMENTARY_BREAKFAST_ITEMS.forEach((i) => list.push({ ...i, section: "complimentary", sectionLabel: "Complimentary Breakfast" }));
     return list;
   }, [catalog]);
 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
+      if (selectedCategory === "complimentary") {
+        const matchesSearch =
+          !searchQuery.trim() ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.desc && item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+        return item.section === "complimentary" && matchesSearch;
+      }
+
+      // If user is browsing regular tabs, exclude complimentary duplicates
+      if (item.section === "complimentary") return false;
+
       const matchesCategory =
         selectedCategory === "all" || item.section === selectedCategory;
+      const matchesDiningCategory =
+        diningCategoryFilter === "all" ||
+        item.section !== "dining" ||
+        item.categoryId === diningCategoryFilter ||
+        item.category === diningCategoryFilter;
       const matchesSearch =
         !searchQuery.trim() ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.desc && item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesDiningCategory && matchesSearch;
     });
-  }, [allItems, selectedCategory, searchQuery]);
+  }, [allItems, selectedCategory, diningCategoryFilter, searchQuery]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
@@ -534,6 +716,11 @@ function ServicesContent() {
 
   // Tray management
   const addToTray = (item: any) => {
+    if (!isStayActive) {
+      alert("In-room services and dining can only be requested once you have checked in to your room. Please check in at the front desk to activate service ordering.");
+      return;
+    }
+
     setTray((prev) => {
       const existing = prev.find((t) => t.id === item.id);
       if (existing) {
@@ -545,7 +732,7 @@ function ServicesContent() {
         ...prev,
         {
           id: item.id,
-          name: item.name,
+          name: item.isComplimentary ? `${item.name} (Complimentary)` : item.name,
           category: item.category || item.section,
           price: Number(item.price) || 0,
           quantity: 1,
@@ -583,6 +770,10 @@ function ServicesContent() {
 
   // Submit Order to backend
   const handleSubmitOrder = async () => {
+    if (!isStayActive) {
+      alert("In-room service requests are only active for guests currently checked into their room. Please check in at the front desk to activate in-room service.");
+      return;
+    }
     if (!roomNumber.trim()) {
       alert("Please specify your Room Number so our team knows where to deliver.");
       return;
@@ -606,6 +797,8 @@ function ServicesContent() {
       // Primary service type
       const primaryType = tray[0].category || "food";
 
+      const selectedWaiter = AVAILABLE_WAITERS.find((w) => w.id === selectedWaiterId) || AVAILABLE_WAITERS[0];
+
       const payload = {
         roomNumber: roomNumber.trim(),
         guestName: guestName.trim(),
@@ -616,6 +809,8 @@ function ServicesContent() {
         specialInstructions: specialNotes.trim() || undefined,
         priority: priority,
         chargeAmount: trayTotal,
+        assignedWaiterId: "",
+        assignedWaiterName: "Pending Front Desk Assignment",
       };
 
       const res = await fetch("/api/guest-portal/order", {
@@ -630,8 +825,32 @@ function ServicesContent() {
       }
 
       const created = await res.json();
+      const generatedReqNum = created.requestNumber || "RS " + Date.now().toString(36).toUpperCase();
+
+      // Persist in-house service request to synchronized store
+      saveInHouseRequest({
+        id: "ih-req-" + Date.now(),
+        requestNumber: generatedReqNum,
+        roomNumber: roomNumber.trim(),
+        guestName: guestName.trim(),
+        phone: (reservationDetails?.guestPhone || reservationDetails?.guest?.phone || "0954123456"),
+        assignedWaiterId: "",
+        assignedWaiterName: "Pending Front Desk Assignment",
+        items: tray.map((t) => ({
+          name: t.name,
+          quantity: t.quantity,
+          category: t.category,
+          price: t.price,
+        })),
+        specialNotes: specialNotes.trim() || undefined,
+        totalAmount: trayTotal,
+        status: "pending",
+        stage: "pending_assignment",
+        createdAt: new Date().toISOString(),
+      });
+
       setConfirmedOrder({
-        requestNumber: created.requestNumber || "RS-" + Date.now().toString(36).toUpperCase(),
+        requestNumber: generatedReqNum,
         items: itemsSummary,
         total: trayTotal,
         priority,
@@ -644,9 +863,6 @@ function ServicesContent() {
       // Clear tray
       setTray([]);
       setSpecialNotes("");
-
-      // Trigger orders refetch in background
-      fetchMyOrders();
     } catch (err: any) {
       alert(err.message || "An error occurred while submitting your service request. Please try again or contact front desk.");
     } finally {
@@ -657,6 +873,10 @@ function ServicesContent() {
   // Add custom request to tray
   const handleAddCustomRequest = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isStayActive) {
+      alert("Custom in-room service requests activate automatically upon physical room check-in.");
+      return;
+    }
     if (!customTitle.trim()) return;
 
     const customItem: TrayItem = {
@@ -690,52 +910,50 @@ function ServicesContent() {
             </Link>
           </div>
 
-          {/* Center/Right: Tab Switchers & Guest Status */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white/5 p-1 rounded-xl border border-white/10 flex items-center gap-1 text-xs font-medium">
-              <button
-                onClick={() => setActiveTab("catalog")}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-                  activeTab === "catalog"
-                    ? "bg-amber-500 text-slate-950 font-semibold shadow-sm"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
+          {/* Right: Guest & Room Status and Track Orders Button */}
+          <div className="flex items-center gap-2.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsTrackOrdersOpen(true)}
+              className="h-8 px-3 text-xs font-semibold border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Track Orders</span>
+              {myOrders.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] flex items-center justify-center ml-0.5">
+                  {myOrders.length}
+                </span>
+              )}
+            </Button>
+
+            {isRecognizedGuest && (
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs border transition-all ${
+                  isStayActive
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-300"
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Request Services</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("orders")}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-                  activeTab === "orders"
-                    ? "bg-amber-500 text-slate-950 font-semibold shadow-sm"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Active Tracking</span>
-                {activeOrders.length > 0 ? (
-                  <span className="min-w-4 h-4 px-1 rounded-full bg-amber-400 text-slate-950 text-[10px] flex items-center justify-center font-bold">
-                    {activeOrders.length}
-                  </span>
-                ) : historyOrders.length > 0 ? (
-                  <span className="min-w-4 h-4 px-1 rounded-full bg-white/10 text-slate-300 text-[10px] flex items-center justify-center font-bold">
-                    {historyOrders.length}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-
-            {/* Room / Guest Indicator */}
-            {isRecognizedGuest && roomNumber && (
-              <div className="hidden md:flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl text-xs text-amber-300">
-                <DoorClosed className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-semibold">Room {roomNumber}</span>
+                {isStayActive ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="font-semibold">{roomNumber ? `Room ${roomNumber}` : "In-Room"}</span>
+                    <span className="text-emerald-500/40">•</span>
+                    <span className="text-emerald-300 font-medium">Checked In</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                    <span className="font-semibold">{roomNumber ? `Room ${roomNumber}` : "Upcoming"}</span>
+                    <span className="text-amber-500/40">•</span>
+                    <span className="text-amber-300 font-medium">Check-In Pending</span>
+                  </>
+                )}
                 {guestName && (
                   <>
-                    <span className="text-amber-500/40">•</span>
-                    <span className="text-slate-300 truncate max-w-[120px]">{guestName}</span>
+                    <span className="opacity-40">•</span>
+                    <span className="text-slate-300 truncate max-w-[130px]">{guestName}</span>
                   </>
                 )}
               </div>
@@ -758,17 +976,80 @@ function ServicesContent() {
                 In-Room Dining, Amenities & Stay Requests
               </h1>
             </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsTrackOrdersOpen(true)}
+              className="h-9 px-4 text-xs font-semibold border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer self-start sm:self-center"
+            >
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span>Track Active Orders</span>
+              {myOrders.length > 0 && (
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center">
+                  {myOrders.length}
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
-        {/* Tab 1: Catalog & Ordering */}
-        {activeTab === "catalog" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Pre-Arrival / Check-In Pending Banner */}
+        {!isStayActive && !checkingStay && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[#181c28] to-amber-900/10 p-5 shadow-xl backdrop-blur-md animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400 mt-0.5">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm sm:text-base">
+                      {stayStatus === "confirmed" ? "Reservation Confirmed — Check-In Pending" : "In-Room Services Locked"}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-400 bg-amber-500/10">
+                      {stayStatus === "confirmed" ? "Pre-Arrival Preview" : "Check-In Required"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                    {stayStatus === "confirmed" ? (
+                      <>
+                        Welcome, <strong className="text-white">{guestName || "Guest"}</strong>! You are viewing our luxury dining & amenities catalog in <strong>Preview Mode</strong>. In-room ordering and room service requests will <strong>automatically activate</strong> as soon as you complete check-in at the Front Desk and occupy {roomNumber ? `Room ${roomNumber}` : "your suite"}.
+                      </>
+                    ) : (
+                      <>
+                        In-room service requests and dining orders are strictly activated for guests currently checked into their rooms. Please sign in with your confirmed reservation credentials or complete check-in at the Front Desk.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {stayStatus === "confirmed" ? (
+                <div className="shrink-0 flex items-center gap-2 bg-black/40 border border-white/10 px-3.5 py-2 rounded-xl text-xs text-amber-300/90 font-mono">
+                  <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span>Auto-activates on Check-In</span>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => router.push("/guest-portal/login")}
+                  className="shrink-0 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl shadow-md cursor-pointer"
+                >
+                  Sign In to Check Stay
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* In-Room Services & Ordering */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Catalog Section (8 cols) */}
             <div className="lg:col-span-8 space-y-6">
               {/* Category Filter Dropdown */}
-              <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                <div className="w-60">
+              <div className="flex items-center gap-3 flex-wrap border-b border-white/10 pb-4">
+                <div className="w-56">
                   <Select value={selectedCategory} onValueChange={(val) => {
                     setSelectedCategory(val);
                     setCurrentPage(1);
@@ -776,19 +1057,42 @@ function ServicesContent() {
                     <SelectTrigger className="w-full h-10 text-xs bg-white/5 border-white/10 text-white rounded-xl focus:ring-amber-500/30">
                       <div className="flex items-center gap-2">
                         <Layers className="w-3.5 h-3.5 text-amber-400" />
-                        <SelectValue placeholder="All" />
+                        <SelectValue placeholder="All Services" />
                       </div>
                     </SelectTrigger>
                     <SelectContent className="bg-[#14171f] border-white/10 text-slate-200">
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="stay">Stay & Room Requests</SelectItem>
+                      <SelectItem value="all">All Hotel Services</SelectItem>
                       <SelectItem value="dining">Dining & Refreshments</SelectItem>
+                      <SelectItem value="stay">Stay & Room Requests</SelectItem>
                       <SelectItem value="amenities">Housekeeping & Amenities</SelectItem>
                       <SelectItem value="transport">Airport & Chauffeur</SelectItem>
-                      <SelectItem value="services">Concierge & Tech</SelectItem>
+                      <SelectItem value="services">Guest Services & Tech</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* 10 Food & Drink Menu Categories Dropdown */}
+                {(selectedCategory === "all" || selectedCategory === "dining") && (
+                  <div className="w-72">
+                    <Select value={diningCategoryFilter} onValueChange={(val) => {
+                      setDiningCategoryFilter(val);
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-full h-10 text-xs bg-white/5 border-amber-500/30 text-amber-300 rounded-xl focus:ring-amber-500/30">
+                        <div className="flex items-center gap-2 truncate">
+                          <Utensils className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <SelectValue placeholder="Food & Drinks Category" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#14171f] border-white/10 text-slate-200 max-h-72">
+                        <SelectItem value="all">All 10 Food & Drink Categories</SelectItem>
+                        {ROOM_SERVICE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {/* Search Bar & Custom Request Trigger */}
@@ -918,14 +1222,26 @@ function ServicesContent() {
                                 )}
                               </div>
 
-                              <Button
-                                onClick={() => addToTray(item)}
-                                size="sm"
-                                className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-95 text-slate-950 font-semibold text-xs h-8 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                              >
-                                <Bell className="w-3.5 h-3.5" />
-                                <span>Request Service</span>
-                              </Button>
+                              {isStayActive ? (
+                                <Button
+                                  onClick={() => addToTray(item)}
+                                  size="sm"
+                                  className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-95 text-slate-950 font-semibold text-xs h-8 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                                >
+                                  <Bell className="w-3.5 h-3.5" />
+                                  <span>Request Service</span>
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  disabled
+                                  className="bg-white/5 border border-white/10 text-slate-400 font-medium text-xs h-8 px-3 rounded-lg cursor-not-allowed opacity-75 flex items-center gap-1.5"
+                                  title="In-room requests activate automatically upon physical room check-in."
+                                >
+                                  <Lock className="w-3 h-3 text-amber-500/70" />
+                                  <span>Preview Only</span>
+                                </Button>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -1068,6 +1384,24 @@ function ServicesContent() {
                       </div>
                     )}
 
+                    {/* Server Allocation Managed by Receptionist */}
+                    <div className="pt-2">
+                      <div className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-xs space-y-1">
+                        <div className="flex items-center justify-between text-slate-300 font-medium">
+                          <span className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Server Allocation</span>
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono">
+                            Front Desk Dispatch
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-snug">
+                          Your order will be received by the Front Desk Receptionist, who will assign an available floor waiter and dispatch to the kitchen pass.
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Special Instructions */}
                     <div className="pt-2">
                       <label className="text-[11px] text-slate-400 block mb-1 font-medium">
@@ -1098,546 +1432,53 @@ function ServicesContent() {
                       </div>
                     </div>
 
-                    {/* Dispatch Action Button */}
-                    <Button
-                      onClick={handleSubmitOrder}
-                      disabled={isSubmitting || tray.length === 0}
-                      className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs py-5 rounded-xl shadow-lg shadow-amber-500/20 disabled:opacity-50"
-                    >
-                      {isSubmitting ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                          <span>Dispatching to Staff...</span>
+                    {/* Dispatch Action or Locked Check-In Notice */}
+                    {!isStayActive ? (
+                      <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center space-y-2.5 mt-2">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                          <Lock className="w-4 h-4" />
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <Send className="w-4 h-4" />
-                          <span>Submit Service Request</span>
+                        <div>
+                          <p className="text-xs font-semibold text-white">Ordering Activates on Check-In</p>
+                          <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
+                            In-room dining, amenities, and room service delivery activate automatically once you check in at the Front Desk and occupy {roomNumber ? `Room ${roomNumber}` : "your suite"}.
+                          </p>
                         </div>
-                      )}
-                    </Button>
+                        {!isRecognizedGuest && (
+                          <Button
+                            size="sm"
+                            onClick={() => router.push("/guest-portal/login")}
+                            className="w-full mt-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs h-8 rounded-lg cursor-pointer"
+                          >
+                            Sign In with Reservation
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleSubmitOrder}
+                        disabled={isSubmitting || tray.length === 0}
+                        className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs py-5 rounded-xl shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSubmitting ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                            <span>Dispatching to Staff...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <Send className="w-4 h-4" />
+                            <span>Submit Service Request ({trayItemCount})</span>
+                          </div>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
             </div>
           </div>
-        )}
-
-        {/* Tab 2: Orders Tracking */}
-        {activeTab === "orders" && (
-          <div className="space-y-6">
-            {/* Header row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <h2 className="text-xl font-bold tracking-tight text-white">
-                    Live Tracking & Request History
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Real-time concierge dispatch and past billing records for Room {roomNumber || "Guest Room"}.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Button
-                  onClick={fetchMyOrders}
-                  variant="outline"
-                  size="sm"
-                  className="border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-xs text-slate-300 h-9 px-3 flex items-center gap-1.5 transition-all"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? "animate-spin text-amber-400" : ""}`} />
-                  <span>Refresh Status</span>
-                </Button>
-                <Button
-                  onClick={() => setActiveTab("catalog")}
-                  className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 text-xs font-bold h-9 px-4 shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5"
-                  size="sm"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Order More</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Room Identifier Box if empty */}
-            {!roomNumber.trim() && (
-              <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-center space-y-3 max-w-lg mx-auto">
-                <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
-                <p className="text-sm font-semibold text-amber-200">
-                  Please enter your room number to load your live orders and history.
-                </p>
-                <div className="max-w-xs mx-auto flex gap-2">
-                  <Input
-                    placeholder="Enter Room #"
-                    value={roomNumber}
-                    onChange={(e) => setRoomNumber(e.target.value)}
-                    className="text-xs bg-black/50 border-white/10"
-                  />
-                  <Button
-                    onClick={fetchMyOrders}
-                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold"
-                  >
-                    Load
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Sub-tab Navigation Pill: Active Requests vs Past History */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.03] p-1.5 rounded-2xl border border-white/10">
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setTrackingSubTab("active")}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                    trackingSubTab === "active"
-                      ? "bg-amber-500 text-slate-950 shadow-sm font-bold"
-                      : "text-slate-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <span className="relative flex h-2 w-2">
-                    {activeOrders.length > 0 && (
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75" />
-                    )}
-                    <span
-                      className={`relative inline-flex rounded-full h-2 w-2 ${
-                        trackingSubTab === "active" ? "bg-slate-950" : "bg-amber-400"
-                      }`}
-                    />
-                  </span>
-                  <span>Active Requests</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      trackingSubTab === "active"
-                        ? "bg-slate-950/20 text-slate-950"
-                        : "bg-white/10 text-slate-300"
-                    }`}
-                  >
-                    {activeOrders.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setTrackingSubTab("history")}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                    trackingSubTab === "history"
-                      ? "bg-amber-500 text-slate-950 shadow-sm font-bold"
-                      : "text-slate-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  <History className="w-3.5 h-3.5" />
-                  <span>Past History</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      trackingSubTab === "history"
-                        ? "bg-slate-950/20 text-slate-950"
-                        : "bg-white/10 text-slate-300"
-                    }`}
-                  >
-                    {historyOrders.length}
-                  </span>
-                </button>
-              </div>
-
-              <div className="text-[11px] text-slate-400 px-3 flex items-center gap-2 font-medium">
-                <DoorClosed className="w-3.5 h-3.5 text-amber-400" />
-                <span>Room {roomNumber || "---"}</span>
-                <span className="text-white/20">•</span>
-                <span>{orders.length} {orders.length === 1 ? "Record" : "Records"} Total</span>
-              </div>
-            </div>
-
-            {/* Content Display based on Sub-tab */}
-            {ordersLoading ? (
-              <div className="py-20 text-center space-y-3">
-                <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs text-slate-400">Loading guest requests for Room {roomNumber}...</p>
-              </div>
-            ) : trackingSubTab === "active" ? (
-              /* ─── ACTIVE REQUESTS TAB ────────────────────────────────────────── */
-              activeOrders.length === 0 ? (
-                <div className="p-14 text-center border border-dashed border-white/10 rounded-2xl bg-[#14171f]/60 space-y-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base font-semibold text-white">No active requests in progress</h3>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                    All submitted orders for Room {roomNumber} have been delivered or completed. Looking for additional services or dining?
-                  </p>
-                  <div className="flex items-center justify-center gap-3 pt-2">
-                    <Button
-                      onClick={() => setActiveTab("catalog")}
-                      className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4"
-                      size="sm"
-                    >
-                      <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      Request New Service
-                    </Button>
-                    {historyOrders.length > 0 && (
-                      <Button
-                        onClick={() => setTrackingSubTab("history")}
-                        variant="outline"
-                        className="border-white/10 text-slate-300 hover:text-white text-xs px-4"
-                        size="sm"
-                      >
-                        <History className="w-3.5 h-3.5 mr-1.5" />
-                        View Past History ({historyOrders.length})
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {activeOrders.map((order) => {
-                    const statusConfig: Record<string, { bg: string; text: string; border: string; label: string; dot: string }> = {
-                      requested: {
-                        bg: "bg-amber-500/10",
-                        text: "text-amber-400",
-                        border: "border-amber-500/30",
-                        label: "Received • Awaiting Dispatch",
-                        dot: "bg-amber-400",
-                      },
-                      assigned: {
-                        bg: "bg-blue-500/10",
-                        text: "text-blue-400",
-                        border: "border-blue-500/30",
-                        label: "Dispatched • Staff Assigned",
-                        dot: "bg-blue-400",
-                      },
-                      in_progress: {
-                        bg: "bg-purple-500/10",
-                        text: "text-purple-400",
-                        border: "border-purple-500/30",
-                        label: "In Preparation",
-                        dot: "bg-purple-400",
-                      },
-                    };
-
-                    const currentStatus = statusConfig[order.status] || statusConfig.requested;
-
-                    // Step Index (1 to 4)
-                    const stepIndex =
-                      order.status === "completed"
-                        ? 4
-                        : order.status === "in_progress"
-                        ? 3
-                        : order.status === "assigned"
-                        ? 2
-                        : 1;
-
-                    const STEPS = [
-                      { step: 1, label: "Received", detail: "Request Logged" },
-                      { step: 2, label: "Assigned", detail: order.assignedToName ? order.assignedToName : "Staff Assigned" },
-                      { step: 3, label: "Preparing", detail: "In Preparation" },
-                      { step: 4, label: "Delivery", detail: "To Room " + order.roomNumber },
-                    ];
-
-                    const deptLower = (order.department || "").toLowerCase();
-                    const deptIcon = deptLower.includes("restaurant") || deptLower.includes("dining") ? (
-                      <Utensils className="w-3.5 h-3.5 text-amber-400" />
-                    ) : deptLower.includes("housekeeping") || deptLower.includes("room") ? (
-                      <BedDouble className="w-3.5 h-3.5 text-blue-400" />
-                    ) : deptLower.includes("transport") ? (
-                      <Car className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : deptLower.includes("maintenance") ? (
-                      <Wrench className="w-3.5 h-3.5 text-orange-400" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    );
-
-                    return (
-                      <div
-                        key={order.id}
-                        className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#151926]/95 to-[#0e111a]/95 backdrop-blur-md shadow-xl transition-all hover:border-amber-500/30 p-5 sm:p-6 space-y-4"
-                      >
-                        {/* Top decorative accent */}
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500/40 via-amber-400/80 to-amber-500/40" />
-
-                        {/* Header details */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 shadow-sm">
-                              {order.requestNumber}
-                            </span>
-                            <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg text-xs text-slate-200">
-                              {deptIcon}
-                              <span className="capitalize font-medium">{order.department || "Concierge"}</span>
-                            </div>
-                            <span className="text-xs text-slate-500">•</span>
-                            <span className="text-xs text-amber-300 font-semibold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/15">
-                              Room {order.roomNumber}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="relative flex h-2 w-2">
-                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${currentStatus.dot} opacity-75`} />
-                              <span className={`relative inline-flex rounded-full h-2 w-2 ${currentStatus.dot}`} />
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className={`${currentStatus.bg} ${currentStatus.text} ${currentStatus.border} px-3 py-1 text-xs font-semibold shadow-sm`}
-                            >
-                              {currentStatus.label}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        {/* Order description container */}
-                        <div className="bg-black/35 rounded-xl p-3.5 border border-white/5 space-y-1.5">
-                          <p className="text-sm font-semibold text-white leading-relaxed">
-                            {order.description}
-                          </p>
-                          {order.specialInstructions && (
-                            <div className="flex items-start gap-2 text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mt-2">
-                              <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                              <span className="italic font-light">
-                                Special Note: {order.specialInstructions}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Accountable Dispatched Staff or Pending Reassurance */}
-                        {order.assignedToName ? (
-                          <div className="flex items-center gap-2.5 text-xs text-emerald-400 bg-emerald-500/10 px-3.5 py-2 rounded-xl border border-emerald-500/20 w-fit">
-                            <User className="w-4 h-4 shrink-0 text-emerald-400" />
-                            <span>
-                              Assigned Concierge Staff: <strong className="text-emerald-300 font-semibold">{order.assignedToName}</strong> ({order.department || "Operations"})
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-xs text-amber-400/90 bg-amber-500/5 px-3 py-1.5 rounded-xl border border-amber-500/15 w-fit">
-                            <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                            <span>Front desk is actively assigning on-duty staff to your request</span>
-                          </div>
-                        )}
-
-                        {/* Connected Luxury Milestone Stepper */}
-                        <div className="pt-3 pb-2 px-1">
-                          <div className="relative">
-                            {/* Connecting Track Line */}
-                            <div className="absolute top-4 left-6 right-6 h-0.5 bg-white/10 -translate-y-1/2 z-0" />
-                            {/* Active Filled Progress Line */}
-                            <div
-                              className="absolute top-4 left-6 h-0.5 bg-gradient-to-r from-amber-500 to-amber-400 -translate-y-1/2 z-0 transition-all duration-500"
-                              style={{
-                                width: `${Math.max(0, Math.min(100, ((stepIndex - 1) / 3) * 100))}%`,
-                              }}
-                            />
-
-                            {/* Step nodes */}
-                            <div className="relative z-10 grid grid-cols-4 gap-2">
-                              {STEPS.map((s) => {
-                                const isDone = stepIndex > s.step;
-                                const isCurrent = stepIndex === s.step;
-                                return (
-                                  <div key={s.step} className="flex flex-col items-center text-center">
-                                    <div
-                                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                                        isDone
-                                          ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30"
-                                          : isCurrent
-                                          ? "bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 ring-4 ring-amber-500/20 shadow-lg shadow-amber-500/40"
-                                          : "bg-[#181c26] border border-white/15 text-slate-400"
-                                      }`}
-                                    >
-                                      {isDone ? (
-                                        <Check className="w-4 h-4 stroke-[3]" />
-                                      ) : isCurrent ? (
-                                        <span className="relative flex h-2 w-2">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75" />
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-950" />
-                                        </span>
-                                      ) : (
-                                        <span>{s.step}</span>
-                                      )}
-                                    </div>
-
-                                    <div className="mt-2 space-y-0.5">
-                                      <p
-                                        className={`text-xs font-semibold leading-tight ${
-                                          isCurrent
-                                            ? "text-amber-400"
-                                            : isDone
-                                            ? "text-slate-200"
-                                            : "text-slate-400"
-                                        }`}
-                                      >
-                                        {s.label}
-                                      </p>
-                                      <p className="text-[10px] text-slate-400 truncate max-w-[90px] hidden sm:block">
-                                        {s.detail}
-                                      </p>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Timestamp & Folio Billing Footer */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-400 pt-3 border-t border-white/10 gap-2">
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-slate-500" />
-                            Submitted:{" "}
-                            <strong className="text-slate-300">
-                              {new Date(order.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </strong>
-                          </span>
-
-                          <div className="flex items-center gap-2">
-                            {order.chargeAmount && Number(order.chargeAmount) > 0 ? (
-                              <span className="text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
-                                {Number(order.chargeAmount).toLocaleString()} ETB charged to room folio
-                              </span>
-                            ) : (
-                              <span className="text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-                                Complimentary
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ) : (
-              /* ─── PAST HISTORY TAB ───────────────────────────────────────────── */
-              historyOrders.length === 0 ? (
-                <div className="p-14 text-center border border-dashed border-white/10 rounded-2xl bg-[#14171f]/60 space-y-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 text-slate-400 flex items-center justify-center mx-auto border border-white/10">
-                    <History className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base font-semibold text-white">No request history yet</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                    Fulfilled room requests and past in-room dining orders will be safely archived here for your records.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {historyOrders.map((order) => {
-                    const isCancelled = order.status === "cancelled";
-                    const deptLower = (order.department || "").toLowerCase();
-                    const deptIcon = deptLower.includes("restaurant") || deptLower.includes("dining") ? (
-                      <Utensils className="w-3.5 h-3.5 text-amber-400" />
-                    ) : deptLower.includes("housekeeping") || deptLower.includes("room") ? (
-                      <BedDouble className="w-3.5 h-3.5 text-blue-400" />
-                    ) : deptLower.includes("transport") ? (
-                      <Car className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : deptLower.includes("maintenance") ? (
-                      <Wrench className="w-3.5 h-3.5 text-orange-400" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    );
-
-                    return (
-                      <div
-                        key={order.id}
-                        className="rounded-2xl border border-white/[0.08] bg-[#12151e]/90 hover:border-white/20 p-5 space-y-3.5 shadow-md transition-all"
-                      >
-                        {/* Header details */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            <span className="font-mono text-xs font-bold text-slate-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
-                              {order.requestNumber}
-                            </span>
-                            <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg text-xs text-slate-300">
-                              {deptIcon}
-                              <span className="capitalize">{order.department || "Concierge"}</span>
-                            </div>
-                            <span className="text-xs text-slate-500">•</span>
-                            <span className="text-xs text-slate-400">
-                              Room <strong className="text-slate-200">{order.roomNumber}</strong>
-                            </span>
-                            <span className="text-xs text-slate-500">•</span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(order.createdAt).toLocaleDateString([], {
-                                month: "short",
-                                day: "numeric",
-                              })}{" "}
-                              at{" "}
-                              {new Date(order.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-
-                          <Badge
-                            variant="outline"
-                            className={
-                              isCancelled
-                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30 px-3 py-1 text-xs font-semibold"
-                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 px-3 py-1 text-xs font-semibold"
-                            }
-                          >
-                            {isCancelled ? "Item Unavailable" : "✓ Delivered & Completed"}
-                          </Badge>
-                        </div>
-
-                        {/* Order description container */}
-                        <div className="bg-black/30 rounded-xl p-3 border border-white/5 space-y-1">
-                          <p className="text-sm font-medium text-slate-200">
-                            {order.description}
-                          </p>
-                          {order.specialInstructions && (
-                            <p className="text-xs text-slate-400 italic">
-                              Note: {order.specialInstructions}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Polite Front Desk Note / Unavailability notice */}
-                        {order.cancelReason && (
-                          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5">
-                            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5">
-                              <span className="font-semibold text-amber-300">Front Desk Update:</span>
-                              <p className="text-slate-200 leading-relaxed font-light">{order.cancelReason}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Footer row with Folio and Reorder button */}
-                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
-                          <div>
-                            {order.chargeAmount && Number(order.chargeAmount) > 0 ? (
-                              <span className="text-amber-400 font-semibold">
-                                {Number(order.chargeAmount).toLocaleString()} ETB billed to folio
-                              </span>
-                            ) : (
-                              <span className="text-emerald-400 font-medium">Complimentary</span>
-                            )}
-                          </div>
-
-                          <Button
-                            onClick={() => handleReorder(order)}
-                            size="sm"
-                            variant="outline"
-                            className="h-8 border-white/10 hover:border-amber-500/40 hover:bg-amber-500/10 text-slate-300 hover:text-amber-400 text-xs gap-1.5 font-medium transition-all"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>Request Again</span>
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </div>
-        )}
       </main>
 
       {/* Custom Request Dialog */}
@@ -1649,7 +1490,7 @@ function ServicesContent() {
               <span>Special Custom Request</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              Need something unique not on the standard menu? Let our 24/7 concierge know.
+              Need something unique not on the standard menu? Let our 24/7 Front Desk team know.
             </DialogDescription>
           </DialogHeader>
 
@@ -1727,7 +1568,7 @@ function ServicesContent() {
               <Check className="w-8 h-8 stroke-[3]" />
             </div>
             <DialogTitle className="text-2xl font-serif font-bold text-white">
-              Request Dispatched to Concierge
+              Request Dispatched to Front Desk
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-300">
               Our hospitality team has received your order and is preparing it for delivery.
@@ -1762,27 +1603,145 @@ function ServicesContent() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button
-                  onClick={() => {
-                    setConfirmedOrder(null);
-                    setActiveTab("orders");
-                  }}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-5 rounded-xl"
-                >
-                  <Clock className="w-4 h-4 mr-1.5" />
-                  Track Live Progress
-                </Button>
+              <div className="pt-2">
                 <Button
                   onClick={() => setConfirmedOrder(null)}
-                  variant="outline"
-                  className="border-white/10 text-xs py-5 rounded-xl hover:bg-white/5"
+                  className="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs py-3.5 rounded-xl shadow-md shadow-amber-500/20 transition-all"
                 >
-                  Order More Services
+                  Close & Order More Services
                 </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Live Order Fulfillment Tracker Modal */}
+      <Dialog open={isTrackOrdersOpen} onOpenChange={setIsTrackOrdersOpen}>
+        <DialogContent className="bg-[#14171f] border-amber-500/30 text-white max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="pb-3 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-serif font-bold text-white flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  My Room Service Orders
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-1">
+                  Live status tracking for Room {roomNumber || "Your Room"}
+                </DialogDescription>
+              </div>
+              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
+                {myOrders.length} {myOrders.length === 1 ? "Order" : "Orders"}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {myOrders.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-500">
+                  <Utensils className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-semibold text-slate-300">No active room service orders</p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Browse our 10 culinary & drink categories, add items to your tray, and submit an order directly to front desk.
+                </p>
+              </div>
+            ) : (
+              myOrders.map((ord) => {
+                const cleanId = (ord.requestNumber || "").replace(/#/g, "").replace(/-/g, " ");
+                const isDelivered = ord.status === "served";
+                const isDispatched = ord.status === "dispatched";
+                const isAssigned = Boolean(ord.assignedWaiterId && ord.assignedWaiterId !== "");
+                const itemsSummary = Array.isArray(ord.items)
+                  ? ord.items.map((it) => `${it.quantity}x ${it.name}`).join(", ")
+                  : String(ord.items || "");
+
+                return (
+                  <div
+                    key={ord.id}
+                    className="p-4 rounded-xl bg-black/40 border border-white/10 hover:border-amber-500/30 transition-all space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Order ID</span>
+                        <p className="font-mono font-bold text-amber-400 text-sm">{cleanId || "ORD"}</p>
+                      </div>
+                      <Badge
+                        className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                          isDelivered
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                            : isDispatched
+                            ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                            : isAssigned
+                            ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                            : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                        }`}
+                      >
+                        {isDelivered
+                          ? "Delivered to Room"
+                          : isDispatched
+                          ? "In Kitchen Prep"
+                          : isAssigned
+                          ? `Assigned: ${ord.assignedWaiterName}`
+                          : "Order Placed"}
+                      </Badge>
+                    </div>
+
+                    {/* Step progress track */}
+                    <div className="grid grid-cols-4 gap-2 pt-1 text-center">
+                      <div className="space-y-1">
+                        <div className="h-1.5 rounded-full bg-amber-500" />
+                        <span className="text-[10px] text-amber-300 font-medium">Received</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className={`h-1.5 rounded-full ${isAssigned || isDispatched || isDelivered ? "bg-amber-500" : "bg-white/10"}`} />
+                        <span className={`text-[10px] ${isAssigned || isDispatched || isDelivered ? "text-amber-300 font-medium" : "text-slate-500"}`}>Waiter</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className={`h-1.5 rounded-full ${isDispatched || isDelivered ? "bg-amber-500" : "bg-white/10"}`} />
+                        <span className={`text-[10px] ${isDispatched || isDelivered ? "text-amber-300 font-medium" : "text-slate-500"}`}>Kitchen</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className={`h-1.5 rounded-full ${isDelivered ? "bg-emerald-500" : "bg-white/10"}`} />
+                        <span className={`text-[10px] ${isDelivered ? "text-emerald-400 font-medium" : "text-slate-500"}`}>Delivered</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 space-y-1 text-xs">
+                      <div className="flex justify-between text-slate-400">
+                        <span>Items:</span>
+                        <span className="font-semibold text-slate-200 text-right max-w-[280px] truncate">{itemsSummary}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Destination:</span>
+                        <span className="font-medium text-slate-300">Room {ord.roomNumber}</span>
+                      </div>
+                      {ord.assignedWaiterName && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>Assigned Waiter:</span>
+                          <span className="font-medium text-amber-300">{ord.assignedWaiterName}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-slate-400 pt-1 border-t border-white/5 font-semibold">
+                        <span>Total:</span>
+                        <span className="text-amber-400">ETB {Number(ord.totalAmount || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={() => setIsTrackOrdersOpen(false)}
+              className="w-full bg-white/10 hover:bg-white/20 text-white font-medium text-xs py-2.5 rounded-xl border border-white/10"
+            >
+              Close Tracker
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

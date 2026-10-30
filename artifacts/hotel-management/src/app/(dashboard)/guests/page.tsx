@@ -330,12 +330,7 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
             <Input id="lastName" name="lastName" required defaultValue={defaultValues?.lastName} />
           </div>
           <div className="grid gap-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="phone">Phone Number *</Label>
-              <span className={`text-[10px] font-medium ${phoneError ? "text-rose-500 font-bold" : "text-text-muted"}`}>
-                {phone.length}/10 digits
-              </span>
-            </div>
+            <Label htmlFor="phone">Phone Number *</Label>
             <Input
               id="phone"
               name="phone"
@@ -377,12 +372,7 @@ function GuestFormFields({ defaultValues }: { defaultValues?: Partial<Guest> & R
             )}
           </div>
           <div className="grid gap-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="nationalId">National ID / Fayda FAN</Label>
-              <span className={`text-[10px] font-medium ${fanError ? "text-rose-500 font-bold" : "text-text-muted"}`}>
-                {nationalId.length}/16 digits
-              </span>
-            </div>
+            <Label htmlFor="nationalId">National ID / Fayda FAN</Label>
             <Input
               id="nationalId"
               name="nationalId"

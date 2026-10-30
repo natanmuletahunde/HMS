@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { JwtService } from '@nestjs/jwt';
 import { eq, and, or, sql, desc, like, ilike, getTableColumns } from 'drizzle-orm';
 import * as QRCode from 'qrcode';
+import * as bcrypt from 'bcryptjs';
 import {
   db,
   roomsTable,
@@ -18,9 +19,16 @@ import {
   maintenanceRequestsTable,
 } from '@workspace/db';
 
+import { OtpService } from '../auth/otp.service';
+import { AfroMessageService } from '../auth/afromessage.service';
+
 @Injectable()
 export class GuestPortalService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly otpService: OtpService,
+    private readonly afroMessage: AfroMessageService,
+  ) {}
 
   /**
    * Generates a signed JWT session token for authenticated guest room access
@@ -77,20 +85,52 @@ export class GuestPortalService {
         .where(eq(guestsTable.id, decoded.guestId))
         .limit(1);
 
-      const [room] = await db
-        .select()
-        .from(roomsTable)
-        .where(eq(roomsTable.id, decoded.roomId))
-        .limit(1);
+      // Check current reservation status for this guest
+      let res: any = null;
+      if (decoded.reservationId) {
+        const [foundRes] = await db
+          .select()
+          .from(reservationsTable)
+          .where(eq(reservationsTable.id, decoded.reservationId))
+          .limit(1);
+        res = foundRes;
+      }
 
-      const [res] = await db
-        .select()
-        .from(reservationsTable)
-        .where(eq(reservationsTable.id, decoded.reservationId))
-        .limit(1);
+      // If no reservation found or reservation is not checked in, check if guest has any active checked_in reservation
+      if (guest && (!res || res.status !== 'checked_in')) {
+        const [activeCheckedIn] = await db
+          .select()
+          .from(reservationsTable)
+          .where(
+            and(
+              eq(reservationsTable.guestId, guest.id),
+              eq(reservationsTable.status, 'checked_in'),
+            ),
+          )
+          .orderBy(desc(reservationsTable.createdAt))
+          .limit(1);
+
+        if (activeCheckedIn) {
+          res = activeCheckedIn;
+        }
+      }
+
+      const isStayActive = res?.status === 'checked_in';
+
+      let room: any = null;
+      const targetRoomId = res?.roomId || decoded.roomId;
+      if (targetRoomId) {
+        const [r] = await db
+          .select()
+          .from(roomsTable)
+          .where(eq(roomsTable.id, targetRoomId))
+          .limit(1);
+        room = r;
+      }
 
       return {
         valid: true,
+        isStayActive,
         token,
         guest: guest
           ? {
@@ -120,6 +160,7 @@ export class GuestPortalService {
               checkOutDate: res.checkOutDate,
               nights: res.nights,
               status: res.status,
+              actualCheckIn: res.actualCheckIn,
             }
           : null,
         claims: decoded,
@@ -140,15 +181,28 @@ export class GuestPortalService {
     fullName?: string;
     phone?: string;
     nationalId?: string;
+    identifier?: string;
+    password?: string;
   }) {
-    const rawPhone = body.phone?.trim();
+    let rawPhone = body.phone?.trim();
+    let fullName = body.fullName?.trim();
+    const identifier = body.identifier?.trim();
+    if (identifier) {
+      // If identifier starts with + or has only digits, dashes, spaces, parentheses
+      const digitsOnly = identifier.replace(/\D/g, '');
+      const isDigitsOrPhone = /^[+0-9\s\-()]+$/.test(identifier) && digitsOnly.length >= 4;
+      if (isDigitsOrPhone) {
+        rawPhone = identifier;
+      } else {
+        fullName = identifier;
+      }
+    }
     const phoneDigits = rawPhone?.replace(/\D/g, '') || '';
-    const fullName = body.fullName?.trim();
     const nationalId = body.nationalId?.trim();
     const roomNum = body.roomNumber?.trim();
 
     if (!phoneDigits && !fullName && !nationalId && !roomNum) {
-      throw new BadRequestException('Full Name and Phone Number are required to sign in.');
+      throw new BadRequestException('Registered Phone Number or Full Name is required to sign in.');
     }
 
     let guest: any = null;
@@ -210,8 +264,8 @@ export class GuestPortalService {
     let reservation: any = null;
 
     if (guest) {
-      // Find latest reservation for this guest
-      const [res] = await db
+      // Prioritize active checked-in reservation
+      const [checkedInRes] = await db
         .select({
           reservationId: reservationsTable.id,
           reservationNumber: reservationsTable.reservationNumber,
@@ -223,11 +277,37 @@ export class GuestPortalService {
           roomId: reservationsTable.roomId,
         })
         .from(reservationsTable)
-        .where(eq(reservationsTable.guestId, guest.id))
+        .where(
+          and(
+            eq(reservationsTable.guestId, guest.id),
+            eq(reservationsTable.status, 'checked_in'),
+          ),
+        )
         .orderBy(desc(reservationsTable.createdAt))
         .limit(1);
 
-      reservation = res;
+      if (checkedInRes) {
+        reservation = checkedInRes;
+      } else {
+        // Fallback to latest confirmed or pending reservation
+        const [res] = await db
+          .select({
+            reservationId: reservationsTable.id,
+            reservationNumber: reservationsTable.reservationNumber,
+            checkInDate: reservationsTable.checkInDate,
+            checkOutDate: reservationsTable.checkOutDate,
+            nights: reservationsTable.nights,
+            actualCheckIn: reservationsTable.actualCheckIn,
+            status: reservationsTable.status,
+            roomId: reservationsTable.roomId,
+          })
+          .from(reservationsTable)
+          .where(eq(reservationsTable.guestId, guest.id))
+          .orderBy(desc(reservationsTable.createdAt))
+          .limit(1);
+
+        reservation = res;
+      }
 
       if (reservation?.roomId) {
         const [r] = await db.select().from(roomsTable).where(eq(roomsTable.id, reservation.roomId)).limit(1);
@@ -284,8 +364,23 @@ export class GuestPortalService {
 
     if (!guest) {
       throw new NotFoundException(
-        'No registered guest account found for this name and phone number. Please register your account first.',
+        'No registered guest account found for this name or phone number. Please register your account first or sign in via SMS OTP.',
       );
+    }
+
+    // Password validation & security logic
+    if (guest.passwordHash) {
+      if (!body.password) {
+        throw new BadRequestException('Password is required. If you forgot your password, please use "Forgot Password?" to reset via SMS OTP.');
+      }
+      const isMatch = await bcrypt.compare(body.password, guest.passwordHash);
+      if (!isMatch) {
+        throw new BadRequestException('Incorrect password. Please verify your credentials or click "Forgot Password?" to reset.');
+      }
+    } else if (body.password && body.password.trim().length >= 4) {
+      // First-time password set for legacy or front-desk provisioned accounts
+      const initialHash = await bcrypt.hash(body.password.trim(), 10);
+      await db.update(guestsTable).set({ passwordHash: initialHash }).where(eq(guestsTable.id, guest.id));
     }
 
     // Ensure there is an assigned active room & reservation for in-portal features
@@ -343,8 +438,11 @@ export class GuestPortalService {
       phone: guest.phone,
     });
 
+    const isStayActive = reservation?.status === 'checked_in';
+
     return {
       success: true,
+      isStayActive,
       token,
       room: room
         ? {
@@ -375,6 +473,278 @@ export class GuestPortalService {
         email: guest.email,
         vipStatus: guest.vipStatus,
       },
+    };
+  }
+
+  /**
+   * Step 1: Request SMS OTP for Guest Portal Login
+   */
+  async requestGuestOtp(phone: string) {
+    const raw = (phone || '').trim();
+    if (!raw) {
+      throw new BadRequestException('Please provide a valid Ethiopian mobile phone number (09... or 07...)');
+    }
+
+    const normalized = this.afroMessage.normalizePhone(raw);
+    const allGuests = await db.select().from(guestsTable).where(eq(guestsTable.isActive, true));
+    const matchedGuest = allGuests.find(g => {
+      if (!g.phone) return false;
+      const norm = this.afroMessage.normalizePhone(g.phone);
+      return norm === normalized || norm.endsWith(normalized.slice(-9));
+    });
+
+    const otpRes = await this.otpService.requestOtp(normalized, 'guest', {
+      guestId: matchedGuest?.id,
+      guestName: matchedGuest ? `${matchedGuest.firstName} ${matchedGuest.lastName}`.trim() : null,
+    });
+
+    return {
+      success: true,
+      phone: normalized,
+      maskedPhone: otpRes.maskedPhone,
+      cooldownSeconds: otpRes.cooldownSeconds,
+      hasExistingAccount: !!matchedGuest,
+      ...(otpRes.devCode ? { devCode: otpRes.devCode } : {}),
+    };
+  }
+
+  /**
+   * Step 2: Verify Guest SMS OTP and issue authenticated guest session token
+   */
+  async verifyGuestOtp(phone: string, code: string, isReset?: boolean) {
+    if (!phone || !code) {
+      throw new BadRequestException('Phone number and verification code are required');
+    }
+
+    const verifyResult = await this.otpService.verifyOtp(phone, code, 'guest');
+    const normalized = this.afroMessage.normalizePhone(verifyResult.phone);
+
+    // Look up or auto-provision guest account
+    const allGuests = await db.select().from(guestsTable).where(eq(guestsTable.isActive, true));
+    let guest = allGuests.find(g => {
+      if (!g.phone) return false;
+      const norm = this.afroMessage.normalizePhone(g.phone);
+      return norm === normalized || norm.endsWith(normalized.slice(-9));
+    });
+
+    if (!guest) {
+      // Auto-create guest profile for verified mobile
+      const [newGuest] = await db
+        .insert(guestsTable)
+        .values({
+          firstName: 'Guest',
+          lastName: normalized.slice(-4),
+          phone: normalized,
+          guestCode: `GST-${Date.now().toString(36).toUpperCase()}`,
+          guestType: 'individual',
+          vipStatus: false,
+        })
+        .returning();
+      guest = newGuest;
+    }
+
+    // Resolve room & active reservation (prioritizing checked-in stay)
+    let room: any = null;
+    let reservation: any = null;
+
+    const [checkedInRes] = await db
+      .select({
+        reservationId: reservationsTable.id,
+        reservationNumber: reservationsTable.reservationNumber,
+        checkInDate: reservationsTable.checkInDate,
+        checkOutDate: reservationsTable.checkOutDate,
+        nights: reservationsTable.nights,
+        actualCheckIn: reservationsTable.actualCheckIn,
+        status: reservationsTable.status,
+        roomId: reservationsTable.roomId,
+      })
+      .from(reservationsTable)
+      .where(
+        and(
+          eq(reservationsTable.guestId, guest.id),
+          eq(reservationsTable.status, 'checked_in'),
+        ),
+      )
+      .orderBy(desc(reservationsTable.createdAt))
+      .limit(1);
+
+    if (checkedInRes) {
+      reservation = checkedInRes;
+    } else {
+      const [latestRes] = await db
+        .select({
+          reservationId: reservationsTable.id,
+          reservationNumber: reservationsTable.reservationNumber,
+          checkInDate: reservationsTable.checkInDate,
+          checkOutDate: reservationsTable.checkOutDate,
+          nights: reservationsTable.nights,
+          actualCheckIn: reservationsTable.actualCheckIn,
+          status: reservationsTable.status,
+          roomId: reservationsTable.roomId,
+        })
+        .from(reservationsTable)
+        .where(eq(reservationsTable.guestId, guest.id))
+        .orderBy(desc(reservationsTable.createdAt))
+        .limit(1);
+      reservation = latestRes;
+    }
+
+    if (reservation?.roomId) {
+      const [r] = await db.select().from(roomsTable).where(eq(roomsTable.id, reservation.roomId)).limit(1);
+      room = r;
+    }
+
+    if (!room) {
+      const [firstRoom] = await db.select().from(roomsTable).where(eq(roomsTable.isActive, true)).limit(1);
+      room = firstRoom;
+    }
+
+    if (!reservation && room) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const resNum = `RES-SMS-${Math.floor(100000 + Math.random() * 900000)}`;
+      const confNum = `CONF-${Date.now().toString(36).toUpperCase()}`;
+
+      const [newRes] = await db
+        .insert(reservationsTable)
+        .values({
+          reservationNumber: resNum,
+          confirmationNumber: confNum,
+          guestId: guest.id,
+          roomId: room.id,
+          roomTypeId: room.roomTypeId,
+          checkInDate: todayStr,
+          checkOutDate: tomorrowStr,
+          nights: 1,
+          adults: 1,
+          reservationType: 'online',
+          bookingSource: 'online',
+          status: 'confirmed',
+          totalAmount: room.currentPrice ? String(room.currentPrice) : '0',
+          notes: 'Auto-linked session on verified SMS OTP login',
+        })
+        .returning();
+
+      reservation = {
+        reservationId: newRes.id,
+        reservationNumber: newRes.reservationNumber,
+        checkInDate: newRes.checkInDate,
+        checkOutDate: newRes.checkOutDate,
+        nights: newRes.nights,
+        actualCheckIn: newRes.actualCheckIn,
+        status: newRes.status,
+      };
+    }
+
+    const token = this.generateGuestToken({
+      guestId: guest.id,
+      guestName: `${guest.firstName} ${guest.lastName || ''}`.trim(),
+      roomNumber: room?.number || '101',
+      roomId: room?.id || 'default-room',
+      reservationId: reservation?.reservationId || reservation?.id || 'default-res',
+      email: guest.email,
+      phone: guest.phone,
+    });
+
+    const isStayActive = reservation?.status === 'checked_in';
+
+    return {
+      success: true,
+      isStayActive,
+      token,
+      room: room
+        ? {
+            id: room.id,
+            number: room.number,
+            floor: room.floor,
+            type: room.roomTypeId,
+          }
+        : null,
+      reservation: reservation
+        ? {
+            id: reservation.reservationId || reservation.id,
+            reservationNumber: reservation.reservationNumber,
+            checkInDate: reservation.checkInDate,
+            checkOutDate: reservation.checkOutDate,
+            nights: reservation.nights,
+            actualCheckIn: reservation.actualCheckIn,
+            status: reservation.status,
+          }
+        : null,
+      guest: {
+        id: guest.id,
+        guestCode: guest.guestCode,
+        fullName: `${guest.firstName} ${guest.lastName || ''}`.trim(),
+        firstName: guest.firstName,
+        lastName: guest.lastName,
+        phone: guest.phone,
+        email: guest.email,
+        vipStatus: guest.vipStatus,
+      },
+      redirectUrl: isReset ? '/guest-portal/profile?changePassword=true' : undefined,
+    };
+  }
+
+  /**
+   * Update Guest Account Password (via authenticated session or phone verification)
+   */
+  async updateGuestPassword(
+    body: { password: string; phone?: string; guestId?: string },
+    authHeader?: string,
+  ) {
+    const rawPass = body.password?.trim();
+    if (!rawPass || rawPass.length < 4) {
+      throw new BadRequestException('Password must be at least 4 characters in length.');
+    }
+
+    let targetGuestId: string | null = null;
+
+    if (authHeader) {
+      try {
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        const decoded: any = this.jwtService.verify(token);
+        if (decoded?.guestId || decoded?.sub) {
+          targetGuestId = decoded.guestId || decoded.sub;
+        }
+      } catch (e) {
+        // Fallback to body properties
+      }
+    }
+
+    if (!targetGuestId && body.guestId) {
+      targetGuestId = body.guestId;
+    }
+
+    if (!targetGuestId && body.phone) {
+      const normalized = this.afroMessage.normalizePhone(body.phone);
+      const allGuests = await db.select().from(guestsTable).where(eq(guestsTable.isActive, true));
+      const matched = allGuests.find(g => {
+        if (!g.phone) return false;
+        const norm = this.afroMessage.normalizePhone(g.phone);
+        return norm === normalized || norm.endsWith(normalized.slice(-9));
+      });
+      if (matched) {
+        targetGuestId = matched.id;
+      }
+    }
+
+    if (!targetGuestId) {
+      throw new BadRequestException('Unable to locate guest account. Please sign in or verify via SMS OTP first.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(rawPass, salt);
+
+    await db
+      .update(guestsTable)
+      .set({ passwordHash })
+      .where(eq(guestsTable.id, targetGuestId));
+
+    return {
+      success: true,
+      message: 'Password updated successfully. You can now use your new password to sign in.',
     };
   }
 
@@ -503,7 +873,7 @@ export class GuestPortalService {
           name: 'Luggage Pickup & Bellhop at Departure',
           category: 'stay',
           price: 250,
-          desc: 'Concierge porter luggage collection directly from your suite at requested checkout time.',
+          desc: 'Porter luggage collection directly from your suite at requested checkout time.',
           prepTime: '15 mins',
           badge: 'Porter Service',
         },
@@ -525,6 +895,62 @@ export class GuestPortalService {
     priority?: string;
     chargeAmount?: number;
   }) {
+    // 1. Strictly enforce that the guest is checked into their room
+    let activeReservation: any = null;
+
+    if (body.reservationId) {
+      const [res] = await db
+        .select()
+        .from(reservationsTable)
+        .where(eq(reservationsTable.id, body.reservationId))
+        .limit(1);
+      activeReservation = res;
+    }
+
+    if ((!activeReservation || activeReservation.status !== 'checked_in') && body.guestId) {
+      const [res] = await db
+        .select()
+        .from(reservationsTable)
+        .where(
+          and(
+            eq(reservationsTable.guestId, body.guestId),
+            eq(reservationsTable.status, 'checked_in'),
+          ),
+        )
+        .orderBy(desc(reservationsTable.createdAt))
+        .limit(1);
+      if (res) activeReservation = res;
+    }
+
+    if ((!activeReservation || activeReservation.status !== 'checked_in') && body.roomNumber) {
+      const [targetRoom] = await db
+        .select()
+        .from(roomsTable)
+        .where(eq(roomsTable.number, body.roomNumber.trim()))
+        .limit(1);
+
+      if (targetRoom) {
+        const [res] = await db
+          .select()
+          .from(reservationsTable)
+          .where(
+            and(
+              eq(reservationsTable.roomId, targetRoom.id),
+              eq(reservationsTable.status, 'checked_in'),
+            ),
+          )
+          .orderBy(desc(reservationsTable.createdAt))
+          .limit(1);
+        if (res) activeReservation = res;
+      }
+    }
+
+    if (!activeReservation || activeReservation.status !== 'checked_in') {
+      throw new BadRequestException(
+        'In-room dining and service requests are only active for guests who have checked in to their room. Please complete check-in at the front desk to activate in-room service.',
+      );
+    }
+
     const requestNumber = 'RS-GUEST-' + Date.now().toString(36).toUpperCase();
 
     // Map department
@@ -1014,7 +1440,13 @@ export class GuestPortalService {
     partnerIdNumber?: string;
     hasAccompanyingGuests?: boolean;
     accompanyingGuests?: any[];
+    password?: string;
   }) {
+    let passwordHash: string | null = null;
+    if (body.password && body.password.trim().length >= 4) {
+      passwordHash = await bcrypt.hash(body.password.trim(), 10);
+    }
+
     let fName = body.firstName?.trim();
     let lName = body.lastName?.trim();
     if (!fName && body.fullName) {
@@ -1108,6 +1540,7 @@ export class GuestPortalService {
             guestType: body.guestType || existingGuest.guestType || 'individual',
             remarks: remarksCombined || existingGuest.remarks,
             totalStays: (existingGuest.totalStays || 0) + 1,
+            ...(passwordHash ? { passwordHash } : {}),
           })
           .where(eq(guestsTable.id, existingGuest.id))
           .returning();
@@ -1148,6 +1581,7 @@ export class GuestPortalService {
           guestType: body.guestType || 'individual',
           remarks: remarksCombined || null,
           totalStays: 1,
+          passwordHash: passwordHash || null,
         })
         .returning();
       guest = newGuest;
