@@ -30,6 +30,7 @@ import {
   Layers,
   Check,
   Lock,
+  Coffee,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -267,176 +268,87 @@ const DEFAULT_CATALOG = {
   ],
 };
 
-export const COMPLIMENTARY_BREAKFAST_ITEMS = [
-  {
-    id: "comp-bf-1",
-    name: "Chechebsa (ጨጨብሳ)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 850,
-    desc: "Torn flatbread shallow fried in niter kibbeh & berbere, drizzled with pure highland honey. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-2",
-    name: "Kinche (ቅንጬ)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 750,
-    desc: "Warm cracked wheat porridge gently tossed with spiced Ethiopian butter. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-3",
-    name: "Morning Injera Firfir (ፍርፍር)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 900,
-    desc: "Morning breakfast injera firfir in mild spiced stew with warm crusty bread. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-4",
-    name: "Enkulal Firfir (እንቁላል ፍርፍር)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 950,
-    desc: "Scrambled farm eggs with diced red onion, tomato, jalapeño, and warm injera. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-5",
-    name: "Scrambled Farm Eggs",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 700,
-    desc: "Creamy butter-scrambled farm eggs served with toasted artisan loaf. Served with complimentary breakfast.",
-    prepTime: "10 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-6",
-    name: "Sunny-Side Fried Eggs",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 700,
-    desc: "Two sunny-side up or over-easy eggs with grilled breakfast tomato and toast. Served with complimentary breakfast.",
-    prepTime: "10 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-7",
-    name: "Fluffy Cheese & Herb Omelette",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 850,
-    desc: "Three-egg fluffy omelette with cheese, diced bell pepper, mushroom, and herbs. Served with complimentary breakfast.",
-    prepTime: "12 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-8",
-    name: "Ful Medames (ፉል)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 800,
-    desc: "Simmered fava beans with olive oil, cumin, chopped tomato, onion, and fresh bread. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-9",
-    name: "Fresh Bread with Honey & Butter",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 650,
-    desc: "Warm fresh-baked baguette slices served with wild forest honey and sweet cream butter. Served with complimentary breakfast.",
-    prepTime: "5 mins",
-    badge: "Complimentary Breakfast",
-    station: "cold",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-10",
-    name: "Golden Pancakes with Maple Syrup",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 850,
-    desc: "Stack of fluffy golden pancakes served with maple syrup and whipped butter. Served with complimentary breakfast.",
-    prepTime: "15 mins",
-    badge: "Complimentary Breakfast",
-    station: "pastry",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-11",
-    name: "Ethiopian Highland Coffee (ቡና)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 350,
-    desc: "Freshly roasted highland arabica coffee brewed to order in authentic jebena clay pot. Complimentary morning beverage.",
-    prepTime: "10 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-12",
-    name: "Spiced Morning Tea (ሻይ)",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 300,
-    desc: "Traditional infused tea with cinnamon, cloves, cardamom, and fresh ginger. Complimentary morning beverage.",
-    prepTime: "8 mins",
-    badge: "Complimentary Breakfast",
-    station: "hot",
-    isComplimentary: true,
-  },
-  {
-    id: "comp-bf-13",
-    name: "Freshly Squeezed Orange Juice",
-    category: "breakfast",
-    categoryName: "Complimentary Breakfast",
-    price: 0,
-    originalPrice: 600,
-    desc: "100% freshly squeezed sweet Valencia oranges. Chilled morning juice.",
-    prepTime: "10 mins",
-    badge: "Complimentary Breakfast",
-    station: "cold",
-    isComplimentary: true,
-  },
+const COMPLIMENTARY_GROUPS = [
+  "All",
+  "Ethiopian Traditional",
+  "Meat Dishes",
+  "Fish & Seafood",
+  "International Cuisine",
+  "Breakfast",
+  "Snacks & Desserts",
+  "Hot Drinks",
+  "Fresh Juices",
+  "Cold Drinks",
+];
+
+const COMPLIMENTARY_FOOD_ITEMS = [
+  // Ethiopian Traditional
+  { id: "comp-et-1", name: "Doro Wot (ዶሮ ወጥ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Simmered tender chicken drumstick & boiled organic egg in rich berbere sauce with fresh injera.", prepTime: "25-35 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-2", name: "Siga Wot (ስጋ ወጥ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Slow-braised prime beef cubes in spiced red pepper sauce with warm fermented injera.", prepTime: "25-30 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-3", name: "Tibs (ጥብስ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Sautéed beef tenderloin with rosemary, onions, garlic, and fresh green peppers.", prepTime: "15-20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-et-4", name: "Kitfo (ክትፎ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Finely minced lean beef seasoned with niter kibbeh & mitmita, served with ayeb cottage cheese.", prepTime: "15-20 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-5", name: "Shiro (ሽሮ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Velvety spiced ground chickpea stew slow-cooked in traditional clay pot.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-6", name: "Beyaynetu (በያይነቱ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Grand colorful assortment of fresh fasting vegetarian stews served with injera.", prepTime: "20 mins", station: "cold", isComplimentary: true },
+  { id: "comp-et-7", name: "Firfir (ፍርፍር)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Torn soft injera sautéed in aromatic spiced berbere broth and seasoned butter.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-8", name: "Chechebsa (ጨጨብሳ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Warm torn flatbread fried in niter kibbeh & berbere, drizzled with highland honey.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-9", name: "Kinche (ቅንጬ)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Warm cracked wheat porridge gently tossed with spiced Ethiopian butter.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+  { id: "comp-et-10", name: "Ful (ፉል)", category: "traditional", categoryGroup: "Ethiopian Traditional", price: 0, desc: "Simmered fava beans with olive oil, cumin, chopped tomatoes, onion, and fresh bread.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+
+  // Meat Dishes
+  { id: "comp-md-1", name: "Beef Steak", category: "meat", categoryGroup: "Meat Dishes", price: 0, desc: "Tender grilled sirloin steak with herb jus, roasted vegetables, and potato.", prepTime: "25 mins", station: "grill", isComplimentary: true },
+  { id: "comp-md-2", name: "Grilled Beef", category: "meat", categoryGroup: "Meat Dishes", price: 0, desc: "Flame-charred marinated beef cuts seasoned with garlic and rosemary.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-md-3", name: "Lamb Chops", category: "meat", categoryGroup: "Meat Dishes", price: 0, desc: "Succulent grilled lamb chops with fresh rosemary and mint glaze.", prepTime: "25 mins", station: "grill", isComplimentary: true },
+  { id: "comp-md-4", name: "Grilled Chicken", category: "meat", categoryGroup: "Meat Dishes", price: 0, desc: "Herb-marinated tender chicken breast grilled over flame with garden vegetables.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-md-5", name: "Beef Tibs", category: "meat", categoryGroup: "Meat Dishes", price: 0, desc: "Pan-roasted prime beef tenderloin sizzled with onions and green chilies.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+
+  // Fish & Seafood
+  { id: "comp-fs-1", name: "Grilled Fish", category: "fish", categoryGroup: "Fish & Seafood", price: 0, desc: "Flame-grilled fresh fish fillet with lemon garlic herb butter.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-fs-2", name: "Fried Fish", category: "fish", categoryGroup: "Fish & Seafood", price: 0, desc: "Crispy golden spiced fish fillet served with house tartar and fresh lemon.", prepTime: "15 mins", station: "grill", isComplimentary: true },
+  { id: "comp-fs-3", name: "Fish Fillet", category: "fish", categoryGroup: "Fish & Seafood", price: 0, desc: "Delicate pan-seared fish fillet with white wine herb reduction and steamed rice.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-fs-4", name: "Seafood Platters", category: "fish", categoryGroup: "Fish & Seafood", price: 0, desc: "Chef's luxury assortment of grilled fish, prawns, and calamari with garlic dip.", prepTime: "25 mins", station: "grill", isComplimentary: true },
+
+  // International Cuisine
+  { id: "comp-int-1", name: "Pasta", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Penne or fettuccine tossed with rich tomato basil marinara or garlic butter.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+  { id: "comp-int-2", name: "Spaghetti", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Classic al dente spaghetti with traditional minced beef bolognese or tomato sauce.", prepTime: "20 mins", station: "hot", isComplimentary: true },
+  { id: "comp-int-3", name: "Pizza", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Fresh oven-baked pizza with mozzarella, tomato passata, and aromatic herbs.", prepTime: "20 mins", station: "hot", isComplimentary: true },
+  { id: "comp-int-4", name: "Burgers", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Grilled beef or chicken patty with cheddar, crisp lettuce, tomato, and golden fries.", prepTime: "20 mins", station: "grill", isComplimentary: true },
+  { id: "comp-int-5", name: "Sandwiches", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Toasted club or grilled chicken sandwich with crisps and dip.", prepTime: "15 mins", station: "cold", isComplimentary: true },
+  { id: "comp-int-6", name: "Fried Rice", category: "international", categoryGroup: "International Cuisine", price: 0, desc: "Wok-fried jasmine rice with farm eggs, garden vegetables, and mild soy.", prepTime: "15 mins", station: "hot", isComplimentary: true },
+
+  // Breakfast
+  { id: "comp-bf-1", name: "Eggs", category: "breakfast", categoryGroup: "Breakfast", price: 0, desc: "Farm fresh eggs prepared to your choice: scrambled, sunny-side, or poached.", prepTime: "10 mins", station: "hot", isComplimentary: true },
+  { id: "comp-bf-2", name: "Pancakes", category: "breakfast", categoryGroup: "Breakfast", price: 0, desc: "Stack of fluffy golden pancakes served with pure highland honey or syrup.", prepTime: "15 mins", station: "pastry", isComplimentary: true },
+  { id: "comp-bf-3", name: "Fresh Bread", category: "breakfast", categoryGroup: "Breakfast", price: 0, desc: "Warm bakery artisan bread served with natural forest honey and sweet butter.", prepTime: "5 mins", station: "cold", isComplimentary: true },
+  { id: "comp-bf-4", name: "Omelets", category: "breakfast", categoryGroup: "Breakfast", price: 0, desc: "Fluffy three-egg omelet filled with cheese, mushrooms, tomatoes, and herbs.", prepTime: "12 mins", station: "hot", isComplimentary: true },
+  { id: "comp-bf-5", name: "Fresh Fruit Platters", category: "breakfast", categoryGroup: "Breakfast", price: 0, desc: "Sliced seasonal tropical papaya, sweet pineapple, mango, and watermelon.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+
+  // Snacks & Desserts
+  { id: "comp-sd-1", name: "Sambusa", category: "snacks", categoryGroup: "Snacks & Desserts", price: 0, desc: "Crispy triangular pastries filled with seasoned lentils or minced beef.", prepTime: "12 mins", station: "hot", isComplimentary: true },
+  { id: "comp-sd-2", name: "Kolo", category: "snacks", categoryGroup: "Snacks & Desserts", price: 0, desc: "Traditional roasted Ethiopian barley and sunflower seeds.", prepTime: "5 mins", station: "cold", isComplimentary: true },
+  { id: "comp-sd-3", name: "Dabo Kolo", category: "snacks", categoryGroup: "Snacks & Desserts", price: 0, desc: "Crispy sweet-spiced baked Ethiopian finger bread snacks.", prepTime: "5 mins", station: "pastry", isComplimentary: true },
+  { id: "comp-sd-4", name: "Cakes", category: "desserts", categoryGroup: "Snacks & Desserts", price: 0, desc: "Decadent slice of dark chocolate or sponge cake with cream.", prepTime: "10 mins", station: "pastry", isComplimentary: true },
+  { id: "comp-sd-5", name: "Cheesecake", category: "desserts", categoryGroup: "Snacks & Desserts", price: 0, desc: "Silky baked New York style cheesecake with fruit reduction.", prepTime: "10 mins", station: "pastry", isComplimentary: true },
+  { id: "comp-sd-6", name: "Ice Cream", category: "desserts", categoryGroup: "Snacks & Desserts", price: 0, desc: "Three scoops of artisan gelato: Vanilla, Dark Chocolate, or Strawberry.", prepTime: "5 mins", station: "pastry", isComplimentary: true },
+
+  // Hot Drinks
+  { id: "comp-hd-1", name: "Ethiopian Coffee", category: "hot_drinks", categoryGroup: "Hot Drinks", price: 0, desc: "Freshly roasted single-origin Ethiopian coffee brewed in clay jebena.", prepTime: "10 mins", station: "hot", isComplimentary: true },
+  { id: "comp-hd-2", name: "Espresso", category: "hot_drinks", categoryGroup: "Hot Drinks", price: 0, desc: "Rich single or double shot of pure aromatic espresso.", prepTime: "5 mins", station: "hot", isComplimentary: true },
+  { id: "comp-hd-3", name: "Cappuccino", category: "hot_drinks", categoryGroup: "Hot Drinks", price: 0, desc: "Espresso topped with steamed milk and velvety foam dusted with cocoa.", prepTime: "5 mins", station: "hot", isComplimentary: true },
+  { id: "comp-hd-4", name: "Macchiato", category: "hot_drinks", categoryGroup: "Hot Drinks", price: 0, desc: "Rich double espresso layered with micro-foamed hot milk.", prepTime: "5 mins", station: "hot", isComplimentary: true },
+  { id: "comp-hd-5", name: "Tea", category: "hot_drinks", categoryGroup: "Hot Drinks", price: 0, desc: "Aromatic infused black tea or spiced ginger-cinnamon tea with lemon.", prepTime: "5 mins", station: "hot", isComplimentary: true },
+
+  // Fresh Juices
+  { id: "comp-fj-1", name: "Mango Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Chilled pure freshly blended sweet ripe mango.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+  { id: "comp-fj-2", name: "Avocado Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Thick creamy Hass avocado juice served with fresh lime wedge.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+  { id: "comp-fj-3", name: "Orange Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Freshly squeezed sweet Valencia oranges.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+  { id: "comp-fj-4", name: "Papaya Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Smooth chilled fresh tropical papaya juice.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+  { id: "comp-fj-5", name: "Pineapple Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Cold-pressed tangy sweet fresh pineapple juice.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+  { id: "comp-fj-6", name: "Mixed Fruit Juice", category: "juices", categoryGroup: "Fresh Juices", price: 0, desc: "Layered blend of fresh mango, avocado, and papaya juice.", prepTime: "10 mins", station: "cold", isComplimentary: true },
+
+  // Cold Drinks
+  { id: "comp-cd-1", name: "Bottled Water", category: "cold_drinks", categoryGroup: "Cold Drinks", price: 0, desc: "Premium chilled still natural mineral spring water.", prepTime: "5 mins", station: "cold", isComplimentary: true },
+  { id: "comp-cd-2", name: "Fresh Lemonade", category: "cold_drinks", categoryGroup: "Cold Drinks", price: 0, desc: "Fresh-squeezed lemonade with mint leaves and crushed ice.", prepTime: "5 mins", station: "cold", isComplimentary: true },
+  { id: "comp-cd-3", name: "Seasonal Fruit Drinks", category: "cold_drinks", categoryGroup: "Cold Drinks", price: 0, desc: "Lightly sweetened fresh seasonal fruit cooler over ice.", prepTime: "5 mins", station: "cold", isComplimentary: true },
 ];
 
 interface TrayItem {
@@ -446,6 +358,7 @@ interface TrayItem {
   price: number;
   quantity: number;
   desc?: string;
+  preferences?: string;
 }
 
 const AVAILABLE_WAITERS = [
@@ -478,6 +391,53 @@ function ServicesContent() {
   const [reservationDetails, setReservationDetails] = useState<any | null>(null);
 
   const [diningCategoryFilter, setDiningCategoryFilter] = useState<string>("all");
+  const [complimentaryGroupFilter, setComplimentaryGroupFilter] = useState<string>("all");
+  const [isComplimentaryTab, setIsComplimentaryTab] = useState<boolean>(false);
+
+  // Personalized Complimentary Meal state
+  const [personalizeModalOpen, setPersonalizeModalOpen] = useState(false);
+  const [personalizeItem, setPersonalizeItem] = useState<any>(null);
+  const [customDishName, setCustomDishName] = useState("");
+  const [dietaryReq, setDietaryReq] = useState("Standard");
+  const [cookingStyle, setCookingStyle] = useState("Chef's Specialty");
+  const [spiceLevel, setSpiceLevel] = useState("Medium");
+  const [portionSize, setPortionSize] = useState("Standard");
+  const [preferredIngredients, setPreferredIngredients] = useState("");
+
+  const openPersonalize = (item: any = null) => {
+    setPersonalizeItem(item);
+    setCustomDishName(item ? item.name : "");
+    setDietaryReq("Standard");
+    setCookingStyle("Chef's Specialty");
+    setSpiceLevel("Medium");
+    setPortionSize("Standard");
+    setPreferredIngredients("");
+    setPersonalizeModalOpen(true);
+  };
+
+  const handleAddPersonalizedMeal = () => {
+    if (!isStayActive) {
+      alert("In-room services and dining can only be requested once you have checked in to your room. Please check in at the front desk to activate service ordering.");
+      return;
+    }
+    const dishName = (personalizeItem?.name || customDishName.trim()) || "Chef's Special Complimentary Request";
+    const prefSummary = `${dietaryReq !== "Standard" ? dietaryReq + " • " : ""}${cookingStyle} • ${spiceLevel} Spice • ${portionSize} Portion${preferredIngredients.trim() ? ` • ${preferredIngredients.trim()}` : ""}`;
+
+    setTray((prev) => [
+      ...prev,
+      {
+        id: `comp-custom-${Date.now()}`,
+        name: `${dishName} (Complimentary)`,
+        category: "food",
+        price: 0,
+        quantity: 1,
+        desc: prefSummary,
+        preferences: prefSummary,
+      },
+    ]);
+
+    setPersonalizeModalOpen(false);
+  };
 
   // Track My Orders Modal & Live Store
   const [isTrackOrdersOpen, setIsTrackOrdersOpen] = useState(false);
@@ -512,7 +472,7 @@ function ServicesContent() {
   // Reset pagination on category or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, diningCategoryFilter, searchQuery]);
+  }, [selectedCategory, diningCategoryFilter, complimentaryGroupFilter, isComplimentaryTab, searchQuery]);
 
   // Catalog state
   const [catalog, setCatalog] = useState<typeof DEFAULT_CATALOG>(DEFAULT_CATALOG);
@@ -648,9 +608,10 @@ function ServicesContent() {
         const res = await fetch("/api/guest-portal/catalog");
         if (res.ok) {
           const data = await res.json();
-          if (data && (data.dining || data.amenities || data.transport || data.services || data.stay)) {
+          if (data) {
             setCatalog({
-              dining: data.dining || DEFAULT_CATALOG.dining,
+              // ALWAYS preserve complete 83 dishes across all 10 categories with real ETB market prices
+              dining: DEFAULT_CATALOG.dining,
               amenities: data.amenities || DEFAULT_CATALOG.amenities,
               transport: data.transport || DEFAULT_CATALOG.transport,
               services: data.services || DEFAULT_CATALOG.services,
@@ -675,37 +636,58 @@ function ServicesContent() {
     catalog.transport.forEach((i) => list.push({ ...i, section: "transport", sectionLabel: "Airport & Transport" }));
     catalog.services.forEach((i) => list.push({ ...i, section: "services", sectionLabel: "Guest Services" }));
     catalog.stay?.forEach((i) => list.push({ ...i, section: "stay", sectionLabel: "Stay & Room Requests" }));
-    COMPLIMENTARY_BREAKFAST_ITEMS.forEach((i) => list.push({ ...i, section: "complimentary", sectionLabel: "Complimentary Breakfast" }));
+    COMPLIMENTARY_FOOD_ITEMS.forEach((i) => list.push({ ...i, section: "complimentary", sectionLabel: "Complimentary Food & Beverage" }));
     return list;
   }, [catalog]);
 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
-      if (selectedCategory === "complimentary") {
+      // 1. If in dedicated Complimentary tab, ONLY show complimentary items
+      if (isComplimentaryTab) {
+        if (item.section !== "complimentary") return false;
+
+        const matchesGroup =
+          complimentaryGroupFilter === "all" ||
+          item.categoryGroup === complimentaryGroupFilter;
+
         const matchesSearch =
           !searchQuery.trim() ||
           item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (item.desc && item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
-        return item.section === "complimentary" && matchesSearch;
+
+        return matchesGroup && matchesSearch;
       }
 
-      // If user is browsing regular tabs, exclude complimentary duplicates
+      // 2. Outside the complimentary tab, STRICTLY EXCLUDE complimentary items
       if (item.section === "complimentary") return false;
 
+      // 3. When a specific dining category is picked from the 10 food & drink categories dropdown:
+      // STRICT RULE: ONLY show dining items of that category (all with real market prices, paid to folio)
+      if (diningCategoryFilter !== "all") {
+        const isTargetCategory =
+          item.section === "dining" &&
+          (item.categoryId === diningCategoryFilter ||
+            item.category === diningCategoryFilter);
+        if (!isTargetCategory) return false;
+
+        const matchesSearch =
+          !searchQuery.trim() ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.desc && item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesSearch;
+      }
+
+      // 4. Standard category filter
       const matchesCategory =
         selectedCategory === "all" || item.section === selectedCategory;
-      const matchesDiningCategory =
-        diningCategoryFilter === "all" ||
-        item.section !== "dining" ||
-        item.categoryId === diningCategoryFilter ||
-        item.category === diningCategoryFilter;
+
       const matchesSearch =
         !searchQuery.trim() ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.desc && item.desc.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesCategory && matchesDiningCategory && matchesSearch;
+      return matchesCategory && matchesSearch;
     });
-  }, [allItems, selectedCategory, diningCategoryFilter, searchQuery]);
+  }, [allItems, isComplimentaryTab, selectedCategory, diningCategoryFilter, complimentaryGroupFilter, searchQuery]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
@@ -910,23 +892,8 @@ function ServicesContent() {
             </Link>
           </div>
 
-          {/* Right: Guest & Room Status and Track Orders Button */}
+          {/* Right: Guest & Room Status */}
           <div className="flex items-center gap-2.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsTrackOrdersOpen(true)}
-              className="h-8 px-3 text-xs font-semibold border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Track Orders</span>
-              {myOrders.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px] flex items-center justify-center ml-0.5">
-                  {myOrders.length}
-                </span>
-              )}
-            </Button>
-
             {isRecognizedGuest && (
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs border transition-all ${
@@ -1047,11 +1014,12 @@ function ServicesContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Catalog Section (8 cols) */}
             <div className="lg:col-span-8 space-y-6">
-              {/* Category Filter Dropdown */}
+              {/* Category Filter Dropdown & Complimentary Tab */}
               <div className="flex items-center gap-3 flex-wrap border-b border-white/10 pb-4">
-                <div className="w-56">
+                <div className="w-56 shrink-0">
                   <Select value={selectedCategory} onValueChange={(val) => {
                     setSelectedCategory(val);
+                    setIsComplimentaryTab(false);
                     setCurrentPage(1);
                   }}>
                     <SelectTrigger className="w-full h-10 text-xs bg-white/5 border-white/10 text-white rounded-xl focus:ring-amber-500/30">
@@ -1071,29 +1039,92 @@ function ServicesContent() {
                   </Select>
                 </div>
 
-                {/* 10 Food & Drink Menu Categories Dropdown */}
-                {(selectedCategory === "all" || selectedCategory === "dining") && (
-                  <div className="w-72">
-                    <Select value={diningCategoryFilter} onValueChange={(val) => {
-                      setDiningCategoryFilter(val);
-                      setCurrentPage(1);
-                    }}>
-                      <SelectTrigger className="w-full h-10 text-xs bg-white/5 border-amber-500/30 text-amber-300 rounded-xl focus:ring-amber-500/30">
-                        <div className="flex items-center gap-2 truncate">
-                          <Utensils className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <SelectValue placeholder="Food & Drinks Category" />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#14171f] border-white/10 text-slate-200 max-h-72">
-                        <SelectItem value="all">All 10 Food & Drink Categories</SelectItem>
-                        {ROOM_SERVICE_CATEGORIES.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {/* 10 Food & Drink Menu Categories Dropdown - ALWAYS VISIBLE WITHOUT DISORDER */}
+                <div className="w-64 sm:w-72 shrink-0">
+                  <Select value={diningCategoryFilter} onValueChange={(val) => {
+                    setDiningCategoryFilter(val);
+                    setIsComplimentaryTab(false);
+                    setCurrentPage(1);
+                  }}>
+                    <SelectTrigger className="w-full h-10 text-xs bg-white/5 border-amber-500/30 text-amber-300 rounded-xl focus:ring-amber-500/30">
+                      <div className="flex items-center gap-2 truncate">
+                        <Utensils className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <SelectValue placeholder="Food & Drinks Category" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#14171f] border-white/10 text-slate-200 max-h-72">
+                      <SelectItem value="all">All 10 Food & Drink Categories</SelectItem>
+                      {ROOM_SERVICE_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Dedicated Complimentary Food Tab Button - Highlighted with Shadow when active */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsComplimentaryTab((prev) => !prev);
+                    setCurrentPage(1);
+                  }}
+                  className={`h-10 px-4 text-xs font-semibold rounded-xl border transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                    isComplimentaryTab
+                      ? "bg-gradient-to-r from-emerald-500/25 to-amber-500/20 text-emerald-300 border-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] ring-2 ring-emerald-500/50"
+                      : "bg-white/5 text-slate-300 border-white/10 hover:border-emerald-500/40 hover:text-emerald-300 hover:bg-emerald-500/10 shadow-xs"
+                  }`}
+                >
+                  <Coffee className="w-4 h-4 text-emerald-400" />
+                  <span>Complimentary Foods</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    isComplimentaryTab
+                      ? "bg-emerald-500/30 text-emerald-200 border-emerald-400/60 shadow-xs"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  }`}>
+                    0 ETB
+                  </span>
+                </button>
               </div>
+
+              {/* Complimentary Group Pills and Custom Request */}
+              {isComplimentaryTab && (
+                <div className="p-3 rounded-xl bg-black/40 border border-emerald-500/20 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {COMPLIMENTARY_GROUPS.map((grp) => {
+                        const isSelected =
+                          (grp === "All" && complimentaryGroupFilter === "all") ||
+                          complimentaryGroupFilter === grp;
+                        return (
+                          <button
+                            key={grp}
+                            type="button"
+                            onClick={() => {
+                              setComplimentaryGroupFilter(grp === "All" ? "all" : grp);
+                              setCurrentPage(1);
+                            }}
+                            className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20"
+                                : "bg-white/5 text-slate-300 border border-white/10 hover:border-white/20 hover:text-white"
+                            }`}
+                          >
+                            {grp}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      onClick={() => openPersonalize(null)}
+                      size="sm"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold text-xs h-8 px-3 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer ml-auto"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Custom Meal Request</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Search Bar & Custom Request Trigger */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -1204,44 +1235,47 @@ function ServicesContent() {
                             {/* Price & Add to cart button */}
                             <div className="flex items-center justify-between pt-2 border-t border-white/5">
                               <div>
-                                {isFree && item.category !== "stay" ? (
-                                  <span className="text-sm font-semibold text-emerald-400 tracking-wide">
-                                    Complimentary
-                                  </span>
-                                ) : isFree ? (
-                                  <span className="text-sm font-semibold text-amber-400 tracking-wide">
-                                    Fee Applied to Folio
-                                  </span>
-                                ) : (
-                                  <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-bold text-amber-400">
-                                      {Number(item.price).toLocaleString()} ETB
-                                    </span>
-                                    <span className="text-[10px] text-slate-400">/ charged to folio</span>
-                                  </div>
-                                )}
+                                <span className={`text-base font-bold ${item.isComplimentary || isComplimentaryTab ? "text-emerald-400" : "text-amber-400"}`}>
+                                  {Number(item.price || 0).toLocaleString()} ETB
+                                </span>
                               </div>
 
-                              {isStayActive ? (
-                                <Button
-                                  onClick={() => addToTray(item)}
-                                  size="sm"
-                                  className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 active:scale-95 text-slate-950 font-semibold text-xs h-8 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                                >
-                                  <Bell className="w-3.5 h-3.5" />
-                                  <span>Request Service</span>
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  disabled
-                                  className="bg-white/5 border border-white/10 text-slate-400 font-medium text-xs h-8 px-3 rounded-lg cursor-not-allowed opacity-75 flex items-center gap-1.5"
-                                  title="In-room requests activate automatically upon physical room check-in."
-                                >
-                                  <Lock className="w-3 h-3 text-amber-500/70" />
-                                  <span>Preview Only</span>
-                                </Button>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {(item.isComplimentary || isComplimentaryTab) && isStayActive && (
+                                  <Button
+                                    onClick={() => openPersonalize(item)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-white/5 hover:bg-white/10 text-emerald-300 border-emerald-500/30 text-xs h-8 px-2.5 rounded-lg cursor-pointer"
+                                  >
+                                    Personalize
+                                  </Button>
+                                )}
+                                {isStayActive ? (
+                                  <Button
+                                    onClick={() => addToTray(item)}
+                                    size="sm"
+                                    className={`active:scale-95 text-slate-950 font-semibold text-xs h-8 px-3.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer ${
+                                      item.isComplimentary || isComplimentaryTab
+                                        ? "bg-emerald-400 hover:bg-emerald-500 text-slate-950 shadow-emerald-500/20"
+                                        : "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 shadow-amber-500/20"
+                                    }`}
+                                  >
+                                    <Bell className="w-3.5 h-3.5" />
+                                    <span>{item.isComplimentary || isComplimentaryTab ? "Request Free" : "Request Service"}</span>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    disabled
+                                    className="bg-white/5 border border-white/10 text-slate-400 font-medium text-xs h-8 px-3 rounded-lg cursor-not-allowed opacity-75 flex items-center gap-1.5"
+                                    title="In-room requests activate automatically upon physical room check-in."
+                                  >
+                                    <Lock className="w-3 h-3 text-amber-500/70" />
+                                    <span>Preview Only</span>
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1741,6 +1775,190 @@ function ServicesContent() {
             >
               Close Tracker
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Luxury Complimentary Meal Personalization Dialog */}
+      <Dialog open={personalizeModalOpen} onOpenChange={setPersonalizeModalOpen}>
+        <DialogContent className="bg-[#14171f] border-emerald-500/40 text-white max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-1">
+            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs tracking-wider uppercase">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>Complimentary Culinary Service • 0 ETB</span>
+            </div>
+            <DialogTitle className="text-xl font-serif font-bold text-white">
+              {personalizeItem ? `Personalize ${personalizeItem.name}` : "Chef's Custom Meal Request"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-300">
+              Personalize your meal with dietary requirements, cooking styles, spice level, and portion size. Prepared fresh for your room at 0 ETB.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {!personalizeItem && (
+              <div>
+                <label className="text-xs text-slate-300 font-medium block mb-1">
+                  Dish or Beverage Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Kitfo Special, Egg & Mushroom Omelet, Avocado Smoothie..."
+                  value={customDishName}
+                  onChange={(e) => setCustomDishName(e.target.value)}
+                  className="bg-black/40 border-white/10 text-xs text-slate-200"
+                />
+              </div>
+            )}
+
+            {/* Dietary Requirements */}
+            <div>
+              <label className="text-xs text-slate-300 font-medium block mb-1.5">
+                Dietary Preference / Fasting
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  "Standard",
+                  "Vegetarian",
+                  "Vegan",
+                  "Fasting (Tsom)",
+                  "Halal",
+                  "Gluten-Free",
+                ].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setDietaryReq(opt)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all cursor-pointer font-medium text-center ${
+                      dietaryReq === opt
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                        : "bg-white/5 text-slate-300 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cooking Style */}
+            <div>
+              <label className="text-xs text-slate-300 font-medium block mb-1.5">
+                Cooking Style
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  "Chef's Specialty",
+                  "Grilled / Charred",
+                  "Pan-Seared",
+                  "Steamed",
+                  "Light Oil",
+                  "Crispy",
+                ].map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => setCookingStyle(style)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all cursor-pointer font-medium text-center ${
+                      cookingStyle === style
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                        : "bg-white/5 text-slate-300 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {style}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Spice Level */}
+            <div>
+              <label className="text-xs text-slate-300 font-medium block mb-1.5">
+                Spice Level
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  "Plain (No Spice)",
+                  "Mild",
+                  "Medium",
+                  "Spicy",
+                  "Mitmita on Side",
+                ].map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setSpiceLevel(lvl)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all cursor-pointer font-medium text-center ${
+                      spiceLevel === lvl
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                        : "bg-white/5 text-slate-300 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Portion Size */}
+            <div>
+              <label className="text-xs text-slate-300 font-medium block mb-1.5">
+                Portion Size
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {["Light", "Standard", "Generous"].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => setPortionSize(sz)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all cursor-pointer font-medium text-center ${
+                      portionSize === sz
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                        : "bg-white/5 text-slate-300 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {sz}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Special Instructions & Ingredients */}
+            <div>
+              <label className="text-xs text-slate-300 font-medium block mb-1">
+                Special Requests & Ingredients (Optional)
+              </label>
+              <textarea
+                rows={2}
+                placeholder="e.g. Extra onions, garlic on the side, lemon slices, decaf coffee..."
+                value={preferredIngredients}
+                onChange={(e) => setPreferredIngredients(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-md p-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <span className="text-sm font-bold text-emerald-400">0 ETB</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPersonalizeModalOpen(false)}
+                  className="border-white/10 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleAddPersonalizedMeal}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs"
+                >
+                  Add to Tray (0 ETB)
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

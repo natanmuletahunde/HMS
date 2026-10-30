@@ -408,42 +408,6 @@ function LoginForm() {
         </CardHeader>
 
         <CardContent className="space-y-4 pt-6 px-6 sm:px-8 pb-7">
-          {/* Auth Method Selector */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-black/40 border border-white/10 rounded-xl">
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMode("standard");
-                setError("");
-                setGuestOtpError("");
-              }}
-              className={`py-2 px-3 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                loginMode === "standard"
-                  ? "bg-gradient-to-r from-[#d97736] to-[#b85e24] text-white shadow-md font-semibold"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Password Sign In</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLoginMode("otp");
-                setError("");
-                setGuestOtpError("");
-              }}
-              className={`py-2 px-3 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                loginMode === "otp"
-                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md font-bold"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>SMS OTP Login</span>
-            </button>
-          </div>
-
           {loginMode === "standard" ? (
             <>
               {/* Fayda Scanner Section */}
@@ -757,16 +721,11 @@ function LoginForm() {
               <X className="w-5 h-5" />
             </button>
 
-            <div className="space-y-1 pr-6">
+            <div className="pr-6">
               <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
                 <KeyRound className="w-4 h-4" />
                 <span>Reset Password via SMS OTP</span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {forgotStep === "phone"
-                  ? "Enter your registered mobile phone number. We'll send an AfroMessage 6-digit verification code to verify your identity and let you set a new secure password."
-                  : `Enter the 6-digit verification code sent to ${forgotMasked || forgotPhone}.`}
-              </p>
             </div>
 
             {forgotError && (
@@ -794,9 +753,6 @@ function LoginForm() {
                       autoFocus
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    We will search the hotel registry for your active or confirmed profile.
-                  </p>
                 </div>
 
                 <Button

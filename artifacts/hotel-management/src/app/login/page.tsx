@@ -252,217 +252,244 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#EDF2F7] selection:bg-blue-500/20 select-none">
-      {/* Centered Sign-In Card */}
-      <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 sm:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08),0_0_1px_1px_rgba(0,0,0,0.04)] border border-slate-100/80 transition-all">
-        {/* Round Hotel Management System Logo (Matches Card Background) */}
-        <div className="flex flex-col items-center justify-center mb-6 text-center">
-          <div className="w-20 h-20 rounded-full bg-white border border-slate-200/70 p-1 flex items-center justify-center shadow-xs overflow-hidden">
-            <img
-              src="/hotel-logo.png"
-              alt="Hotel Management System"
-              className="w-full h-full object-cover rounded-full"
-            />
-          </div>
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 bg-[#030612] selection:bg-amber-500/30 select-none overflow-hidden font-sans">
+      {/* ─── LUXURY ARCHITECTURAL AMBIENCE (BLACK BACKGROUND WITH AMBER DEPTH) ─── */}
+      <div
+        className="fixed inset-0 bg-cover bg-center pointer-events-none z-0 transform scale-105 filter blur-[3px] opacity-25 brightness-50 contrast-125 transition-all duration-1000"
+        style={{ backgroundImage: `url('/login-assets/hotel-palace.png')` }}
+      />
 
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-3">
-            Welcome Back!
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">
-            We Are Happy To See You Again
-          </p>
-        </div>
+      {/* Atmospheric Vignette & Deep Radial Gradients */}
+      <div
+        className="fixed inset-0 pointer-events-none z-1"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 30%, rgba(217, 119, 54, 0.12) 0%, rgba(3, 6, 18, 0.82) 55%, rgba(2, 4, 12, 0.98) 100%)",
+        }}
+      />
 
-        {/* Error Banner */}
-        {error && (
-          <div className="mb-5 p-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 text-xs flex items-start gap-2.5 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
-            <span className="leading-relaxed font-medium">{error}</span>
-          </div>
-        )}
+      {/* Ambient Lighting Accents */}
+      <div className="fixed -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-amber-500/10 blur-[140px] rounded-full pointer-events-none z-1" />
+      <div className="fixed -bottom-40 right-10 w-[500px] h-[350px] bg-amber-600/10 blur-[130px] rounded-full pointer-events-none z-1" />
 
-        {step === "credentials" ? (
-          /* ─── CREDENTIALS FORM ────────────────────────────────────────── */
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Email Input (Pill Shaped with Mail Icon on Right) */}
-            <div className="relative">
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="Enter your email"
-                {...register("email")}
-                className="w-full h-12 rounded-full pl-5 pr-12 bg-[#F8FAFC] border border-slate-200/90 text-slate-900 placeholder:text-slate-400 text-sm focus:bg-white focus:border-[#3B82F6] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
-              />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                <Mail className="w-4 h-4" />
+      {/* ─── CENTERED STAFF SIGN-IN CARD ─── */}
+      <main className="w-full max-w-[430px] z-10 relative my-auto">
+        <div className="relative rounded-[32px] p-8 sm:p-10 bg-[#0b0e1b]/95 backdrop-blur-2xl border border-amber-500/25 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.9),0_0_50px_rgba(217,119,54,0.08)] transition-all overflow-hidden">
+          {/* Top Delicate Golden Rim Light */}
+          <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+
+          {/* Hotel Management System Logo Emblem */}
+          <div className="flex flex-col items-center justify-center mb-6 text-center relative">
+            <div className="relative flex items-center justify-center">
+              {/* Outer Golden Ambient Halo */}
+              <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-amber-500/30 via-amber-400/20 to-amber-600/30 blur-md opacity-80" />
+
+              {/* Circular Emblem */}
+              <div className="relative w-20 h-20 rounded-full bg-[#080b16] border-2 border-amber-400/60 p-1 flex items-center justify-center shadow-[0_0_30px_rgba(217,119,54,0.4)] overflow-hidden">
+                <img
+                  src="/hotel-logo.png"
+                  alt="Hotel Management System"
+                  className="w-full h-full object-cover rounded-full"
+                />
               </div>
             </div>
 
-            {/* Password Input (Pill Shaped with Eye Icon on Right) */}
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="Enter your password"
-                {...register("password")}
-                className="w-full h-12 rounded-full pl-5 pr-12 bg-[#F8FAFC] border border-slate-200/90 text-slate-900 placeholder:text-slate-400 text-sm focus:bg-white focus:border-[#3B82F6] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                title={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight font-serif mt-4">
+              Welcome Back!
+            </h1>
+            <p className="text-xs text-amber-400/90 font-medium tracking-wide mt-1">
+              Staff & Management Operations Suite
+            </p>
+          </div>
 
-            {/* Options Row: Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between px-1 pt-1 text-xs">
-              <label
-                htmlFor="rememberMe"
-                className="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 select-none font-medium"
-              >
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-start gap-2.5 animate-in fade-in shadow-lg">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+              <span className="leading-relaxed font-medium">{error}</span>
+            </div>
+          )}
+
+          {step === "credentials" ? (
+            /* ─── CREDENTIALS FORM ────────────────────────────────────────── */
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Email Input (Pill Shaped Dark Input with Mail Icon) */}
+              <div className="space-y-1">
+                <div className="relative group">
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="Work email address"
+                    {...register("email")}
+                    className="w-full h-12 rounded-full pl-5 pr-12 bg-black/50 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:border-amber-400 focus:bg-[#070914] focus:ring-4 focus:ring-amber-500/15 outline-none transition-all font-medium autofill:bg-black/50"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 pointer-events-none transition-colors">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Input (Pill Shaped Dark Input with Eye Toggle) */}
+              <div className="space-y-1">
+                <div className="relative group">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Password"
+                    {...register("password")}
+                    className="w-full h-12 rounded-full pl-5 pr-12 bg-black/50 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:border-amber-400 focus:bg-[#070914] focus:ring-4 focus:ring-amber-500/15 outline-none transition-all font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-300 transition-colors cursor-pointer p-1"
+                    title={showPassword ? "Hide password" : "Show password"}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Options Row: Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between px-2 pt-1 text-xs">
+                <label
+                  htmlFor="rememberMe"
+                  className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200 select-none font-medium transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 border-white/20 bg-black/50 focus:ring-amber-500/30 accent-amber-500 cursor-pointer"
+                  />
+                  <span>Remember me</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleOpenForgotPassword}
+                  className="text-amber-400 hover:text-amber-300 font-medium transition-colors cursor-pointer hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
+              {/* Golden Pill Login Button */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.99] text-slate-950 font-bold text-sm tracking-wide shadow-[0_10px_30px_-5px_rgba(217,119,54,0.45),0_0_15px_rgba(245,158,11,0.25)] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 text-slate-950 animate-spin" />
+                      <span>Authenticating...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <span>Sign In to Dashboard</span>
+                      <ArrowRight className="w-4 h-4 text-slate-950" />
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            /* ─── TWO-FACTOR AUTHENTICATION (MFA) ────────────────────────── */
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="text-center space-y-1">
+                <div className="w-14 h-14 mx-auto rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 shadow-lg shadow-amber-500/10">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <h2 className="text-lg font-bold text-white tracking-tight font-serif">
+                  Two-Factor Verification
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Enter the 6-digit code from your authenticator app
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <input
-                  type="checkbox"
-                  id="rememberMe"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded-full text-[#3B82F6] border-slate-300 focus:ring-[#3B82F6] cursor-pointer"
+                  id="totp"
+                  type="text"
+                  inputMode="text"
+                  maxLength={8}
+                  placeholder="000000"
+                  className="w-full h-12 rounded-full text-center text-xl font-mono tracking-[0.4em] bg-black/60 border border-white/10 text-amber-300 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/15 outline-none font-bold"
+                  value={totpCode}
+                  onChange={(e) =>
+                    setTotpCode(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8))
+                  }
+                  onKeyDown={(e) => e.key === "Enter" && onMfaSubmit()}
+                  autoFocus
                 />
-                <span>Remember me</span>
-              </label>
+              </div>
 
-              <button
-                type="button"
-                onClick={handleOpenForgotPassword}
-                className="text-[#3B82F6] hover:text-[#2563EB] font-semibold transition-colors cursor-pointer"
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            {/* Solid Blue Pill Login Button */}
-            <div className="pt-2">
               <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-12 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-sm shadow-md shadow-blue-500/20 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-60"
+                className="w-full h-12 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-[0_10px_25px_-5px_rgba(217,119,54,0.45)] transition-all cursor-pointer"
+                disabled={!isValidMfaCode || mfaSubmitting}
+                onClick={onMfaSubmit}
               >
-                {isSubmitting ? (
+                {mfaSubmitting ? (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Signing in...</span>
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Verifying Code...</span>
                   </div>
                 ) : (
-                  <span>Login</span>
+                  <span>Verify & Access Dashboard</span>
                 )}
               </Button>
-            </div>
 
-            {/* Direct SMS OTP Login Option */}
-            <div className="pt-1 text-center">
-              <div className="relative my-3">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-[11px] uppercase">
-                  <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider">
-                    Or Sign In With
-                  </span>
-                </div>
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+                  onClick={() => {
+                    setStep("credentials");
+                    setError("");
+                    setTotpCode("");
+                    setMfaToken("");
+                  }}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to login</span>
+                </button>
               </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleOpenForgotPassword}
-                className="w-full h-11 rounded-full border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs gap-2 transition-all cursor-pointer shadow-xs"
-              >
-                <Phone className="w-4 h-4 text-[#3B82F6]" />
-                <span>Phone SMS OTP (AfroMessage)</span>
-              </Button>
             </div>
-          </form>
-        ) : (
-          /* ─── TWO-FACTOR AUTHENTICATION (MFA) ────────────────────────── */
-          <div className="space-y-5">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-[#3B82F6] mb-2">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Two-Factor Verification
-              </h2>
-              <p className="text-xs text-slate-500">
-                Enter the 6-digit code from your authenticator app
-              </p>
-            </div>
+          )}
+        </div>
+      </main>
 
-            <div className="space-y-2">
-              <input
-                id="totp"
-                type="text"
-                inputMode="text"
-                maxLength={8}
-                placeholder="000000"
-                className="w-full h-12 rounded-full text-center text-xl font-mono tracking-[0.4em] bg-[#F8FAFC] border border-slate-200 text-slate-900 focus:bg-white focus:border-[#3B82F6] focus:ring-4 focus:ring-blue-500/10 outline-none"
-                value={totpCode}
-                onChange={(e) =>
-                  setTotpCode(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8))
-                }
-                onKeyDown={(e) => e.key === "Enter" && onMfaSubmit()}
-                autoFocus
-              />
-            </div>
-
-            <Button
-              className="w-full h-12 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-              disabled={!isValidMfaCode || mfaSubmitting}
-              onClick={onMfaSubmit}
-            >
-              {mfaSubmitting ? "Verifying..." : "Verify & Sign In"}
-            </Button>
-
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
-                onClick={() => {
-                  setStep("credentials");
-                  setError("");
-                  setTotpCode("");
-                  setMfaToken("");
-                }}
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to login</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ─── INTERACTIVE AFROMESSAGE SMS OTP & FORGOT PASSWORD MODAL ─── */}
+      {/* ─── INTERACTIVE AFROMESSAGE SMS OTP & FORGOT PASSWORD MODAL (DARK LUXURY) ─── */}
       <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
-        <DialogContent className="max-w-md bg-white border border-slate-200 text-slate-900 rounded-3xl p-6 sm:p-8">
+        <DialogContent className="max-w-md bg-[#0d101d] border border-amber-500/30 text-white rounded-[28px] p-6 sm:p-8 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
           <DialogHeader className="text-center sm:text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-[#3B82F6] mb-2 shadow-xs">
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 shadow-sm">
               {otpStep === "request" && <Phone className="w-5 h-5" />}
               {otpStep === "verify" && <MessageSquare className="w-5 h-5" />}
               {otpStep === "reset" && <KeyRound className="w-5 h-5" />}
             </div>
-            <DialogTitle className="text-lg font-bold text-slate-900">
+            <DialogTitle className="text-lg font-bold text-white font-serif">
               {otpStep === "request" && "SMS OTP & Password Recovery"}
               {otpStep === "verify" && "Verify SMS Security Code"}
               {otpStep === "reset" && "Create New Password"}
             </DialogTitle>
-            <DialogDescription className={`text-xs text-slate-500 mt-1 leading-relaxed ${otpStep === "request" ? "hidden" : ""}`}>
+            <DialogDescription
+              className={`text-xs text-slate-400 mt-1 leading-relaxed ${
+                otpStep === "request" ? "hidden" : ""
+              }`}
+            >
               {otpStep === "verify" && (
                 <span>
-                  A 6-digit code was sent to <strong className="text-slate-900 font-mono">{otpMaskedPhone}</strong>. Enter it below to proceed.
+                  A 6-digit code was dispatched to{" "}
+                  <strong className="text-amber-300 font-mono">{otpMaskedPhone}</strong> via AfroMessage.
+                  Enter it below to proceed.
                 </span>
               )}
               {otpStep === "reset" &&
@@ -472,17 +499,19 @@ export default function LoginPage() {
 
           {/* Error Message */}
           {otpError && (
-            <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-2xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
               <span>{otpError}</span>
             </div>
           )}
 
           {/* Dev Mode Code Helper */}
           {otpDevCode && otpStep === "verify" && (
-            <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center justify-between">
-              <span className="font-medium">Sandbox Mode Dev Code:</span>
-              <span className="font-mono font-bold text-amber-950 bg-amber-200/80 px-2 py-0.5 rounded">{otpDevCode}</span>
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-center justify-between">
+              <span className="font-medium">Sandbox Mode SMS OTP:</span>
+              <span className="font-mono font-bold text-amber-300 bg-black/60 px-2 py-0.5 rounded tracking-widest">
+                {otpDevCode}
+              </span>
             </div>
           )}
 
@@ -490,19 +519,23 @@ export default function LoginPage() {
           {otpStep === "request" && (
             <div className="space-y-4 my-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Work Email or Phone Number</label>
+                <label className="text-xs font-semibold text-slate-300">
+                  Work Email or Registered Phone Number
+                </label>
                 <div className="relative">
                   <Input
                     type="text"
                     value={otpIdentifier}
+                    placeholder="e.g. receptionist@nexushms.com or 0911318622"
                     onChange={(e) => {
                       setOtpIdentifier(e.target.value);
                       if (otpError) setOtpError("");
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleRequestOtp()}
-                    className="h-11 rounded-2xl pl-10 text-xs border-slate-200 focus:border-[#3B82F6]"
+                    className="h-11 rounded-xl pl-10 text-xs bg-black/50 border-white/10 text-white placeholder:text-slate-500 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
+                    autoFocus
                   />
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
                     <Mail className="w-4 h-4" />
                   </div>
                 </div>
@@ -512,12 +545,12 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleRequestOtp}
                 disabled={otpLoading}
-                className="w-full h-11 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-xs shadow-md shadow-blue-500/20 gap-2 cursor-pointer"
+                className="w-full h-11 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 gap-2 cursor-pointer"
               >
                 {otpLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending SMS...</span>
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Sending SMS via AfroMessage...</span>
                   </>
                 ) : (
                   <>
@@ -533,7 +566,9 @@ export default function LoginPage() {
           {otpStep === "verify" && (
             <div className="space-y-4 my-2">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-700 block text-center">6-Digit SMS Verification Code</label>
+                <label className="text-xs font-semibold text-slate-300 block text-center">
+                  6-Digit SMS Verification Code
+                </label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -546,7 +581,7 @@ export default function LoginPage() {
                     if (otpError) setOtpError("");
                   }}
                   autoFocus
-                  className="w-full h-12 rounded-2xl text-center text-xl font-mono tracking-[0.5em] bg-[#F8FAFC] border border-slate-200 text-slate-900 focus:bg-white focus:border-[#3B82F6] focus:ring-4 focus:ring-blue-500/10 outline-none"
+                  className="w-full h-12 rounded-xl text-center text-xl font-mono tracking-[0.5em] bg-black/60 border border-white/10 text-amber-300 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/15 outline-none font-bold"
                 />
               </div>
 
@@ -558,9 +593,9 @@ export default function LoginPage() {
                     setOtpCode("");
                     setOtpError("");
                   }}
-                  className="text-slate-500 hover:text-slate-800 text-[11px] font-medium"
+                  className="text-slate-400 hover:text-white text-[11px] font-medium transition-colors"
                 >
-                  ← Change number
+                  &larr; Change number
                 </button>
 
                 {otpCooldown > 0 ? (
@@ -572,7 +607,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleRequestOtp}
                     disabled={otpLoading}
-                    className="text-[11px] font-semibold text-[#3B82F6] hover:text-[#2563EB]"
+                    className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                   >
                     Resend SMS
                   </button>
@@ -584,10 +619,10 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleVerifyForReset}
                   disabled={otpLoading || otpCode.length !== 6}
-                  className="w-full h-11 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-xs shadow-md shadow-blue-500/20 gap-2 cursor-pointer"
+                  className="w-full h-11 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 gap-2 cursor-pointer"
                 >
                   {otpLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                   ) : (
                     <>
                       <KeyRound className="w-4 h-4" />
@@ -601,9 +636,9 @@ export default function LoginPage() {
                   variant="outline"
                   onClick={handleInstantOtpLogin}
                   disabled={otpLoading || otpCode.length !== 6}
-                  className="w-full h-10 rounded-full border-emerald-500/30 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 hover:text-emerald-800 font-semibold text-xs gap-1.5 cursor-pointer"
+                  className="w-full h-10 rounded-full border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-semibold text-xs gap-1.5 cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Instant Sign In via OTP</span>
                 </Button>
               </div>
@@ -614,7 +649,7 @@ export default function LoginPage() {
           {otpStep === "reset" && (
             <div className="space-y-3.5 my-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">New Password</label>
+                <label className="text-xs font-semibold text-slate-300">New Password</label>
                 <div className="relative">
                   <Input
                     type={showNewPassword ? "text" : "password"}
@@ -624,15 +659,15 @@ export default function LoginPage() {
                       setNewPassword(e.target.value);
                       if (otpError) setOtpError("");
                     }}
-                    className="h-11 rounded-2xl pl-10 pr-10 text-xs border-slate-200 focus:border-[#3B82F6]"
+                    className="h-11 rounded-xl pl-10 pr-10 text-xs bg-black/50 border-white/10 text-white placeholder:text-slate-500 focus:border-amber-400"
                   />
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
                     <Lock className="w-4 h-4" />
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowNewPassword((p) => !p)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-amber-300 transition-colors"
                   >
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -640,7 +675,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Confirm New Password</label>
+                <label className="text-xs font-semibold text-slate-300">Confirm New Password</label>
                 <div className="relative">
                   <Input
                     type={showNewPassword ? "text" : "password"}
@@ -651,9 +686,9 @@ export default function LoginPage() {
                       if (otpError) setOtpError("");
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleCompleteReset()}
-                    className="h-11 rounded-2xl pl-10 pr-10 text-xs border-slate-200 focus:border-[#3B82F6]"
+                    className="h-11 rounded-xl pl-10 pr-10 text-xs bg-black/50 border-white/10 text-white placeholder:text-slate-500 focus:border-amber-400"
                   />
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
                     <Lock className="w-4 h-4" />
                   </div>
                 </div>
@@ -663,11 +698,11 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleCompleteReset}
                 disabled={otpLoading || newPassword.length < 6 || !confirmPassword}
-                className="w-full h-11 rounded-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-xs shadow-md shadow-blue-500/20 gap-2 cursor-pointer mt-2"
+                className="w-full h-11 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 gap-2 cursor-pointer mt-2"
               >
                 {otpLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                     <span>Updating Password...</span>
                   </>
                 ) : (
@@ -684,7 +719,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowForgotPassword(false)}
-              className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+              className="text-xs text-slate-500 hover:text-slate-300 font-medium transition-colors cursor-pointer"
             >
               Cancel
             </button>

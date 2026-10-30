@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -279,6 +279,9 @@ export default function StayManagementHubPage() {
   const [assignWaiterModalOpen, setAssignWaiterModalOpen] = useState(false);
   const [assignTargetReq, setAssignTargetReq] = useState<InHouseServiceRequest | null>(null);
   const [selectedWaiterId, setSelectedWaiterId] = useState<string>(AVAILABLE_WAITERS[0].id);
+  const [servicesSubTab, setServicesSubTab] = useState<"food" | "general">("food");
+  const [foodSearch, setFoodSearch] = useState("");
+  const [foodStatusFilter, setFoodStatusFilter] = useState("all");
 
   useEffect(() => {
     setInHouseRequests(getInHouseRequests());
@@ -304,8 +307,8 @@ export default function StayManagementHubPage() {
     setAssignWaiterModalOpen(false);
     setAssignTargetReq(null);
     toast({
-      title: "Waiter Assigned & SMS Alert Dispatched",
-      description: `Assigned ${waiter.name} to Room ${assignTargetReq.roomNumber} order. AfroMessage SMS sent to 0954123456.`,
+      title: "Waiter Assigned",
+      description: `Assigned ${waiter.name} to Room ${assignTargetReq.roomNumber} order.`,
     });
   };
 
@@ -502,15 +505,51 @@ export default function StayManagementHubPage() {
   const stayChangesPagination = usePagination(stayChanges, 5);
   const inHousePagination = usePagination(inHouse, 5);
 
-  const filteredRsRequests = rsRequests.filter((req) => {
-    if (stayStatusFilter === "all") return true;
-    if (stayStatusFilter === "pending") return req.status === "requested";
-    if (stayStatusFilter === "approved") return req.status === "accepted";
-    if (stayStatusFilter === "in_progress") return req.status === "in_progress";
-    if (stayStatusFilter === "completed") return req.status === "completed";
-    if (stayStatusFilter === "rejected") return req.status === "cancelled";
-    return true;
-  });
+  // Tab 1: Food & Drink Orders (Assign Waiter)
+  const filteredInHouseFoodRequests = useMemo(() => {
+    return inHouseRequests.filter((req) => {
+      if (foodStatusFilter !== "all" && req.status !== foodStatusFilter) return false;
+      if (!foodSearch.trim()) return true;
+      const q = foodSearch.toLowerCase();
+      const itemsStr = Array.isArray(req.items)
+        ? req.items.map((it) => `${it.quantity}x ${it.name}`).join(" ").toLowerCase()
+        : String(req.items || "").toLowerCase();
+      return (
+        req.roomNumber.toLowerCase().includes(q) ||
+        req.guestName.toLowerCase().includes(q) ||
+        req.requestNumber.toLowerCase().includes(q) ||
+        itemsStr.includes(q)
+      );
+    });
+  }, [inHouseRequests, foodSearch, foodStatusFilter]);
+  const inHouseFoodPagination = usePagination(filteredInHouseFoodRequests, 5);
+
+  // Tab 2: Housekeeping, Maintenance & Transport (All Other Room Services)
+  const filteredRsRequests = useMemo(() => {
+    return rsRequests.filter((req) => {
+      // Exclude food & restaurant orders to keep Tab 2 strictly non-food services
+      const isFood = req.serviceType === "food" || req.serviceType === "drinks" || req.department === "restaurant";
+      if (isFood) return false;
+
+      if (stayStatusFilter === "pending" && req.status !== "requested") return false;
+      if (stayStatusFilter === "approved" && req.status !== "accepted") return false;
+      if (stayStatusFilter === "in_progress" && req.status !== "in_progress") return false;
+      if (stayStatusFilter === "completed" && req.status !== "completed") return false;
+      if (stayStatusFilter === "rejected" && req.status !== "cancelled") return false;
+
+      if (rsTypeFilter !== "all" && req.serviceType !== rsTypeFilter) return false;
+      if (rsPriorityFilter !== "all" && req.priority !== rsPriorityFilter) return false;
+
+      if (!rsSearch.trim()) return true;
+      const q = rsSearch.toLowerCase();
+      return (
+        (req.roomNumber && req.roomNumber.toLowerCase().includes(q)) ||
+        (req.guestName && req.guestName.toLowerCase().includes(q)) ||
+        (req.requestNumber && req.requestNumber.toLowerCase().includes(q)) ||
+        (req.description && req.description.toLowerCase().includes(q))
+      );
+    });
+  }, [rsRequests, stayStatusFilter, rsTypeFilter, rsPriorityFilter, rsSearch]);
   const rsPagination = usePagination(filteredRsRequests, 5);
 
   // Map of rooms with unhandled pending service requests needing receptionist action
@@ -866,361 +905,503 @@ export default function StayManagementHubPage() {
       {/* ─── TAB 2: STAY CHANGES & IN-ROOM REQUESTS ───────────────────── */}
       {activeHubTab === "changes" && (
         <div className="space-y-6">
-          {/* Filters Bar */}
-          <div className="flex flex-wrap gap-2.5 items-center">
-            <div className="relative min-w-[200px] flex-1 sm:flex-none">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
-              <Input
-                placeholder="Search room, guest, or request..."
-                value={rsSearch}
-                onChange={(e) => setRsSearch(e.target.value)}
-                className="pl-8 h-10 text-xs"
-              />
-            </div>
+          {/* Sub-tab Navigation */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+            <button
+              type="button"
+              onClick={() => setServicesSubTab("food")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                servicesSubTab === "food"
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 shadow-sm"
+                  : "bg-muted/50 text-text-muted hover:text-foreground hover:bg-muted border border-transparent"
+              }`}
+            >
+              <span>🍽️ Food & Drink Orders (Assign Waiter)</span>
+              {inHouseRequests.filter((r) => r.status === "pending").length > 0 && (
+                <Badge variant="outline" className="ml-1 bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 text-[10px] px-1.5 py-0 font-bold animate-pulse">
+                  {inHouseRequests.filter((r) => r.status === "pending").length} Pending
+                </Badge>
+              )}
+            </button>
 
-            {/* Status Filter Dropdown */}
-            <Select value={stayStatusFilter} onValueChange={setStayStatusFilter}>
-              <SelectTrigger className="w-[150px] h-10 text-xs">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={rsTypeFilter} onValueChange={setRsTypeFilter}>
-              <SelectTrigger className="w-[140px] h-10 text-xs">
-                <SelectValue placeholder="All Services" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Services</SelectItem>
-                {SERVICE_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.emoji} {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={rsPriorityFilter} onValueChange={setRsPriorityFilter}>
-              <SelectTrigger className="w-[130px] h-10 text-xs">
-                <SelectValue placeholder="All Priorities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
-
+            <button
+              type="button"
+              onClick={() => setServicesSubTab("general")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                servicesSubTab === "general"
+                  ? "bg-primary/15 text-primary dark:text-primary-foreground border border-primary/40 shadow-sm"
+                  : "bg-muted/50 text-text-muted hover:text-foreground hover:bg-muted border border-transparent"
+              }`}
+            >
+              <span>🛎️ Housekeeping, Maintenance & Transport</span>
+              {filteredRsRequests.filter((r) => r.status === "requested").length > 0 && (
+                <Badge variant="outline" className="ml-1 bg-primary/20 text-primary dark:text-primary-foreground border-primary/40 text-[10px] px-1.5 py-0 font-bold">
+                  {filteredRsRequests.filter((r) => r.status === "requested").length} New
+                </Badge>
+              )}
+            </button>
           </div>
 
-          {/* In-House Food & Drink Room Service Orders (Shifted to Receptionist for Waiter Assignment) */}
-          <Card className="overflow-hidden border border-amber-500/30 bg-white dark:bg-card shadow-xs">
-            <CardHeader className="bg-amber-50/50 dark:bg-amber-950/20 py-3.5 px-4 border-b border-amber-500/20 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
-                  In-House Guest Food & Drinks Orders (Assign Waiter)
-                </CardTitle>
-                <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold">
-                  {inHouseRequests.filter((r) => r.status === "pending").length} Pending Assignment
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Room</TableHead>
-                    <TableHead>Guest & Phone</TableHead>
-                    <TableHead>Ordered Dishes</TableHead>
-                    <TableHead>Charge</TableHead>
-                    <TableHead>Assigned Waiter</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inHouseRequests.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-20 text-center text-xs text-text-muted">
-                        No in-house food or drink requests currently pending.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    inHouseRequests.map((req) => {
-                      const hasWaiter = !!req.assignedWaiterId;
-                      return (
-                        <TableRow key={req.id} className="hover:bg-muted/40">
-                          <TableCell className="font-mono text-xs font-semibold">
-                            {req.requestNumber.replace(/#/g, "").replace(/-/g, " ")}
-                          </TableCell>
-                          <TableCell className="font-bold text-primary text-xs">
-                            Room {req.roomNumber}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <div className="font-semibold text-slate-900 dark:text-slate-100">{req.guestName}</div>
-                            {req.phone && (
-                              <div className="font-mono text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                <Phone className="w-3 h-3 text-slate-400" />
-                                <span>{req.phone}</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs max-w-xs">
-                            <div className="line-clamp-2 text-slate-700 dark:text-slate-300">
-                              {Array.isArray(req.items)
-                                ? req.items.map((it) => `${it.quantity}× ${it.name}`).join(", ")
-                                : String(req.items || "—")}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                            {req.totalAmount ? `ETB ${req.totalAmount.toLocaleString()}` : "Folio"}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {hasWaiter ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
-                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>{req.assignedWaiterName}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                Awaiting Assignment
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <Badge variant={req.status === "served" ? "success" : req.status === "dispatched" ? "warning" : "default"} className="text-[10px] uppercase">
-                              {req.stage === "waiter_assigned" ? "Assigned" : req.stage === "cooking" ? "Cooking" : req.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setAssignTargetReq(req);
-                                setAssignWaiterModalOpen(true);
-                              }}
-                              className="h-7 px-2.5 text-xs font-semibold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 rounded-lg shadow-2xs gap-1"
-                            >
-                              <UserCheck className="w-3.5 h-3.5" />
-                              <span>{hasWaiter ? "Reassign Waiter" : "Assign Waiter"}</span>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+          {/* SUB-TAB 1: In-House Food & Drink Room Service Orders (Shifted to Receptionist for Waiter Assignment) */}
+          {servicesSubTab === "food" && (
+            <div className="space-y-4">
+              {/* Food Filter Bar */}
+              <div className="flex flex-wrap gap-2.5 items-center justify-between">
+                <div className="flex flex-wrap gap-2.5 items-center flex-1">
+                  <div className="relative min-w-[220px] max-w-sm flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
+                    <Input
+                      placeholder="Search room, guest, or dish..."
+                      value={foodSearch}
+                      onChange={(e) => setFoodSearch(e.target.value)}
+                      className="pl-8 h-10 text-xs"
+                    />
+                  </div>
+                  <Select value={foodStatusFilter} onValueChange={setFoodStatusFilter}>
+                    <SelectTrigger className="w-[170px] h-10 text-xs">
+                      <SelectValue placeholder="All Order Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending Waiter</SelectItem>
+                      <SelectItem value="waiter_assigned">Waiter Assigned</SelectItem>
+                      <SelectItem value="cooking">Cooking / Preparing</SelectItem>
+                      <SelectItem value="dispatched">Out for Delivery</SelectItem>
+                      <SelectItem value="served">Delivered / Served</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(foodSearch || foodStatusFilter !== "all") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFoodSearch("");
+                        setFoodStatusFilter("all");
+                      }}
+                      className="h-9 text-xs text-text-muted hover:text-foreground"
+                    >
+                      Clear Filters
+                    </Button>
                   )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                </div>
 
-          {/* Service Requests Table */}
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Request #</TableHead>
-                      <TableHead>Room</TableHead>
-                      <TableHead>Guest</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Charge (ETB)</TableHead>
-                      <TableHead>Requested At</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rsLoading ? (
-                      [...Array(3)].map((_, i) => (
-                        <TableRow key={i}>
-                          {[...Array(10)].map((__, j) => (
-                            <TableCell key={j}>
-                              <Skeleton className="h-4 w-full" />
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : filteredRsRequests.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center text-text-muted">
-                          No service requests match your filter.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      rsPagination.paginatedItems.map((req) => (
-                        <TableRow key={req.id} className="hover:bg-muted/40">
-                          <TableCell className="font-mono text-xs">
-                            <div className="font-semibold">{req.requestNumber}</div>
-                            <div className="mt-1">
-                              {req.requestNumber?.startsWith("RS-PHONE-") || req.notes?.includes("Phone") ? (
-                                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 px-1.5 py-0 font-medium">
-                                  <Phone className="h-2.5 w-2.5" /> Phone Order
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px] bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30 gap-1 px-1.5 py-0 font-medium">
-                                  <Sparkles className="h-2.5 w-2.5" /> In-Room Portal
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-semibold text-primary">Room {req.roomNumber ?? "—"}</TableCell>
-                          <TableCell className="font-medium text-xs">{req.guestName ?? "—"}</TableCell>
-                          <TableCell>
-                            <span className="text-xs font-medium">{getServiceDisplay(req.serviceType)}</span>
-                            {req.description && (
-                              <p className="text-[11px] text-text-muted truncate max-w-[200px]">{req.description}</p>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {req.department ? (
-                                <Badge
-                                  variant={(DEPT_BADGE[req.department] ?? "muted") as any}
-                                  className="text-[10px] capitalize"
-                                >
-                                  {req.department.replace(/_/g, " ")}
-                                </Badge>
-                              ) : (
-                                <span className="text-xs text-text-muted">—</span>
-                              )}
-                              {req.assignedToName && (
-                                <div>
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                                    <UserCheck className="h-3 w-3" /> {req.assignedToName}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                (req.priority === "urgent"
-                                  ? "danger"
-                                  : req.priority === "high"
-                                  ? "warning"
-                                  : req.priority === "normal"
-                                  ? "default"
-                                  : "muted") as any
-                              }
-                              className="text-[10px] uppercase font-bold"
-                            >
-                              {req.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={(RS_STATUS_BADGE[req.status] ?? "muted") as any}
-                              className="text-[10px] uppercase"
-                            >
-                              {req.status.replace(/_/g, " ")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs font-semibold text-amber-500">
-                            {Number(req.chargeAmount) > 0 ? `ETB ${Number(req.chargeAmount).toFixed(2)}` : "Free"}
-                          </TableCell>
-                          <TableCell className="text-xs text-text-muted">
-                            {(req.requestedAt ?? req.createdAt)
-                              ? new Date(req.requestedAt ?? req.createdAt!).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end">
-                              {!["completed", "cancelled"].includes(req.status) && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    {!req.assignedToName && (
-                                      <DropdownMenuItem
-                                        onClick={() => {
-                                          setDispatchTarget(req);
-                                          setDispatchDept(req.department || "restaurant");
-                                          const match = DEFAULT_HOTEL_STAFF.find((s) => s.department === (req.department || "restaurant"));
-                                          setDispatchStaffId(match?.name || DEFAULT_HOTEL_STAFF[0].name);
-                                        }}
-                                      >
-                                        <UserCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
-                                        Dispatch / Assign Staff
-                                      </DropdownMenuItem>
-                                    )}
-                                    {req.status === "requested" && (
-                                      <DropdownMenuItem
-                                        onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "accepted" } })}
-                                      >
-                                        Accept Order
-                                      </DropdownMenuItem>
-                                    )}
-                                    {req.status === "accepted" && (
-                                      <DropdownMenuItem
-                                        onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "in_progress" } })}
-                                      >
-                                        Start Preparation / Delivery
-                                      </DropdownMenuItem>
-                                    )}
-                                    {req.status === "in_progress" && (
-                                      <DropdownMenuItem
-                                        onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "completed" } })}
-                                      >
-                                        <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
-                                        Mark Completed & Sync Folio
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem
-                                      className="text-amber-500 hover:text-amber-600 focus:text-amber-600"
-                                      onClick={() => {
-                                        setCancelRequest(req);
-                                        setCancelReason(
-                                          `Dear ${req.guestName || "Valued Guest"}, we sincerely apologize, but "${req.description || "your requested item"}" is currently unavailable. Our front desk team is delighted to recommend suitable alternatives or assist you with another selection.`
-                                        );
-                                      }}
-                                    >
-                                      <AlertCircle className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
-                                      Notify Guest: Item Unavailable
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-                <TablePagination
-                  currentPage={rsPagination.currentPage}
-                  totalPages={rsPagination.totalPages}
-                  totalItems={rsPagination.totalItems}
-                  pageSize={5}
-                  onPrev={rsPagination.onPrev}
-                  onNext={rsPagination.onNext}
-                />
+                <div className="text-xs text-text-muted font-medium">
+                  Showing {inHouseFoodPagination.totalItems} order{inHouseFoodPagination.totalItems === 1 ? "" : "s"}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+
+              {/* In-House Food & Drink Room Service Orders Card */}
+              <Card className="overflow-hidden border border-amber-500/30 bg-white dark:bg-card shadow-xs">
+                <CardHeader className="bg-amber-50/50 dark:bg-amber-950/20 py-3.5 px-4 border-b border-amber-500/20 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UtensilsCrossed className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900 dark:text-white">
+                        In-House Guest Food & Drinks Orders (Assign Waiter)
+                      </CardTitle>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        In-house room dining orders placed via guest portal. Assign available hotel waiters for prompt delivery.
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold">
+                    {inHouseRequests.filter((r) => r.status === "pending").length} Pending Assignment
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Room</TableHead>
+                        <TableHead>Guest & Phone</TableHead>
+                        <TableHead>Ordered Dishes</TableHead>
+                        <TableHead>Charge</TableHead>
+                        <TableHead>Assigned Waiter</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInHouseFoodRequests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="h-24 text-center text-xs text-text-muted">
+                            No food or drink requests match your filter.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        inHouseFoodPagination.paginatedItems.map((req) => {
+                          const hasWaiter = !!req.assignedWaiterId;
+                          return (
+                            <TableRow key={req.id} className="hover:bg-muted/40">
+                              <TableCell className="font-mono text-xs font-semibold">
+                                {req.requestNumber.replace(/#/g, "").replace(/-/g, " ")}
+                              </TableCell>
+                              <TableCell className="font-bold text-primary text-xs">
+                                Room {req.roomNumber}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                <div className="font-semibold text-slate-900 dark:text-slate-100">{req.guestName}</div>
+                                {req.phone && (
+                                  <div className="font-mono text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <Phone className="w-3 h-3 text-slate-400" />
+                                    <span>{req.phone}</span>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs max-w-xs">
+                                <div className="line-clamp-2 text-slate-700 dark:text-slate-300">
+                                  {Array.isArray(req.items)
+                                    ? req.items.map((it) => `${it.quantity}× ${it.name}`).join(", ")
+                                    : String(req.items || "—")}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                {req.totalAmount ? `ETB ${req.totalAmount.toLocaleString()}` : "Folio"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {hasWaiter ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>{req.assignedWaiterName}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Awaiting Assignment
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                <Badge variant={req.status === "served" ? "success" : req.status === "dispatched" ? "warning" : "default"} className="text-[10px] uppercase">
+                                  {req.stage === "waiter_assigned" ? "Assigned" : req.stage === "cooking" ? "Cooking" : req.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setAssignTargetReq(req);
+                                    setAssignWaiterModalOpen(true);
+                                  }}
+                                  className="h-7 px-2.5 text-xs font-semibold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 rounded-lg shadow-2xs gap-1 cursor-pointer"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <span>{hasWaiter ? "Reassign Waiter" : "Assign Waiter"}</span>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                  <TablePagination
+                    currentPage={inHouseFoodPagination.currentPage}
+                    totalPages={inHouseFoodPagination.totalPages}
+                    totalItems={inHouseFoodPagination.totalItems}
+                    pageSize={5}
+                    onPrev={inHouseFoodPagination.onPrev}
+                    onNext={inHouseFoodPagination.onNext}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* SUB-TAB 2: Housekeeping, Maintenance & Transport Requests (All Other Room Services) */}
+          {servicesSubTab === "general" && (
+            <div className="space-y-4">
+              {/* Filters Bar */}
+              <div className="flex flex-wrap gap-2.5 items-center justify-between">
+                <div className="flex flex-wrap gap-2.5 items-center flex-1">
+                  <div className="relative min-w-[200px] flex-1 sm:flex-none">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
+                    <Input
+                      placeholder="Search room, guest, or request..."
+                      value={rsSearch}
+                      onChange={(e) => setRsSearch(e.target.value)}
+                      className="pl-8 h-10 text-xs"
+                    />
+                  </div>
+
+                  {/* Status Filter Dropdown */}
+                  <Select value={stayStatusFilter} onValueChange={setStayStatusFilter}>
+                    <SelectTrigger className="w-[150px] h-10 text-xs">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={rsTypeFilter} onValueChange={setRsTypeFilter}>
+                    <SelectTrigger className="w-[150px] h-10 text-xs">
+                      <SelectValue placeholder="All Services" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Services</SelectItem>
+                      {SERVICE_TYPES.filter((t) => t.value !== "food" && t.value !== "drinks").map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.emoji} {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={rsPriorityFilter} onValueChange={setRsPriorityFilter}>
+                    <SelectTrigger className="w-[130px] h-10 text-xs">
+                      <SelectValue placeholder="All Priorities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {(rsSearch || stayStatusFilter !== "all" || rsTypeFilter !== "all" || rsPriorityFilter !== "all") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setRsSearch("");
+                        setStayStatusFilter("all");
+                        setRsTypeFilter("all");
+                        setRsPriorityFilter("all");
+                      }}
+                      className="h-9 text-xs text-text-muted hover:text-foreground"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+
+                <div className="text-xs text-text-muted font-medium">
+                  Showing {rsPagination.totalItems} request{rsPagination.totalItems === 1 ? "" : "s"}
+                </div>
+              </div>
+
+              {/* Service Requests Table */}
+              <Card className="overflow-hidden">
+                <CardHeader className="py-3.5 px-4 border-b border-border flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <div>
+                      <CardTitle className="text-sm font-bold text-foreground">
+                        Housekeeping, Maintenance & Transport Requests
+                      </CardTitle>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        In-room amenities, cleaning, airport shuttles, maintenance tickets, and general service dispatches.
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-semibold">
+                    {filteredRsRequests.filter((r) => r.status === "requested").length} Unassigned / New
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Request #</TableHead>
+                          <TableHead>Room</TableHead>
+                          <TableHead>Guest</TableHead>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Charge (ETB)</TableHead>
+                          <TableHead>Requested At</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rsLoading ? (
+                          [...Array(3)].map((_, i) => (
+                            <TableRow key={i}>
+                              {[...Array(10)].map((__, j) => (
+                                <TableCell key={j}>
+                                  <Skeleton className="h-4 w-full" />
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        ) : filteredRsRequests.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={10} className="h-24 text-center text-text-muted">
+                              No housekeeping, maintenance or transport requests match your filter.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          rsPagination.paginatedItems.map((req) => (
+                            <TableRow key={req.id} className="hover:bg-muted/40">
+                              <TableCell className="font-mono text-xs">
+                                <div className="font-semibold">{req.requestNumber}</div>
+                                <div className="mt-1">
+                                  {req.requestNumber?.startsWith("RS-PHONE-") || req.notes?.includes("Phone") ? (
+                                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 px-1.5 py-0 font-medium">
+                                      <Phone className="h-2.5 w-2.5" /> Phone Order
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30 gap-1 px-1.5 py-0 font-medium">
+                                      <Sparkles className="h-2.5 w-2.5" /> In-Room Portal
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-semibold text-primary">Room {req.roomNumber ?? "—"}</TableCell>
+                              <TableCell className="font-medium text-xs">{req.guestName ?? "—"}</TableCell>
+                              <TableCell>
+                                <span className="text-xs font-medium">{getServiceDisplay(req.serviceType)}</span>
+                                {req.description && (
+                                  <p className="text-[11px] text-text-muted truncate max-w-[200px]">{req.description}</p>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  {req.department ? (
+                                    <Badge
+                                      variant={(DEPT_BADGE[req.department] ?? "muted") as any}
+                                      className="text-[10px] capitalize"
+                                    >
+                                      {req.department.replace(/_/g, " ")}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-text-muted">—</span>
+                                  )}
+                                  {req.assignedToName && (
+                                    <div>
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                        <UserCheck className="h-3 w-3" /> {req.assignedToName}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    (req.priority === "urgent"
+                                      ? "danger"
+                                      : req.priority === "high"
+                                      ? "warning"
+                                      : req.priority === "normal"
+                                      ? "default"
+                                      : "muted") as any
+                                  }
+                                  className="text-[10px] uppercase font-bold"
+                                >
+                                  {req.priority}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={(RS_STATUS_BADGE[req.status] ?? "muted") as any}
+                                  className="text-[10px] uppercase"
+                                >
+                                  {req.status.replace(/_/g, " ")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs font-semibold text-amber-500">
+                                {Number(req.chargeAmount) > 0 ? `ETB ${Number(req.chargeAmount).toFixed(2)}` : "Free"}
+                              </TableCell>
+                              <TableCell className="text-xs text-text-muted">
+                                {(req.requestedAt ?? req.createdAt)
+                                  ? new Date(req.requestedAt ?? req.createdAt!).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end">
+                                  {!["completed", "cancelled"].includes(req.status) && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        {!req.assignedToName && (
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              setDispatchTarget(req);
+                                              setDispatchDept(req.department || "housekeeping");
+                                              const match = DEFAULT_HOTEL_STAFF.find((s) => s.department === (req.department || "housekeeping"));
+                                              setDispatchStaffId(match?.name || DEFAULT_HOTEL_STAFF[0].name);
+                                            }}
+                                          >
+                                            <UserCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+                                            Dispatch / Assign Staff
+                                          </DropdownMenuItem>
+                                        )}
+                                        {req.status === "requested" && (
+                                          <DropdownMenuItem
+                                            onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "accepted" } })}
+                                          >
+                                            Accept Request
+                                          </DropdownMenuItem>
+                                        )}
+                                        {req.status === "accepted" && (
+                                          <DropdownMenuItem
+                                            onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "in_progress" } })}
+                                          >
+                                            Start Task / In Progress
+                                          </DropdownMenuItem>
+                                        )}
+                                        {req.status === "in_progress" && (
+                                          <DropdownMenuItem
+                                            onClick={() => patchRsMutation.mutate({ id: req.id, body: { status: "completed" } })}
+                                          >
+                                            <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+                                            Mark Completed
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem
+                                          className="text-amber-500 hover:text-amber-600 focus:text-amber-600"
+                                          onClick={() => {
+                                            setCancelRequest(req);
+                                            setCancelReason(
+                                              `Dear ${req.guestName || "Valued Guest"}, we sincerely apologize, but "${req.description || "your requested service"}" is currently unavailable. Our front desk team is delighted to recommend suitable alternatives or assist you.`
+                                            );
+                                          }}
+                                        >
+                                          <AlertCircle className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                                          Notify Guest: Service Unavailable
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                    <TablePagination
+                      currentPage={rsPagination.currentPage}
+                      totalPages={rsPagination.totalPages}
+                      totalItems={rsPagination.totalItems}
+                      pageSize={5}
+                      onPrev={rsPagination.onPrev}
+                      onNext={rsPagination.onNext}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -1949,10 +2130,10 @@ export default function StayManagementHubPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {AVAILABLE_WAITERS.map((w) => (
-                      <SelectItem key={w.id} value={w.id} className="text-xs py-2">
+                      <SelectItem key={w.id} value={w.id} className="text-xs py-2 cursor-pointer">
                         <div className="flex items-center justify-between w-full gap-3">
-                          <span className="font-medium">{w.name} ({w.role})</span>
-                          <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
+                          <span className="font-medium">{w.name}</span>
+                          <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 px-1.5 py-0.5 rounded font-semibold">
                             {w.status}
                           </span>
                         </div>
@@ -1962,17 +2143,7 @@ export default function StayManagementHubPage() {
                 </Select>
               </div>
 
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
-                <div className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>AfroMessage SMS Notification</span>
-                </div>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
-                  Upon assignment, an automated AfroMessage SMS dispatch will be sent to the waiter&apos;s phone at <strong>0954123456</strong>, alerting them to fulfill the order for Room {assignTargetReq.roomNumber}.
-                </p>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-3 flex justify-end gap-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -1986,7 +2157,7 @@ export default function StayManagementHubPage() {
                   onClick={handleConfirmAssignWaiter}
                   className="h-9 px-5 text-xs font-bold bg-[#084C42] hover:bg-[#063a32] text-white rounded-lg shadow-sm cursor-pointer"
                 >
-                  Confirm & Dispatch SMS Alert
+                  Confirm Waiter Assignment
                 </Button>
               </div>
             </div>

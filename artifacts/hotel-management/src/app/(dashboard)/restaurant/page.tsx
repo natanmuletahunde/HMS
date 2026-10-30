@@ -10,8 +10,9 @@ import {
   ShoppingBag, Bike, ChevronDown, FileSpreadsheet, UtensilsCrossed,
   QrCode, GitMerge, ChefHat, Send, Check,
   Search, Bell, FileText, ArrowRight, CreditCard, Wallet, Banknote, DollarSign, DoorClosed,
-  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame
+  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { getInHouseRequests, markInHouseRequestServed, markInHouseRequestDispatched, InHouseServiceRequest } from "@/lib/in-house-requests";
@@ -251,10 +252,42 @@ export default function RestaurantPage() {
   const [isFulfillOpen, setIsFulfillOpen] = useState(false);
   const [fulfillTarget, setFulfillTarget] = useState<InHouseServiceRequest | null>(null);
   const [fulfillRoute, setFulfillRoute] = useState<"coordinator" | "direct_kitchen">("coordinator");
+  const [inHouseSubFilter, setInHouseSubFilter] = useState<"all" | "assigned" | "created">("all");
 
   const assignedInHouseRequests = useMemo(() => {
     return inHouseRequests.filter((r) => r.status === "pending" || r.stage === "waiter_assigned");
   }, [inHouseRequests]);
+
+  const handleDispatchAssignedOrder = (req: InHouseServiceRequest, route: "coordinator" | "direct_kitchen") => {
+    const body: Record<string, unknown> = {
+      orderType: "room_service",
+      diningCase: "room_service",
+      settlementType: "room_charge",
+      roomNumber: req.roomNumber,
+      guestName: req.guestName,
+      waiterId: user?.id,
+      routedVia: route,
+      coordinatorId: route === "coordinator" ? (coordinators[0]?.id || undefined) : undefined,
+      items: req.items.map((i) => {
+        const matchedMenu = menuItems.find((m) => m.name.toLowerCase() === i.name.toLowerCase());
+        return {
+          menuItemId: matchedMenu?.id || `custom-${i.name}`,
+          quantity: i.quantity,
+          isComplimentary: false,
+        };
+      }),
+    };
+
+    createOrderMutation.mutate(body, {
+      onSuccess: () => {
+        markInHouseRequestDispatched(req.id);
+        toast({
+          title: "Room Order Dispatched",
+          description: `Dispatched Room ${req.roomNumber} order via ${route === "coordinator" ? "F&B Coordinator" : "Direct Kitchen"} and posted to Cashier for room folio settlement.`,
+        });
+      },
+    });
+  };
 
   const handleConfirmFulfill = () => {
     if (!fulfillTarget) return;
@@ -716,34 +749,112 @@ export default function RestaurantPage() {
     },
   ], []);
 
+  const assignedOrdersAsTableRows = useMemo(() => {
+    return assignedInHouseRequests.map((req) => {
+      const sumPrice = Array.isArray(req.items)
+        ? req.items.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0)
+        : 0;
+      return {
+        id: req.id,
+        orderNumber: req.requestNumber ? req.requestNumber.replace(/#/g, "").replace(/-/g, " ") : `RS ${req.roomNumber}`,
+        tableNumber: undefined,
+        roomNumber: req.roomNumber,
+        diningCase: "in_house_table" as const,
+        isAssignedRoomService: true,
+        guestName: req.guestName,
+        phone: req.phone,
+        itemsCount: Array.isArray(req.items) ? req.items.length : 1,
+        totalAmount: req.totalAmount || sumPrice || 0,
+        status: req.status === "dispatched" ? ("preparing" as const) : ("pending" as const),
+        stage: req.stage || "waiter_assigned",
+        coordinatorStatus: req.status === "dispatched" ? ("dispatched" as const) : ("pending" as const),
+        routedVia: undefined,
+        createdAt: req.createdAt || new Date().toISOString(),
+        items: Array.isArray(req.items)
+          ? req.items.map((it) => ({
+              menuItemId: `item-${it.name}`,
+              name: it.name,
+              quantity: it.quantity,
+              price: it.price || 0,
+            }))
+          : [],
+        rawRequest: req,
+      };
+    });
+  }, [assignedInHouseRequests]);
+
   const waiterActiveOrders = useMemo(() => {
+    const list: any[] = [];
     if (orders.length > 0) {
-      const list = [...orders];
+      list.push(...orders);
       for (const m of defaultMockOrders) {
-        if (!list.find(x => x.orderNumber === m.orderNumber)) {
+        if (!list.find((x) => x.orderNumber === m.orderNumber)) {
           list.push(m);
         }
       }
-      return list;
+    } else {
+      list.push(...defaultMockOrders);
     }
-    return defaultMockOrders;
-  }, [orders, defaultMockOrders]);
+
+    // Merge in the assigned in-house room service orders as table rows
+    for (const a of assignedOrdersAsTableRows) {
+      if (!list.find((x) => x.id === a.id || x.orderNumber === a.orderNumber)) {
+        list.push(a);
+      }
+    }
+
+    return list;
+  }, [orders, defaultMockOrders, assignedOrdersAsTableRows]);
+
+  const inHouseOrders = useMemo(() => {
+    return waiterActiveOrders.filter(
+      (ord) => ord.diningCase === "in_house_table" || ord.isAssignedRoomService || ord.diningCase === "room_service"
+    );
+  }, [waiterActiveOrders]);
+
+  const assignedInHouseCount = useMemo(() => {
+    return inHouseOrders.filter((o) => o.isAssignedRoomService).length;
+  }, [inHouseOrders]);
+
+  const createdInHouseCount = useMemo(() => {
+    return inHouseOrders.filter((o) => !o.isAssignedRoomService).length;
+  }, [inHouseOrders]);
 
   // Tab 1: Created Orders (Active & Dispatch) Filtered
   const filteredCreatedOrders = useMemo(() => {
-    return waiterActiveOrders.filter(ord => {
-      if (waiterDiningFilter !== "all" && ord.diningCase !== waiterDiningFilter) return false;
+    return waiterActiveOrders.filter((ord) => {
+      // 1. Dining Case Filter
+      if (waiterDiningFilter !== "all") {
+        if (waiterDiningFilter === "in_house_table") {
+          const isInHouse =
+            ord.diningCase === "in_house_table" || ord.isAssignedRoomService || ord.diningCase === "room_service";
+          if (!isInHouse) return false;
+
+          // In-House sub-toggle: "all" | "assigned" | "created"
+          if (inHouseSubFilter === "assigned" && !ord.isAssignedRoomService) return false;
+          if (inHouseSubFilter === "created" && ord.isAssignedRoomService) return false;
+        } else {
+          if (ord.isAssignedRoomService) return false;
+          if (ord.diningCase !== waiterDiningFilter) return false;
+        }
+      }
+
+      // 2. Dispatch Route Filter
       if (waiterRouteFilter !== "all" && ord.routedVia !== waiterRouteFilter) return false;
+
+      // 3. Status Filter
       if (waiterStatusFilter !== "all" && ord.status !== waiterStatusFilter) return false;
+
+      // 4. Search Filter
       if (!waiterOrderSearch.trim()) return true;
       const q = waiterOrderSearch.toLowerCase();
-      const guest = (ord.diningCase === "in_house_table" ? ord.guestName || "" : "").toLowerCase();
+      const guest = (ord.guestName || "").toLowerCase();
       const ordNum = (ord.orderNumber || "").toLowerCase();
       const tbl = String(ord.tableNumber || "");
       const rm = String(ord.roomNumber || "");
       return guest.includes(q) || ordNum.includes(q) || tbl.includes(q) || rm.includes(q);
     });
-  }, [waiterActiveOrders, waiterOrderSearch, waiterDiningFilter, waiterRouteFilter, waiterStatusFilter]);
+  }, [waiterActiveOrders, waiterOrderSearch, waiterDiningFilter, inHouseSubFilter, waiterRouteFilter, waiterStatusFilter]);
 
   const createdOrdersPagination = usePagination(filteredCreatedOrders, 5);
 
@@ -1061,17 +1172,87 @@ export default function RestaurantPage() {
               </div>
 
               {/* Dining Case Filter */}
-              <Select value={waiterDiningFilter} onValueChange={setWaiterDiningFilter}>
-                <SelectTrigger className="w-[135px] h-9 text-xs rounded-lg">
+              <Select
+                value={waiterDiningFilter}
+                onValueChange={(val) => {
+                  setWaiterDiningFilter(val);
+                  if (val !== "in_house_table") {
+                    setInHouseSubFilter("all");
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-9 text-xs rounded-lg">
                   <SelectValue placeholder="Dining Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Dining Types</SelectItem>
-                  <SelectItem value="walk_in">Walk-In Table</SelectItem>
                   <SelectItem value="in_house_table">In-House Guest</SelectItem>
+                  <SelectItem value="walk_in">Walk-In Table</SelectItem>
                   <SelectItem value="room_service">Room Service</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* In-House Segment Sub-Toggle: Appears when In-House Guest is selected */}
+              {waiterDiningFilter === "in_house_table" && (
+                <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800/90 rounded-lg border border-slate-200 dark:border-slate-700/80 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => setInHouseSubFilter("all")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer",
+                      inHouseSubFilter === "all"
+                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    All In-House ({inHouseOrders.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInHouseSubFilter("assigned")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      inHouseSubFilter === "assigned"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <span>Assigned</span>
+                    <span
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                        inHouseSubFilter === "assigned"
+                          ? "bg-amber-900 text-amber-100"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
+                      )}
+                    >
+                      {assignedInHouseCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInHouseSubFilter("created")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      inHouseSubFilter === "created"
+                        ? "bg-[#084C42] text-white font-bold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <span>Created Orders</span>
+                    <span
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                        inHouseSubFilter === "created"
+                          ? "bg-emerald-900 text-emerald-100"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
+                      )}
+                    >
+                      {createdInHouseCount}
+                    </span>
+                  </button>
+                </div>
+              )}
 
               {/* Route Filter */}
               <Select value={waiterRouteFilter} onValueChange={setWaiterRouteFilter}>
@@ -1110,65 +1291,6 @@ export default function RestaurantPage() {
               </Button>
             </div>
           </div>
-
-          {/* Assigned In-House Room Service Orders from Front Desk */}
-          {assignedInHouseRequests.length > 0 && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                    Assigned In-House Room Service Orders ({assignedInHouseRequests.length})
-                  </h3>
-                </div>
-                <Badge variant="outline" className="text-[11px] font-semibold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30">
-                  Assigned by Front Desk Receptionist
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {assignedInHouseRequests.map((req) => (
-                  <div key={req.id} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between shadow-xs">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-primary">Room {req.roomNumber}</span>
-                        <span className="font-mono text-[11px] font-semibold text-slate-500">
-                          {req.requestNumber.replace(/#/g, "").replace(/-/g, " ")}
-                        </span>
-                      </div>
-                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                        {req.guestName}
-                      </div>
-                      {req.phone && (
-                        <div className="text-[11px] text-slate-500 font-mono">
-                          {req.phone}
-                        </div>
-                      )}
-                      <div className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                        {req.items.map(it => `${it.quantity}× ${it.name}`).join(", ")}
-                      </div>
-                    </div>
-                    <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
-                        ETB {(req.totalAmount || 0).toLocaleString()}
-                      </span>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setFulfillTarget(req);
-                          setIsFulfillOpen(true);
-                        }}
-                        className="h-8 px-3 text-xs font-bold bg-[#084C42] hover:bg-[#063a32] text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
-                      >
-                        <Utensils className="w-3.5 h-3.5" />
-                        <span>Fulfill Room Order</span>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Created Orders Table - Premium Redesign */}
           <div className="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-card overflow-hidden shadow-xs">
@@ -1211,7 +1333,7 @@ export default function RestaurantPage() {
                     let stageBadge = (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 shadow-2xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        Pending Draft
+                        {ord.isAssignedRoomService ? "Assigned" : "Pending Draft"}
                       </span>
                     );
                     if (ord.coordinatorStatus === "dispatched" && isPreparing) {
@@ -1228,7 +1350,7 @@ export default function RestaurantPage() {
                           Cooking
                         </span>
                       );
-                    } else if (ord.coordinatorStatus === "pending") {
+                    } else if (ord.coordinatorStatus === "pending" && !ord.isAssignedRoomService) {
                       stageBadge = (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs">
                           <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
@@ -1269,7 +1391,7 @@ export default function RestaurantPage() {
                               </>
                             ) : ord.roomNumber ? (
                               <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${ord.isAssignedRoomService ? "bg-amber-500 animate-pulse" : "bg-indigo-500"}`}></span>
                                 <span>Room {ord.roomNumber}</span>
                               </>
                             ) : (
@@ -1279,50 +1401,67 @@ export default function RestaurantPage() {
                           {ord.tableNumber && ord.roomNumber && (
                             <div className="text-[10px] text-slate-400 mt-0.5">Room {ord.roomNumber}</div>
                           )}
+                          {!ord.tableNumber && ord.roomNumber && ord.isAssignedRoomService && (
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Room Delivery</div>
+                          )}
                         </TableCell>
                         <TableCell className="py-3.5">
                           <div className="flex flex-col gap-1 items-start">
-                            {ord.diningCase === "in_house_table" && ord.guestName && (
+                            {(ord.diningCase === "in_house_table" || ord.isAssignedRoomService) && ord.guestName && (
                               <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-tight">
                                 {ord.guestName}
                               </span>
                             )}
                             <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                              ord.diningCase === "in_house_table" 
+                              ord.isAssignedRoomService
+                                ? "text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/50"
+                                : ord.diningCase === "in_house_table" 
                                 ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/50" 
                                 : ord.diningCase === "room_service" 
                                 ? "text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/50" 
                                 : "text-slate-600 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700"
                             }`}>
-                              {ord.diningCase === "in_house_table" ? "In-House" : ord.diningCase === "room_service" ? "Room Service" : "Walk-In"}
+                              {ord.isAssignedRoomService ? "Assigned" : ord.diningCase === "in_house_table" ? "In-House" : ord.diningCase === "room_service" ? "Room Service" : "Walk-In"}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="py-3.5">
-                          <div className="text-xs max-w-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2" title={ord.items?.map(it => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")}>
+                          <div className="text-xs max-w-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2" title={ord.items?.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")}>
                             {ord.items && ord.items.length > 0 ? (
-                              ord.items.map(it => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")
+                              ord.items.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")
                             ) : (
                               `${ord.itemsCount || 1} dishes`
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums py-3.5">
-                          ${amount}
+                          {Number(ord.totalAmount || 0) > 0 ? (
+                            Number(ord.totalAmount) >= 100
+                              ? `ETB ${Number(ord.totalAmount).toLocaleString()}`
+                              : `$${amount}`
+                          ) : (
+                            <span className="text-slate-400 font-sans text-[11px] font-normal">Folio Charge</span>
+                          )}
                         </TableCell>
                         <TableCell className="py-3.5">
                           {stageBadge}
                         </TableCell>
                         <TableCell className="py-3.5">
                           {/* Dispatch routing controls: Two buttons or active route badge */}
-                          {isPending ? (
+                          {isPending && (!ord.routedVia || ord.routedVia === "unassigned" || ord.coordinatorStatus !== "dispatched") ? (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}
-                                disabled={dispatchRouteMutation.isPending}
-                                className="h-7 px-2.5 text-xs font-medium border-purple-200 text-purple-700 bg-purple-50/70 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs"
+                                onClick={() => {
+                                  if (ord.isAssignedRoomService && ord.rawRequest) {
+                                    handleDispatchAssignedOrder(ord.rawRequest, "coordinator");
+                                  } else {
+                                    dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" });
+                                  }
+                                }}
+                                disabled={dispatchRouteMutation.isPending || createOrderMutation.isPending}
+                                className="h-7 px-2.5 text-xs font-medium border-purple-200 text-purple-700 bg-purple-50/70 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs cursor-pointer"
                                 title="Send to F&B Coordinator for review and line balancing"
                               >
                                 <ClipboardList className="w-3.5 h-3.5" />
@@ -1331,9 +1470,15 @@ export default function RestaurantPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" })}
-                                disabled={dispatchRouteMutation.isPending}
-                                className="h-7 px-2.5 text-xs font-medium border-amber-200 text-amber-700 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs"
+                                onClick={() => {
+                                  if (ord.isAssignedRoomService && ord.rawRequest) {
+                                    handleDispatchAssignedOrder(ord.rawRequest, "direct_kitchen");
+                                  } else {
+                                    dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" });
+                                  }
+                                }}
+                                disabled={dispatchRouteMutation.isPending || createOrderMutation.isPending}
+                                className="h-7 px-2.5 text-xs font-medium border-amber-200 text-amber-700 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs cursor-pointer"
                                 title="Send directly to Kitchen Line Officer"
                               >
                                 <Flame className="w-3.5 h-3.5" />
@@ -1385,20 +1530,42 @@ export default function RestaurantPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}>
-                                  Route to F&B Coordinator
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" })}>
-                                  Route Direct to Kitchen
-                                </DropdownMenuItem>
-                                {ord.billingStatus !== "settled" && (
-                                  <DropdownMenuItem onClick={() => handleOpenPayment(ord)}>
-                                    Settle Tab / Issue Bill
-                                  </DropdownMenuItem>
+                                {ord.isAssignedRoomService && ord.rawRequest ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setFulfillTarget(ord.rawRequest);
+                                        setIsFulfillOpen(true);
+                                      }}
+                                    >
+                                      <Eye className="w-3.5 h-3.5 mr-2" />
+                                      View Order Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDispatchAssignedOrder(ord.rawRequest, "coordinator")}>
+                                      Send to Coordinator
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDispatchAssignedOrder(ord.rawRequest, "direct_kitchen")}>
+                                      Send Direct to Kitchen
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : (
+                                  <>
+                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}>
+                                      Route to F&B Coordinator
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" })}>
+                                      Route Direct to Kitchen
+                                    </DropdownMenuItem>
+                                    {ord.billingStatus !== "settled" && (
+                                      <DropdownMenuItem onClick={() => handleOpenPayment(ord)}>
+                                        Settle Tab / Issue Bill
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem className="text-danger" onClick={() => updateOrderMutation.mutate({ id: ord.id, status: "cancelled" })}>
+                                      Cancel Order
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
-                                <DropdownMenuItem className="text-danger" onClick={() => updateOrderMutation.mutate({ id: ord.id, status: "cancelled" })}>
-                                  Cancel Order
-                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1532,9 +1699,9 @@ export default function RestaurantPage() {
                           </div>
                         </TableCell>
                         <TableCell className="py-3.5">
-                          <div className="text-xs max-w-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2" title={order.items?.map(it => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")}>
+                          <div className="text-xs max-w-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2" title={order.items?.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")}>
                             {order.items && order.items.length > 0 ? (
-                              order.items.map(it => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")
+                              order.items.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")
                             ) : (
                               `${order.itemsCount || 1} plated dishes`
                             )}

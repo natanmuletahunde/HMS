@@ -754,13 +754,114 @@ export class GuestPortalService {
   async getCatalog() {
     return {
       dining: [
-        { id: 'cat-1', name: 'Traditional Doro Wat Feast', category: 'food', price: 2300, desc: 'Slow-cooked spiced chicken with boiled egg and fresh injera' },
-        { id: 'cat-2', name: 'Deluxe Angus Burger & Fries', category: 'food', price: 1750, desc: 'Grass-fed beef, cheddar, caramelized onions, brioche bun' },
-        { id: 'cat-3', name: 'Continental Club Sandwich', category: 'food', price: 1450, desc: 'Smoked turkey, bacon, lettuce, tomato with crisps' },
-        { id: 'cat-4', name: 'Fresh Seasonal Fruit Platter', category: 'food', price: 950, desc: 'Selection of fresh sliced tropical and local fruits' },
-        { id: 'cat-5', name: 'Signature Ethiopian Jebena Coffee', category: 'drinks', price: 550, desc: 'Freshly roasted clay pot organic coffee with popcorn' },
-        { id: 'cat-6', name: 'Fresh Mango & Avocado Smoothie', category: 'drinks', price: 650, desc: 'Layered fresh organic juice' },
-        { id: 'cat-7', name: 'Sparkling Mineral Water (750ml)', category: 'drinks', price: 450, desc: 'Chilled Ambo mineral water' },
+        // 1. Ethiopian Traditional Food
+        { id: 'et-1', name: 'Doro Wot (ዶሮ ወጥ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 950, desc: 'Simmered tender chicken drumstick & boiled organic egg in rich berbere sauce with fresh injera.', prepTime: '25-35 mins', badge: "Chef's Signature", station: 'hot' },
+        { id: 'et-2', name: 'Siga Wot (ስጋ ወጥ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 650, desc: 'Slow-braised prime beef cubes in spiced red pepper sauce with warm fermented injera.', prepTime: '25-30 mins', station: 'hot' },
+        { id: 'et-3', name: 'Tibs (ጥብስ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 750, desc: 'Sautéed beef tenderloin with rosemary, onions, garlic, and fresh green jalapeños.', prepTime: '15-20 mins', badge: 'Popular', station: 'grill' },
+        { id: 'et-4', name: 'Kitfo (ክትፎ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 1100, desc: 'Finely minced lean beef seasoned with niter kibbeh & mitmita, served leb-leb with ayeb cheese.', prepTime: '15-20 mins', badge: 'Local Delicacy', station: 'hot' },
+        { id: 'et-5', name: 'Shiro Wot (ሽሮ ወጥ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 320, desc: 'Velvety spiced ground chickpea stew slow-cooked in traditional clay pot.', prepTime: '15 mins', station: 'hot' },
+        { id: 'et-6', name: 'Beyaynetu (በያይነቱ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 480, desc: 'Grand colorful assortment of 8 fasting vegan dishes served atop fresh teff injera.', prepTime: '20 mins', badge: 'Vegan Platter', station: 'cold' },
+        { id: 'et-7', name: 'Firfir (ፍርፍር)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 320, desc: 'Torn soft injera sautéed in aromatic spiced berbere sauce and garlic butter.', prepTime: '15 mins', station: 'hot' },
+        { id: 'et-8', name: 'Dulet (ዱለት)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 550, desc: 'Pan-minced lamb tripe, liver, and lean tenderloin with diced red onions and niter kibbeh.', prepTime: '20 mins', station: 'hot' },
+        { id: 'et-9', name: 'Gomen Besiga (ጎመን በስጋ)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 600, desc: 'Tender beef chunks stewed with seasoned collard greens, garlic, and ginger.', prepTime: '25 mins', station: 'hot' },
+        { id: 'et-10', name: 'Quanta Firfir (ቋንጣ ፍርፍር)', category: 'traditional', categoryName: 'Ethiopian Traditional Food', price: 650, desc: 'Sun-dried seasoned cured beef jerky pieces simmered into rich spicy injera firfir.', prepTime: '20 mins', station: 'hot' },
+
+        // 2. Meat Dishes
+        { id: 'md-1', name: 'Special Beef Tibs', category: 'meat', categoryName: 'Meat Dishes', price: 850, desc: 'Pan-roasted prime beef tenderloin sizzled with garlic butter, jalapeño, and awaze dip.', prepTime: '20 mins', badge: 'Specialty', station: 'grill' },
+        { id: 'md-2', name: 'Awaze Tibs', category: 'meat', categoryName: 'Meat Dishes', price: 800, desc: 'Juicy beef strips cooked in spicy awaze marinade with sweet red onions.', prepTime: '20 mins', station: 'grill' },
+        { id: 'md-3', name: 'Shekla Tibs', category: 'meat', categoryName: 'Meat Dishes', price: 950, desc: 'Charcoal clay-pot served piping hot with rosemary sprigs and fresh injera.', prepTime: '25 mins', badge: 'Clay Pot', station: 'grill' },
+        { id: 'md-4', name: 'Beef Steak', category: 'meat', categoryName: 'Meat Dishes', price: 1150, desc: 'Grilled 250g sirloin steak with peppercorn gravy, roasted baby vegetables, and mashed potato.', prepTime: '25-30 mins', badge: 'Prime Cut', station: 'grill' },
+        { id: 'md-5', name: 'Grilled Chicken', category: 'meat', categoryName: 'Meat Dishes', price: 750, desc: 'Marinated herb chicken breast grilled over flame with steamed garden vegetables.', prepTime: '20 mins', station: 'grill' },
+        { id: 'md-6', name: 'Roasted Chicken', category: 'meat', categoryName: 'Meat Dishes', price: 850, desc: 'Crisp half-chicken oven roasted with rosemary butter and garlic-parsley potato wedges.', prepTime: '30 mins', station: 'grill' },
+        { id: 'md-7', name: 'Lamb Chops', category: 'meat', categoryName: 'Meat Dishes', price: 1350, desc: 'Four tender grilled lamb chops glazed with balsamic reduction and mint sauce.', prepTime: '25 mins', badge: "Chef's Cut", station: 'grill' },
+        { id: 'md-8', name: 'Beef Goulash', category: 'meat', categoryName: 'Meat Dishes', price: 700, desc: 'Hearty Hungarian-style beef goulash stew with sweet paprika, bell peppers, and butter rice.', prepTime: '25 mins', station: 'hot' },
+
+        // 3. Vegetarian and Fasting Food
+        { id: 'vf-1', name: 'Shiro Wot', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 320, desc: 'Authentic slow-simmered chickpea flour stew served with fresh injera.', prepTime: '15 mins', station: 'hot' },
+        { id: 'vf-2', name: 'Misir Wot (ምስር ወጥ)', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 280, desc: 'Red split lentils slow-cooked with spicy berbere, red onions, and ginger.', prepTime: '20 mins', station: 'hot' },
+        { id: 'vf-3', name: 'Kik Alicha (ቅል አልጫ)', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 260, desc: 'Mild turmeric yellow split pea stew gently seasoned with garlic and onions.', prepTime: '15 mins', station: 'hot' },
+        { id: 'vf-4', name: 'Gomen (ጎመን)', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 240, desc: 'Finely chopped steamed Ethiopian collard greens tossed with mild green peppers.', prepTime: '15 mins', station: 'hot' },
+        { id: 'vf-5', name: 'Atakilt Wot (አትክልት ወጥ)', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 260, desc: 'Medley of sautéed cabbage, carrots, potatoes, and mild herbs.', prepTime: '15 mins', station: 'hot' },
+        { id: 'vf-6', name: 'Bozena Shiro', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 520, desc: 'Rich spiced shiro stew blended with minced seasoned meat.', prepTime: '20 mins', station: 'hot' },
+        { id: 'vf-7', name: 'Fasting Beyaynetu', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 480, desc: 'Traditional platter of mixed fasting pulses, greens, and salad with soft injera.', prepTime: '15 mins', badge: 'Fasting Special', station: 'cold' },
+        { id: 'vf-8', name: 'Vegetable Firfir', category: 'veg_fasting', categoryName: 'Vegetarian and Fasting Food', price: 300, desc: 'Shredded injera sautéed in tomato berbere broth with fresh herbs.', prepTime: '15 mins', station: 'hot' },
+
+        // 4. International Food
+        { id: 'int-1', name: 'Spaghetti Bolognese', category: 'international', categoryName: 'International Food', price: 650, desc: 'Classic Italian beef ragu over al dente spaghetti with aged parmesan shavings.', prepTime: '20 mins', station: 'hot' },
+        { id: 'int-2', name: 'Pasta Alfredo', category: 'international', categoryName: 'International Food', price: 680, desc: 'Creamy garlic parmesan sauce over fettuccine with roasted button mushrooms.', prepTime: '20 mins', station: 'hot' },
+        { id: 'int-3', name: 'Pizza', category: 'international', categoryName: 'International Food', price: 750, desc: 'Hand-stretched stone oven pizza with fresh mozzarella, tomato passata, and fresh basil.', prepTime: '20-25 mins', badge: 'Oven Baked', station: 'hot' },
+        { id: 'int-4', name: 'Beef Burger', category: 'international', categoryName: 'International Food', price: 650, desc: '200g grilled beef patty, cheddar, lettuce, caramelized onions, brioche bun, and golden fries.', prepTime: '20 mins', badge: 'Classic', station: 'grill' },
+        { id: 'int-5', name: 'Chicken Burger', category: 'international', categoryName: 'International Food', price: 580, desc: 'Crispy buttermilk fried chicken breast, house slaw, spicy mayo, and golden fries.', prepTime: '20 mins', station: 'grill' },
+        { id: 'int-6', name: 'Club Sandwich', category: 'international', categoryName: 'International Food', price: 620, desc: 'Triple-decker toasted sandwich with smoked turkey, egg, tomato, lettuce, and fries.', prepTime: '15 mins', station: 'cold' },
+        { id: 'int-7', name: 'Chicken Sandwich', category: 'international', categoryName: 'International Food', price: 550, desc: 'Grilled chicken fillet on artisan baguette with melted cheese and honey mustard.', prepTime: '15 mins', station: 'cold' },
+        { id: 'int-8', name: 'Fried Rice', category: 'international', categoryName: 'International Food', price: 520, desc: 'Wok-tossed jasmine rice with vegetables, farm eggs, spring onions, and light soy.', prepTime: '15 mins', station: 'hot' },
+        { id: 'int-9', name: 'Grilled Fish', category: 'international', categoryName: 'International Food', price: 980, desc: 'Flame-grilled Lake Tana fish fillet with garlic-lemon butter and seasoned wild rice.', prepTime: '25 mins', station: 'grill' },
+        { id: 'int-10', name: 'French Fries', category: 'international', categoryName: 'International Food', price: 250, desc: 'Crispy double-cooked sea-salt potato fries with house dipping sauces.', prepTime: '10 mins', station: 'hot' },
+
+        // 5. Breakfast
+        { id: 'bf-1', name: 'Chechebsa (ጨጨብሳ)', category: 'breakfast', categoryName: 'Breakfast', price: 450, desc: 'Torn flatbread shallow fried in niter kibbeh & berbere, drizzled with pure highland honey.', prepTime: '15 mins', badge: 'Signature Breakfast', station: 'hot' },
+        { id: 'bf-2', name: 'Kinche (ቅንጬ)', category: 'breakfast', categoryName: 'Breakfast', price: 320, desc: 'Warm cracked wheat porridge gently tossed with spiced Ethiopian butter.', prepTime: '15 mins', station: 'hot' },
+        { id: 'bf-3', name: 'Firfir', category: 'breakfast', categoryName: 'Breakfast', price: 320, desc: 'Morning breakfast injera firfir in mild spiced stew with warm crusty bread.', prepTime: '15 mins', station: 'hot' },
+        { id: 'bf-4', name: 'Enkulal Firfir (scrambled eggs with injera)', category: 'breakfast', categoryName: 'Breakfast', price: 380, desc: 'Scrambled farm eggs with diced red onion, tomato, jalapeño, and warm injera.', prepTime: '15 mins', station: 'hot' },
+        { id: 'bf-5', name: 'Scrambled Eggs', category: 'breakfast', categoryName: 'Breakfast', price: 300, desc: 'Creamy butter-scrambled farm eggs served with toasted artisan loaf.', prepTime: '10 mins', station: 'hot' },
+        { id: 'bf-6', name: 'Fried Eggs', category: 'breakfast', categoryName: 'Breakfast', price: 260, desc: 'Two sunny-side up or over-easy eggs with grilled breakfast tomato and toast.', prepTime: '10 mins', station: 'hot' },
+        { id: 'bf-7', name: 'Omelette', category: 'breakfast', categoryName: 'Breakfast', price: 380, desc: 'Three-egg fluffy omelette with cheese, diced bell pepper, mushroom, and herbs.', prepTime: '12 mins', station: 'hot' },
+        { id: 'bf-8', name: 'Ful Medames', category: 'breakfast', categoryName: 'Breakfast', price: 320, desc: 'Simmered fava beans with olive oil, cumin, chopped tomato, onion, and fresh bread.', prepTime: '15 mins', station: 'hot' },
+        { id: 'bf-9', name: 'Bread with Honey and Butter', category: 'breakfast', categoryName: 'Breakfast', price: 260, desc: 'Warm fresh-baked baguette slices served with wild forest honey and sweet cream butter.', prepTime: '5 mins', station: 'cold' },
+        { id: 'bf-10', name: 'Pancakes', category: 'breakfast', categoryName: 'Breakfast', price: 380, desc: 'Stack of fluffy golden pancakes served with maple syrup and whipped butter.', prepTime: '15 mins', station: 'pastry' },
+
+        // 6. Hot Drinks
+        { id: 'hd-1', name: 'Ethiopian Coffee (ቡና)', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 90, desc: 'Freshly roasted highland arabica coffee brewed to order in authentic jebena clay pot.', prepTime: '10 mins', badge: 'Highland Arabica', station: 'hot' },
+        { id: 'hd-2', name: 'Macchiato', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 120, desc: 'Rich double espresso with a velvety layer of micro-foamed hot milk.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-3', name: 'Espresso', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 100, desc: 'Concentrated shot of intense, aromatic single-origin espresso.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-4', name: 'Cappuccino', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 160, desc: 'Equal parts espresso, steamed milk, and airy froth dusted with cocoa powder.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-5', name: 'Latte', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 180, desc: 'Smooth espresso blended with generous steamed milk and light foam.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-6', name: 'Black Tea', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 90, desc: 'Premium brewed Ceylon tea served with fresh lemon slice.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-7', name: 'Spiced Tea', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 130, desc: 'Traditional infused tea with cinnamon, cloves, cardamom, and fresh ginger.', prepTime: '8 mins', station: 'hot' },
+        { id: 'hd-8', name: 'Hot Chocolate', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 220, desc: 'Decadent Dutch cocoa stirred with whole milk and topped with mini marshmallows.', prepTime: '5 mins', station: 'hot' },
+        { id: 'hd-9', name: 'Ethiopian Coffee Ceremony', category: 'hot_drinks', categoryName: 'Hot Drinks', price: 350, desc: 'Full in-suite coffee ceremony service with frankincense aroma, freshly popped popcorn, and 3 rounds of coffee.', prepTime: '25 mins', badge: 'Cultural Experience', station: 'hot' },
+
+        // 7. Fresh Juices and Smoothies
+        { id: 'js-1', name: 'Spris (ስፕሪስ)', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 260, desc: 'Layered natural fresh mango, avocado, and papaya juice with lime wedge.', prepTime: '10 mins', badge: 'House Favorite', station: 'cold' },
+        { id: 'js-2', name: 'Avocado Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 260, desc: 'Thick creamy Hass avocado juice served with fresh lime squeeze.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-3', name: 'Mango Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 240, desc: 'Pure blended ripe tropical mango with natural sweet pulp.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-4', name: 'Papaya Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 220, desc: 'Smooth chilled fresh papaya juice with hint of lime.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-5', name: 'Pineapple Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 240, desc: 'Cold-pressed sweet and tangy fresh pineapple juice.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-6', name: 'Orange Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 240, desc: '100% freshly squeezed sweet Valencia oranges.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-7', name: 'Watermelon Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 200, desc: 'Ultra-refreshing cold-pressed crisp watermelon juice.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-8', name: 'Mixed Fruit Juice', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 280, desc: 'Tropical blend of seasonal mango, pineapple, passion fruit, and orange.', prepTime: '10 mins', station: 'cold' },
+        { id: 'js-9', name: 'Banana Smoothie', category: 'juices_smoothies', categoryName: 'Fresh Juices and Smoothies', price: 280, desc: 'Blended ripe bananas, Greek yogurt, highland honey, and oat milk.', prepTime: '10 mins', station: 'cold' },
+
+        // 8. Cold Drinks and Soft Drinks
+        { id: 'cd-1', name: 'Bottled Water', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 80, desc: 'Premium 750ml still natural mineral spring water.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-2', name: 'Sparkling Water', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 150, desc: 'Naturally carbonated Ambo sparkling mineral water with lime.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-3', name: 'Coca-Cola', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 90, desc: '330ml chilled glass bottle served with ice and lemon.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-4', name: 'Fanta', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 90, desc: 'Chilled orange fanta served with ice.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-5', name: 'Sprite', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 90, desc: 'Crisp lemon-lime soda served chilled over ice.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-6', name: 'Pepsi', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 90, desc: 'Chilled 330ml Pepsi bottle.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-7', name: 'Soda Water', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 120, desc: 'Crisp club soda with fresh lemon slice.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-8', name: 'Malt Drink', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 150, desc: 'Rich non-alcoholic malt beverage served ice cold.', prepTime: '5 mins', station: 'cold' },
+        { id: 'cd-9', name: 'Energy Drink', category: 'cold_drinks', categoryName: 'Cold Drinks and Soft Drinks', price: 220, desc: '250ml premium chilled energy drink.', prepTime: '5 mins', station: 'cold' },
+
+        // 9. Desserts
+        { id: 'ds-1', name: 'Chocolate Cake', category: 'desserts', categoryName: 'Desserts', price: 260, desc: 'Rich dark Belgian chocolate fudge cake with ganache glaze.', prepTime: '10 mins', station: 'pastry' },
+        { id: 'ds-2', name: 'Cheesecake', category: 'desserts', categoryName: 'Desserts', price: 350, desc: 'Classic New York style baked cheesecake with berry coulis.', prepTime: '10 mins', badge: "Chef's Special", station: 'pastry' },
+        { id: 'ds-3', name: 'Fruit Salad', category: 'desserts', categoryName: 'Desserts', price: 240, desc: 'Cubed fresh seasonal fruits with passion fruit syrup and fresh mint.', prepTime: '10 mins', station: 'cold' },
+        { id: 'ds-4', name: 'Ice Cream', category: 'desserts', categoryName: 'Desserts', price: 220, desc: 'Three scoops of artisan gelato: choice of Bourbon Vanilla, Dark Chocolate, or Strawberry.', prepTime: '5 mins', station: 'pastry' },
+        { id: 'ds-5', name: 'Pancakes with Honey', category: 'desserts', categoryName: 'Desserts', price: 320, desc: 'Warm buttermilk pancake stack drizzled with organic acacia honey.', prepTime: '15 mins', station: 'pastry' },
+        { id: 'ds-6', name: 'Pudding', category: 'desserts', categoryName: 'Desserts', price: 220, desc: 'Silky caramel flan pudding with spun sugar garnish.', prepTime: '10 mins', station: 'pastry' },
+        { id: 'ds-7', name: 'Brownies', category: 'desserts', categoryName: 'Desserts', price: 260, desc: 'Warm walnut fudge brownie served with a scoop of vanilla ice cream.', prepTime: '10 mins', station: 'pastry' },
+        { id: 'ds-8', name: 'Fresh Fruit Platter', category: 'desserts', categoryName: 'Desserts', price: 360, desc: 'Artfully carved tropical papaya, sweet pineapple, mango, grapes, and kiwi.', prepTime: '15 mins', station: 'cold' },
+
+        // 10. Snacks and Appetizers
+        { id: 'sa-1', name: 'Sambusa (ሳምቡሳ)', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 60, desc: 'Crispy triangular pastries (3 pcs) filled with spiced lentils or minced beef, served with awaze dip.', prepTime: '12 mins', badge: 'Crispy Favorite', station: 'hot' },
+        { id: 'sa-2', name: 'Chicken Wings', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 480, desc: 'Six jumbo wings tossed in your choice of spicy peri-peri or honey BBQ glaze.', prepTime: '15 mins', station: 'grill' },
+        { id: 'sa-3', name: 'Spring Rolls', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 260, desc: 'Four crispy vegetable spring rolls served with sweet chili dipping sauce.', prepTime: '10 mins', station: 'hot' },
+        { id: 'sa-4', name: 'Potato Wedges', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 220, desc: 'Seasoned rustic potato wedges oven baked and served with garlic aioli.', prepTime: '12 mins', station: 'hot' },
+        { id: 'sa-5', name: 'French Fries', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 250, desc: 'Golden thin-cut potato fries lightly salted with tomato ketchup.', prepTime: '10 mins', station: 'hot' },
+        { id: 'sa-6', name: 'Garlic Bread', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 220, desc: 'Toasted Italian baguette with roasted garlic parsley butter and melted mozzarella.', prepTime: '10 mins', station: 'hot' },
+        { id: 'sa-7', name: 'Mixed Salad', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 300, desc: 'Crisp garden greens, cherry tomatoes, cucumbers, and house herb vinaigrette.', prepTime: '10 mins', station: 'cold' },
+        { id: 'sa-8', name: 'Soup of the Day', category: 'snacks_appetizers', categoryName: 'Snacks and Appetizers', price: 250, desc: 'Warm chef-curated daily soup served with fresh warm dinner rolls and butter.', prepTime: '10 mins', station: 'hot' },
       ],
       amenities: [
         { id: 'am-1', name: 'Extra Feather Pillows (x2)', category: 'housekeeping', price: 0.0, desc: 'Hypoallergenic soft feather pillows' },
