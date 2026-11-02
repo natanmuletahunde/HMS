@@ -6,6 +6,7 @@ import {
   usersTable,
   rolesTable,
   userBranchesTable,
+  auditLogsTable,
   branchesTable,
   mfaConfigsTable,
   mobileSessionsTable,
@@ -30,6 +31,7 @@ const fields = {
   phone: usersTable.phone,
   faydaId: usersTable.faydaId,
   avatarUrl: usersTable.avatarUrl,
+  department: usersTable.department,
   roleId: usersTable.roleId,
   roleName: rolesTable.name,
   roleScope: rolesTable.scope,
@@ -44,6 +46,7 @@ const fmt = (u: any, branches: any[] = []) => ({
   phone: u.phone ?? null,
   faydaId: u.faydaId ?? null,
   avatarUrl: u.avatarUrl ?? null,
+  department: u.department ?? null,
   roleName: u.roleName ?? null,
   roleScope: u.roleScope ?? 'branch',
   primaryBranchId: u.primaryBranchId ?? null,
@@ -181,10 +184,26 @@ export class UsersService {
         lastName: body.lastName,
         phone: formattedPhone,
         faydaId: trimmedFayda,
+        department: body.department ? body.department.trim() : null,
         roleId: body.roleId,
         primaryBranchId,
       })
       .returning();
+
+    // Audit log
+    await db.insert(auditLogsTable).values({
+      userId: user.id,
+      action: 'user.create',
+      resource: 'user',
+      resourceId: user.id,
+      changes: JSON.stringify({
+        email: user.email,
+        roleId: user.roleId,
+        department: body.department ?? null,
+        primaryBranchId,
+        branchesCount: branchIds.length,
+      }),
+    });
 
     // Assign user to branches
     if (branchIds.length > 0) {
@@ -234,7 +253,7 @@ export class UsersService {
 
   async update(id: string, body: any) {
     const updates: any = {};
-    for (const k of ['firstName', 'lastName', 'roleId', 'isOnDuty']) {
+    for (const k of ['firstName', 'lastName', 'roleId', 'department', 'isOnDuty']) {
       if (body[k] !== undefined) updates[k] = body[k];
     }
     if (body.isActive !== undefined) {

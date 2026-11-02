@@ -42,6 +42,7 @@ type User = {
   email: string;
   phone?: string | null;
   faydaId?: string | null;
+  department?: string | null;
   roleId?: string;
   role?: string;
   roleName?: string | null;
@@ -68,6 +69,19 @@ type Branch = {
   branchCode: string;
   isActive?: boolean;
 };
+
+const DEPARTMENTS = [
+  "Front Office",
+  "Housekeeping",
+  "Food & Beverage (F&B)",
+  "Kitchen & Culinary",
+  "Maintenance & Engineering",
+  "Accounting & Finance",
+  "Human Resources",
+  "Sales & Marketing",
+  "Security & Safety",
+  "Executive & General Management",
+];
 
 const AVAILABLE_PERMISSIONS = [
   { id: "*", label: "Full System Access (*)", desc: "Unrestricted access across all modules" },
@@ -310,6 +324,7 @@ function UsersAndRolesContent() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [faydaId, setFaydaId] = useState("");
+  const [department, setDepartment] = useState("Front Office");
   const [password, setPassword] = useState("");
   const [copiedPass, setCopiedPass] = useState(false);
   const [showUserPass, setShowUserPass] = useState(true);
@@ -322,6 +337,7 @@ function UsersAndRolesContent() {
   const [editLastName, setEditLastName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editFaydaId, setEditFaydaId] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editCopiedPass, setEditCopiedPass] = useState(false);
   const [showEditUserPass, setShowEditUserPass] = useState(true);
@@ -496,6 +512,7 @@ function UsersAndRolesContent() {
     setEmail("");
     setPhone("");
     setFaydaId("");
+    setDepartment("Front Office");
     setPassword("");
     setCopiedPass(false);
     setRoleId(roles[0]?.id || "");
@@ -518,6 +535,7 @@ function UsersAndRolesContent() {
     setEditLastName(u.lastName || "");
     setEditPhone(u.phone || "");
     setEditFaydaId(u.faydaId || "");
+    setEditDepartment(u.department || "");
     setEditPassword("");
     setEditCopiedPass(false);
     setEditRoleId(u.roleId || "");
@@ -595,6 +613,7 @@ function UsersAndRolesContent() {
       email: email.trim().toLowerCase(),
       phone: phone.trim() || undefined,
       faydaId: faydaId.trim() || undefined,
+      department: department.trim() || undefined,
       password,
       roleId,
       branchIds: selectedBranchIds,
@@ -624,6 +643,7 @@ function UsersAndRolesContent() {
       lastName: editLastName.trim(),
       phone: editPhone.trim() || null,
       faydaId: editFaydaId.trim() || null,
+      department: editDepartment.trim() || null,
       roleId: editRoleId,
       branchIds: editBranchIds,
       primaryBranchId: editPrimaryBranchId || editBranchIds[0] || null,
@@ -936,11 +956,12 @@ function UsersAndRolesContent() {
                           <span className="font-semibold text-xs text-[var(--text-primary)]">{displayName}</span>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-[11px] font-mono text-[var(--text-secondary)]">{user.email}</span>
-                            {user.faydaId && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200" title="Fayda National ID">
-                                FAN: {user.faydaId}
+                            {user.department && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                {user.department}
                               </span>
                             )}
+
                           </div>
                         </div>
                       </TableCell>
@@ -1272,20 +1293,37 @@ function UsersAndRolesContent() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Fayda ID</Label>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">
-                      {faydaId.length}/16
-                    </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Department</Label>
+                    <select
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                    >
+                      <option value="">Select department...</option>
+                      {DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <Input 
-                    placeholder="1234567890123456" 
-                    value={faydaId} 
-                    maxLength={16}
-                    onChange={(e) => setFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
-                    className="h-9 text-xs rounded-md font-mono"
-                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Fayda ID</Label>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                        {faydaId.length}/16
+                      </span>
+                    </div>
+                    <Input 
+                      placeholder="1234567890123456" 
+                      value={faydaId} 
+                      maxLength={16}
+                      onChange={(e) => setFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
+                      className="h-9 text-xs rounded-md font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1 pt-1">
@@ -1492,20 +1530,37 @@ function UsersAndRolesContent() {
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Fayda ID</Label>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">
-                      {editFaydaId.length}/16
-                    </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Department</Label>
+                    <select
+                      value={editDepartment}
+                      onChange={(e) => setEditDepartment(e.target.value)}
+                      className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                    >
+                      <option value="">Select department...</option>
+                      {DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <Input 
-                    placeholder="1234567890123456" 
-                    value={editFaydaId} 
-                    maxLength={16}
-                    onChange={(e) => setEditFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
-                    className="h-9 text-xs rounded-md font-mono"
-                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Fayda ID</Label>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                        {editFaydaId.length}/16
+                      </span>
+                    </div>
+                    <Input 
+                      placeholder="1234567890123456" 
+                      value={editFaydaId} 
+                      maxLength={16}
+                      onChange={(e) => setEditFaydaId(e.target.value.replace(/[^0-9]/g, "").slice(0, 16))}
+                      className="h-9 text-xs rounded-md font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1 pt-1">

@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { rolesTable } from "./roles";
@@ -13,11 +13,14 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   faydaId: text("fayda_id").unique(),
   avatarUrl: text("avatar_url"),
+  department: text("department"),
   roleId: text("role_id").notNull().references(() => rolesTable.id),
   primaryBranchId: text("primary_branch_id").references(() => branchesTable.id, { onDelete: "set null" }),
   // null = platform admin (can access all tenants)
   tenantId: text("tenant_id"),
   isOnDuty: boolean("is_on_duty").notNull().default(true),
+  failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

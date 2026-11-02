@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
 import { eq, or } from 'drizzle-orm';
-import { db, usersTable, rolesTable, mfaConfigsTable, userBranchesTable, branchesTable } from '@workspace/db';
+import { db, usersTable, rolesTable, mfaConfigsTable, userBranchesTable, branchesTable, auditLogsTable } from '@workspace/db';
 import type { JwtPayload } from './jwt.strategy';
 import { mfaDecrypt, mfaDecryptCodes, mfaEncryptCodes } from '../../common/utils/mfa-crypto';
 import { consumeMfaBackupCode } from '../../common/utils/mfa-backup-codes';
@@ -31,6 +31,9 @@ export class AuthService {
         firstName: usersTable.firstName, lastName: usersTable.lastName,
         phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
         faydaId: usersTable.faydaId,
+        department: usersTable.department,
+        failedLoginAttempts: usersTable.failedLoginAttempts,
+        lockedUntil: usersTable.lockedUntil,
         roleId: usersTable.roleId, roleName: rolesTable.name, roleScope: rolesTable.scope,
         rolePermissions: rolesTable.permissions,
         primaryBranchId: usersTable.primaryBranchId,
@@ -43,8 +46,37 @@ export class AuthService {
       .where(eq(usersTable.email, email.toLowerCase()));
 
     if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
+
+    // Check temporary account lockout
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const remainingMinutes = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
+      throw new UnauthorizedException(`Account is temporarily locked due to repeated failed login attempts. Please try again in ${remainingMinutes} minute(s).`);
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      if (attempts >= 5) {
+        const lockoutTime = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
+        await db.update(usersTable).set({ failedLoginAttempts: attempts, lockedUntil: lockoutTime }).where(eq(usersTable.id, user.id));
+        await db.insert(auditLogsTable).values({
+          userId: user.id,
+          action: 'auth.account_locked',
+          resource: 'user',
+          resourceId: user.id,
+          changes: 'Account locked for 15 minutes after 5 consecutive failed login attempts.',
+        });
+        throw new UnauthorizedException('Account locked due to 5 consecutive failed login attempts. Please try again in 15 minutes.');
+      } else {
+        await db.update(usersTable).set({ failedLoginAttempts: attempts }).where(eq(usersTable.id, user.id));
+        throw new UnauthorizedException(`Invalid credentials. ${5 - attempts} attempt(s) remaining before account lockout.`);
+      }
+    }
+
+    // Reset failed login counter on successful password verification
+    if ((user.failedLoginAttempts || 0) > 0 || user.lockedUntil) {
+      await db.update(usersTable).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(usersTable.id, user.id));
+    }
 
     // ─── MFA check ────────────────────────────────────────────────────────────
     const [mfaConfig] = await db.select().from(mfaConfigsTable)
@@ -225,6 +257,7 @@ export class AuthService {
       lastName: u.lastName,
       name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
       phone: u.phone ?? null,
+      department: u.department ?? null,
       faydaId: u.faydaId ?? null,
       avatarUrl: u.avatarUrl ?? null,
       roleId: u.roleId,
@@ -260,6 +293,14 @@ export class AuthService {
 
     const hash = await bcrypt.hash(newPassword, 10);
     await db.update(usersTable).set({ passwordHash: hash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+
+    await db.insert(auditLogsTable).values({
+      userId: userId,
+      action: 'user.password_change',
+      resource: 'user',
+      resourceId: userId,
+      changes: 'User changed password via profile self-service.',
+    });
 
     return { message: 'Password updated successfully' };
   }

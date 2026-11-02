@@ -84,6 +84,26 @@ export async function assertCanManageBranches(user: JwtPayload): Promise<UserAcc
   return access;
 }
 
+export async function assertCanUpdateBranch(user: JwtPayload, branchId: string): Promise<UserAccessInfo> {
+  const access = await getUserAccessInfo(user);
+
+  if (
+    access.roleName !== 'Admin' &&
+    access.roleName !== 'System Admin' &&
+    !hasRequiredPermission(access.permissions, ['hotel:*'])
+  ) {
+    throw new ForbiddenException('You do not have permission to manage hotel branches.');
+  }
+
+  if (!access.isGlobal) {
+    if (!branchId || !access.branchIds.includes(branchId)) {
+      throw new ForbiddenException('You can only configure your assigned hotel branch.');
+    }
+  }
+
+  return access;
+}
+
 export async function assertCanManageGlobalCatalog(user: JwtPayload, catalogName: string): Promise<UserAccessInfo> {
   const access = await getUserAccessInfo(user);
 

@@ -43,7 +43,7 @@ const NAV_GROUPS = [
     title: "Front Desk",
     items: [
       { name: "Guests", href: "/guests", icon: Users },
-{ name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
+      { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
       { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
     ]
   },
@@ -125,11 +125,34 @@ export function Sidebar() {
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const isWaiter = normalizeRole(currentRole) === "waiter";
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
 
   // Filter navigation groups based on role authorization & dynamic permissions
   const filteredNavGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => {
-      const authorizedItems = group.items.filter((item) => {
+      let items = group.items;
+      let groupTitle = group.title;
+
+      if (group.title === "Hotel Setup") {
+        if (!isGlobal) {
+          groupTitle = "Branch Setup";
+          items = [
+            { name: "Branch Config", href: "/hotel", icon: Building2 },
+            { name: "Buildings & Floors", href: "/branches?tab=buildings", icon: Building },
+          ];
+        } else {
+          groupTitle = "Hotel Setup";
+          items = [
+            { name: "HQ Hotel Config", href: "/hotel", icon: Building2 },
+            { name: "Branches & Properties", href: "/branches", icon: GitBranch },
+          ];
+        }
+      }
+
+      const authorizedItems = items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
         if (isRouteAuthorized(user, pathOnly, user?.permissions)) {
           if (isWaiter && item.href === "/restaurant") {
@@ -141,10 +164,11 @@ export function Sidebar() {
       });
       return {
         ...group,
+        title: groupTitle,
         items: authorizedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [user, isWaiter]);
+  }, [user, isWaiter, isGlobal]);
 
   return (
     <aside className="w-64 flex flex-col bg-[#071039] border-r border-[#0F2270] h-screen sticky top-0 overflow-y-auto z-20 select-none">

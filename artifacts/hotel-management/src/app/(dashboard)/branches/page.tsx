@@ -245,7 +245,7 @@ function BranchesContent() {
         <StatusPill status={branch.status || (branch.isActive !== false ? "active" : "inactive")} />
       ),
     },
-    ...(canManageBranches
+    ...((canManageBranches || hasPermission("hotel:*"))
       ? [
           {
             key: "actions",
@@ -269,12 +269,14 @@ function BranchesContent() {
                   >
                     <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => deleteMutation.mutate(branch.id)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </DropdownMenuItem>
+                  {canManageBranches && (
+                    <DropdownMenuItem
+                      onClick={() => deleteMutation.mutate(branch.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ),
