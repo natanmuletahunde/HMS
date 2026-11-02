@@ -113,6 +113,15 @@ export type PaymentAccountSpecifier = {
   additionalIdentifier?: string;
 };
 
+export type CustomPolicyItem = {
+  id: string;
+  title: string;
+  category?: string;
+  badge?: string;
+  initials?: string;
+  content: string;
+};
+
 export type ComplianceDocument = {
   id: string;
   title: string;
@@ -146,6 +155,7 @@ export type HotelSettings = {
   galleryImages?: GalleryImage[];
 
   // Policies & Refunds
+  customPoliciesList?: CustomPolicyItem[];
   cancellationPolicyType?: "flexible" | "moderate" | "strict" | "non_refundable";
   cancellationFreeHours?: number;
   cancellationPenaltyPercent?: number;
@@ -181,6 +191,7 @@ export type HotelSettings = {
   ministryOfTourismRating?: string;
 
   // Fiscal Cash Register (ERCA / MoR Sales Register Machine)
+  fiscalCashRegisterEnabled?: boolean;
   fiscalMachineCode?: string;
   fiscalMachineSerial?: string;
   fiscalTerminalId?: string;
@@ -431,6 +442,41 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   },
 ];
 
+const DEFAULT_POLICIES: CustomPolicyItem[] = [
+  {
+    id: "policy-refund",
+    title: "Official Cancellation & Refund Policy",
+    category: "Refunds",
+    badge: "Active Policy",
+    initials: "CR",
+    content: `<h3>Standard Cancellation & Refund Policy</h3><p>Our hotel strives to provide flexible, transparent terms for both business and leisure guests.</p><h4>Cancellation Windows:</h4><ul><li><strong>Free Cancellation:</strong> Bookings cancelled up to 48 hours prior to arrival date by 14:00 local time receive a 100% full refund.</li><li><strong>Late Cancellation:</strong> Cancellations received within 48 hours of check-in, or failure to arrive (No-Show), will be billed for the first night room rate plus applicable taxes.</li><li><strong>Non-Refundable Tariffs:</strong> Promotional rates flagged as non-refundable are charged at booking and cannot be refunded or transferred.</li></ul><h4>Refund Settlement Timeline:</h4><p>Approved refunds are credited directly to the original settlement instrument within 3 to 5 business days.</p>`,
+  },
+  {
+    id: "policy-folio",
+    title: "Guest Folio & Invoice Legal Terms",
+    category: "Legal & Invoicing",
+    badge: "Invoice Footer",
+    initials: "TC",
+    content: `<h4>Guest Liability & Security Notice:</h4><ul><li><strong>Safe Deposit Boxes:</strong> Individual safe deposit boxes are provided at the Front Desk free of charge. Management disclaims all liability for cash, jewelry, or documents left in guest rooms.</li><li><strong>Property Damages:</strong> Registered guests assume full financial responsibility for any physical breakage, smoke damage, or fixture loss caused during their stay.</li><li><strong>Settlement of Charges:</strong> Unbilled incidental charges discovered post-departure will be posted to the credit card or billing account on record.</li></ul>`,
+  },
+  {
+    id: "policy-regcard",
+    title: "Arrival Registration Card Agreement",
+    category: "Check-In Agreement",
+    badge: "Registration Agreement",
+    initials: "RC",
+    content: `<h4>Guest Registration Agreement & Terms:</h4><p>I hereby certify that all information submitted during registration is accurate and complete.</p><ul><li>I agree to comply with hotel safety regulations, quiet hours, and property guidelines.</li><li>I agree that my personal liability for all room charges, taxes, and incidentals is not waived if any third party, employer, or sponsoring organization fails to pay in full.</li><li>I understand check-out time is 12:00 PM. Delayed departures without prior front desk clearance may incur half-day or full-day surcharges.</li></ul>`,
+  },
+  {
+    id: "policy-smoking-pets",
+    title: "Smoking & Pet Accommodation Policies",
+    category: "House Rules",
+    badge: "Property Guidelines",
+    initials: "SP",
+    content: `<h4>Smoking Policy:</h4><p>This property operates as a strictly non-smoking facility in all guest rooms, hallways, and indoor public venues. Dedicated smoking areas are available in landscaped garden terraces. Violations will incur a deep-cleaning penalty fee.</p><h4>Pet Accommodation:</h4><p>Pets are not permitted on hotel premises, with the exception of certified service animals registered at check-in.</p>`,
+  },
+];
+
 const DEFAULT_COMPLIANCE_DOCUMENTS: ComplianceDocument[] = [
   {
     id: "doc-tin",
@@ -506,6 +552,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   heroImageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85",
   galleryImages: DEFAULT_GALLERY,
 
+  customPoliciesList: DEFAULT_POLICIES,
   cancellationPolicyType: "moderate",
   cancellationFreeHours: 48,
   cancellationPenaltyPercent: 100,
@@ -534,6 +581,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   tradeLicenseExpiryDate: "2026-07-07",
   ministryOfTourismLicense: "MoT-HTL-CAT5-0042",
   ministryOfTourismRating: "5 Star Luxury Hotel",
+  fiscalCashRegisterEnabled: false,
   fiscalMachineCode: "MRC-AA-789230",
   fiscalMachineSerial: "FBR-2024-00918",
   fiscalTerminalId: "TID-FD-01",
@@ -808,6 +856,11 @@ export default function HotelPage() {
   const [extraBeds, setExtraBeds] = useState<ExtraBedItem[]>(DEFAULT_EXTRA_BEDS);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
   const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocument[]>(DEFAULT_COMPLIANCE_DOCUMENTS);
+  const [fiscalCashRegisterEnabled, setFiscalCashRegisterEnabled] = useState(false);
+  const [policiesList, setPoliciesList] = useState<CustomPolicyItem[]>(DEFAULT_POLICIES);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState<CustomPolicyItem | null>(null);
+
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<ComplianceDocument | null>(null);
   const [docFileUrl, setDocFileUrl] = useState<string>("");
@@ -852,6 +905,8 @@ export default function HotelPage() {
       if (s.extraBedsList && s.extraBedsList.length > 0) setExtraBeds(s.extraBedsList);
       if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
       if (s.complianceDocuments && s.complianceDocuments.length > 0) setComplianceDocuments(s.complianceDocuments);
+      if (s.fiscalCashRegisterEnabled !== undefined) setFiscalCashRegisterEnabled(s.fiscalCashRegisterEnabled);
+      if (s.customPoliciesList && s.customPoliciesList.length > 0) setPoliciesList(s.customPoliciesList);
       if (s.refundTermsText) setRefundText(s.refundTermsText);
       if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
       if (s.registrationCardDisclaimer) setRegCardText(s.registrationCardDisclaimer);
@@ -1166,6 +1221,51 @@ export default function HotelPage() {
     setDocFileSize("");
   };
 
+
+  // Dynamic Policy Handlers
+  const handleSavePolicy = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const title = String(fd.get("title") || "").trim();
+    if (!title) {
+      toast({ title: "Title Required", description: "Please enter a policy title", variant: "destructive" });
+      return;
+    }
+    const category = String(fd.get("category") || "General").trim();
+    const badge = String(fd.get("badge") || "Active Policy").trim();
+    const contentText = String(fd.get("content") || "").trim();
+    const initials = title.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL";
+
+    if (editingPolicy) {
+      setPoliciesList((prev) =>
+        prev.map((p) =>
+          p.id === editingPolicy.id
+            ? { ...p, title, category, badge, initials, content: contentText }
+            : p
+        )
+      );
+      toast({ title: "Policy updated successfully" });
+    } else {
+      const newPolicy: CustomPolicyItem = {
+        id: "policy-" + Date.now(),
+        title,
+        category,
+        badge,
+        initials,
+        content: contentText,
+      };
+      setPoliciesList((prev) => [...prev, newPolicy]);
+      toast({ title: "New policy issue created" });
+    }
+    setIsPolicyModalOpen(false);
+    setEditingPolicy(null);
+  };
+
+  const handleDeletePolicy = (id: string) => {
+    setPoliciesList((prev) => prev.filter((p) => p.id !== id));
+    toast({ title: "Policy removed" });
+  };
+
   const handleDeleteComplianceDoc = (id: string) => {
     setComplianceDocuments((prev) => prev.filter((d) => d.id !== id));
     toast({ title: "Compliance document removed" });
@@ -1243,6 +1343,8 @@ export default function HotelPage() {
       tradeLicenseExpiryDate: String(formObj.tradeLicenseExpiryDate || mergedSettings.tradeLicenseExpiryDate || "2026-07-07"),
       ministryOfTourismLicense: String(formObj.ministryOfTourismLicense || mergedSettings.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"),
       ministryOfTourismRating: String(formObj.ministryOfTourismRating || mergedSettings.ministryOfTourismRating || "5 Star Luxury Hotel"),
+      fiscalCashRegisterEnabled: fiscalCashRegisterEnabled,
+      customPoliciesList: policiesList,
       fiscalMachineCode: String(formObj.fiscalMachineCode || mergedSettings.fiscalMachineCode || "MRC-AA-789230"),
       fiscalMachineSerial: String(formObj.fiscalMachineSerial || mergedSettings.fiscalMachineSerial || "FBR-2024-00918"),
       fiscalTerminalId: String(formObj.fiscalTerminalId || mergedSettings.fiscalTerminalId || "TID-FD-01"),
@@ -1978,52 +2080,76 @@ export default function HotelPage() {
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Machine Code (MRC)</span>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Integration Status</span>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        name="fiscalMachineCode"
-                        defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
-                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="fiscalCashRegisterEnabled"
+                          checked={fiscalCashRegisterEnabled}
+                          onChange={(e) => setFiscalCashRegisterEnabled(e.target.checked)}
+                          className="rounded border-[var(--border)] text-blue-700"
+                        />
+                        <span>{fiscalCashRegisterEnabled ? "Enabled (Apply Machine Codes)" : "Disabled"}</span>
+                      </label>
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {fiscalCashRegisterEnabled ? "Enabled" : "Disabled"}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hardware Serial (MSN)</span>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="fiscalMachineSerial"
-                        defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
-                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
-                      </span>
-                    )}
-                  </div>
+                  {fiscalCashRegisterEnabled && (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Machine Code (MRC)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalMachineCode"
+                            defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Terminal ID (TID)</span>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="fiscalTerminalId"
-                        defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
-                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
-                      </span>
-                    )}
-                  </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hardware Serial (MSN)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalMachineSerial"
+                            defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Terminal ID (TID)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalTerminalId"
+                            defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2399,16 +2525,36 @@ export default function HotelPage() {
           {/* ================================================================= */}
           {activeTab === "policies" && (
             <div className="space-y-6">
-              {/* Header with Expand All / Collapse All */}
-              <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Hotel Policies, Refund Terms & Legal Disclaimers
-                </h3>
+              {/* Header with Add Policy & Expand/Collapse */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+                <div>
+                  <h3 className="text-base font-bold text-[var(--text-primary)]">
+                    Hotel Policies, Terms & Legal Guidelines
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Manage guest cancellation terms, invoice footers, check-in disclaimers, and house rules.
+                  </p>
+                </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleAllPolicies(true)}
+                    onClick={() => {
+                      setEditingPolicy(null);
+                      setIsPolicyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Policy / Issue</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      policiesList.forEach((p) => { next[p.id] = true; });
+                      setExpandedPolicies(next);
+                    }}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
@@ -2416,7 +2562,11 @@ export default function HotelPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggleAllPolicies(false)}
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      policiesList.forEach((p) => { next[p.id] = false; });
+                      setExpandedPolicies(next);
+                    }}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
@@ -2425,335 +2575,119 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* ACCORDION 1: Cancellation & Refund Policy */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("refund")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
-                      CR
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Official Cancellation & Refund Policy (Full Text)
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      Active Policy
-                    </span>
-                    {expandedPolicies.refund ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
+              {/* Dynamic Policy Accordions */}
+              {policiesList.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-3">
+                  <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
+                  <p className="text-sm font-medium text-[var(--text-primary)]">No policies configured</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPolicy(null);
+                      setIsPolicyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create First Policy</span>
+                  </button>
                 </div>
-
-                {expandedPolicies.refund && (
-                  <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-[var(--border)]">
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Policy Archetype
-                        </label>
-                        {isEditing ? (
-                          <select
-                            name="cancellationPolicyType"
-                            defaultValue={hotel?.settings?.cancellationPolicyType || "moderate"}
-                            className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                          >
-                            <option value="flexible">Flexible (24 Hours Prior)</option>
-                            <option value="moderate">Moderate (48 Hours Prior)</option>
-                            <option value="strict">Strict (7 Days Prior)</option>
-                            <option value="non_refundable">100% Non-Refundable</option>
-                          </select>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)] capitalize">
-                            {hotel?.settings?.cancellationPolicyType || "moderate"}
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Free Cancellation Window
-                        </label>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              name="cancellationFreeHours"
-                              defaultValue={hotel?.settings?.cancellationFreeHours ?? 48}
-                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            />
-                            <span className="text-xs text-[var(--text-secondary)]">Hours before check-in</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)]">
-                            Up to {hotel?.settings?.cancellationFreeHours ?? 48} hours prior
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Refund Settlement Timeline
-                        </label>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              name="refundProcessingDays"
-                              defaultValue={hotel?.settings?.refundProcessingDays ?? 5}
-                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            />
-                            <span className="text-xs text-[var(--text-secondary)]">Business days</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)]">
-                            {hotel?.settings?.refundProcessingDays ?? 5} Business Days
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-2">
-                        Official Cancellation & Refund Policy Document
-                      </label>
-                      <RichTextEditor
-                        name="refundTermsText"
-                        value={refundText}
-                        onChange={setRefundText}
-                        isEditable={isEditing}
-                        minHeight="240px"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 2: Guest Folio Legal T&C Footer */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("folio")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-                      TC
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Guest Folio & Invoice Legal T&C Footer
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-                      Invoice Footer
-                    </span>
-                    {expandedPolicies.folio ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.folio && (
-                  <div className="p-6">
-                    <RichTextEditor
-                      name="folioTermsFooter"
-                      value={folioFooterText}
-                      onChange={setFolioFooterText}
-                      isEditable={isEditing}
-                      minHeight="180px"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 3: Arrival Registration Card Agreement */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("regCard")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
-                      RC
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Arrival Registration Card Agreement
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                      Check-In Agreement
-                    </span>
-                    {expandedPolicies.regCard ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.regCard && (
-                  <div className="p-6">
-                    <RichTextEditor
-                      name="registrationCardDisclaimer"
-                      value={regCardText}
-                      onChange={setRegCardText}
-                      isEditable={isEditing}
-                      minHeight="180px"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 4: Smoking & Pet Accommodation Policies */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("smokingPet")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold text-xs">
-                      SP
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Smoking & Pet Accommodation Policies
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {expandedPolicies.smokingPet ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.smokingPet && (
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Cigarette className="w-4 h-4 text-rose-600" />
-                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Smoking Policy</h5>
-                      </div>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                          <span className="text-[var(--text-secondary)]">Room Policy</span>
-                          {isEditing ? (
-                            <select
-                              name="smokingPolicy"
-                              defaultValue={hotel?.settings?.smokingPolicy || "strictly_non_smoking"}
-                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            >
-                              <option value="strictly_non_smoking">Strictly Non-Smoking Indoors</option>
-                              <option value="designated_areas">Designated Outdoor Smoking Zones Only</option>
-                              <option value="allowed">Smoking Permitted</option>
-                            </select>
-                          ) : (
-                            <span className="font-semibold text-rose-600">
-                              {hotel?.settings?.smokingPolicy === "designated_areas"
-                                ? "Designated Outdoor Zones Only"
-                                : hotel?.settings?.smokingPolicy === "allowed"
-                                ? "Smoking Permitted"
-                                : "Strictly Non-Smoking Indoors"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                          <span className="text-[var(--text-secondary)]">Deep Clean Violation Fee</span>
-                          {isEditing ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[var(--text-secondary)]">$</span>
-                              <input
-                                type="number"
-                                name="smokingPenaltyFee"
-                                defaultValue={hotel?.settings?.smokingPenaltyFee ?? 250}
-                                min={0}
-                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                              />
-                              <span className="text-[var(--text-secondary)]">USD / 15,000 ETB</span>
+              ) : (
+                <div className="space-y-4">
+                  {policiesList.map((policy) => {
+                    const isExpanded = expandedPolicies[policy.id] !== false;
+                    return (
+                      <div
+                        key={policy.id}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden"
+                      >
+                        <div
+                          onClick={() => {
+                            setExpandedPolicies((prev) => ({
+                              ...prev,
+                              [policy.id]: !isExpanded,
+                            }));
+                          }}
+                          className="flex items-center justify-between p-4 sm:p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                              {policy.initials || policy.title.slice(0, 2).toUpperCase()}
                             </div>
-                          ) : (
-                            <span className="font-mono font-bold text-[var(--text-primary)]">
-                              ${hotel?.settings?.smokingPenaltyFee ?? 250} USD / 15,000 ETB
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Dog className="w-4 h-4 text-amber-600" />
-                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Pet Accommodation Policy</h5>
-                      </div>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                          <span className="text-[var(--text-secondary)]">Policy Status</span>
-                          {isEditing ? (
-                            <select
-                              name="petPolicy"
-                              defaultValue={hotel?.settings?.petPolicy || "not_allowed"}
-                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            >
-                              <option value="not_allowed">Certified Guide & Service Dogs Only</option>
-                              <option value="charges_apply">Pets Allowed (Surcharge Applies)</option>
-                              <option value="allowed">Pets Fully Welcome (All Breeds)</option>
-                            </select>
-                          ) : (
-                            <span className="font-semibold text-[var(--text-primary)]">
-                              {hotel?.settings?.petPolicy === "allowed"
-                                ? "Pets Fully Welcome (All Breeds)"
-                                : hotel?.settings?.petPolicy === "charges_apply"
-                                ? "Pets Allowed (Surcharge Applies)"
-                                : "Certified Guide & Service Dogs Only"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                          <span className="text-[var(--text-secondary)]">Pet Cleaning Deposit</span>
-                          {isEditing ? (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="number"
-                                name="petFee"
-                                defaultValue={hotel?.settings?.petFee ?? 0}
-                                min={0}
-                                placeholder="0"
-                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                              />
-                              <span className="text-[var(--text-secondary)]">ETB (0 = waived)</span>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                {policy.title}
+                              </h4>
+                              {policy.category && (
+                                <span className="text-[11px] text-[var(--text-secondary)]">
+                                  {policy.category}
+                                </span>
+                              )}
                             </div>
-                          ) : (
-                            <span className="font-mono font-bold text-[var(--text-primary)]">
-                              {hotel?.settings?.petFee && hotel.settings.petFee > 0
-                                ? `${hotel.settings.petFee} ETB per stay`
-                                : "Waived for Service Animals"}
-                            </span>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {policy.badge && (
+                              <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 hidden sm:inline-block">
+                                {policy.badge}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPolicy(policy);
+                                setIsPolicyModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
+                              title="Edit Policy Details"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePolicy(policy.id);
+                              }}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                              title="Delete Policy"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="pl-1">
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                              )}
+                            </div>
+                          </div>
                         </div>
+
+                        {isExpanded && (
+                          <div className="p-5 sm:p-6 space-y-4">
+                            <RichTextEditor
+                              name={`policy_${policy.id}`}
+                              value={policy.content}
+                              onChange={(val) => {
+                                setPoliciesList((prev) =>
+                                  prev.map((p) => (p.id === policy.id ? { ...p, content: val } : p))
+                                );
+                              }}
+                              isEditable={isEditing}
+                              minHeight="200px"
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ================================================================= */}
-          {/* TAB 5: OPERATIONS & TIMERS                                        */}
-          {/* ================================================================= */}
           {activeTab === "operations" && (
             <div className="space-y-8">
               {/* Arrival & Check-In Triggers */}
