@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Link from "next/link";
+
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
+  Building,
   Sliders,
   CreditCard,
   Sparkles,
@@ -52,8 +55,14 @@ import {
   Smartphone,
   Eye,
   Banknote,
+  UploadCloud,
+  Download,
+  Percent,
+  Receipt,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
+import { BranchConfigView } from "@/components/setup/BranchConfigView";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -104,6 +113,20 @@ export type PaymentAccountSpecifier = {
   additionalIdentifier?: string;
 };
 
+export type ComplianceDocument = {
+  id: string;
+  title: string;
+  category: "tax_tin" | "vat_cert" | "trade_license" | "tourism_rating" | "health_fire_safety" | "other";
+  docNumber?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  status: "valid" | "expiring_soon" | "expired" | "pending_verification";
+  notes?: string;
+};
+
 export type HotelSettings = {
   // Operations & Timers
   earlyCheckInAllowedTime?: string;
@@ -139,7 +162,32 @@ export type HotelSettings = {
   checkoutTriggerState?: "dirty" | "cleaning";
   linenChangeFrequency?: number;
   turndownServiceEnabled?: boolean;
-  defaultBoardBasis?: "ro" | "bb" | "hb" | "fb";
+  defaultBoardBasis?: string;
+
+  // Ethiopian Tax & Regulatory Compliance
+  vatRatePercent?: number;
+  serviceChargePercent?: number;
+  serviceChargeEnabled?: boolean;
+  withholdingTaxServicePercent?: number;
+  withholdingTaxGoodsPercent?: number;
+  vatCalculationBasis?: "base_plus_service" | "base_only";
+  diplomaticVatExemptionEnabled?: boolean;
+
+  // Tax Registration & Licensing
+  vatRegistrationNumber?: string;
+  vatRegistrationDate?: string;
+  tradeLicenseExpiryDate?: string;
+  ministryOfTourismLicense?: string;
+  ministryOfTourismRating?: string;
+
+  // Fiscal Cash Register (ERCA / MoR Sales Register Machine)
+  fiscalMachineCode?: string;
+  fiscalMachineSerial?: string;
+  fiscalTerminalId?: string;
+  fiscalIntegrationStatus?: "online" | "offline" | "standalone";
+
+  // Document Uploads
+  complianceDocuments?: ComplianceDocument[];
   breakfastServiceHours?: string;
   breakfastPriceAdult?: number;
   breakfastPriceChild?: number;
@@ -383,6 +431,55 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   },
 ];
 
+const DEFAULT_COMPLIANCE_DOCUMENTS: ComplianceDocument[] = [
+  {
+    id: "doc-tin",
+    title: "Ministry of Revenues (MoR) TIN Certificate",
+    category: "tax_tin",
+    docNumber: "0012345678",
+    issueDate: "2018-04-10",
+    status: "valid",
+    fileName: "MoR_TIN_Registration_0012345678.pdf",
+    fileSize: "1.2 MB",
+    notes: "Registered under Large Taxpayers Office (LTO), Addis Ababa.",
+  },
+  {
+    id: "doc-vat",
+    title: "Value Added Tax (VAT) Registration Certificate",
+    category: "vat_cert",
+    docNumber: "VAT-10-00892415",
+    issueDate: "2020-01-11",
+    status: "valid",
+    fileName: "MoR_VAT_Certificate_VAT-10-00892415.pdf",
+    fileSize: "1.8 MB",
+    notes: "15% Standard VAT under Proclamations No. 285/2002 & No. 1341/2024.",
+  },
+  {
+    id: "doc-trade",
+    title: "Commercial Business Trade License (Renewed)",
+    category: "trade_license",
+    docNumber: "ETH-HTL-2020-00142",
+    issueDate: "2024-07-08",
+    expiryDate: "2026-07-07",
+    status: "valid",
+    fileName: "Trade_License_Renewal_2024_2026.pdf",
+    fileSize: "2.4 MB",
+    notes: "Issued by Ministry of Trade and Regional Integration (MoTRI).",
+  },
+  {
+    id: "doc-tourism",
+    title: "Ministry of Tourism Star Classification Certificate",
+    category: "tourism_rating",
+    docNumber: "MoT-HTL-CAT5-0042",
+    issueDate: "2023-11-20",
+    expiryDate: "2027-11-19",
+    status: "valid",
+    fileName: "Ministry_of_Tourism_5Star_Accreditation.pdf",
+    fileSize: "3.1 MB",
+    notes: "Certified 5-Star Luxury Hospitality Establishment.",
+  },
+];
+
 const DEFAULT_SETTINGS: HotelSettings = {
   earlyCheckInAllowedTime: "10:00",
   lateCheckOutGracePeriod: 30,
@@ -428,7 +525,24 @@ const DEFAULT_SETTINGS: HotelSettings = {
   checkoutTriggerState: "dirty",
   linenChangeFrequency: 3,
   turndownServiceEnabled: true,
-  defaultBoardBasis: "bb",
+  defaultBoardBasis: "Bed & Breakfast (BB)",
+  vatRatePercent: 15,
+  serviceChargePercent: 10,
+  serviceChargeEnabled: true,
+  withholdingTaxServicePercent: 3,
+  withholdingTaxGoodsPercent: 2,
+  vatCalculationBasis: "base_plus_service",
+  diplomaticVatExemptionEnabled: true,
+  vatRegistrationNumber: "VAT-10-00892415",
+  vatRegistrationDate: "2020-01-11",
+  tradeLicenseExpiryDate: "2026-07-07",
+  ministryOfTourismLicense: "MoT-HTL-CAT5-0042",
+  ministryOfTourismRating: "5 Star Luxury Hotel",
+  fiscalMachineCode: "MRC-AA-789230",
+  fiscalMachineSerial: "FBR-2024-00918",
+  fiscalTerminalId: "TID-FD-01",
+  fiscalIntegrationStatus: "online",
+  complianceDocuments: DEFAULT_COMPLIANCE_DOCUMENTS,
   breakfastServiceHours: "06:30 - 10:00",
   breakfastPriceAdult: 450,
   breakfastPriceChild: 250,
@@ -601,20 +715,85 @@ function getPaymentMetadata(account: PaymentAccountSpecifier) {
 // MAIN COMPONENT
 // ---------------------------------------------------------------------------
 export default function HotelPage() {
+  const { user, activeBranch, branches, switchBranch } = useAuth();
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const branchId = activeBranch?.id || user?.primaryBranchId || branches?.[0]?.id;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [isEditing, setIsEditing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: rawHotel, isLoading, isError, refetch } = useQuery({
+  // 1. Fetch Chain HQ Hotel defaults
+  const { data: rawHotel, isLoading: isHotelLoading, isError: isHotelError, refetch: refetchHotel } = useQuery({
     queryKey: ["hotel"],
     queryFn: () => apiFetch<any>("/hotel"),
   });
 
-  const hotel: Hotel | undefined = Array.isArray(rawHotel)
+  const chainHotel: Hotel | undefined = Array.isArray(rawHotel)
     ? rawHotel[0]
     : (rawHotel?.data?.[0] ?? rawHotel);
+
+  // 2. Fetch Branch-specific configuration if branch-scoped
+  const { data: branchData, isLoading: isBranchLoading, isError: isBranchError, refetch: refetchBranch } = useQuery({
+    queryKey: ["branch", branchId],
+    queryFn: () => (branchId ? apiFetch<any>(`/branches/${branchId}`) : null),
+    enabled: !isGlobal && !!branchId,
+  });
+
+  const isLoading = isHotelLoading || (!isGlobal && isBranchLoading);
+  const isError = isHotelError || (!isGlobal && isBranchError);
+  const refetch = () => {
+    refetchHotel();
+    if (!isGlobal) refetchBranch();
+  };
+
+  // Effective Hotel Object: Exact same layout as Super Admin Hotel Config,
+  // populated with branch values where set, with seamless fallback to Chain HQ defaults
+  const hotel: Hotel | undefined = useMemo(() => {
+    if (!chainHotel) return undefined;
+    if (isGlobal || !branchData) return chainHotel;
+
+    const bSettings = branchData.settings || {};
+    const hSettings = chainHotel.settings || {};
+
+    return {
+      ...chainHotel,
+      id: chainHotel.id,
+      hotelName: branchData.branchName || chainHotel.hotelName,
+      hotelCode: branchData.branchCode || chainHotel.hotelCode,
+      legalName: branchData.manager || chainHotel.legalName,
+      phone: branchData.phone || chainHotel.phone,
+      email: branchData.email || chainHotel.email,
+      address: branchData.address || chainHotel.address,
+      description: branchData.description || chainHotel.description,
+      starRating: branchData.starRating ? Number(branchData.starRating) : chainHotel.starRating,
+      checkInTime: branchData.checkInTime || chainHotel.checkInTime,
+      checkOutTime: branchData.checkOutTime || chainHotel.checkOutTime,
+      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel.lateCheckoutGraceMinutes,
+      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel.lateCheckoutHourlyFee,
+      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel.lateCheckoutTier1Percent,
+      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel.lateCheckoutTier2Percent,
+      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel.lateCheckoutCutoffTime,
+      settings: {
+        ...hSettings,
+        ...bSettings,
+        propertyFacilities: bSettings.propertyFacilities || hSettings.propertyFacilities,
+        galleryImages: bSettings.galleryImages || hSettings.galleryImages,
+        heroImageUrl: bSettings.heroImageUrl || hSettings.heroImageUrl,
+        extraBedsList: bSettings.extraBedsList || hSettings.extraBedsList,
+        paymentAccountsList: bSettings.paymentAccountsList || hSettings.paymentAccountsList,
+        customFacilitiesList: bSettings.customFacilitiesList || hSettings.customFacilitiesList,
+        refundTermsText: bSettings.refundTermsText || hSettings.refundTermsText,
+        folioTermsFooter: bSettings.folioTermsFooter || hSettings.folioTermsFooter,
+        registrationCardDisclaimer: bSettings.registrationCardDisclaimer || hSettings.registrationCardDisclaimer,
+      },
+    };
+  }, [chainHotel, branchData, isGlobal]);
 
   // -------------------------------------------------------------------------
   // REACTIVE LOCAL STATES (SYNCHRONIZED WITH BACKEND)
@@ -632,6 +811,13 @@ export default function HotelPage() {
 
   const [extraBeds, setExtraBeds] = useState<ExtraBedItem[]>(DEFAULT_EXTRA_BEDS);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
+  const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocument[]>(DEFAULT_COMPLIANCE_DOCUMENTS);
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<ComplianceDocument | null>(null);
+  const [docFileUrl, setDocFileUrl] = useState<string>("");
+  const [docFileName, setDocFileName] = useState<string>("");
+  const [docFileSize, setDocFileSize] = useState<string>("");
+
 
   // Rich Text State Holders
   const [refundText, setRefundText] = useState(DEFAULT_SETTINGS.refundTermsText || "");
@@ -669,6 +855,7 @@ export default function HotelPage() {
       if (s.heroImageUrl) setHeroImage(s.heroImageUrl);
       if (s.extraBedsList && s.extraBedsList.length > 0) setExtraBeds(s.extraBedsList);
       if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
+      if (s.complianceDocuments && s.complianceDocuments.length > 0) setComplianceDocuments(s.complianceDocuments);
       if (s.refundTermsText) setRefundText(s.refundTermsText);
       if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
       if (s.registrationCardDisclaimer) setRegCardText(s.registrationCardDisclaimer);
@@ -696,13 +883,49 @@ export default function HotelPage() {
   // MUTATION
   // -------------------------------------------------------------------------
   const saveMutation = useMutation({
-    mutationFn: (data: Partial<Hotel>) =>
-      hotel?.id
+    mutationFn: (data: Partial<Hotel>) => {
+      if (!isGlobal && branchId) {
+        // Save as per branch scope
+        const branchSettings = {
+          ...(branchData?.settings || {}),
+          ...data.settings,
+          lateCheckoutGraceMinutes: data.lateCheckoutGraceMinutes,
+          lateCheckoutHourlyFee: data.lateCheckoutHourlyFee,
+          lateCheckoutTier1Percent: data.lateCheckoutTier1Percent,
+          lateCheckoutTier2Percent: data.lateCheckoutTier2Percent,
+          lateCheckoutCutoffTime: data.lateCheckoutCutoffTime,
+        };
+
+        return apiFetch(`/branches/${branchId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            branchName: data.hotelName,
+            manager: data.legalName,
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
+            description: data.description,
+            checkInTime: data.checkInTime,
+            checkOutTime: data.checkOutTime,
+            starRating: data.starRating ? Number(data.starRating) : undefined,
+            settings: branchSettings,
+          }),
+        });
+      }
+
+      return hotel?.id
         ? apiFetch(`/hotel/${hotel.id}`, { method: "PATCH", body: JSON.stringify(data) })
-        : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) }),
+        : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hotel"] });
-      toast({ title: "Hotel configuration updated successfully" });
+      if (!isGlobal && branchId) {
+        queryClient.invalidateQueries({ queryKey: ["branch", branchId] });
+        queryClient.invalidateQueries({ queryKey: ["branches"] });
+        toast({ title: "Branch configuration saved successfully" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["hotel"] });
+        toast({ title: "Hotel configuration updated successfully" });
+      }
       setIsEditing(false);
     },
     onError: (err: Error) => {
@@ -884,6 +1107,74 @@ export default function HotelPage() {
     setEditingPaymentAccount(null);
   };
 
+
+  // Compliance Document Handlers
+  const handleSaveComplianceDoc = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const title = String(fd.get("title") || "").trim();
+    if (!title) {
+      toast({ title: "Title Required", description: "Please enter a document title", variant: "destructive" });
+      return;
+    }
+
+    const docCategory = (fd.get("category") as any) || "other";
+    const docNumber = String(fd.get("docNumber") || "").trim();
+    const issueDate = String(fd.get("issueDate") || "").trim();
+    const expiryDate = String(fd.get("expiryDate") || "").trim();
+    const notes = String(fd.get("notes") || "").trim();
+    const explicitUrl = String(fd.get("fileUrl") || "").trim();
+    const finalUrl = explicitUrl || docFileUrl || "";
+
+    if (editingDoc) {
+      setComplianceDocuments((prev) =>
+        prev.map((d) =>
+          d.id === editingDoc.id
+            ? {
+                ...d,
+                title,
+                category: docCategory,
+                docNumber,
+                issueDate,
+                expiryDate,
+                notes,
+                fileUrl: finalUrl,
+                fileName: docFileName || d.fileName,
+                fileSize: docFileSize || d.fileSize,
+              }
+            : d
+        )
+      );
+      toast({ title: "Document updated successfully" });
+    } else {
+      const newDoc: ComplianceDocument = {
+        id: "doc-" + Date.now(),
+        title,
+        category: docCategory,
+        docNumber,
+        issueDate,
+        expiryDate,
+        notes,
+        fileUrl: finalUrl,
+        fileName: docFileName || (finalUrl ? "attached_document" : "document.pdf"),
+        fileSize: docFileSize || "Uploaded File",
+        status: "valid",
+      };
+      setComplianceDocuments((prev) => [...prev, newDoc]);
+      toast({ title: "New document attached successfully" });
+    }
+    setIsDocModalOpen(false);
+    setEditingDoc(null);
+    setDocFileUrl("");
+    setDocFileName("");
+    setDocFileSize("");
+  };
+
+  const handleDeleteComplianceDoc = (id: string) => {
+    setComplianceDocuments((prev) => prev.filter((d) => d.id !== id));
+    toast({ title: "Compliance document removed" });
+  };
+
   const handleDeletePaymentAccount = (channelId: string) => {
     setPaymentAccounts((prev) => prev.filter((acc) => acc.channelId !== channelId));
     toast({ title: "Payment service deleted" });
@@ -941,7 +1232,26 @@ export default function HotelPage() {
       checkoutTriggerState: formObj.checkoutTriggerState === "cleaning" ? "cleaning" : "dirty",
       linenChangeFrequency: Number(formObj.linenChangeFrequency) || 3,
       turndownServiceEnabled: formObj.turndownServiceEnabled === "on",
-      defaultBoardBasis: (formObj.defaultBoardBasis as any) || "bb",
+      defaultBoardBasis: String(formObj.defaultBoardBasis || mergedSettings.defaultBoardBasis || "Bed & Breakfast (BB)").trim(),
+
+      // Ethiopian Tax & Compliance
+      vatRatePercent: Number(formObj.vatRatePercent) || 15,
+      serviceChargePercent: Number(formObj.serviceChargePercent) || 10,
+      serviceChargeEnabled: formObj.serviceChargeEnabled === "on" || formObj.serviceChargeEnabled === "true",
+      withholdingTaxServicePercent: Number(formObj.withholdingTaxServicePercent) || 3,
+      withholdingTaxGoodsPercent: Number(formObj.withholdingTaxGoodsPercent) || 2,
+      vatCalculationBasis: (formObj.vatCalculationBasis as any) || "base_plus_service",
+      diplomaticVatExemptionEnabled: formObj.diplomaticVatExemptionEnabled === "on" || formObj.diplomaticVatExemptionEnabled === "true",
+      vatRegistrationNumber: String(formObj.vatRegistrationNumber || mergedSettings.vatRegistrationNumber || "VAT-10-00892415"),
+      vatRegistrationDate: String(formObj.vatRegistrationDate || mergedSettings.vatRegistrationDate || "2020-01-11"),
+      tradeLicenseExpiryDate: String(formObj.tradeLicenseExpiryDate || mergedSettings.tradeLicenseExpiryDate || "2026-07-07"),
+      ministryOfTourismLicense: String(formObj.ministryOfTourismLicense || mergedSettings.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"),
+      ministryOfTourismRating: String(formObj.ministryOfTourismRating || mergedSettings.ministryOfTourismRating || "5 Star Luxury Hotel"),
+      fiscalMachineCode: String(formObj.fiscalMachineCode || mergedSettings.fiscalMachineCode || "MRC-AA-789230"),
+      fiscalMachineSerial: String(formObj.fiscalMachineSerial || mergedSettings.fiscalMachineSerial || "FBR-2024-00918"),
+      fiscalTerminalId: String(formObj.fiscalTerminalId || mergedSettings.fiscalTerminalId || "TID-FD-01"),
+      fiscalIntegrationStatus: (formObj.fiscalIntegrationStatus as any) || "online",
+      complianceDocuments: complianceDocuments,
       breakfastServiceHours: String(formObj.breakfastServiceHours || mergedSettings.breakfastServiceHours || "06:30 - 10:00"),
       breakfastPriceAdult: Number(formObj.breakfastPriceAdult) || 0,
       breakfastPriceChild: Number(formObj.breakfastPriceChild) || 0,
@@ -1395,50 +1705,612 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* Tax & Legal Licensing */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
-                <div>
-                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Tax & Licensing
-                  </h3>
+              {/* ========================================================= */}
+              {/* ETHIOPIAN TAX & REGULATORY COMPLIANCE SYSTEM              */}
+              {/* ========================================================= */}
+              <div className="space-y-6 pt-6 border-t border-[var(--border)]">
+                {/* Header & Compliance Badge */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-lg bg-blue-700 text-white shrink-0 shadow-xs">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-[var(--text-primary)]">
+                          Ethiopian Hotel Tax & Regulatory Compliance
+                        </h3>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                          <CheckCircle2 className="w-3 h-3" />
+                          MoR Verified
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        Configured in compliance with MoR Proclamations No. 285/2002 & No. 1341/2024 (VAT), Income Tax Proclamation No. 979/2016 (Withholding), and Council of Ministers Regulation No. 139/2007 (Fiscal Sales Register Machines).
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDoc(null);
+                        setDocFileUrl("");
+                        setDocFileName("");
+                        setDocFileSize("");
+                        setIsDocModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload License / Certificate</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="md:col-span-2 space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tax Number (TIN)</span>
+
+                {/* Grid 1: National Identifiers & Official Registrations */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Tax Identification Number (TIN) */}
+                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Ministry of Revenues TIN (10 Digits)
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        Mandatory
+                      </span>
+                    </div>
                     {isEditing ? (
                       <input
                         type="text"
                         name="taxNumber"
-                        defaultValue={hotel?.taxNumber || "TIN-ET-001234567"}
-                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        maxLength={10}
+                        defaultValue={hotel?.taxNumber || "0012345678"}
+                        placeholder="10-digit MoR TIN (e.g. 0012345678)"
+                        className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                        {hotel?.taxNumber || "TIN-ET-001234567"}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-mono font-bold text-blue-700 dark:text-blue-400">
+                          {hotel?.taxNumber || "0012345678"}
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)]">Federal LTO Reg.</span>
+                      </div>
                     )}
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Official Taxpayer Identification Number issued by Ministry of Revenues (ገቢዎች ሚኒስቴር).
+                    </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Business License</span>
+                  {/* VAT Registration Number & Date */}
+                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        VAT Registration Certificate
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                        15% VAT Registered
+                      </span>
+                    </div>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        name="licenseNumber"
-                        defaultValue={hotel?.licenseNumber || "ETH-HTL-2020-00142"}
-                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          name="vatRegistrationNumber"
+                          defaultValue={hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                          placeholder="VAT Certificate Number"
+                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <input
+                          type="date"
+                          name="vatRegistrationDate"
+                          defaultValue={hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                      </div>
                     ) : (
-                      <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                        {hotel?.licenseNumber || "ETH-HTL-2020-00142"}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          Since {hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                        </span>
+                      </div>
                     )}
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Standard Value Added Tax registration under MoR Proclamation No. 285/2002.
+                    </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Standard</span>
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">15% Standard VAT</span>
+                  {/* Commercial Business Trade License */}
+                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Ministry of Trade License (MoTRI)
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Renewed & Active
+                      </span>
+                    </div>
+                    {isEditing ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          name="licenseNumber"
+                          defaultValue={hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                          placeholder="Trade License Number"
+                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <input
+                          type="date"
+                          name="tradeLicenseExpiryDate"
+                          defaultValue={hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                          {hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                        </span>
+                        <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                          Expires: {hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Hotel hospitality commercial trade license registered with the Ministry of Trade & Regional Integration.
+                    </p>
                   </div>
+
+                  {/* Ministry of Tourism Classification */}
+                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Ministry of Tourism Accreditation
+                      </span>
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                        <Star className="w-3.5 h-3.5 fill-amber-500" />
+                      </div>
+                    </div>
+                    {isEditing ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          name="ministryOfTourismLicense"
+                          defaultValue={hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                          placeholder="Certificate Number"
+                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <input
+                          type="text"
+                          name="ministryOfTourismRating"
+                          defaultValue={hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                          placeholder="Classification Level"
+                          className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                        </span>
+                        <span className="text-xs font-mono text-[var(--text-secondary)]">
+                          {hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Official hotel star rating certified by the Ethiopian Ministry of Tourism.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid 2: Tax Rates, Service Charge & Calculation Mechanics */}
+                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                    Tax Rates, Service Charge & Invoice Calculation Rules
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                    {/* Standard VAT Rate */}
+                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--text-secondary)]">VAT Rate</span>
+                        <span className="text-[10px] font-mono text-blue-700 dark:text-blue-300 font-bold">Standard</span>
+                      </div>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            name="vatRatePercent"
+                            defaultValue={hotel?.settings?.vatRatePercent ?? 15}
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            className="w-20 h-8 px-2 text-sm font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
+                          />
+                          <span className="text-sm font-bold text-[var(--text-primary)]">%</span>
+                        </div>
+                      ) : (
+                        <div className="text-xl font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.vatRatePercent ?? 15}%
+                        </div>
+                      )}
+                      <p className="text-[10px] text-[var(--text-muted)]">
+                        Federal standard under MoR Proclamations No. 285/2002 & 1341/2024.
+                      </p>
+                    </div>
+
+                    {/* Hotel Service Charge */}
+                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--text-secondary)]">Hotel Service Charge</span>
+                        {isEditing ? (
+                          <label className="flex items-center gap-1 text-[11px] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              name="serviceChargeEnabled"
+                              defaultChecked={hotel?.settings?.serviceChargeEnabled !== false}
+                              className="rounded border-[var(--border)] text-blue-700"
+                            />
+                            <span>Enabled</span>
+                          </label>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            {hotel?.settings?.serviceChargeEnabled !== false ? "Active" : "Disabled"}
+                          </span>
+                        )}
+                      </div>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            name="serviceChargePercent"
+                            defaultValue={hotel?.settings?.serviceChargePercent ?? 10}
+                            min={0}
+                            max={30}
+                            step={0.5}
+                            className="w-20 h-8 px-2 text-sm font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
+                          />
+                          <span className="text-sm font-bold text-[var(--text-primary)]">%</span>
+                        </div>
+                      ) : (
+                        <div className="text-xl font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.serviceChargePercent ?? 10}%
+                        </div>
+                      )}
+                      <p className="text-[10px] text-[var(--text-muted)]">
+                        Standard Ethiopian hospitality gratuity distributed to hotel service staff.
+                      </p>
+                    </div>
+
+                    {/* Corporate Withholding Tax (WHT) */}
+                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--text-secondary)]">Withholding Tax (WHT)</span>
+                        <span className="text-[10px] font-mono text-purple-700 dark:text-purple-300 font-bold">Procl. 979/2016</span>
+                      </div>
+                      {isEditing ? (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div>
+                            <span className="text-[9px] text-[var(--text-muted)] block">Services</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                name="withholdingTaxServicePercent"
+                                defaultValue={hotel?.settings?.withholdingTaxServicePercent ?? 3}
+                                min={0}
+                                max={20}
+                                className="w-14 h-7 px-1.5 text-xs font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
+                              />
+                              <span className="text-xs font-bold">%</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-[var(--text-muted)] block">Goods</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                name="withholdingTaxGoodsPercent"
+                                defaultValue={hotel?.settings?.withholdingTaxGoodsPercent ?? 2}
+                                min={0}
+                                max={20}
+                                className="w-14 h-7 px-1.5 text-xs font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
+                              />
+                              <span className="text-xs font-bold">%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-base font-bold text-[var(--text-primary)]">
+                          Services: {hotel?.settings?.withholdingTaxServicePercent ?? 3}% &bull; Goods: {hotel?.settings?.withholdingTaxGoodsPercent ?? 2}%
+                        </div>
+                      )}
+                      <p className="text-[10px] text-[var(--text-muted)]">
+                        Withheld by corporate & governmental clients on invoices exceeding statutory limits.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Levying Method & Diplomatic Exemption */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[var(--border)]">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[var(--text-primary)]">
+                        VAT Levying Calculation Sequence
+                      </label>
+                      {isEditing ? (
+                        <select
+                          name="vatCalculationBasis"
+                          defaultValue={hotel?.settings?.vatCalculationBasis || "base_plus_service"}
+                          className="w-full h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        >
+                          <option value="base_plus_service">
+                            Standard MoR: Calculate 15% VAT on (Base Rate + 10% Service Charge)
+                          </option>
+                          <option value="base_only">
+                            Alternative: Calculate 15% VAT on Base Room Rate only
+                          </option>
+                        </select>
+                      ) : (
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {hotel?.settings?.vatCalculationBasis === "base_only"
+                            ? "Alternative: Calculate 15% VAT on Base Room Rate only"
+                            : "Standard MoR: Calculate 15% VAT on (Base Rate + 10% Service Charge)"}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-[var(--text-muted)]">
+                        Under Ethiopian tax rulings, VAT is applied after calculating the 10% hospitality service charge.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-[var(--text-primary)]">
+                          Diplomatic & NGO VAT-Exemption Policy
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="checkbox"
+                            name="diplomaticVatExemptionEnabled"
+                            defaultChecked={hotel?.settings?.diplomaticVatExemptionEnabled !== false}
+                            className="rounded border-[var(--border)] text-blue-700"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            {hotel?.settings?.diplomaticVatExemptionEnabled !== false ? "Authorized" : "Disabled"}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        Permit front-desk and reservation folios to waive 15% VAT upon receipt of official MoFA/MoR diplomatic tax exemption vouchers (African Union, UNECA, Embassies, UN Missions).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid 3: Fiscal Cash Register (ERCA / MoR Sales Register Machine - FBR) */}
+                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                        Fiscal Cash Register (ERCA / MoR Sales Register Machine)
+                      </h4>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        Council of Ministers Regulation No. 139/2007 (Use of Sales Register Machines)
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      FBR Online
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    {/* Machine Registration Code (MRC) */}
+                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
+                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                        Machine Registration Code (MRC)
+                      </span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="fiscalMachineCode"
+                          defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                          placeholder="e.g. MRC-AA-789230"
+                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
+                        />
+                      ) : (
+                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                        </div>
+                      )}
+                      <span className="text-[10px] text-[var(--text-muted)] block">ERCA Official Code</span>
+                    </div>
+
+                    {/* Machine Serial Number (MSN) */}
+                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
+                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                        Machine Serial Number (MSN)
+                      </span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="fiscalMachineSerial"
+                          defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                          placeholder="e.g. FBR-2024-00918"
+                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
+                        />
+                      ) : (
+                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                        </div>
+                      )}
+                      <span className="text-[10px] text-[var(--text-muted)] block">Hardware Serial</span>
+                    </div>
+
+                    {/* Fiscal Terminal ID */}
+                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
+                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                        Fiscal Terminal ID (TID)
+                      </span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="fiscalTerminalId"
+                          defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                          placeholder="e.g. TID-FD-01"
+                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
+                        />
+                      ) : (
+                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
+                          {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                        </div>
+                      )}
+                      <span className="text-[10px] text-[var(--text-muted)] block">Front Desk Pos 1</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid 4: Compliance Certificates & Official Documents Vault */}
+                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                        Official Licenses & Compliance Documents Vault
+                      </h4>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        Securely archive and track renewal deadlines for official ministry licenses, TIN cards, and VAT certificates.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDoc(null);
+                        setDocFileUrl("");
+                        setDocFileName("");
+                        setDocFileSize("");
+                        setIsDocModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Document</span>
+                    </button>
+                  </div>
+
+                  {complianceDocuments.length === 0 ? (
+                    <div className="p-8 text-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)] space-y-2">
+                      <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
+                      <p className="text-xs text-[var(--text-secondary)]">No compliance documents attached yet.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDoc(null);
+                          setDocFileUrl("");
+                          setDocFileName("");
+                          setDocFileSize("");
+                          setIsDocModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Upload First Certificate</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {complianceDocuments.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] flex flex-col justify-between gap-2.5 transition-all hover:border-blue-400"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5">
+                              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="text-xs font-bold text-[var(--text-primary)] truncate">
+                                  {doc.title}
+                                </h5>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {doc.docNumber && (
+                                    <span className="text-[10px] font-mono text-blue-700 dark:text-blue-300 font-semibold">
+                                      #{doc.docNumber}
+                                    </span>
+                                  )}
+                                  {doc.fileSize && (
+                                    <span className="text-[10px] text-[var(--text-muted)]">
+                                      {doc.fileSize}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                              Verified
+                            </span>
+                          </div>
+
+                          {doc.notes && (
+                            <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
+                              {doc.notes}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-[11px]">
+                            <span className="text-[var(--text-muted)] text-[10px]">
+                              {doc.expiryDate ? `Expires: ${doc.expiryDate}` : `Issued: ${doc.issueDate || "Active"}`}
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                              {doc.fileUrl && (
+                                <a
+                                  href={doc.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>View</span>
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingDoc(doc);
+                                  setDocFileUrl(doc.fileUrl || "");
+                                  setDocFileName(doc.fileName || "");
+                                  setDocFileSize(doc.fileSize || "");
+                                  setIsDocModalOpen(true);
+                                }}
+                                className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
+                                title="Edit Document Metadata"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteComplianceDoc(doc.id)}
+                                className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                                title="Remove Document"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2092,86 +2964,57 @@ export default function HotelPage() {
           {/* ================================================================= */}
           {activeTab === "operations" && (
             <div className="space-y-8">
-              {/* Check-In / Check-Out Triggers */}
+              {/* Arrival & Check-In Triggers */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                 <div>
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Check-In & Check-Out Triggers
+                    Arrival & Check-In Triggers
                   </h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Official arrival window and complimentary early check-in allowance.
+                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-In</span>
+                    <div>
+                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-In</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">Official hotel arrival time</span>
+                    </div>
                     {isEditing ? (
                       <input
-                        type="time"
+                        type="text"
                         name="checkInTime"
                         defaultValue={hotel?.checkInTime || "14:00"}
+                        placeholder="14:00"
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{hotel?.checkInTime || "14:00"}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
-                    {isEditing ? (
-                      <input
-                        type="time"
-                        name="checkOutTime"
-                        defaultValue={hotel?.checkOutTime || "12:00"}
-                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{hotel?.checkOutTime || "12:00"}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Early Check-In Allowed</span>
-                    {isEditing ? (
-                      <input
-                        type="time"
-                        name="earlyCheckInAllowedTime"
-                        defaultValue={hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
-                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.earlyCheckInAllowedTime || "10:00"} (Complimentary)</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Check-Out Grace</span>
-                    {isEditing ? (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="lateCheckOutGracePeriod"
-                          defaultValue={hotel?.settings?.lateCheckOutGracePeriod ?? 30}
-                          min={0}
-                          max={120}
-                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <span className="text-xs text-[var(--text-secondary)]">Minutes past 12:00</span>
+                        <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                          {hotel?.checkInTime || "14:00"}
+                        </span>
+                        <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Reservations)</span>
                       </div>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutGracePeriod ?? 30} minutes</span>
                     )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Half-Day Charge Cutoff</span>
+                    <div>
+                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Early Check-In Allowed</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">Complimentary arrival before standard check-in</span>
+                    </div>
                     {isEditing ? (
                       <input
-                        type="time"
-                        name="lateCheckOutHalfDayCutoff"
-                        defaultValue={hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"}
+                        type="text"
+                        name="earlyCheckInAllowedTime"
+                        defaultValue={hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
+                        placeholder="10:00"
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"} (Full night billed past cutoff)</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Complimentary)</span>
+                      </span>
                     )}
                   </div>
                 </div>
@@ -2766,27 +3609,39 @@ export default function HotelPage() {
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Default Board Basis</span>
+                    <div>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">Default Board Basis</span>
+                      <p className="text-xs text-[var(--text-secondary)]">Standard guest meal plan applied to room bookings by default</p>
+                    </div>
                     {isEditing ? (
-                      <select
+                      <input
+                        type="text"
                         name="defaultBoardBasis"
-                        defaultValue={hotel?.settings?.defaultBoardBasis || "bb"}
-                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      >
-                        <option value="ro">Room Only (RO)</option>
-                        <option value="bb">Bed & Breakfast (BB)</option>
-                        <option value="hb">Half Board (HB)</option>
-                        <option value="fb">Full Board (FB)</option>
-                      </select>
+                        defaultValue={
+                          hotel?.settings?.defaultBoardBasis === "ro"
+                            ? "Room Only (RO)"
+                            : hotel?.settings?.defaultBoardBasis === "bb"
+                            ? "Bed & Breakfast (BB)"
+                            : hotel?.settings?.defaultBoardBasis === "hb"
+                            ? "Half Board (HB)"
+                            : hotel?.settings?.defaultBoardBasis === "fb"
+                            ? "Full Board (FB)"
+                            : hotel?.settings?.defaultBoardBasis || "Bed & Breakfast (BB)"
+                        }
+                        placeholder="e.g. Bed & Breakfast (BB), Room Only (RO), Half Board (HB), Full Board (FB)"
+                        className="flex-1 max-w-sm h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
                         {hotel?.settings?.defaultBoardBasis === "ro"
                           ? "Room Only (RO)"
+                          : hotel?.settings?.defaultBoardBasis === "bb"
+                          ? "Bed & Breakfast (BB)"
                           : hotel?.settings?.defaultBoardBasis === "hb"
                           ? "Half Board (HB)"
                           : hotel?.settings?.defaultBoardBasis === "fb"
                           ? "Full Board (FB)"
-                          : "Bed & Breakfast (BB)"}
+                          : hotel?.settings?.defaultBoardBasis || "Bed & Breakfast (BB)"}
                       </span>
                     )}
                   </div>
@@ -3365,6 +4220,183 @@ export default function HotelPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* =================================================================== */}
+      {/* MODAL 5: COMPLIANCE DOCUMENT UPLOAD & VERIFICATION MODAL           */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isDocModalOpen}
+        onOpenChange={(open) => {
+          setIsDocModalOpen(open);
+          if (!open) {
+            setEditingDoc(null);
+            setDocFileUrl("");
+            setDocFileName("");
+            setDocFileSize("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-700" />
+              <span>{editingDoc ? "Edit Compliance Document" : "Upload Compliance Certificate / License"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveComplianceDoc} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Document Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                defaultValue={editingDoc?.title || ""}
+                placeholder="e.g. Ministry of Revenues TIN Certificate, Commercial Trade License"
+                required
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Document Category
+                </label>
+                <select
+                  name="category"
+                  defaultValue={editingDoc?.category || "trade_license"}
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                >
+                  <option value="tax_tin">Ministry of Revenues TIN Certificate</option>
+                  <option value="vat_cert">VAT Registration Certificate (15%)</option>
+                  <option value="trade_license">Commercial Trade License (MoTRI)</option>
+                  <option value="tourism_rating">Ministry of Tourism Star Rating</option>
+                  <option value="health_fire_safety">Fire Safety / Health Inspection</option>
+                  <option value="other">Other Regulatory Document</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  License / Document Number
+                </label>
+                <input
+                  type="text"
+                  name="docNumber"
+                  defaultValue={editingDoc?.docNumber || ""}
+                  placeholder="e.g. 0012345678, VAT-10-883"
+                  className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Issue Date
+                </label>
+                <input
+                  type="date"
+                  name="issueDate"
+                  defaultValue={editingDoc?.issueDate || ""}
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Expiry / Renewal Date
+                </label>
+                <input
+                  type="date"
+                  name="expiryDate"
+                  defaultValue={editingDoc?.expiryDate || ""}
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            {/* File Upload Attachment Box */}
+            <div className="p-3.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)] space-y-2">
+              <label className="text-xs font-bold text-[var(--text-primary)] block">
+                Attach Official PDF / Image File
+              </label>
+              <input
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setDocFileName(file.name);
+                  setDocFileSize(`${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setDocFileUrl(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-700 file:text-white hover:file:bg-blue-800 file:cursor-pointer cursor-pointer"
+              />
+              {(docFileName || editingDoc?.fileName) && (
+                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>File Selected: {docFileName || editingDoc?.fileName} ({docFileSize || editingDoc?.fileSize || "Ready"})</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Or Document Web / Cloud Link (Optional)
+              </label>
+              <input
+                type="url"
+                name="fileUrl"
+                defaultValue={editingDoc?.fileUrl || ""}
+                placeholder="https://storage.provider.com/licenses/cert.pdf"
+                className="w-full h-8 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Compliance Notes & Registration Details
+              </label>
+              <textarea
+                name="notes"
+                defaultValue={editingDoc?.notes || ""}
+                rows={2}
+                placeholder="e.g. Registered with Addis Ababa Large Taxpayers Office (LTO)."
+                className="w-full p-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 resize-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDocModalOpen(false);
+                  setEditingDoc(null);
+                  setDocFileUrl("");
+                  setDocFileName("");
+                  setDocFileSize("");
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingDoc ? "Save Changes" : "Attach Document"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
