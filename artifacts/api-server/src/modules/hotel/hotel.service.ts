@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { eq, sql } from 'drizzle-orm';
 import { db, hotelsTable, branchesTable, buildingsTable, floorsTable, roomsTable } from '@workspace/db';
 
-const fmt = (h: any) => ({ ...h, starRating: h.starRating ?? null, deletedAt: h.deletedAt?.toISOString() ?? null, createdAt: h.createdAt.toISOString(), updatedAt: h.updatedAt.toISOString() });
+const fmt = (h: any) => ({ ...h, starRating: h.starRating ?? null, settings: h.settings ?? {}, deletedAt: h.deletedAt?.toISOString() ?? null, createdAt: h.createdAt.toISOString(), updatedAt: h.updatedAt.toISOString() });
 
 @Injectable()
 export class HotelService {
@@ -59,6 +59,7 @@ export class HotelService {
       lateCheckoutTier1Percent: b.lateCheckoutTier1Percent !== undefined ? String(b.lateCheckoutTier1Percent) : '25',
       lateCheckoutTier2Percent: b.lateCheckoutTier2Percent !== undefined ? String(b.lateCheckoutTier2Percent) : '50',
       lateCheckoutCutoffTime: b.lateCheckoutCutoffTime ?? '18:00',
+      settings: b.settings ?? {},
       createdBy: b.createdBy,
     }).returning();
     return fmt(h);
@@ -70,7 +71,7 @@ export class HotelService {
       'address','postalCode','latitude','longitude','description','timezone','currencyCode',
       'taxNumber','licenseNumber','starRating','checkInTime','checkOutTime',
       'lateCheckoutGraceMinutes','lateCheckoutHourlyFee','lateCheckoutTier1Percent',
-      'lateCheckoutTier2Percent','lateCheckoutCutoffTime','status','isActive'
+      'lateCheckoutTier2Percent','lateCheckoutCutoffTime','status','isActive','settings'
     ];
     for (const k of fields) {
       if (b[k] !== undefined) {

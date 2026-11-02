@@ -1439,7 +1439,7 @@ function ManagerDashboard({ currentRole }: { currentRole: string }) {
           { title: "Maintenance", desc: "Work Order Queue", href: "/maintenance", icon: Wrench },
           { title: "F&B & POS", desc: "Dining & Orders", href: "/restaurant", icon: UtensilsCrossed },
           { title: "Financial Shift", desc: "Cash & Ledger", href: "/financial", icon: DollarSign },
-          { title: "Staff Roster", desc: "Employees & Shifts", href: "/employees", icon: Users2 },
+          { title: "Staff Roster", desc: "HR, Shifts & Roster", href: "/hr", icon: Users2 },
         ].map((item, i) => (
           <Link key={i} href={item.href} className="p-3.5 rounded-xl border border-border bg-surface hover:border-primary/50 transition-all shadow-sm group">
             <item.icon className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
@@ -1834,7 +1834,7 @@ function ExecutiveDashboard({ currentRole }: { currentRole: string }) {
         </div>
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link href="/bi">BI Analytics</Link>
+            <Link href="/reports">Financial Reports</Link>
           </Button>
           <Button asChild size="sm">
             <Link href="/financial">General Ledger</Link>
@@ -2851,7 +2851,7 @@ function WaiterDashboard({ currentRole }: { currentRole: string }) {
           <Table>
             <TableHeader className="bg-surface-muted">
               <TableRow>
-                <TableHead className="font-semibold text-xs">Table / Room</TableHead>
+                <TableHead className="font-semibold text-xs">Dining Location</TableHead>
                 <TableHead className="font-semibold text-xs">Order Ticket</TableHead>
                 <TableHead className="font-semibold text-xs">Guest Name</TableHead>
                 <TableHead className="font-semibold text-xs">Items Count</TableHead>
@@ -3133,14 +3133,11 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
             <div className="text-xs font-semibold text-text mt-0.5">
               Meals Prepared Today
             </div>
-            <p className="text-[11px] text-text-muted mt-0.5 leading-tight">
-              Total meals completed during the current day.
-            </p>
           </div>
         </Card>
 
         {/* Card 2: Staff */}
-        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[125px]">
+        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[100px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Staff</span>
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
@@ -3154,14 +3151,11 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
             <div className="text-xs font-semibold text-text mt-0.5">
               Kitchen Staff on Duty
             </div>
-            <p className="text-[11px] text-text-muted mt-0.5 leading-tight">
-              Kitchen employees currently working.
-            </p>
           </div>
         </Card>
 
         {/* Card 3: Orders */}
-        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[125px]">
+        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[100px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Orders</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
@@ -3175,14 +3169,11 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
             <div className="text-xs font-semibold text-text mt-0.5">
               Total Active Orders
             </div>
-            <p className="text-[11px] text-text-muted mt-0.5 leading-tight">
-              All orders currently being handled by the kitchen.
-            </p>
           </div>
         </Card>
 
         {/* Card 4: Ready */}
-        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[125px]">
+        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[100px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Ready</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
@@ -3196,14 +3187,11 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
             <div className="text-xs font-semibold text-text mt-0.5">
               Ready to Serve
             </div>
-            <p className="text-[11px] text-text-muted mt-0.5 leading-tight">
-              Orders completed and waiting for pickup or delivery.
-            </p>
           </div>
         </Card>
 
         {/* Card 5: Delayed */}
-        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[125px]">
+        <Card className="bg-surface border border-border rounded-xl p-3.5 shadow-2xs flex flex-col justify-between min-h-[100px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Delayed</span>
             <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center">
@@ -3217,9 +3205,6 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
             <div className="text-xs font-semibold text-text mt-0.5">
               Delayed Orders
             </div>
-            <p className="text-[11px] text-text-muted mt-0.5 leading-tight">
-              Orders that have exceeded their expected preparation time.
-            </p>
           </div>
         </Card>
       </div>
@@ -3268,9 +3253,6 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
                 <div className="text-xs font-semibold text-text mt-0.5">
                   Orders in Preparation
                 </div>
-                <p className="text-[10px] text-text-muted mt-0.5 leading-tight">
-                  Orders currently being cooked or prepared.
-                </p>
               </div>
             </div>
 
@@ -3290,9 +3272,6 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
                 <div className="text-xs font-semibold text-text mt-0.5">
                   Low-Stock Ingredients
                 </div>
-                <p className="text-[10px] text-text-muted mt-0.5 leading-tight">
-                  Ingredients that need replenishment.
-                </p>
               </div>
             </div>
           </div>
@@ -3332,9 +3311,6 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
               <h3 className="text-sm font-semibold text-text">
                 Live Cooking Queue Telemetry
               </h3>
-              <p className="text-[11px] text-text-muted">
-                Real-time status of cooking tickets and pass readiness
-              </p>
             </div>
 
             <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg flex-wrap">
@@ -3366,7 +3342,7 @@ function KitchenDashboard({ currentRole }: { currentRole: string }) {
                 <TableRow>
                   <TableHead className="font-semibold text-xs py-2">Ticket #</TableHead>
                   <TableHead className="font-semibold text-xs py-2">Location</TableHead>
-                  <TableHead className="font-semibold text-xs py-2">Guest / Server</TableHead>
+                  <TableHead className="font-semibold text-xs py-2">Server</TableHead>
                   <TableHead className="font-semibold text-xs py-2">Dishes Ordered</TableHead>
                   <TableHead className="font-semibold text-xs py-2">Station Line</TableHead>
                   <TableHead className="font-semibold text-xs py-2">Status</TableHead>
@@ -3722,10 +3698,10 @@ function CoordinatorDashboard({ currentRole }: { currentRole: string }) {
               <TableRow>
                 <TableHead className="font-semibold text-xs">Ticket #</TableHead>
                 <TableHead className="font-semibold text-xs">Dining Case</TableHead>
-                <TableHead className="font-semibold text-xs">Table / Room</TableHead>
+                <TableHead className="font-semibold text-xs">Dining Location</TableHead>
                 <TableHead className="font-semibold text-xs">Guest Name</TableHead>
                 <TableHead className="font-semibold text-xs">Station Line</TableHead>
-                <TableHead className="font-semibold text-xs">Server / Runner</TableHead>
+                <TableHead className="font-semibold text-xs">Server</TableHead>
                 <TableHead className="font-semibold text-xs">Flow Status</TableHead>
                 <TableHead className="font-semibold text-xs">Elapsed</TableHead>
               </TableRow>

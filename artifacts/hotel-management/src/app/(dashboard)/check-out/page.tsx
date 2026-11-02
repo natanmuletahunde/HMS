@@ -25,7 +25,6 @@ import {
   Building,
   ArrowLeft,
   Check,
-  ShieldCheck,
   Banknote,
   Clock,
 } from "lucide-react";
@@ -732,8 +731,6 @@ export default function CheckOutPage() {
                   <span>Res #{checkOutTarget?.reservationNumber}</span>
                   <span>&bull;</span>
                   <span>Room <strong className="text-primary font-bold">{checkOutTarget?.roomNumber ?? "—"}</strong></span>
-                  <span>&bull;</span>
-                  <span>Hotel Standard: <strong className="text-foreground font-mono">{lateCalc.standardTime}</strong> ({lateCalc.graceMinutes}m grace)</span>
                 </div>
               </div>
             </div>
@@ -763,86 +760,6 @@ export default function CheckOutPage() {
           >
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-          {/* Hotel Policy Standard & Late Checkout Calculation Card */}
-          <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 dark:bg-blue-950/20 p-3.5 text-xs space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-300">
-                <Clock className="h-4 w-4" />
-                <span>Hotel Standard Check-Out Policy &amp; Timing</span>
-              </div>
-              <Badge variant={lateCalc.isLate ? "warning" : "success"} className="text-[10px]">
-                {lateCalc.isLate ? `⚠️ Late Checkout (${lateCalc.tierLabel})` : `✓ On-Time (By ${lateCalc.deadlineText})`}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-muted-foreground pt-1 border-t border-blue-500/10">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider block text-muted-foreground">Standard Deadline</span>
-                <span className="font-bold text-foreground font-mono text-xs">{lateCalc.standardTime}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider block text-muted-foreground">Grace Period</span>
-                <span className="font-semibold text-foreground font-mono text-xs">{lateCalc.graceMinutes} Minutes</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider block text-muted-foreground">Overdue Time</span>
-                <span className={`font-semibold font-mono text-xs ${lateCalc.isLate ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {lateCalc.isLate ? `+${lateCalc.hoursLate.toFixed(1)} Hours` : "0h (On-Time)"}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase tracking-wider block text-muted-foreground">Assessed Late Fee</span>
-                <span className={`font-bold font-mono text-xs ${calculatedLateFee > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {calculatedLateFee > 0 ? `+${hotelCurrency} ${calculatedLateFee.toFixed(2)}` : "Free ($0.00)"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Billing Agreement & Payment Plan Card */}
-          <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5 text-xs space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <span className="font-semibold text-foreground">Room Accommodation Agreement</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-background p-1 rounded-lg border border-border/70">
-                <button
-                  type="button"
-                  onClick={() => setPaymentPlanMode("prepaid")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    isPrepaid
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  ✓ Pre-Paid in Advance
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentPlanMode("pay_at_checkout")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                    !isPrepaid
-                      ? "bg-amber-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  ⚡ Pay at Check-Out
-                </button>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground">
-              {isPrepaid ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ Room accommodation (${baseRoomTotal.toFixed(2)}) was settled in advance. Guest only settles incidental orders, minibar, damages, or late checkout fee.
-                </span>
-              ) : (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">
-                  ⚡ Post-Paid stay: Guest agreed to settle room accommodation (${baseRoomTotal.toFixed(2)}) upon departure.
-                </span>
-              )}
-            </p>
-          </div>
 
           {/* Housekeeping Inspection Clearance Card */}
           {targetInspection?.status === "cleared" ? (
@@ -881,7 +798,7 @@ export default function CheckOutPage() {
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs space-y-2">
               <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-semibold">
                 <span className="flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4" /> Inspection Reported Issues / Folio Updated
+                  <AlertTriangle className="h-4 w-4" /> Inspection Reported Issues
                 </span>
                 <Badge variant="warning" className="text-[10px]">
                   Folio Adjusted
@@ -893,7 +810,7 @@ export default function CheckOutPage() {
                   <span className="font-medium text-text">${Number(targetInspection.minibarTotal || 0).toFixed(2)}</span>
                 </div>
                 <div>
-                  Damage / Incidentals:{" "}
+                  Damage Charges:{" "}
                   <span className="font-medium text-rose-500">${Number(targetInspection.damageCharges || 0).toFixed(2)}</span>
                 </div>
               </div>
@@ -944,7 +861,7 @@ export default function CheckOutPage() {
                   className="h-4 w-4 rounded border-amber-500 text-primary cursor-pointer"
                 />
                 <label htmlFor="managerOverride" className="text-xs text-text-muted cursor-pointer font-medium">
-                  Front Desk Manager Override (Bypass room inspection)
+                  Front Desk Manager Override
                 </label>
               </div>
             </div>
@@ -968,7 +885,7 @@ export default function CheckOutPage() {
                 <div>
                   <span className="font-medium text-foreground">Room Stay Accommodation</span>
                   <span className="text-[11px] text-muted-foreground block">
-                    {checkOutTarget?.nights || 1} Night{(checkOutTarget?.nights || 1) > 1 ? "s" : ""} &bull; Scheduled {checkOutTarget?.checkInDate ? new Date(checkOutTarget.checkInDate).toLocaleDateString() : ""} to {checkOutTarget?.checkOutDate ? new Date(checkOutTarget.checkOutDate).toLocaleDateString() : ""}
+                    {checkOutTarget?.nights || 1} Night{(checkOutTarget?.nights || 1) > 1 ? "s" : ""}
                   </span>
                 </div>
                 <div className="text-right">
@@ -1014,7 +931,7 @@ export default function CheckOutPage() {
               {/* Damage Charges */}
               {damageCharges > 0 && (
                 <div className="flex items-center justify-between pt-2 text-rose-500">
-                  <span>Incidentals / Damage Charges (Housekeeping Inspection)</span>
+                  <span>Damage Charges (Housekeeping Inspection)</span>
                   <span className="font-semibold font-mono">+${damageCharges.toFixed(2)}</span>
                 </div>
               )}
@@ -1028,9 +945,6 @@ export default function CheckOutPage() {
                       {lateCalc.tierLabel}
                     </Badge>
                   </div>
-                  <span className="text-[10px] text-muted-foreground block">
-                    Policy standard deadline: {lateCalc.standardTime} (with {lateCalc.graceMinutes}m grace period)
-                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`font-semibold font-mono ${calculatedLateFee > 0 ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
@@ -1086,15 +1000,6 @@ export default function CheckOutPage() {
                       ? "Refund Due to Guest"
                       : "Zero Balance Reconciled"}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {netSettlementDue > 0
-                    ? isPrepaid
-                      ? "Incidental services & late departure fees (Room accommodation was pre-paid)."
-                      : "Unpaid room accommodation + services + late checkout fee minus deposit."
-                    : refundDueToGuest > 0
-                      ? "Deposit exceeds incidental charges. Please refund the difference to guest."
-                      : "All charges and accommodation are completely paid and settled."}
-                </p>
               </div>
               <div className="text-right">
                 <span className={`text-2xl font-black font-mono tracking-tight ${
@@ -1112,17 +1017,14 @@ export default function CheckOutPage() {
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <CreditCard className="h-4 w-4 text-primary" />
-                  Select Settlement Payment Method *
+                  Select Settlement Payment Method
                 </Label>
-                <Badge variant="outline" className="text-[10px]">
-                  Required for Checkout
-                </Badge>
               </div>
 
               {/* Payment Method Pills */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
-                  { id: "card", label: "Card / POS", icon: CreditCard },
+                  { id: "card", label: "Card", icon: CreditCard },
                   { id: "cash", label: "Cash", icon: Banknote },
                   { id: "telebirr", label: "Telebirr", icon: Wallet },
                   { id: "bank_transfer", label: "Bank Transfer", icon: Building },
@@ -1153,20 +1055,19 @@ export default function CheckOutPage() {
                 <div className="rounded-lg border border-border bg-background p-3 grid grid-cols-2 gap-3 items-center">
                   <div className="grid gap-1">
                     <Label htmlFor="cashTendered" className="text-[11px] font-semibold text-foreground">
-                      Cash Received from Guest ($)
+                      Cash Received ($)
                     </Label>
                     <Input
                       id="cashTendered"
                       type="number"
                       step="0.01"
-                      placeholder={netSettlementDue.toFixed(2)}
                       value={cashTendered}
                       onChange={(e) => setCashTendered(e.target.value)}
                       className="h-9 text-xs font-mono font-bold"
                     />
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-muted-foreground block">Change to Return to Guest</span>
+                    <span className="text-[10px] font-medium text-muted-foreground block">Change Due</span>
                     <span className={`text-base font-bold font-mono ${cashGivenNum >= netSettlementDue ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
                       ${changeDue.toFixed(2)}
                     </span>
@@ -1174,14 +1075,13 @@ export default function CheckOutPage() {
                 </div>
               )}
 
-              {/* Transaction Reference / POS Slip # */}
+              {/* Transaction Reference */}
               <div className="grid gap-1">
                 <Label htmlFor="transactionReference" className="text-[11px] font-semibold text-foreground">
-                  Transaction Slip / Reference Number (Optional)
+                  Transaction Reference
                 </Label>
                 <Input
                   id="transactionReference"
-                  placeholder="e.g. POS Approval Slip #, Telebirr Txn ID, or CBE Ref"
                   value={transactionReference}
                   onChange={(e) => setTransactionReference(e.target.value)}
                   className="h-9 text-xs"
@@ -1193,12 +1093,11 @@ export default function CheckOutPage() {
           {/* Guest Departure Comments */}
           <div className="grid gap-1.5">
             <Label htmlFor="feedbackNotes" className="text-xs font-semibold text-foreground">
-              Guest Departure Comments &amp; Front Desk Notes
+              Departure Notes
             </Label>
             <Input
               id="feedbackNotes"
               name="feedbackNotes"
-              placeholder="Guest comments on stay / staff remarks"
               className="h-10 text-xs"
             />
           </div>
@@ -1211,7 +1110,7 @@ export default function CheckOutPage() {
               className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
             >
               <Pencil className="h-3 w-3" />
-              <span>{isManualEdit ? "Hide Manual Adjustments (Use System Auto-Calculation)" : "Manager Manual Adjustment Override (Optional)"}</span>
+              <span>{isManualEdit ? "Hide Manual Adjustments" : "Manager Adjustment Override"}</span>
             </button>
             {isManualEdit && (
               <div className="grid grid-cols-2 gap-3 mt-2 p-3 bg-muted/20 border border-border rounded-xl">
@@ -1223,7 +1122,6 @@ export default function CheckOutPage() {
                     id="manualLateFee"
                     type="number"
                     step="0.01"
-                    placeholder={effectiveLateFee.toFixed(2)}
                     value={manualLateFee}
                     onChange={(e) => setManualLateFee(e.target.value)}
                     className="h-8 text-xs font-mono"
@@ -1237,7 +1135,6 @@ export default function CheckOutPage() {
                     id="manualTotalCharges"
                     type="number"
                     step="0.01"
-                    placeholder={netSettlementDue.toFixed(2)}
                     value={manualTotalCharges}
                     onChange={(e) => setManualTotalCharges(e.target.value)}
                     className="h-8 text-xs font-mono"
@@ -1307,9 +1204,6 @@ export default function CheckOutPage() {
                   <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
                     Guest Folio &amp; Stay Settlement Announcement
                   </DialogTitle>
-                  <p className="text-xs text-muted-foreground">
-                    Itemized billing statement reconciled for Guest and Front Desk Receptionist.
-                  </p>
                 </div>
               </div>
             </div>
@@ -1332,7 +1226,7 @@ export default function CheckOutPage() {
                     <span className="font-mono">{folioTarget?.reservationNumber}</span>
                   </div>
                   <div>
-                    <span className="text-text-muted">Cashier / Staff:</span>{" "}
+                    <span className="text-text-muted">Staff:</span>{" "}
                     <span className="font-medium text-foreground">{currentStaffName}</span>
                   </div>
                 </div>
@@ -1427,7 +1321,7 @@ export default function CheckOutPage() {
                   {/* Damage charges */}
                   {damageCharges > 0 && (
                     <TableRow>
-                      <TableCell className="text-xs font-medium">Damages / Incidentals</TableCell>
+                      <TableCell className="text-xs font-medium">Damage Charges</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px] text-rose-500">Room Inspection</Badge></TableCell>
                       <TableCell className="text-xs text-text-muted">{targetInspection?.inspectedBy || "Housekeeping"}</TableCell>
                       <TableCell className="text-xs font-mono font-semibold text-right text-rose-500">+${damageCharges.toFixed(2)}</TableCell>

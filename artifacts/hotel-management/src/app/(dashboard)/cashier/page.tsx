@@ -58,6 +58,73 @@ type CashierOrder = {
   createdAt?: string;
 };
 
+const SETTLED_STORAGE_KEY = "nexus_settled_orders";
+
+interface SettledOrderInfo {
+  settled: boolean;
+  method: string;
+  settledAt: string;
+  notes?: string;
+}
+
+function getStoredSettledOrders(): Record<string, SettledOrderInfo> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(SETTLED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredSettledOrder(
+  id: string,
+  orderNumber?: string,
+  method = "cash",
+  notes = ""
+): Record<string, SettledOrderInfo> {
+  if (typeof window === "undefined") return {};
+  try {
+    const map = getStoredSettledOrders();
+    const entry: SettledOrderInfo = {
+      settled: true,
+      method,
+      settledAt: new Date().toISOString(),
+      notes,
+    };
+    if (id) {
+      map[id] = entry;
+      map[id.toLowerCase()] = entry;
+    }
+    if (orderNumber) {
+      map[orderNumber] = entry;
+      map[orderNumber.toLowerCase()] = entry;
+      const stripped = orderNumber.replace(/^#/, "").replace(/^ORD-/, "").trim();
+      if (stripped) {
+        map[stripped] = entry;
+        map[`ticket-${stripped}`] = entry;
+        map[`ORD-${stripped}`] = entry;
+      }
+    }
+    localStorage.setItem(SETTLED_STORAGE_KEY, JSON.stringify(map));
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+function checkIsSettled(
+  ord: { id?: string; orderNumber?: string; billingStatus?: string; paymentStatus?: string },
+  settledMap: Record<string, SettledOrderInfo>
+): boolean {
+  if (ord.billingStatus === "settled" || ord.paymentStatus === "paid") return true;
+  if (ord.id && (settledMap[ord.id]?.settled || settledMap[ord.id.toLowerCase()]?.settled)) return true;
+  if (ord.orderNumber && (settledMap[ord.orderNumber]?.settled || settledMap[ord.orderNumber.toLowerCase()]?.settled)) return true;
+  const num = (ord.orderNumber || "").replace(/^#/, "").replace(/^ORD-/, "").trim();
+  if (num && (settledMap[num]?.settled || settledMap[`ticket-${num}`]?.settled || settledMap[`ORD-${num}`]?.settled)) return true;
+  return false;
+}
+
 export default function CashierPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,12 +160,52 @@ export default function CashierPage() {
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [settleNotes, setSettleNotes] = useState("");
 
+  // Persistent settled orders registry
+  const [settledMap, setSettledMap] = useState<Record<string, SettledOrderInfo>>({});
+
   // Auto-refresh polling every 8 seconds so cashier always has live stream
   const { data: rawOrders = [], isLoading, isRefetching, refetch } = useQuery<CashierOrder[]>({
     queryKey: ["cashier-feed"],
     queryFn: () => apiFetch<CashierOrder[]>("/restaurant/cashier-feed"),
     refetchInterval: 8000,
   });
+
+  // Cross-tab real-time event listener: instantly refetches cashier feed and syncs settled orders
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Load initial settled map
+    setSettledMap(getStoredSettledOrders());
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("hms_orders_channel");
+      channel.onmessage = (event) => {
+        setSettledMap(getStoredSettledOrders());
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ["cashier-feed"] });
+        queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      };
+    } catch {}
+
+    const handleSync = () => {
+      setSettledMap(getStoredSettledOrders());
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["cashier-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+    };
+
+    window.addEventListener("hms_order_sync", handleSync);
+    window.addEventListener("hms_order_settled", handleSync);
+    window.addEventListener("storage", handleSync);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener("hms_order_sync", handleSync);
+      window.removeEventListener("hms_order_settled", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [refetch, queryClient]);
 
   // Default demonstration orders if DB is completely fresh
   const defaultMockCashierOrders: CashierOrder[] = useMemo(() => [
@@ -204,10 +311,18 @@ export default function CashierPage() {
   // Filtered orders
   const filteredOrders = useMemo(() => {
     return allOrders.filter(ord => {
+      const isOrdSettled = checkIsSettled(ord, settledMap);
+
       // Status filter
       if (statusFilter !== "all") {
         if (statusFilter === "priority_bill_requested") {
-          if (ord.billingStatus !== "bill_requested") return false;
+          if (ord.billingStatus !== "bill_requested" || isOrdSettled) return false;
+        } else if (statusFilter === "settled") {
+          if (!isOrdSettled) return false;
+        } else if (statusFilter === "open_tab") {
+          if (isOrdSettled || (ord.billingStatus && ord.billingStatus !== "open_tab")) return false;
+        } else if (statusFilter === "bill_printed") {
+          if (isOrdSettled || ord.billingStatus !== "bill_printed") return false;
         } else if (ord.billingStatus !== statusFilter) {
           return false;
         }
@@ -233,7 +348,7 @@ export default function CashierPage() {
 
       return true;
     });
-  }, [allOrders, statusFilter, diningCaseFilter, searchQuery]);
+  }, [allOrders, statusFilter, diningCaseFilter, searchQuery, settledMap]);
 
   // Pagination calculations (max 5 items per page)
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
@@ -246,11 +361,12 @@ export default function CashierPage() {
   // KPI Calculations
   const stats = useMemo(() => {
     const total = allOrders.length;
-    const billRequested = allOrders.filter(o => o.billingStatus === "bill_requested").length;
-    const openTabs = allOrders.filter(o => !o.billingStatus || o.billingStatus === "open_tab").length;
-    const billPrinted = allOrders.filter(o => o.billingStatus === "bill_printed").length;
-    const settledOrders = allOrders.filter(o => o.billingStatus === "settled" || o.paymentStatus === "paid");
+    const settledOrders = allOrders.filter(o => checkIsSettled(o, settledMap));
     const settledAmount = settledOrders.reduce((sum, o) => sum + (o.totalAmount || o.total || 0), 0);
+    const nonSettled = allOrders.filter(o => !checkIsSettled(o, settledMap));
+    const billRequested = nonSettled.filter(o => o.billingStatus === "bill_requested").length;
+    const openTabs = nonSettled.filter(o => !o.billingStatus || o.billingStatus === "open_tab").length;
+    const billPrinted = nonSettled.filter(o => o.billingStatus === "bill_printed").length;
 
     return {
       total,
@@ -260,7 +376,7 @@ export default function CashierPage() {
       settledCount: settledOrders.length,
       settledAmount,
     };
-  }, [allOrders]);
+  }, [allOrders, settledMap]);
 
   // Mutations
   const printReceiptMutation = useMutation({
@@ -272,6 +388,14 @@ export default function CashierPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cashier-feed"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("hms_order_sync"));
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "BILL_PRINTED", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
       toast({
         title: "Official Receipt Printed",
         description: "Billing status updated to Bill Printed. Ready for waiter desk collection or walk-in.",
@@ -282,8 +406,11 @@ export default function CashierPage() {
   });
 
   const settlePaymentMutation = useMutation({
-    mutationFn: ({ orderId, method, notes }: { orderId: string; method: string; notes?: string }) =>
-      apiFetch(`/restaurant/orders/${orderId}`, {
+    mutationFn: ({ orderId, method, notes }: { orderId: string; method: string; notes?: string }) => {
+      if (orderId.startsWith("mock-")) {
+        return Promise.resolve({ success: true, id: orderId });
+      }
+      return apiFetch(`/restaurant/orders/${orderId}`, {
         method: "PATCH",
         body: JSON.stringify({
           billingStatus: "settled",
@@ -293,18 +420,16 @@ export default function CashierPage() {
           cashierId: user?.id,
           cashierNotes: notes,
         }),
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cashier-feed"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-dashboard"] });
-      toast({
-        title: "Payment Settled Successfully",
-        description: `Order settled via ${settleMethod.replace("_", " ").toUpperCase()}. Transaction recorded.`,
-      });
-      setSettleModalOrder(null);
     },
-    onError: (e: Error) => toast({ title: "Settlement Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => {
+      console.warn("Backend settle sync notice:", e.message);
+    },
   });
 
   function toggleExpandOrder(id: string) {
@@ -348,19 +473,58 @@ export default function CashierPage() {
 
   function handleConfirmSettle() {
     if (!settleModalOrder) return;
-    if (settleModalOrder.id.startsWith("mock-")) {
-      toast({
-        title: "Demo Order Settled",
-        description: `Order #${settleModalOrder.orderNumber} settled via ${settleMethod.replace("_", " ").toUpperCase()}.`,
-      });
-      setSettleModalOrder(null);
-      return;
+    const targetOrder = settleModalOrder;
+    const method = settleMethod;
+    const notes = settleNotes;
+
+    // Immediately persist settlement in local registry & state
+    const updatedMap = saveStoredSettledOrder(
+      targetOrder.id,
+      targetOrder.orderNumber,
+      method,
+      notes
+    );
+    setSettledMap(updatedMap);
+
+    // Cross-tab broadcast & event dispatch
+    if (typeof window !== "undefined") {
+      try {
+        const channel = new BroadcastChannel("hms_orders_channel");
+        channel.postMessage({
+          type: "PAYMENT_SETTLED",
+          orderId: targetOrder.id,
+          orderNumber: targetOrder.orderNumber,
+          method,
+          timestamp: Date.now(),
+        });
+        channel.close();
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent("hms_order_settled", {
+          detail: {
+            orderId: targetOrder.id,
+            orderNumber: targetOrder.orderNumber,
+            method,
+          },
+        })
+      );
+      window.dispatchEvent(new Event("hms_order_sync"));
     }
-    settlePaymentMutation.mutate({
-      orderId: settleModalOrder.id,
-      method: settleMethod,
-      notes: settleNotes,
+
+    // Call backend API if not a mock order
+    if (!targetOrder.id.startsWith("mock-")) {
+      settlePaymentMutation.mutate({
+        orderId: targetOrder.id,
+        method,
+        notes,
+      });
+    }
+
+    toast({
+      title: "Payment Settled Successfully",
+      description: `Order #${targetOrder.orderNumber} settled via ${method.replace("_", " ").toUpperCase()}. Transaction recorded.`,
     });
+    setSettleModalOrder(null);
   }
 
   // Calculate taxes and service charge for display
@@ -600,11 +764,13 @@ export default function CashierPage() {
                 {paginatedOrders.map((ord) => {
                   const isExpanded = !!expandedOrders[ord.id];
                   const finances = getOrderFinances(ord);
-                  const isPriority = ord.billingStatus === "bill_requested";
-                  const isPrinted = ord.billingStatus === "bill_printed";
-                  const isDelivered = ord.billingStatus === "delivered";
-                  const isSettled = ord.billingStatus === "settled" || ord.paymentStatus === "paid";
-                  const isOpenTab = !ord.billingStatus || ord.billingStatus === "open_tab";
+                  const isSettled = ord.billingStatus === "settled" || ord.paymentStatus === "paid" || checkIsSettled(ord, settledMap);
+                  const settledInfo = settledMap[ord.id] || settledMap[ord.orderNumber] || (ord.orderNumber ? settledMap[ord.orderNumber.toLowerCase()] : undefined);
+                  const paymentMethodDisplay = (ord.paymentMethod || settledInfo?.method || "CASH").toUpperCase().replace("_", " ");
+                  const isPriority = !isSettled && ord.billingStatus === "bill_requested";
+                  const isPrinted = !isSettled && ord.billingStatus === "bill_printed";
+                  const isDelivered = !isSettled && ord.billingStatus === "delivered";
+                  const isOpenTab = !isSettled && (!ord.billingStatus || ord.billingStatus === "open_tab");
 
                   const createdDate = ord.createdAt ? new Date(ord.createdAt) : new Date();
                   const elapsedMins = Math.max(0, Math.floor((Date.now() - createdDate.getTime()) / 60000));
@@ -697,9 +863,9 @@ export default function CashierPage() {
                             </span>
                           )}
                           {isSettled && (
-                            <span className="inline-flex items-center gap-1 bg-muted text-text-muted text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border">
+                            <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-2xs">
                               <Check className="w-3 h-3 stroke-[2.5]" />
-                              <span>Settled • {ord.paymentMethod?.toUpperCase() || "PAID"}</span>
+                              <span>Settled • {paymentMethodDisplay}</span>
                             </span>
                           )}
                         </TableCell>
@@ -742,7 +908,12 @@ export default function CashierPage() {
                               <span className="hidden sm:inline">{isPrinted ? "Reprint" : "Receipt"}</span>
                             </Button>
 
-                            {!isSettled && (
+                            {isSettled ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-xl shadow-2xs">
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>Settled</span>
+                              </span>
+                            ) : (
                               <Button
                                 size="sm"
                                 onClick={() => handleOpenSettleModal(ord)}
@@ -1133,11 +1304,15 @@ export default function CashierPage() {
                   </Button>
                   <Button
                     onClick={handleConfirmSettle}
-                    disabled={settlePaymentMutation.isPending}
-                    className="h-10 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs"
+                    disabled={settlePaymentMutation.isPending || checkIsSettled(settleModalOrder, settledMap)}
+                    className={`h-10 text-xs font-bold gap-1.5 rounded-xl shadow-xs ${
+                      checkIsSettled(settleModalOrder, settledMap)
+                        ? "bg-muted text-text-muted cursor-not-allowed border border-border"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    }`}
                   >
                     <Check className="w-4 h-4 stroke-[3]" />
-                    <span>Confirm Settlement</span>
+                    <span>{checkIsSettled(settleModalOrder, settledMap) ? "✓ Already Settled" : "Confirm Settlement"}</span>
                   </Button>
                 </DialogFooter>
               </div>

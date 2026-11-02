@@ -762,7 +762,7 @@ export function RoomCheckInModal({
                       <option value="settle_on_checkout">Settle All on Check-Out</option>
                       <option value="card">Credit / Debit Card Pre-Auth</option>
                       <option value="cash">Cash Deposit at Desk</option>
-                      <option value="mobile_money">Telebirr Merchant (889900)</option>
+                      <option value="mobile_money">Telebirr Merchant</option>
                       <option value="bank_transfer">CBE Birr / Direct Transfer</option>
                     </>
                   )}

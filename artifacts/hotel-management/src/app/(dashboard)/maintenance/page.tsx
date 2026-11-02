@@ -502,11 +502,7 @@ export default function MaintenancePage() {
                 <Input name="reportedBy" placeholder="Staff name" />
               </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-            </div>
-            <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+            <Button type="submit" className="w-full mt-2" disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Request
             </Button>

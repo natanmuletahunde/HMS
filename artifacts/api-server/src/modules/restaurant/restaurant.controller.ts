@@ -82,6 +82,31 @@ export class RestaurantController {
     return this.svc.updateOrder(id, b);
   }
 
+  @Patch('orders/:orderId/items/:itemId/status')
+  updateItemStatus(
+    @Param('orderId') orderId: string,
+    @Param('itemId') itemId: string,
+    @Body() b: { status: string; notes?: string },
+  ) {
+    return this.svc.updateItemStatus(orderId, itemId, b.status, b?.notes);
+  }
+
+  @Post('orders/:orderId/items')
+  appendItemsToOrder(
+    @Param('orderId') orderId: string,
+    @Body() b: { items: any[]; roundNumber?: number; notes?: string },
+  ) {
+    return this.svc.appendItemsToOrder(orderId, b);
+  }
+
+  @Post('orders/:orderId/add-items')
+  addItemsAlias(
+    @Param('orderId') orderId: string,
+    @Body() b: { items: any[]; roundNumber?: number; notes?: string },
+  ) {
+    return this.svc.appendItemsToOrder(orderId, b);
+  }
+
   @Patch('orders/:id/dispatch-kitchen')
   dispatchToKitchen(@Param('id') id: string, @Body() b: any) {
     return this.svc.dispatchToKitchen(id, b?.coordinatorId, b?.notes);

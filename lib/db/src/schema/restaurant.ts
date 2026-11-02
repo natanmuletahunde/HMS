@@ -50,7 +50,7 @@ export const restaurantTablesTable = pgTable("restaurant_tables", {
 });
 
 // ─── Restaurant Orders ────────────────────────────────────────────────────────
-export const restaurantOrderStatusEnum = ["pending","preparing","ready","served","cancelled"] as const;
+export const restaurantOrderStatusEnum = ["pending","preparing","partially_ready","partially_served","ready","served","cancelled"] as const;
 export type RestaurantOrderStatus = (typeof restaurantOrderStatusEnum)[number];
 
 export const restaurantOrderTypeEnum = ["dine_in","takeaway","room_charge","delivery","room_service"] as const;
@@ -126,6 +126,9 @@ export const restaurantOrderItemsTable = pgTable("restaurant_order_items", {
   total:      numeric("total", { precision: 10, scale: 2 }).notNull(),
   isComplimentary: boolean("is_complimentary").notNull().default(false),
   notes:      text("notes"),
+  kitchenStatus: text("kitchen_status").notNull().default("pending"),
+  roundNumber: integer("round_number").notNull().default(1),
+  station:    text("station").default("hot"),
 });
 
 export type MenuItem             = typeof menuItemsTable.$inferSelect;

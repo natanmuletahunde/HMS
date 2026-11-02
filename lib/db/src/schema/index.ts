@@ -1,5 +1,6 @@
 export * from "./roles";
 export * from "./users";
+export * from "./user-branches";
 // Phase 2 Hotel Core
 export * from "./hotels";
 export * from "./branches";

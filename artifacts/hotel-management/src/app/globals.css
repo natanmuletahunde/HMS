@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Olivera';
+  src: url('/fonts/olivera.woff2') format('woff2'),
+       url('/fonts/olivera.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -289,4 +298,37 @@ button:not(:disabled):active, .btn:active {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Management Portal Scoped Styling: Olivera Typeface (Bold for enhanced visibility) & Restored White Background */
+.management-portal {
+  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif !important;
+  font-weight: 600;
+  -webkit-font-smoothing: antialiased;
+}
+
+.management-portal h1,
+.management-portal h2,
+.management-portal h3,
+.management-portal h4,
+.management-portal h5,
+.management-portal h6 {
+  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.management-portal p,
+.management-portal span,
+.management-portal a,
+.management-portal button,
+.management-portal input,
+.management-portal select,
+.management-portal textarea,
+.management-portal table,
+.management-portal th,
+.management-portal td,
+.management-portal label {
+  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif;
+  font-weight: 600;
 }
