@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @font-face {
@@ -48,6 +48,8 @@
   /* Modern Professional Typography Stack */
   --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Compatibility mappings */
@@ -128,6 +130,8 @@
 
   --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -300,10 +304,10 @@ button:not(:disabled):active, .btn:active {
   }
 }
 
-/* Management Portal Scoped Styling: Olivera Typeface (Bold for enhanced visibility) & Restored White Background */
+/* Unified Global Typography - Inter across entire system & management portal */
 .management-portal {
-  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif !important;
-  font-weight: 600;
+  font-family: var(--font-body) !important;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -313,9 +317,9 @@ button:not(:disabled):active, .btn:active {
 .management-portal h4,
 .management-portal h5,
 .management-portal h6 {
-  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-heading) !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .management-portal p,
@@ -329,6 +333,5 @@ button:not(:disabled):active, .btn:active {
 .management-portal th,
 .management-portal td,
 .management-portal label {
-  font-family: 'Olivera', 'Playfair Display', 'Cormorant Garamond', Didot, serif;
-  font-weight: 600;
+  font-family: var(--font-body) !important;
 }
