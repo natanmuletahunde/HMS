@@ -434,49 +434,45 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
 const DEFAULT_COMPLIANCE_DOCUMENTS: ComplianceDocument[] = [
   {
     id: "doc-tin",
-    title: "Ministry of Revenues (MoR) TIN Certificate",
+    title: "TIN Certificate",
     category: "tax_tin",
     docNumber: "0012345678",
     issueDate: "2018-04-10",
     status: "valid",
-    fileName: "MoR_TIN_Registration_0012345678.pdf",
+    fileName: "TIN_Certificate.pdf",
     fileSize: "1.2 MB",
-    notes: "Registered under Large Taxpayers Office (LTO), Addis Ababa.",
   },
   {
     id: "doc-vat",
-    title: "Value Added Tax (VAT) Registration Certificate",
+    title: "VAT Registration Certificate",
     category: "vat_cert",
     docNumber: "VAT-10-00892415",
     issueDate: "2020-01-11",
     status: "valid",
-    fileName: "MoR_VAT_Certificate_VAT-10-00892415.pdf",
+    fileName: "VAT_Certificate.pdf",
     fileSize: "1.8 MB",
-    notes: "15% Standard VAT under Proclamations No. 285/2002 & No. 1341/2024.",
   },
   {
     id: "doc-trade",
-    title: "Commercial Business Trade License (Renewed)",
+    title: "Business Trade License",
     category: "trade_license",
     docNumber: "ETH-HTL-2020-00142",
     issueDate: "2024-07-08",
     expiryDate: "2026-07-07",
     status: "valid",
-    fileName: "Trade_License_Renewal_2024_2026.pdf",
+    fileName: "Trade_License.pdf",
     fileSize: "2.4 MB",
-    notes: "Issued by Ministry of Trade and Regional Integration (MoTRI).",
   },
   {
     id: "doc-tourism",
-    title: "Ministry of Tourism Star Classification Certificate",
+    title: "Tourism Star Rating Certificate",
     category: "tourism_rating",
     docNumber: "MoT-HTL-CAT5-0042",
     issueDate: "2023-11-20",
     expiryDate: "2027-11-19",
     status: "valid",
-    fileName: "Ministry_of_Tourism_5Star_Accreditation.pdf",
+    fileName: "Tourism_Star_Rating.pdf",
     fileSize: "3.1 MB",
-    notes: "Certified 5-Star Luxury Hospitality Establishment.",
   },
 ];
 
@@ -1705,32 +1701,342 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* ========================================================= */}
-              {/* ETHIOPIAN TAX & REGULATORY COMPLIANCE SYSTEM              */}
-              {/* ========================================================= */}
-              <div className="space-y-6 pt-6 border-t border-[var(--border)]">
-                {/* Header & Compliance Badge */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2.5 rounded-lg bg-blue-700 text-white shrink-0 shadow-xs">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-[var(--text-primary)]">
-                          Ethiopian Hotel Tax & Regulatory Compliance
-                        </h3>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                          <CheckCircle2 className="w-3 h-3" />
-                          MoR Verified
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        Configured in compliance with MoR Proclamations No. 285/2002 & No. 1341/2024 (VAT), Income Tax Proclamation No. 979/2016 (Withholding), and Council of Ministers Regulation No. 139/2007 (Fiscal Sales Register Machines).
-                      </p>
-                    </div>
+              {/* Tax & Licensing */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Tax & Licensing
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tax Number (TIN)</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="taxNumber"
+                        defaultValue={hotel?.taxNumber || "0012345678"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                        {hotel?.taxNumber || "0012345678"}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Business License</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="licenseNumber"
+                        defaultValue={hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                        {hotel?.licenseNumber || "ETH-HTL-2020-00142"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">License Expiry Date</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="tradeLicenseExpiryDate"
+                        defaultValue={hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Registration Number</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="vatRegistrationNumber"
+                        defaultValue={hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Registration Date</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="vatRegistrationDate"
+                        defaultValue={hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tourism Classification License</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="ministryOfTourismLicense"
+                        defaultValue={hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tourism Star Rating</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="ministryOfTourismRating"
+                        defaultValue={hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tax Rates & Service Charge */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Tax Rates & Service Charge
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Standard Rate</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="vatRatePercent"
+                          defaultValue={hotel?.settings?.vatRatePercent ?? 15}
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRatePercent ?? 15}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hotel Service Charge</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            name="serviceChargePercent"
+                            defaultValue={hotel?.settings?.serviceChargePercent ?? 10}
+                            min={0}
+                            max={30}
+                            step={0.5}
+                            className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                          <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="serviceChargeEnabled"
+                            defaultChecked={hotel?.settings?.serviceChargeEnabled !== false}
+                            className="rounded border-[var(--border)] text-blue-700"
+                          />
+                          <span>Enabled</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.serviceChargePercent ?? 10}% ({hotel?.settings?.serviceChargeEnabled !== false ? "Enabled" : "Disabled"})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Calculation Basis</span>
+                    {isEditing ? (
+                      <select
+                        name="vatCalculationBasis"
+                        defaultValue={hotel?.settings?.vatCalculationBasis || "base_plus_service"}
+                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      >
+                        <option value="base_plus_service">Base Room Rate + Service Charge</option>
+                        <option value="base_only">Base Room Rate Only</option>
+                      </select>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatCalculationBasis === "base_only"
+                          ? "Base Room Rate Only"
+                          : "Base Room Rate + Service Charge"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Withholding Tax (Services)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="withholdingTaxServicePercent"
+                          defaultValue={hotel?.settings?.withholdingTaxServicePercent ?? 3}
+                          min={0}
+                          max={20}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.withholdingTaxServicePercent ?? 3}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Withholding Tax (Goods)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="withholdingTaxGoodsPercent"
+                          defaultValue={hotel?.settings?.withholdingTaxGoodsPercent ?? 2}
+                          min={0}
+                          max={20}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.withholdingTaxGoodsPercent ?? 2}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Diplomatic VAT Exemption</span>
+                    {isEditing ? (
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="diplomaticVatExemptionEnabled"
+                          defaultChecked={hotel?.settings?.diplomaticVatExemptionEnabled !== false}
+                          className="rounded border-[var(--border)] text-blue-700"
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.diplomaticVatExemptionEnabled !== false ? "Enabled" : "Disabled"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Fiscal Sales Register Machine */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Fiscal Cash Register
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Machine Code (MRC)</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="fiscalMachineCode"
+                        defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hardware Serial (MSN)</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="fiscalMachineSerial"
+                        defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Terminal ID (TID)</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="fiscalTerminalId"
+                        defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Compliance Documents */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Compliance Documents
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)]">Attached Licenses & Certificates</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1743,569 +2049,55 @@ export default function HotelPage() {
                       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Upload License / Certificate</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Grid 1: National Identifiers & Official Registrations */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Tax Identification Number (TIN) */}
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        Ministry of Revenues TIN (10 Digits)
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        Mandatory
-                      </span>
-                    </div>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="taxNumber"
-                        maxLength={10}
-                        defaultValue={hotel?.taxNumber || "0012345678"}
-                        placeholder="10-digit MoR TIN (e.g. 0012345678)"
-                        className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-mono font-bold text-blue-700 dark:text-blue-400">
-                          {hotel?.taxNumber || "0012345678"}
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)]">Federal LTO Reg.</span>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Official Taxpayer Identification Number issued by Ministry of Revenues (ገቢዎች ሚኒስቴር).
-                    </p>
-                  </div>
-
-                  {/* VAT Registration Number & Date */}
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        VAT Registration Certificate
-                      </span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                        15% VAT Registered
-                      </span>
-                    </div>
-                    {isEditing ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          name="vatRegistrationNumber"
-                          defaultValue={hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
-                          placeholder="VAT Certificate Number"
-                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <input
-                          type="date"
-                          name="vatRegistrationDate"
-                          defaultValue={hotel?.settings?.vatRegistrationDate || "2020-01-11"}
-                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          Since {hotel?.settings?.vatRegistrationDate || "2020-01-11"}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Standard Value Added Tax registration under MoR Proclamation No. 285/2002.
-                    </p>
-                  </div>
-
-                  {/* Commercial Business Trade License */}
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        Ministry of Trade License (MoTRI)
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        Renewed & Active
-                      </span>
-                    </div>
-                    {isEditing ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          name="licenseNumber"
-                          defaultValue={hotel?.licenseNumber || "ETH-HTL-2020-00142"}
-                          placeholder="Trade License Number"
-                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <input
-                          type="date"
-                          name="tradeLicenseExpiryDate"
-                          defaultValue={hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
-                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
-                          {hotel?.licenseNumber || "ETH-HTL-2020-00142"}
-                        </span>
-                        <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                          Expires: {hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Hotel hospitality commercial trade license registered with the Ministry of Trade & Regional Integration.
-                    </p>
-                  </div>
-
-                  {/* Ministry of Tourism Classification */}
-                  <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        Ministry of Tourism Accreditation
-                      </span>
-                      <div className="flex items-center gap-0.5 text-amber-500">
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                        <Star className="w-3.5 h-3.5 fill-amber-500" />
-                      </div>
-                    </div>
-                    {isEditing ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          name="ministryOfTourismLicense"
-                          defaultValue={hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
-                          placeholder="Certificate Number"
-                          className="h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <input
-                          type="text"
-                          name="ministryOfTourismRating"
-                          defaultValue={hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
-                          placeholder="Classification Level"
-                          className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
-                        </span>
-                        <span className="text-xs font-mono text-[var(--text-secondary)]">
-                          {hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Official hotel star rating certified by the Ethiopian Ministry of Tourism.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Grid 2: Tax Rates, Service Charge & Calculation Mechanics */}
-                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                    Tax Rates, Service Charge & Invoice Calculation Rules
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                    {/* Standard VAT Rate */}
-                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[var(--text-secondary)]">VAT Rate</span>
-                        <span className="text-[10px] font-mono text-blue-700 dark:text-blue-300 font-bold">Standard</span>
-                      </div>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            name="vatRatePercent"
-                            defaultValue={hotel?.settings?.vatRatePercent ?? 15}
-                            min={0}
-                            max={100}
-                            step={0.5}
-                            className="w-20 h-8 px-2 text-sm font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
-                          />
-                          <span className="text-sm font-bold text-[var(--text-primary)]">%</span>
-                        </div>
-                      ) : (
-                        <div className="text-xl font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.vatRatePercent ?? 15}%
-                        </div>
-                      )}
-                      <p className="text-[10px] text-[var(--text-muted)]">
-                        Federal standard under MoR Proclamations No. 285/2002 & 1341/2024.
-                      </p>
-                    </div>
-
-                    {/* Hotel Service Charge */}
-                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[var(--text-secondary)]">Hotel Service Charge</span>
-                        {isEditing ? (
-                          <label className="flex items-center gap-1 text-[11px] cursor-pointer">
-                            <input
-                              type="checkbox"
-                              name="serviceChargeEnabled"
-                              defaultChecked={hotel?.settings?.serviceChargeEnabled !== false}
-                              className="rounded border-[var(--border)] text-blue-700"
-                            />
-                            <span>Enabled</span>
-                          </label>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                            {hotel?.settings?.serviceChargeEnabled !== false ? "Active" : "Disabled"}
-                          </span>
-                        )}
-                      </div>
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            name="serviceChargePercent"
-                            defaultValue={hotel?.settings?.serviceChargePercent ?? 10}
-                            min={0}
-                            max={30}
-                            step={0.5}
-                            className="w-20 h-8 px-2 text-sm font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
-                          />
-                          <span className="text-sm font-bold text-[var(--text-primary)]">%</span>
-                        </div>
-                      ) : (
-                        <div className="text-xl font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.serviceChargePercent ?? 10}%
-                        </div>
-                      )}
-                      <p className="text-[10px] text-[var(--text-muted)]">
-                        Standard Ethiopian hospitality gratuity distributed to hotel service staff.
-                      </p>
-                    </div>
-
-                    {/* Corporate Withholding Tax (WHT) */}
-                    <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[var(--text-secondary)]">Withholding Tax (WHT)</span>
-                        <span className="text-[10px] font-mono text-purple-700 dark:text-purple-300 font-bold">Procl. 979/2016</span>
-                      </div>
-                      {isEditing ? (
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <div>
-                            <span className="text-[9px] text-[var(--text-muted)] block">Services</span>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                name="withholdingTaxServicePercent"
-                                defaultValue={hotel?.settings?.withholdingTaxServicePercent ?? 3}
-                                min={0}
-                                max={20}
-                                className="w-14 h-7 px-1.5 text-xs font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
-                              />
-                              <span className="text-xs font-bold">%</span>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-[var(--text-muted)] block">Goods</span>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                name="withholdingTaxGoodsPercent"
-                                defaultValue={hotel?.settings?.withholdingTaxGoodsPercent ?? 2}
-                                min={0}
-                                max={20}
-                                className="w-14 h-7 px-1.5 text-xs font-mono font-bold rounded border border-[var(--border)] bg-[var(--surface)]"
-                              />
-                              <span className="text-xs font-bold">%</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-base font-bold text-[var(--text-primary)]">
-                          Services: {hotel?.settings?.withholdingTaxServicePercent ?? 3}% &bull; Goods: {hotel?.settings?.withholdingTaxGoodsPercent ?? 2}%
-                        </div>
-                      )}
-                      <p className="text-[10px] text-[var(--text-muted)]">
-                        Withheld by corporate & governmental clients on invoices exceeding statutory limits.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Levying Method & Diplomatic Exemption */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[var(--border)]">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-[var(--text-primary)]">
-                        VAT Levying Calculation Sequence
-                      </label>
-                      {isEditing ? (
-                        <select
-                          name="vatCalculationBasis"
-                          defaultValue={hotel?.settings?.vatCalculationBasis || "base_plus_service"}
-                          className="w-full h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        >
-                          <option value="base_plus_service">
-                            Standard MoR: Calculate 15% VAT on (Base Rate + 10% Service Charge)
-                          </option>
-                          <option value="base_only">
-                            Alternative: Calculate 15% VAT on Base Room Rate only
-                          </option>
-                        </select>
-                      ) : (
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {hotel?.settings?.vatCalculationBasis === "base_only"
-                            ? "Alternative: Calculate 15% VAT on Base Room Rate only"
-                            : "Standard MoR: Calculate 15% VAT on (Base Rate + 10% Service Charge)"}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-[var(--text-muted)]">
-                        Under Ethiopian tax rulings, VAT is applied after calculating the 10% hospitality service charge.
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-[var(--text-primary)]">
-                          Diplomatic & NGO VAT-Exemption Policy
-                        </label>
-                        {isEditing ? (
-                          <input
-                            type="checkbox"
-                            name="diplomaticVatExemptionEnabled"
-                            defaultChecked={hotel?.settings?.diplomaticVatExemptionEnabled !== false}
-                            className="rounded border-[var(--border)] text-blue-700"
-                          />
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                            {hotel?.settings?.diplomaticVatExemptionEnabled !== false ? "Authorized" : "Disabled"}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        Permit front-desk and reservation folios to waive 15% VAT upon receipt of official MoFA/MoR diplomatic tax exemption vouchers (African Union, UNECA, Embassies, UN Missions).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid 3: Fiscal Cash Register (ERCA / MoR Sales Register Machine - FBR) */}
-                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                        Fiscal Cash Register (ERCA / MoR Sales Register Machine)
-                      </h4>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        Council of Ministers Regulation No. 139/2007 (Use of Sales Register Machines)
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      FBR Online
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                    {/* Machine Registration Code (MRC) */}
-                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
-                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                        Machine Registration Code (MRC)
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          name="fiscalMachineCode"
-                          defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
-                          placeholder="e.g. MRC-AA-789230"
-                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
-                        />
-                      ) : (
-                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
-                        </div>
-                      )}
-                      <span className="text-[10px] text-[var(--text-muted)] block">ERCA Official Code</span>
-                    </div>
-
-                    {/* Machine Serial Number (MSN) */}
-                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
-                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                        Machine Serial Number (MSN)
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          name="fiscalMachineSerial"
-                          defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
-                          placeholder="e.g. FBR-2024-00918"
-                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
-                        />
-                      ) : (
-                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
-                        </div>
-                      )}
-                      <span className="text-[10px] text-[var(--text-muted)] block">Hardware Serial</span>
-                    </div>
-
-                    {/* Fiscal Terminal ID */}
-                    <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] space-y-1">
-                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
-                        Fiscal Terminal ID (TID)
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          name="fiscalTerminalId"
-                          defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
-                          placeholder="e.g. TID-FD-01"
-                          className="w-full h-8 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
-                        />
-                      ) : (
-                        <div className="text-sm font-mono font-bold text-[var(--text-primary)]">
-                          {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
-                        </div>
-                      )}
-                      <span className="text-[10px] text-[var(--text-muted)] block">Front Desk Pos 1</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid 4: Compliance Certificates & Official Documents Vault */}
-                <div className="p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                        Official Licenses & Compliance Documents Vault
-                      </h4>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        Securely archive and track renewal deadlines for official ministry licenses, TIN cards, and VAT certificates.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingDoc(null);
-                        setDocFileUrl("");
-                        setDocFileName("");
-                        setDocFileSize("");
-                        setIsDocModalOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
                       <span>Upload Document</span>
                     </button>
                   </div>
 
                   {complianceDocuments.length === 0 ? (
-                    <div className="p-8 text-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)] space-y-2">
-                      <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
-                      <p className="text-xs text-[var(--text-secondary)]">No compliance documents attached yet.</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingDoc(null);
-                          setDocFileUrl("");
-                          setDocFileName("");
-                          setDocFileSize("");
-                          setIsDocModalOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Upload First Certificate</span>
-                      </button>
-                    </div>
+                    <div className="py-3 text-sm text-[var(--text-secondary)]">No documents attached.</div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="divide-y divide-[var(--border)]">
                       {complianceDocuments.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] flex flex-col justify-between gap-2.5 transition-all hover:border-blue-400"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-start gap-2.5">
-                              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 text-blue-700 dark:text-blue-300 shrink-0">
-                                <FileText className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <h5 className="text-xs font-bold text-[var(--text-primary)] truncate">
-                                  {doc.title}
-                                </h5>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {doc.docNumber && (
-                                    <span className="text-[10px] font-mono text-blue-700 dark:text-blue-300 font-semibold">
-                                      #{doc.docNumber}
-                                    </span>
-                                  )}
-                                  {doc.fileSize && (
-                                    <span className="text-[10px] text-[var(--text-muted)]">
-                                      {doc.fileSize}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
-                              Verified
-                            </span>
+                        <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5">
+                          <div>
+                            <span className="text-sm font-medium text-[var(--text-primary)]">{doc.title}</span>
+                            {doc.docNumber && (
+                              <span className="ml-2 text-xs font-mono text-[var(--text-secondary)]">#{doc.docNumber}</span>
+                            )}
                           </div>
-
-                          {doc.notes && (
-                            <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
-                              {doc.notes}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-[11px]">
-                            <span className="text-[var(--text-muted)] text-[10px]">
-                              {doc.expiryDate ? `Expires: ${doc.expiryDate}` : `Issued: ${doc.issueDate || "Active"}`}
-                            </span>
-
-                            <div className="flex items-center gap-1.5">
-                              {doc.fileUrl && (
-                                <a
-                                  href={doc.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
-                                >
-                                  <Eye className="w-3 h-3" />
-                                  <span>View</span>
-                                </a>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingDoc(doc);
-                                  setDocFileUrl(doc.fileUrl || "");
-                                  setDocFileName(doc.fileName || "");
-                                  setDocFileSize(doc.fileSize || "");
-                                  setIsDocModalOpen(true);
-                                }}
-                                className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
-                                title="Edit Document Metadata"
+                          <div className="flex items-center gap-2 shrink-0">
+                            {doc.fileUrl && (
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-700 dark:text-blue-400 hover:underline"
                               >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteComplianceDoc(doc.id)}
-                                className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
-                                title="Remove Document"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                                View
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDoc(doc);
+                                setDocFileUrl(doc.fileUrl || "");
+                                setDocFileName(doc.fileName || "");
+                                setDocFileSize(doc.fileSize || "");
+                                setIsDocModalOpen(true);
+                              }}
+                              className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 transition-colors cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComplianceDoc(doc.id)}
+                              className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -4268,12 +4060,12 @@ export default function HotelPage() {
                   defaultValue={editingDoc?.category || "trade_license"}
                   className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                 >
-                  <option value="tax_tin">Ministry of Revenues TIN Certificate</option>
-                  <option value="vat_cert">VAT Registration Certificate (15%)</option>
-                  <option value="trade_license">Commercial Trade License (MoTRI)</option>
-                  <option value="tourism_rating">Ministry of Tourism Star Rating</option>
+                  <option value="tax_tin">TIN Certificate</option>
+                  <option value="vat_cert">VAT Certificate</option>
+                  <option value="trade_license">Trade License</option>
+                  <option value="tourism_rating">Tourism Star Rating Certificate</option>
                   <option value="health_fire_safety">Fire Safety / Health Inspection</option>
-                  <option value="other">Other Regulatory Document</option>
+                  <option value="other">Other Document</option>
                 </select>
               </div>
 
@@ -4367,7 +4159,7 @@ export default function HotelPage() {
                 name="notes"
                 defaultValue={editingDoc?.notes || ""}
                 rows={2}
-                placeholder="e.g. Registered with Addis Ababa Large Taxpayers Office (LTO)."
+                placeholder="e.g. Document notes or issuing office"
                 className="w-full p-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 resize-none"
               />
             </div>
