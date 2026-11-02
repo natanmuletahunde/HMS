@@ -4153,7 +4153,7 @@ export default function HotelPage() {
 
             <div>
               <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
-                Compliance Notes & Registration Details
+                Compliance Notes
               </label>
               <textarea
                 name="notes"
