@@ -402,7 +402,7 @@ async function main() {
     const firstNames = ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Joseph', 'Thomas', 'Charles', 'Mary', 'Patricia', 'Jennifer', 'Linda', 'Barbara', 'Elizabeth', 'Susan', 'Jessica', 'Sarah', 'Karen'];
     const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Wilson', 'Anderson', 'Taylor', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Thompson', 'Robinson', 'Clark', 'Lewis'];
     const positions = {
-      'Front Office': ['Receptionist', 'Front Desk Agent', 'Concierge', 'Bell Boy', 'Night Auditor'],
+      'Front Office': ['Receptionist', 'Front Desk Agent', 'Guest Relations', 'Bell Boy', 'Night Auditor'],
       'Housekeeping': ['Room Attendant', 'Supervisor', 'Laundry Attendant', 'Public Area Cleaner'],
       'Restaurant': ['Waiter', 'Waitress', 'Host', 'Bartender', 'Restaurant Manager'],
       'Kitchen': ['Chef', 'Sous Chef', 'Cook', 'Kitchen Helper', 'Pastry Chef'],

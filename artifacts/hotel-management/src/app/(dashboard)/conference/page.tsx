@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, ArrowLeft, ArrowRight, Building2, CalendarPlus, Pencil } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -420,9 +420,9 @@ export default function ConferencePage() {
       {tab === "calendar" && (
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={prevMonth}><ArrowLeft className="h-4 w-4" /></Button>
             <span className="font-semibold text-sm">{new Date(calendarDate + "-01").toLocaleDateString("en-US", { year: "numeric", month: "long" })}</span>
-            <Button variant="outline" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={nextMonth}><ArrowRight className="h-4 w-4" /></Button>
           </div>
           {calLoading ? (
             <Skeleton className="h-64 w-full rounded-lg" />
@@ -513,9 +513,23 @@ export default function ConferencePage() {
 
       {/* Add Hall Dialog */}
       <Dialog open={isAddHallOpen} onOpenChange={setIsAddHallOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Conference Hall</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => {
+        <DialogContent className="max-w-md p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
+          <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold tracking-tight text-foreground">
+                  Add Conference Hall
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Register a meeting hall, venue space, or auditorium
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <form className="flex-1 flex flex-col min-h-0 overflow-hidden" onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
             const body: Record<string, unknown> = {};
@@ -523,54 +537,75 @@ export default function ConferencePage() {
             ["capacity", "floor", "hourlyRate", "halfDayRate", "fullDayRate"].forEach(f => { if (body[f]) body[f] = Number(body[f]); });
             addHallMutation.mutate(body);
           }}>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5 col-span-2">
-                <Label>Hall Name *</Label>
-                <Input name="name" required />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Location</Label>
-                <Input name="location" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Floor</Label>
-                <Input name="floor" type="number" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Capacity</Label>
-                <Input name="capacity" type="number" min="1" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Hourly Rate</Label>
-                <Input name="hourlyRate" type="number" step="0.01" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Half Day Rate</Label>
-                <Input name="halfDayRate" type="number" step="0.01" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Full Day Rate</Label>
-                <Input name="fullDayRate" type="number" step="0.01" />
-              </div>
-              <div className="grid gap-1.5 col-span-2">
-                <Label>Description</Label>
-                <textarea name="description" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5 col-span-2">
+                  <Label>Hall Name *</Label>
+                  <Input name="name" required placeholder="e.g. Grand Ballroom" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Location</Label>
+                  <Input name="location" placeholder="e.g. West Wing" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Floor</Label>
+                  <Input name="floor" type="number" placeholder="e.g. 2" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Capacity</Label>
+                  <Input name="capacity" type="number" min="1" placeholder="e.g. 250" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Hourly Rate ($)</Label>
+                  <Input name="hourlyRate" type="number" step="0.01" placeholder="0.00" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Half Day Rate ($)</Label>
+                  <Input name="halfDayRate" type="number" step="0.01" placeholder="0.00" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Full Day Rate ($)</Label>
+                  <Input name="fullDayRate" type="number" step="0.01" placeholder="0.00" />
+                </div>
+                <div className="grid gap-1.5 col-span-2">
+                  <Label>Description</Label>
+                  <textarea name="description" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" placeholder="Audiovisual specs, layout options..." />
+                </div>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={addHallMutation.isPending}>
-              {addHallMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Hall
-            </Button>
+            <div className="px-6 py-3.5 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">
+              <Button type="button" variant="outline" className="h-9 px-4 rounded-xl text-xs" onClick={() => setIsAddHallOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="h-9 px-5 rounded-xl text-xs font-semibold shadow-sm" disabled={addHallMutation.isPending}>
+                {addHallMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add Hall
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Edit Hall Dialog */}
       <Dialog open={!!editHall} onOpenChange={(o) => !o && setEditHall(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit Hall</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
+          <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <Pencil className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold tracking-tight text-foreground">
+                  Edit Conference Hall
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Update specifications and rates for {editHall?.name}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
           {editHall && (
-            <form className="space-y-4" onSubmit={(e) => {
+            <form className="flex-1 flex flex-col min-h-0 overflow-hidden" onSubmit={(e) => {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
               const body: Record<string, unknown> = {};
@@ -578,36 +613,43 @@ export default function ConferencePage() {
               ["capacity", "floor", "hourlyRate", "halfDayRate", "fullDayRate"].forEach(f => { if (body[f]) body[f] = Number(body[f]); });
               editHallMutation.mutate({ id: editHall.id, body });
             }}>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5 col-span-2">
-                  <Label>Hall Name *</Label>
-                  <Input name="name" required defaultValue={editHall.name} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Location</Label>
-                  <Input name="location" defaultValue={editHall.location ?? ""} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Capacity</Label>
-                  <Input name="capacity" type="number" min="1" defaultValue={editHall.capacity ?? ""} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Hourly Rate</Label>
-                  <Input name="hourlyRate" type="number" step="0.01" defaultValue={editHall.hourlyRate ?? ""} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Half Day Rate</Label>
-                  <Input name="halfDayRate" type="number" step="0.01" defaultValue={editHall.halfDayRate ?? ""} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Full Day Rate</Label>
-                  <Input name="fullDayRate" type="number" step="0.01" defaultValue={editHall.fullDayRate ?? ""} />
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5 col-span-2">
+                    <Label>Hall Name *</Label>
+                    <Input name="name" required defaultValue={editHall.name} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Location</Label>
+                    <Input name="location" defaultValue={editHall.location ?? ""} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Capacity</Label>
+                    <Input name="capacity" type="number" min="1" defaultValue={editHall.capacity ?? ""} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Hourly Rate ($)</Label>
+                    <Input name="hourlyRate" type="number" step="0.01" defaultValue={editHall.hourlyRate ?? ""} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Half Day Rate ($)</Label>
+                    <Input name="halfDayRate" type="number" step="0.01" defaultValue={editHall.halfDayRate ?? ""} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Full Day Rate ($)</Label>
+                    <Input name="fullDayRate" type="number" step="0.01" defaultValue={editHall.fullDayRate ?? ""} />
+                  </div>
                 </div>
               </div>
-              <Button type="submit" className="w-full" disabled={editHallMutation.isPending}>
-                {editHallMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-              </Button>
+              <div className="px-6 py-3.5 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">
+                <Button type="button" variant="outline" className="h-9 px-4 rounded-xl text-xs" onClick={() => setEditHall(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="h-9 px-5 rounded-xl text-xs font-semibold shadow-sm" disabled={editHallMutation.isPending}>
+                  {editHallMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </div>
             </form>
           )}
         </DialogContent>
@@ -615,9 +657,23 @@ export default function ConferencePage() {
 
       {/* New Booking Dialog */}
       <Dialog open={isNewBookingOpen} onOpenChange={setIsNewBookingOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New Conference Booking</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => {
+        <DialogContent className="max-w-2xl p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
+          <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <CalendarPlus className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
+                  New Conference Booking
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Reserve a hall, configure layout, timings, and catering requirements
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <form className="flex-1 flex flex-col min-h-0 overflow-hidden" onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
             const body: Record<string, unknown> = {};
@@ -629,88 +685,95 @@ export default function ConferencePage() {
             ["attendees", "hallRate"].forEach(f => { if (body[f]) body[f] = Number(body[f]); });
             createBookingMutation.mutate(body);
           }}>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label>Hall *</Label>
-                <select name="hallId" required className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                  <option value="">Select hall</option>
-                  {halls.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                </select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Event Name *</Label>
-                <Input name="eventName" required />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Customer Name *</Label>
-                <Input name="customerName" required />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Customer Email</Label>
-                <Input name="customerEmail" type="email" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Customer Phone</Label>
-                <Input name="customerPhone" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Event Type</Label>
-                <select name="eventType" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                  <option value="conference">Conference</option>
-                  <option value="meeting">Meeting</option>
-                  <option value="wedding">Wedding</option>
-                  <option value="seminar">Seminar</option>
-                  <option value="workshop">Workshop</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Layout</Label>
-                <select name="layout" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                  <option value="theater">Theater</option>
-                  <option value="classroom">Classroom</option>
-                  <option value="boardroom">Boardroom</option>
-                  <option value="banquet">Banquet</option>
-                  <option value="reception">Reception</option>
-                </select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Attendees</Label>
-                <Input name="attendees" type="number" min="1" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Booking Date *</Label>
-                <Input name="bookingDate" type="date" required />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Start Time</Label>
-                <Input name="startTime" type="time" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>End Time</Label>
-                <Input name="endTime" type="time" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Hall Rate</Label>
-                <Input name="hallRate" type="number" step="0.01" />
-              </div>
-              <div className="flex items-center gap-2 pt-5">
-                <input type="checkbox" id="cateringRequired" name="cateringRequired" className="h-4 w-4" />
-                <label htmlFor="cateringRequired" className="text-sm">Catering Required</label>
-              </div>
-              <div className="grid gap-1.5 col-span-2">
-                <Label>Special Requirements</Label>
-                <textarea name="specialRequirements" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
-              </div>
-              <div className="grid gap-1.5 col-span-2">
-                <Label>Notes</Label>
-                <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>Hall *</Label>
+                  <select name="hallId" required className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                    <option value="">Select hall</option>
+                    {halls.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Event Name *</Label>
+                  <Input name="eventName" required placeholder="e.g. Annual Tech Symposium" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Customer Name *</Label>
+                  <Input name="customerName" required placeholder="Full Name or Organization" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Customer Email</Label>
+                  <Input name="customerEmail" type="email" placeholder="contact@example.com" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Customer Phone</Label>
+                  <Input name="customerPhone" placeholder="+251 ..." />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Event Type</Label>
+                  <select name="eventType" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                    <option value="conference">Conference</option>
+                    <option value="meeting">Meeting</option>
+                    <option value="wedding">Wedding</option>
+                    <option value="seminar">Seminar</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Layout</Label>
+                  <select name="layout" className="flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                    <option value="theater">Theater</option>
+                    <option value="classroom">Classroom</option>
+                    <option value="boardroom">Boardroom</option>
+                    <option value="banquet">Banquet</option>
+                    <option value="reception">Reception</option>
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Attendees</Label>
+                  <Input name="attendees" type="number" min="1" placeholder="e.g. 50" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Booking Date *</Label>
+                  <Input name="bookingDate" type="date" required />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Start Time</Label>
+                  <Input name="startTime" type="time" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>End Time</Label>
+                  <Input name="endTime" type="time" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Hall Rate ($)</Label>
+                  <Input name="hallRate" type="number" step="0.01" placeholder="0.00" />
+                </div>
+                <div className="flex items-center gap-2 pt-5">
+                  <input type="checkbox" id="cateringRequired" name="cateringRequired" className="h-4 w-4 rounded" />
+                  <label htmlFor="cateringRequired" className="text-sm font-medium">Catering Required</label>
+                </div>
+                <div className="grid gap-1.5 col-span-2">
+                  <Label>Special Requirements</Label>
+                  <textarea name="specialRequirements" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" placeholder="Stage setup, microphones, projector..." />
+                </div>
+                <div className="grid gap-1.5 col-span-2">
+                  <Label>Notes</Label>
+                  <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" placeholder="Internal remarks or setup preferences..." />
+                </div>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={createBookingMutation.isPending}>
-              {createBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Booking
-            </Button>
+            <div className="px-6 py-3.5 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">
+              <Button type="button" variant="outline" className="h-10 px-4 rounded-xl text-xs" onClick={() => setIsNewBookingOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="h-10 px-5 rounded-xl text-xs font-semibold shadow-sm" disabled={createBookingMutation.isPending}>
+                {createBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Booking
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

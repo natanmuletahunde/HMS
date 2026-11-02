@@ -26,9 +26,13 @@ import { cn } from "@/lib/utils";
 const ROUTE_BREADCRUMBS: Record<string, string> = {
   "/dashboard": "Front Desk / Dashboard",
   "/guests": "Front Desk / Guests",
+  "/room-types": "Room Setup / Room Types",
+  "/room-categories": "Room Setup / Room Categories",
+  "/bed-types": "Room Setup / Bed Types",
+  "/room-amenities": "Room Setup / Amenities",
+  "/room-pricing": "Room Setup / Pricing",
+  "/rooms": "Front Desk / Rooms",
   "/reservations": "Front Desk / Reservations",
-  "/stay": "Front Office / Stay Management",
-  "/check-out": "Front Office / Check-out",
   "/housekeeping": "Operations / Housekeeping",
   "/maintenance": "Operations / Maintenance",
   "/restaurant": "Operations / Restaurant",
@@ -45,7 +49,18 @@ export function Topbar() {
   const { user, activeBranch, branches, switchBranch, logout } = useAuth();
   const [guestAlerts, setGuestAlerts] = useState<any[]>([]);
 
-  const currentBreadcrumb = (pathname === "/hotel" || pathname === "/branches" || pathname === "/rooms" || pathname === "/room-configs" || pathname.startsWith("/rooms/") || pathname === "/buildings" || pathname === "/floors" || pathname === "/users" || pathname === "/roles") ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
+  
+  const currentBreadcrumb = (
+    pathname === "/hotel" ||
+    pathname === "/branches" ||
+    pathname === "/rooms" ||
+    pathname === "/room-configs" ||
+    pathname.startsWith("/rooms/") ||
+    pathname === "/buildings" ||
+    pathname === "/floors" ||
+    pathname === "/users" ||
+    pathname === "/roles"
+  ) ? "" : (ROUTE_BREADCRUMBS[pathname] || "");
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-10 transition-colors select-none">
@@ -106,7 +121,7 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-        {/* Quiet Notifications Icon with subtle Badge */}
+{/* Quiet Notifications Icon with subtle Badge */}
         <button
           type="button"
           onClick={() => router.push("/notifications")}
@@ -119,6 +134,7 @@ export function Topbar() {
           )}
         </button>
 
+        
         {/* Profile Avatar / Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

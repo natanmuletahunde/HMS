@@ -61,7 +61,7 @@ const EMP_STATUS_BADGE: Record<string, string> = {
 const DEPARTMENTS = [
   "Front Desk", "Housekeeping", "Restaurant", "Kitchen", "Bar",
   "Maintenance", "Security", "Finance", "HR", "IT", "Management",
-  "Transport", "Concierge", "Spa", "Pool", "Procurement"
+  "Transport", "Guest Services", "Spa", "Pool", "Procurement"
 ];
 
 export default function EmployeesPage() {

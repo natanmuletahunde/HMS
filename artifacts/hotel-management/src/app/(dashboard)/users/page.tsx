@@ -1403,7 +1403,7 @@ function UsersAndRolesContent() {
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-[var(--border)] flex justify-end gap-2">
+<DialogFooter className="pt-4 border-t border-[var(--border)] flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={closeAddUserDialog} className="h-8 text-xs rounded-md">
                 Cancel
               </Button>

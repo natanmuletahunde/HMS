@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  outputFileTracingRoot: path.resolve(__dirname),
+  outputFileTracingRoot: path.resolve(__dirname, "../../"),
   serverExternalPackages: ["fayda-decoder", "sharp"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -59,7 +59,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const apiInternalUrl = process.env.API_INTERNAL_URL || "http://127.0.0.1:8080";
+    const apiInternalUrl = (process.env.API_INTERNAL_URL || "http://127.0.0.1:8080").replace("localhost", "127.0.0.1");
 
     return [
       {

@@ -211,7 +211,7 @@ export default function HousekeepingPage() {
     refetchInterval: 6000,
   });
 
-  const pciPagination = usePagination(preCheckoutInspections, 6);
+  const pciPagination = usePagination(preCheckoutInspections, 5);
 
   const pendingPciCount = preCheckoutInspections.filter(
     (i) => i.status === "pending" || i.status === "in_progress"

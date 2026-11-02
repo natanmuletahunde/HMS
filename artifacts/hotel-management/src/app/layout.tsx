@@ -5,6 +5,12 @@ import { Providers } from "@/components/providers";
 export const metadata: Metadata = {
   title: "Nexus HMS",
   description: "Enterprise Operations Hub",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

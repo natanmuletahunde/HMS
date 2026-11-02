@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, sql, getTableColumns, desc } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import {
   db,
   stayChangesTable,
   reservationsTable,
   roomsTable,
+  guestsTable,
 } from '@workspace/db';
 
 const fmtDate = (v: any) => (v instanceof Date ? v.toISOString() : v ?? null);
@@ -36,9 +38,27 @@ export class StayManagementService {
 
     const where = and(...conds);
     const cols = getTableColumns(stayChangesTable);
+    const fromRooms = alias(roomsTable, 'from_rooms');
+    const toRooms = alias(roomsTable, 'to_rooms');
 
     const [rows, countRows] = await Promise.all([
-      db.select(cols).from(stayChangesTable).where(where).orderBy(desc(stayChangesTable.createdAt)).limit(limit).offset(offset),
+      db
+        .select({
+          ...cols,
+          reservationNumber: reservationsTable.reservationNumber,
+          guestName: sql<string>`concat(${guestsTable.firstName}, ' ', ${guestsTable.lastName})`,
+          fromRoomNumber: fromRooms.number,
+          toRoomNumber: toRooms.number,
+        })
+        .from(stayChangesTable)
+        .leftJoin(reservationsTable, eq(stayChangesTable.reservationId, reservationsTable.id))
+        .leftJoin(guestsTable, eq(stayChangesTable.guestId, guestsTable.id))
+        .leftJoin(fromRooms, eq(stayChangesTable.fromRoomId, fromRooms.id))
+        .leftJoin(toRooms, eq(stayChangesTable.toRoomId, toRooms.id))
+        .where(where)
+        .orderBy(desc(stayChangesTable.createdAt))
+        .limit(limit)
+        .offset(offset),
       db.select({ count: sql<number>`count(*)::int` }).from(stayChangesTable).where(where),
     ]);
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Headers } from '@nestjs/common';
 import { GuestPortalService } from './guest-portal.service';
 import { Public } from '../../common/decorators/public.decorator';
 
@@ -7,9 +7,43 @@ import { Public } from '../../common/decorators/public.decorator';
 export class GuestPortalController {
   constructor(private readonly svc: GuestPortalService) {}
 
+  @Get('me')
+  getMe(@Headers('authorization') authHeader?: string) {
+    return this.svc.validateTokenHeader(authHeader);
+  }
+
   @Post('login')
-  login(@Body() body: { roomNumber: string; accessCode?: string }) {
+  login(
+    @Body()
+    body: {
+      roomNumber?: string;
+      accessCode?: string;
+      fullName?: string;
+      phone?: string;
+      nationalId?: string;
+      identifier?: string;
+      password?: string;
+    },
+  ) {
     return this.svc.login(body);
+  }
+
+  @Post('request-otp')
+  requestOtp(@Body() body: { phone: string }) {
+    return this.svc.requestGuestOtp(body.phone);
+  }
+
+  @Post('verify-otp')
+  verifyOtp(@Body() body: { phone: string; code: string; isReset?: boolean }) {
+    return this.svc.verifyGuestOtp(body.phone, body.code, body.isReset);
+  }
+
+  @Post('update-password')
+  updatePassword(
+    @Body() body: { password: string; phone?: string; guestId?: string },
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.svc.updateGuestPassword(body, authHeader);
   }
 
   @Post('register')
@@ -17,20 +51,70 @@ export class GuestPortalController {
     @Body()
     body: {
       firstName: string;
+      middleName?: string;
       lastName: string;
+      gender?: string;
+      dateOfBirth?: string;
       phone?: string;
+      alternativePhone?: string;
       email?: string;
-      roomNumber: string;
+      roomNumber?: string;
+      country?: string;
+      region?: string;
+      city?: string;
+      address?: string;
       nationality?: string;
       idType?: string;
       idNumber?: string;
+      passportNumber?: string;
+      nationalId?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
       foodPreference?: string;
       bedPreference?: string;
       smokingPreference?: string;
       specialRequests?: string;
+      fullName?: string;
+      vipStatus?: boolean;
+      guestType?: string;
+      hasRelationshipDoc?: boolean;
+      relationshipStatus?: string;
+      relationshipDocNumber?: string;
+      relationshipDocName?: string;
+      relationshipDocUrl?: string;
+      partnerFullName?: string;
+      partnerRelationship?: string;
+      partnerGender?: string;
+      partnerAgeCategory?: string;
+      partnerIdType?: string;
+      partnerIdNumber?: string;
+      hasAccompanyingGuests?: boolean;
+      accompanyingGuests?: any[];
+      password?: string;
     },
   ) {
     return this.svc.register(body);
+  }
+
+  @Post('reserve')
+  createOnlineReservation(
+    @Body()
+    body: {
+      guestId: string;
+      roomId?: string;
+      roomTypeId?: string;
+      checkInDate: string;
+      checkOutDate: string;
+      adults?: number;
+      children?: number;
+      specialRequests?: string;
+      paymentMethod: string;
+      paymentReference?: string;
+      paidAmount?: number;
+      totalAmount?: number;
+    },
+  ) {
+    return this.svc.createOnlineReservation(body);
   }
 
   @Get('qr-code')
@@ -78,6 +162,23 @@ export class GuestPortalController {
     },
   ) {
     return this.svc.requestStayChange(body);
+  }
+
+  @Post('maintenance')
+  reportMaintenance(
+    @Body()
+    body: {
+      roomNumber: string;
+      guestName: string;
+      guestId?: string;
+      reservationId?: string;
+      item: string;
+      title?: string;
+      description: string;
+      priority?: string;
+    },
+  ) {
+    return this.svc.reportMaintenance(body);
   }
 
   @Get('my-orders')

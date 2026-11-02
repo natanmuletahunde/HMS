@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { ArrowLeft, ArrowRight, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Column<T> {
@@ -122,13 +122,8 @@ export function DataTable<T extends { id?: string | number }>({
         </table>
       </div>
 
-      {/* Quiet Footer with entry count and pagination */}
-      <div className="px-6 py-3.5 border-t border-[var(--border)] bg-[var(--surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
-        <div>
-          Showing <span className="font-semibold text-[var(--text-primary)]">{startItem}</span> to{" "}
-          <span className="font-semibold text-[var(--text-primary)]">{endItem}</span> of{" "}
-          <span className="font-semibold text-[var(--text-primary)]">{totalItems}</span> entries
-        </div>
+      {/* Quiet Footer with pagination */}
+      <div className="px-6 py-3.5 border-t border-[var(--border)] bg-[var(--surface)] flex items-center justify-end gap-3 text-xs text-[var(--text-secondary)]">
 
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
@@ -139,19 +134,21 @@ export function DataTable<T extends { id?: string | number }>({
               type="button"
               onClick={onPrev}
               disabled={currentPage <= 1}
-              className="w-8 h-8 rounded-lg border border-[var(--border)] flex items-center justify-center hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-2.5 h-8 rounded-lg border border-[var(--border)] flex items-center gap-1 font-mono text-xs font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Previous Page"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>&lt;-</span>
             </button>
             <button
               type="button"
               onClick={onNext}
               disabled={currentPage >= totalPages}
-              className="w-8 h-8 rounded-lg border border-[var(--border)] flex items-center justify-center hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-2.5 h-8 rounded-lg border border-[var(--border)] flex items-center gap-1 font-mono text-xs font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Next Page"
             >
-              <ChevronRight className="w-4 h-4" />
+              <span>-&gt;</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

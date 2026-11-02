@@ -6,7 +6,7 @@ import { ToggleLeft, ToggleRight, Settings, Package, ShoppingCart, UtensilsCross
 const ICON_MAP: Record<string, any> = {
   CalendarCheck, BedDouble, Users, LayoutDashboard: Shield,
   Sparkles, Wrench, UtensilsCrossed, ShoppingCart,
-  ConciergeBell: Package, Package, ShoppingBag: Package,
+  Package, ShoppingBag: Package,
   DollarSign, Building2, Car, Users2, MessageSquare, BarChart2, FolderOpen,
 };
 

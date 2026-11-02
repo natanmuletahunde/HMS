@@ -12,7 +12,7 @@ const DEFAULT_MODULES = [
   { moduleCode: 'maintenance',      moduleName: 'Maintenance',      description: 'Repair and maintenance requests', icon: 'Wrench',       category: 'operations', isCore: false },
   { moduleCode: 'restaurant',       moduleName: 'Restaurant',       description: 'F&B and table management',     icon: 'UtensilsCrossed', category: 'operations', isCore: false },
   { moduleCode: 'pos',              moduleName: 'Point of Sale',    description: 'POS terminal and orders',      icon: 'ShoppingCart',    category: 'operations', isCore: false },
-  { moduleCode: 'room-service',     moduleName: 'Room Service',     description: 'In-room dining orders',        icon: 'ConciergeBell',   category: 'operations', isCore: false },
+  { moduleCode: 'room-service',     moduleName: 'Room Service',     description: 'In-room dining orders',        icon: 'UtensilsCrossed', category: 'operations', isCore: false },
   { moduleCode: 'inventory',        moduleName: 'Inventory',        description: 'Stock and inventory control',  icon: 'Package',         category: 'business',   isCore: false },
   { moduleCode: 'procurement',      moduleName: 'Procurement',      description: 'Purchasing and suppliers',     icon: 'ShoppingBag',     category: 'business',   isCore: false },
   { moduleCode: 'financial',        moduleName: 'Financial',        description: 'Accounting and transactions',  icon: 'DollarSign',      category: 'business',   isCore: false },

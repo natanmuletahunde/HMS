@@ -448,7 +448,7 @@ function RoomsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+{/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
           Rooms
@@ -605,7 +605,7 @@ function RoomsContent() {
               setIsAddOpen(open);
               if (!open) setEditItem(null);
             }}>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editItem ? "Edit Room" : "Add Room"}</DialogTitle>
                 </DialogHeader>
@@ -771,11 +771,14 @@ function RoomsContent() {
                     <Input name="notes" defaultValue={editItem?.notes} />
                   </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={saveMutation.isPending}>
+                  {/* Sticky Action Footer */}
+                  <div className="px-6 py-4 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">
+                    <Button type="button" variant="outline" className="h-10 px-4 rounded-xl text-xs" onClick={() => setIsAddOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={saveMutation.isPending} className="h-10 px-5 rounded-xl text-xs font-semibold shadow-sm">
                       {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Room
+                      {editItem ? "Save Changes" : "Create Room"}
                     </Button>
                   </div>
                 </form>
@@ -1058,8 +1061,7 @@ function RoomsContent() {
           <ReservationCalendarView showTitle={true} />
         </div>
       )}
-
-      {/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
+{/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
       {activeRoomSubTab === "inventory" && (
         <div className="pt-8 border-t border-border mt-8 space-y-4">
           <div className="flex items-center justify-between">

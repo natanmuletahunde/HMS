@@ -11,6 +11,8 @@ import {
   Loader2,
   Globe,
   UserPlus,
+  Phone,
+  ArrowLeft,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -104,7 +106,9 @@ function ReservationsContent() {
   const limit = 5;
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelRes, setCancelRes] = useState<Reservation | null>(null);
+  const [cancelReason, setCancelReason] = useState("Guest requested cancellation via phone");
+  const [waiveFee, setWaiveFee] = useState(true);
   const [checkOutRes, setCheckOutRes] = useState<Reservation | null>(null);
 
   const queryParams = new URLSearchParams({
@@ -140,11 +144,16 @@ function ReservationsContent() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/reservations/${id}`, { method: "DELETE", body: JSON.stringify({ reason: "Cancelled by staff" }) }),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      apiFetch(`/reservations/${id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason: reason || "Guest requested cancellation via phone" }),
+      }),
     onSuccess: () => {
       invalidate();
-      setCancelId(null);
-      toast({ title: "Reservation cancelled" });
+      setCancelRes(null);
+      setCancelReason("Guest requested cancellation via phone");
+      toast({ title: "Reservation cancelled & room released" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -164,9 +173,21 @@ function ReservationsContent() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reservation Records</h1>
-          <p className="text-sm text-text-muted">View and manage all guest booking records across the property.</p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.back()}
+            className="h-10 w-10 shrink-0 rounded-lg hover:bg-muted"
+            title="Go Back"
+            aria-label="Back to previous page"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Reservation Records</h1>
+            <p className="text-sm text-text-muted">View and manage all guest booking records across the property.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/reservations/calendar")}>Calendar View</Button>
@@ -271,7 +292,7 @@ function ReservationsContent() {
                   <TableCell>{res.checkInDate ? new Date(res.checkInDate).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>{res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>{res.nights ?? "—"}</TableCell>
-                  <TableCell>${Number(res.totalAmount ?? 0).toFixed(2)}</TableCell>
+                  <TableCell className="font-mono text-xs font-semibold">ETB {Number(res.totalAmount ?? 0).toFixed(2)}</TableCell>
                   <TableCell>
                     <Badge variant={(STATUS_BADGE[res.status] ?? "muted") as any} className="text-[10px] uppercase">
                       {(res.status ?? "").replace("_", " ")}
@@ -293,7 +314,7 @@ function ReservationsContent() {
                         </Button>
                       )}
                       {res.status !== "cancelled" && res.status !== "checked_out" && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-danger" title="Cancel" onClick={() => setCancelId(res.id)}>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-danger" title="Cancel" onClick={() => setCancelRes(res)}>
                           <XCircle className="h-3.5 w-3.5" />
                         </Button>
                       )}
@@ -318,39 +339,122 @@ function ReservationsContent() {
 
       {/* Confirm Dialog */}
       <Dialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Confirm Reservation</DialogTitle></DialogHeader>
-          <p className="text-text-muted">Are you sure you want to confirm this reservation?</p>
-          <div className="flex gap-3 mt-4">
-            <Button variant="outline" className="flex-1" onClick={() => setConfirmId(null)}>Cancel</Button>
-            <Button className="flex-1" disabled={confirmMutation.isPending} onClick={() => confirmId && confirmMutation.mutate(confirmId)}>
+        <DialogContent className="max-w-md rounded-2xl border border-border bg-white dark:bg-[#0E172E] p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Confirm Reservation</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground mt-1">
+            Are you sure you want to confirm this reservation? A confirmation notification will be sent to the guest.
+          </p>
+          <div className="flex gap-2 justify-end mt-5 pt-3 border-t border-border">
+            <Button variant="outline" className="h-10 text-sm" onClick={() => setConfirmId(null)}>
+              Cancel
+            </Button>
+            <Button className="h-10 text-sm font-semibold" disabled={confirmMutation.isPending} onClick={() => confirmId && confirmMutation.mutate(confirmId)}>
               {confirmMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm
+              Confirm Reservation &rarr;
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Cancel Dialog */}
-      <Dialog open={!!cancelId} onOpenChange={(o) => !o && setCancelId(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Cancel Reservation</DialogTitle></DialogHeader>
-          <p className="text-text-muted">Are you sure you want to cancel this reservation?</p>
-          <div className="flex gap-3 mt-4">
-            <Button variant="outline" className="flex-1" onClick={() => setCancelId(null)}>Keep it</Button>
-            <Button variant="destructive" className="flex-1" disabled={cancelMutation.isPending} onClick={() => cancelId && cancelMutation.mutate(cancelId)}>
-              {cancelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Cancel Reservation
-            </Button>
+      {/* Cancel Dialog (Front Desk / Phone Cancellation) */}
+      <Dialog open={!!cancelRes} onOpenChange={(o) => !o && setCancelRes(null)}>
+        <DialogContent className="max-w-lg rounded-2xl border border-border bg-white dark:bg-[#0E172E] p-6 shadow-2xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-destructive">
+              <Phone className="h-5 w-5 text-amber-500" />
+              <span>Cancel Reservation — #{cancelRes?.reservationNumber}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Room Release Notification Banner */}
+          <div className="bg-[#eef8f5] dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3.5 text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-2.5">
+            <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>
+              <strong>Immediate Inventory Release:</strong> Cancelling this reservation will instantly return{" "}
+              {cancelRes?.roomNumber ? `Room ${cancelRes.roomNumber}` : "allocated inventory"} back to Available status for walk-ins and online booking.
+            </span>
+          </div>
+
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border text-xs">
+              <div>
+                <span className="text-muted-foreground">Guest: </span>
+                <strong className="text-foreground">{cancelRes?.guestName ?? "Guest"}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Room: </span>
+                <strong className="text-primary font-bold">{cancelRes?.roomNumber ? `Room ${cancelRes.roomNumber}` : "Unassigned"}</strong>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                Cancellation Reason *
+              </Label>
+              <Select value={cancelReason} onValueChange={setCancelReason}>
+                <SelectTrigger className="h-10 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Guest requested cancellation via phone">Guest requested cancellation via phone</SelectItem>
+                  <SelectItem value="Flight delayed / travel itinerary change">Flight delayed / travel itinerary change</SelectItem>
+                  <SelectItem value="Guest illness / medical emergency">Guest illness / medical emergency</SelectItem>
+                  <SelectItem value="Duplicate booking / date modification">Duplicate booking / date modification</SelectItem>
+                  <SelectItem value="No-show / non-arrival">No-show / non-arrival</SelectItem>
+                  <SelectItem value="Other front-desk cancellation">Other front-desk cancellation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="waiveFee"
+                checked={waiveFee}
+                onChange={(e) => setWaiveFee(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="waiveFee" className="text-xs font-medium cursor-pointer">
+                Waive cancellation penalties per front desk authorization
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button variant="outline" className="h-10 text-sm" onClick={() => setCancelRes(null)}>
+                Keep Reservation
+              </Button>
+              <Button
+                variant="destructive"
+                className="h-10 text-sm font-semibold"
+                disabled={cancelMutation.isPending}
+                onClick={() => {
+                  if (!cancelRes) return;
+                  cancelMutation.mutate({ id: cancelRes.id, reason: cancelReason });
+                }}
+              >
+                {cancelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirm Cancellation & Release Room &rarr;
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Check-out Dialog */}
       <Dialog open={!!checkOutRes} onOpenChange={(o) => !o && setCheckOutRes(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Check Out — {checkOutRes?.guestName}</DialogTitle></DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => {
+        <DialogContent className="max-w-lg rounded-2xl border border-border bg-white dark:bg-[#0E172E] p-6 shadow-2xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Check Out & Settle Folio — {checkOutRes?.guestName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground -mt-1 pb-2 border-b border-border">
+            <span>Room {checkOutRes?.roomNumber ?? "—"}</span>
+            <span>&bull;</span>
+            <span>Res #{checkOutRes?.reservationNumber}</span>
+          </div>
+
+          <form className="space-y-4 pt-2" onSubmit={(e) => {
             e.preventDefault();
             if (!checkOutRes) return;
             const fd = new FormData(e.currentTarget);
@@ -359,36 +463,46 @@ function ReservationsContent() {
               body: {
                 lateCheckoutFee: fd.get("lateCheckoutFee") ? Number(fd.get("lateCheckoutFee")) : undefined,
                 depositRefunded: fd.get("depositRefunded") === "on",
-                feedbackRating: fd.get("feedbackRating") ? Number(fd.get("feedbackRating")) : undefined,
                 feedbackNotes: fd.get("feedbackNotes") || undefined,
                 notes: fd.get("notes") || undefined,
               },
             });
           }}>
-            <div className="grid gap-1.5">
-              <Label htmlFor="lateCheckoutFee">Late Checkout Fee ($)</Label>
-              <Input id="lateCheckoutFee" name="lateCheckoutFee" type="number" step="0.01" defaultValue="0" />
+            <div className="space-y-1.5">
+              <Label htmlFor="lateCheckoutFee" className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                Late Checkout Fee (ETB)
+              </Label>
+              <Input id="lateCheckoutFee" name="lateCheckoutFee" type="number" step="0.01" defaultValue="0" className="h-10 text-sm font-mono" />
             </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="depositRefunded" name="depositRefunded" className="h-4 w-4" defaultChecked />
-              <label htmlFor="depositRefunded" className="text-sm">Deposit Refunded</label>
+
+            <div className="flex items-center gap-2 py-1">
+              <input type="checkbox" id="depositRefunded" name="depositRefunded" className="h-4 w-4 rounded border-border" defaultChecked />
+              <label htmlFor="depositRefunded" className="text-xs font-medium cursor-pointer">Security deposit refunded in full</label>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="feedbackRating">Guest Rating (1-5)</Label>
-              <Input id="feedbackRating" name="feedbackRating" type="number" min={1} max={5} defaultValue="5" />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="feedbackNotes" className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                Guest Feedback / Departure Comments
+              </Label>
+              <Input id="feedbackNotes" name="feedbackNotes" placeholder="Guest comments on stay experience" className="h-10 text-sm" />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="feedbackNotes">Guest Feedback</Label>
-              <Input id="feedbackNotes" name="feedbackNotes" placeholder="Guest comments on stay" />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="notes" className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                Front Desk Internal Notes
+              </Label>
+              <textarea name="notes" rows={2} placeholder="Internal staff notes regarding checkout..." className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-xs" />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="notes">Notes</Label>
-              <textarea name="notes" rows={2} className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm" />
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button type="button" variant="outline" className="h-10 text-sm" onClick={() => setCheckOutRes(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="h-10 text-sm font-semibold" disabled={checkOutMutation.isPending}>
+                {checkOutMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Complete Check-Out & Finalize Folio &rarr;
+              </Button>
             </div>
-            <Button type="submit" className="w-full" disabled={checkOutMutation.isPending}>
-              {checkOutMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Complete Check-out
-            </Button>
           </form>
         </DialogContent>
       </Dialog>

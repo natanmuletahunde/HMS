@@ -42,6 +42,7 @@ export const guestsTable = pgTable("guests", {
   profilePhoto: text("profile_photo"),
   remarks: text("remarks"),
   notes: text("notes"),
+  passwordHash: text("password_hash"),
   totalStays: integer("total_stays").notNull().default(0),
   // Audit
   isActive: boolean("is_active").notNull().default(true),

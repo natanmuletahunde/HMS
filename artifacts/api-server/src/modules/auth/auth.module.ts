@@ -4,6 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { AfroMessageService } from './afromessage.service';
+import { OtpService } from './otp.service';
 import { requireSessionSecret } from '../../common/config/runtime-secrets';
 
 @Module({
@@ -15,7 +17,7 @@ import { requireSessionSecret } from '../../common/config/runtime-secrets';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [JwtModule, AuthService],
+  providers: [AuthService, JwtStrategy, AfroMessageService, OtpService],
+  exports: [JwtModule, AuthService, AfroMessageService, OtpService],
 })
 export class AuthModule {}

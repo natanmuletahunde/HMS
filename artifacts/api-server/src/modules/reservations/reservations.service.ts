@@ -55,6 +55,8 @@ const joinedSelect = {
   guestLastName: guestsTable.lastName,
   guestPhone: guestsTable.phone,
   guestEmail: guestsTable.email,
+  guestNationalId: guestsTable.nationalId,
+  guestIdNumber: guestsTable.idNumber,
   guestCode: guestsTable.guestCode,
   guestVipStatus: guestsTable.vipStatus,
   roomNumber: roomsTable.number,
@@ -105,6 +107,8 @@ export class ReservationsService {
           like(guestsTable.firstName, s),
           like(guestsTable.lastName, s),
           like(guestsTable.phone, s),
+          like(guestsTable.nationalId, s),
+          like(guestsTable.idNumber, s),
         ),
       );
     }
@@ -408,6 +412,9 @@ export class ReservationsService {
       checkedOutBy?: string;
       notes?: string;
       overrideInspection?: boolean;
+      paymentMethod?: string;
+      amountPaidAtCheckout?: number;
+      transactionReference?: string;
     },
   ) {
     const [existing] = await db.select().from(reservationsTable).where(eq(reservationsTable.id, id));
@@ -443,9 +450,17 @@ export class ReservationsService {
       }
     }
 
+    const currentPaid = Number(existing.paidAmount || 0);
+    const checkoutPayment = Number(body.amountPaidAtCheckout || 0);
+    const updatedPaidTotal = checkoutPayment > 0 ? currentPaid + checkoutPayment : currentPaid;
+
     await db
       .update(reservationsTable)
-      .set({ status: 'checked_out', actualCheckOut: new Date() })
+      .set({
+        status: 'checked_out',
+        actualCheckOut: new Date(),
+        paidAmount: String(updatedPaidTotal.toFixed(2)),
+      })
       .where(eq(reservationsTable.id, id));
 
     if (existing.roomId) {
@@ -463,6 +478,10 @@ export class ReservationsService {
       });
     }
 
+    const checkoutNote = body.notes || (body.paymentMethod
+      ? `Settled $${checkoutPayment.toFixed(2)} via ${body.paymentMethod}${body.transactionReference ? ` (Ref: ${body.transactionReference})` : ''}`
+      : undefined);
+
     await db.insert(checkoutsTable).values({
       reservationId: id,
       guestId: existing.guestId,
@@ -473,7 +492,7 @@ export class ReservationsService {
       feedbackRating: body.feedbackRating,
       feedbackNotes: body.feedbackNotes,
       checkedOutBy: body.checkedOutBy,
-      notes: body.notes,
+      notes: checkoutNote,
     });
 
     // Auto-record payment transaction if an active invoice exists for this reservation
@@ -483,19 +502,23 @@ export class ReservationsService {
         .from(invoicesTable)
         .where(eq(invoicesTable.reservationId, id));
       if (inv) {
-        const payAmount = Number(inv.totalAmount || body.totalCharges || 0);
+        const payAmount = checkoutPayment > 0 ? checkoutPayment : Number(inv.totalAmount || body.totalCharges || 0);
         if (payAmount > 0) {
-          const ref = 'PAY-CHK-' + Math.floor(100000 + Math.random() * 900000);
+          const ref = body.transactionReference || ('PAY-CHK-' + Math.floor(100000 + Math.random() * 900000));
           await db.insert(paymentsTable).values({
             invoiceId: inv.id,
             amount: String(payAmount.toFixed(2)),
-            method: 'card',
+            method: (body.paymentMethod as any) || 'card',
             reference: ref,
-            notes: `Folio settled in full at checkout (${existing.reservationNumber})`,
+            notes: `Folio settled at checkout (${existing.reservationNumber}) via ${body.paymentMethod || 'card'}`,
           });
+          const newInvoicePaid = Number(inv.paidAmount || 0) + payAmount;
           await db
             .update(invoicesTable)
-            .set({ paidAmount: String(payAmount.toFixed(2)), status: 'paid' })
+            .set({
+              paidAmount: String(newInvoicePaid.toFixed(2)),
+              status: newInvoicePaid >= Number(inv.totalAmount || 0) ? 'paid' : 'issued',
+            })
             .where(eq(invoicesTable.id, inv.id));
         }
       }

@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -234,15 +234,15 @@ export function ReservationCalendarView({ showTitle = true, className = "" }: Re
       <Card className="border border-border shadow-sm">
         <CardHeader className="pb-3 border-b border-border/50">
           <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={prevMonth} className="gap-1 text-xs font-semibold">
-              <ChevronLeft className="h-4 w-4" /> Previous
+            <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8" title="Previous Month" aria-label="Previous Month">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="text-center">
               <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">{MONTH_NAMES[month]} {year}</CardTitle>
               <p className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">Click any date to inspect guest folios and room assignments</p>
             </div>
-            <Button variant="outline" size="sm" onClick={nextMonth} className="gap-1 text-xs font-semibold">
-              Next <ChevronRight className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8" title="Next Month" aria-label="Next Month">
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>

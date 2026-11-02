@@ -30,7 +30,7 @@ Follow the steps in chronological order to observe how data connects across modu
 1. Navigate to: `/roles`
 2. Click **Add New Role** (or **Create Role**).
 3. Fill in:
-   - **Role Name:** `VIP Concierge Supervisor`
+   - **Role Name:** `VIP Services Supervisor`
    - **Description:** `Handles VIP guest relations, custom dining, and transport logistics`
    - **Permissions:** Check permissions for `guests`, `reservations`, `restaurant`, `transport`, `customer-service`
 4. Click **Save / Create**.
@@ -42,10 +42,10 @@ Follow the steps in chronological order to observe how data connects across modu
 3. Fill in:
    - **First Name:** `Bethlehem`
    - **Last Name:** `Assefa`
-   - **Email:** `bethlehem.concierge@nexusgrand.com`
+   - **Email:** `bethlehem.services@nexusgrand.com`
    - **Phone:** `+251-911-223344`
-   - **Password:** `Concierge@2026`
-   - **Role:** Select `VIP Concierge Supervisor`
+   - **Password:** `HotelAdmin@2026`
+   - **Role:** Select `VIP Services Supervisor`
    - **Status:** `Active`
 4. Click **Create User**.
 5. **Expected Result:** The new user is listed with their assigned role and active status.
