@@ -45,6 +45,7 @@ type CoordinatorOrder = {
   coordinatorName?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenOfficerId?: string | null;
   kitchenOfficerName?: string | null;
   routedVia?: "coordinator" | "direct_kitchen";
@@ -884,6 +885,15 @@ export default function CoordinatorPage() {
                 </div>
                 <p className="text-slate-400">
                   Guest: <span className="font-semibold text-slate-900 dark:text-foreground">{selectedOrder.guestName || "Walk-in Guest"}</span> • Server: <span className="font-semibold text-slate-900 dark:text-foreground">{selectedOrder.waiterName || "Floor Waiter"}</span>
+                  {selectedOrder.pacingPreference === "serve_together" ? (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/50">
+                      🍽️ Hold Drinks With Meal
+                    </span>
+                  ) : (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/50">
+                      🍸 Drinks First
+                    </span>
+                  )}
                 </p>
                 <div className="pt-2 border-t border-slate-200/40 text-[11px] text-slate-600 dark:text-muted-foreground">
                   Dishes: {selectedOrder.items?.map((i) => `${i.quantity}x ${i.name}`).join(", ")}

@@ -58,6 +58,7 @@ type KitchenOrder = {
   coordinatorName?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenOfficerId?: string | null;
   routedVia?: "coordinator" | "direct_kitchen";
   coordinatorStatus?: "pending" | "dispatched" | "bypassed";
@@ -1485,6 +1486,18 @@ export default function KitchenOfficerOperationPage() {
                                   )}
                                 </div>
                               </div>
+
+                              {/* Guest Beverage Pacing Banner */}
+                              {order.pacingPreference === "serve_together" ? (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-[11px] font-semibold">
+                                  <Utensils className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                  <span>⏱️ HOLD BEVERAGES: SERVE TOGETHER WITH MEAL</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded text-amber-700 dark:text-amber-300 text-[10px] font-medium">
+                                  <span>🍸 Guest Pacing: Serve drinks as ready while food cooks</span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Card Items List */}
@@ -1672,6 +1685,15 @@ export default function KitchenOfficerOperationPage() {
                                     {maxRound > 1 && (
                                       <span className="ml-1 text-[10px] font-bold text-purple-600 dark:text-purple-400">
                                         (R{maxRound})
+                                      </span>
+                                    )}
+                                    {order.pacingPreference === "serve_together" ? (
+                                      <span className="ml-1 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                        (Hold Drinks)
+                                      </span>
+                                    ) : (
+                                      <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                        (Drinks 1st)
                                       </span>
                                     )}
                                   </TableCell>

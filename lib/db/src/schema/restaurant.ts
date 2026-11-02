@@ -93,6 +93,7 @@ export const restaurantOrdersTable = pgTable("restaurant_orders", {
   receiptPrintedAt:            timestamp("receipt_printed_at", { withTimezone: true }),
   cashierId:                   text("cashier_id").references(() => usersTable.id),
   cashierNotes:                text("cashier_notes"),
+  pacingPreference:            text("pacing_preference").notNull().default("drinks_first"), // 'drinks_first' | 'serve_together'
   notes:                       text("notes"),
   isActive:                    boolean("is_active").notNull().default(true),
   createdAt:                   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

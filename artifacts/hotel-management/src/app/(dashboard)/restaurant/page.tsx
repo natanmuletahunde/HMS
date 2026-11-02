@@ -10,7 +10,7 @@ import {
   ShoppingBag, Bike, ChevronDown, FileSpreadsheet, UtensilsCrossed,
   QrCode, GitMerge, ChefHat, Send, Check,
   Search, Bell, FileText, ArrowRight, CreditCard, Wallet, Banknote, DollarSign, DoorClosed,
-  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye
+  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye, Wine
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -94,6 +94,7 @@ type Order = {
   receiptPrintedAt?: string;
   cashierName?: string;
   waiterName?: string;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenNotes?: string;
   notes?: string;
   createdAt?: string;
@@ -274,6 +275,7 @@ export default function RestaurantPage() {
   // Coordinator & Table QR state
   const [newOrderRoutedVia, setNewOrderRoutedVia] = useState<"coordinator" | "direct_kitchen">("coordinator");
   const [newOrderCoordinatorId, setNewOrderCoordinatorId] = useState("");
+  const [newOrderPacingPreference, setNewOrderPacingPreference] = useState<"drinks_first" | "serve_together">("drinks_first");
   const [isTableQrModalOpen, setIsTableQrModalOpen] = useState(false);
   const [menuTickSearch, setMenuTickSearch] = useState("");
   const [menuTickCategory, setMenuTickCategory] = useState("All");
@@ -497,6 +499,7 @@ export default function RestaurantPage() {
 
     setNewOrderDiningCase(targetCase);
     setNewOrderSettlementType(targetCase === "walk_in" ? "direct_payment" : "room_charge");
+    setNewOrderPacingPreference("drinks_first");
     setIsNewOrderOpen(true);
   };
 
@@ -1798,6 +1801,15 @@ export default function RestaurantPage() {
                         </TableCell>
                         <TableCell className="py-3.5">
                           {stageBadge}
+                          {ord.pacingPreference === "serve_together" ? (
+                            <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/50 mt-1">
+                              🍽️ Hold drinks for meal
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/50 mt-1">
+                              🍸 Drinks first
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-right py-3.5 pr-4">
                           <div className="flex items-center justify-end gap-1.5">
@@ -1849,15 +1861,19 @@ export default function RestaurantPage() {
                                 onClick={() => {
                                   updateOrderMutation.mutate({ id: ord.id, status: "partially_served" });
                                   toast({
-                                    title: "Drinks Delivered to Guest 🍸",
+                                    title: ord.pacingPreference === "serve_together" ? "Drinks Served (Guest Override) 🍸" : "Drinks Delivered to Guest 🍸",
                                     description: `Drinks served to ${ord.tableNumber ? `Table #${ord.tableNumber}` : `Room #${ord.roomNumber}`}. Kitchen continuing main meal cooking.`,
                                   });
                                 }}
                                 disabled={updateOrderMutation.isPending}
-                                className="h-8 px-2.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-700 text-white gap-1 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                className={`h-8 px-2.5 text-xs font-semibold gap-1 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer ${
+                                  ord.pacingPreference === "serve_together"
+                                    ? "bg-amber-600/90 hover:bg-amber-700 text-white"
+                                    : "bg-cyan-600 hover:bg-cyan-700 text-white"
+                                }`}
                               >
                                 <Coffee className="w-3.5 h-3.5" />
-                                <span>Serve Drinks First</span>
+                                <span>{ord.pacingPreference === "serve_together" ? "Deliver Drinks Early (Override)" : "Serve Drinks First"}</span>
                               </Button>
                             )}
 
@@ -2886,6 +2902,7 @@ export default function RestaurantPage() {
                 waiterId: user?.id,
                 routedVia: newOrderRoutedVia,
                 coordinatorId: newOrderRoutedVia === "coordinator" ? (newOrderCoordinatorId || (coordinators[0]?.id || undefined)) : undefined,
+                pacingPreference: newOrderPacingPreference,
                 items: newOrderItems.map(i => {
                   return {
                     menuItemId: i.menuItemId,
@@ -3227,6 +3244,47 @@ export default function RestaurantPage() {
                   </select>
                 </div>
               )}
+            </div>
+
+            {/* Guest Beverage Pacing Preference */}
+            <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-text-muted">Guest Beverage Delivery Preference *</Label>
+                <span className="text-[10px] text-primary font-medium">Guest Pacing</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewOrderPacingPreference("drinks_first")}
+                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    newOrderPacingPreference === "drinks_first"
+                      ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold"
+                      : "border-border hover:bg-muted/40 text-text-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Wine className="h-3.5 w-3.5 text-amber-600" />
+                    <span>🍸 Serve Drinks First</span>
+                  </div>
+                  <span className="text-[10px] text-text-muted leading-tight">Deliver drinks as soon as ready while food cooks</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewOrderPacingPreference("serve_together")}
+                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    newOrderPacingPreference === "serve_together"
+                      ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold"
+                      : "border-border hover:bg-muted/40 text-text-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Utensils className="h-3.5 w-3.5 text-blue-500" />
+                    <span>🍽️ Serve Together with Meal</span>
+                  </div>
+                  <span className="text-[10px] text-text-muted leading-tight">Hold drinks, deliver at the same time as food</span>
+                </button>
+              </div>
             </div>
 
             {/* Rapid Multi-Tick Menu Selector */}

@@ -65,6 +65,7 @@ const fmtOrder = (o: any, items: any[]) => ({
   receiptPrintedAt: o.receiptPrintedAt?.toISOString() ?? null,
   cashierId: o.cashierId ?? null,
   cashierNotes: o.cashierNotes ?? null,
+  pacingPreference: o.pacingPreference ?? 'drinks_first',
   createdAt: o.createdAt?.toISOString() ?? null,
   updatedAt: o.updatedAt?.toISOString() ?? null,
   items: items.map((i) => ({
@@ -621,6 +622,7 @@ export class RestaurantService {
         totalAmount: String(totalAmount.toFixed(2)),
         paymentStatus: settlementType === 'complimentary_breakfast' && totalAmount === 0 ? 'paid' : (b.paymentStatus ?? 'pending'),
         paymentMethod: settlementType === 'complimentary_breakfast' ? 'complimentary' : b.paymentMethod ?? null,
+        pacingPreference: b.pacingPreference ?? 'drinks_first',
         notes: b.notes ?? null,
       })
       .returning();
@@ -759,6 +761,7 @@ export class RestaurantService {
       'coordinatorId', 'kitchenOfficerId', 'routedVia', 'coordinatorStatus',
       'coordinatorNotes', 'kitchenNotes', 'notifiedParty',
       'billingStatus', 'billRequestedAt', 'receiptPrintedAt', 'cashierId', 'cashierNotes',
+      'pacingPreference',
     ]) {
       if (b[k] !== undefined) u[k] = b[k];
     }
