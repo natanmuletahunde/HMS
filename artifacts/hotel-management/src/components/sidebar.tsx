@@ -105,25 +105,50 @@ export function Sidebar() {
   const { user } = useAuth();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const isWaiter = normalizeRole(currentRole) === "waiter";
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
 
   // Filter navigation groups based on role authorization & dynamic permissions
   const filteredNavGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => {
-      const authorizedItems = group.items.filter((item) => {
-        const pathOnly = item.href.split('?')[0];
-        return isRouteAuthorized(user, pathOnly, user?.permissions);
-      }).map((item) => {
-        if (isWaiter && item.href === "/restaurant") {
-          return { ...item, name: "Waiter" };
+      let items = group.items;
+      let groupTitle = group.title;
+
+      if (group.title === "Hotel Setup") {
+        if (!isGlobal) {
+          groupTitle = "Branch Setup";
+          items = [
+            { name: "Branch Config", href: "/hotel", icon: Building2 },
+            { name: "Buildings & Floors", href: "/branches?tab=buildings", icon: Building },
+          ];
+        } else {
+          groupTitle = "Hotel Setup";
+          items = [
+            { name: "HQ Hotel Config", href: "/hotel", icon: Building2 },
+            { name: "Branches & Properties", href: "/branches", icon: GitBranch },
+          ];
         }
-        return item;
+      }
+
+      const authorizedItems = items.filter((item) => {
+        const pathOnly = item.href.split('?')[0];
+        if (isRouteAuthorized(user, pathOnly, user?.permissions)) {
+          if (isWaiter && item.href === "/restaurant") {
+            return { ...item, name: "Waiter" };
+          }
+          return item;
+        }
+        return false;
       });
       return {
         ...group,
+        title: groupTitle,
         items: authorizedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [user, currentRole, isWaiter]);
+  }, [user, currentRole, isWaiter, isGlobal]);
 
   return (
     <aside 

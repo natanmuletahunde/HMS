@@ -605,7 +605,7 @@ function RoomsContent() {
               setIsAddOpen(open);
               if (!open) setEditItem(null);
             }}>
-              <DialogContent className="max-w-3xl p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
+<DialogContent className="max-w-3xl p-0 flex flex-col max-h-[90vh] overflow-hidden rounded-2xl border border-border/80 bg-white dark:bg-[#0D1527] shadow-2xl text-foreground">
                 <DialogHeader className="px-6 py-4 border-b border-border/70 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
@@ -783,8 +783,7 @@ function RoomsContent() {
                     <Label>Notes</Label>
                     <Input name="notes" defaultValue={editItem?.notes} />
                   </div>
-
-                  </div>
+                </div>
 
                   {/* Sticky Action Footer */}
                   <div className="px-6 py-4 border-t border-border/80 bg-muted/20 dark:bg-muted/10 flex items-center justify-end gap-2.5 shrink-0">

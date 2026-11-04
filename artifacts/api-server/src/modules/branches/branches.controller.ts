@@ -3,7 +3,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { BranchesService } from './branches.service';
-import { assertCanManageBranches, getUserAccessInfo } from '../../common/utils/access-control';
+import { assertCanManageBranches, assertCanUpdateBranch, getUserAccessInfo } from '../../common/utils/access-control';
 
 @Controller('branches')
 @UseGuards(JwtAuthGuard)
@@ -34,7 +34,7 @@ export class BranchesController {
 
   @Patch(':id')
   async update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() body: any) {
-    await assertCanManageBranches(user);
+    await assertCanUpdateBranch(user, id);
     return this.svc.update(id, body);
   }
 

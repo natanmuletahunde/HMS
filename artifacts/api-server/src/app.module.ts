@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { MetricsInterceptor } from './modules/metrics/metrics.interceptor';
 import { GlobalJwtAuthGuard } from './common/guards/global-jwt-auth.guard';
 import { IpRestrictionGuard } from './common/guards/ip-restriction.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { HealthModule } from './modules/health/health.module';
@@ -77,6 +78,8 @@ import { GuestPortalModule } from './modules/guest-portal/guest-portal.module';
     { provide: APP_GUARD, useClass: GlobalJwtAuthGuard },
     // IpRestrictionGuard runs SECOND: uses req.user set above — no JWT re-verification needed
     { provide: APP_GUARD, useClass: IpRestrictionGuard },
+    // PermissionsGuard runs THIRD: checks @RequirePermissions() against req.user.permissions
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),

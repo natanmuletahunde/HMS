@@ -181,7 +181,6 @@ export function Topbar() {
   });
 
   const currentBreadcrumb = (
-    pathname === "/dashboard" ||
     pathname === "/hotel" ||
     pathname === "/branches" ||
     pathname === "/rooms" ||
@@ -256,7 +255,7 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
-        {/* Dynamic Role-Based Notifications Dropdown */}
+{/* Dynamic Role-Based Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -264,10 +263,10 @@ export function Topbar() {
               className="relative w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] border border-transparent hover:border-[var(--border)] transition-all cursor-pointer"
               title="Notifications"
             >
-              <Bell className="w-4 h-4 stroke-[1.75]" />
+              <Bell className="w-4 h-4 stroke-[1.5]" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs animate-in zoom-in">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--blue-600)] text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </button>
@@ -347,6 +346,7 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        
         {/* Profile Avatar / Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

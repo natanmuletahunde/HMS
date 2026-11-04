@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
 import { eq, or } from 'drizzle-orm';
-import { db, usersTable, rolesTable, mfaConfigsTable, userBranchesTable, branchesTable } from '@workspace/db';
+import { db, usersTable, rolesTable, mfaConfigsTable, userBranchesTable, branchesTable, auditLogsTable } from '@workspace/db';
 import type { JwtPayload } from './jwt.strategy';
 import { mfaDecrypt, mfaDecryptCodes, mfaEncryptCodes } from '../../common/utils/mfa-crypto';
 import { consumeMfaBackupCode } from '../../common/utils/mfa-backup-codes';
@@ -31,6 +31,9 @@ export class AuthService {
         firstName: usersTable.firstName, lastName: usersTable.lastName,
         phone: usersTable.phone, avatarUrl: usersTable.avatarUrl,
         faydaId: usersTable.faydaId,
+        department: usersTable.department,
+        failedLoginAttempts: usersTable.failedLoginAttempts,
+        lockedUntil: usersTable.lockedUntil,
         roleId: usersTable.roleId, roleName: rolesTable.name, roleScope: rolesTable.scope,
         rolePermissions: rolesTable.permissions,
         primaryBranchId: usersTable.primaryBranchId,

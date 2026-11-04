@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Link from "next/link";
+
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
+  Building,
   Sliders,
   CreditCard,
   Sparkles,
@@ -52,8 +55,14 @@ import {
   Smartphone,
   Eye,
   Banknote,
+  UploadCloud,
+  Download,
+  Percent,
+  Receipt,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
+import { BranchConfigView } from "@/components/setup/BranchConfigView";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -104,6 +113,29 @@ export type PaymentAccountSpecifier = {
   additionalIdentifier?: string;
 };
 
+export type CustomPolicyItem = {
+  id: string;
+  title: string;
+  category?: string;
+  badge?: string;
+  initials?: string;
+  content: string;
+};
+
+export type ComplianceDocument = {
+  id: string;
+  title: string;
+  category: "tax_tin" | "vat_cert" | "trade_license" | "tourism_rating" | "health_fire_safety" | "other";
+  docNumber?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  status: "valid" | "expiring_soon" | "expired" | "pending_verification";
+  notes?: string;
+};
+
 export type HotelSettings = {
   // Operations & Timers
   earlyCheckInAllowedTime?: string;
@@ -123,6 +155,7 @@ export type HotelSettings = {
   galleryImages?: GalleryImage[];
 
   // Policies & Refunds
+  customPoliciesList?: CustomPolicyItem[];
   cancellationPolicyType?: "flexible" | "moderate" | "strict" | "non_refundable";
   cancellationFreeHours?: number;
   cancellationPenaltyPercent?: number;
@@ -139,7 +172,33 @@ export type HotelSettings = {
   checkoutTriggerState?: "dirty" | "cleaning";
   linenChangeFrequency?: number;
   turndownServiceEnabled?: boolean;
-  defaultBoardBasis?: "ro" | "bb" | "hb" | "fb";
+  defaultBoardBasis?: string;
+
+  // Ethiopian Tax & Regulatory Compliance
+  vatRatePercent?: number;
+  serviceChargePercent?: number;
+  serviceChargeEnabled?: boolean;
+  withholdingTaxServicePercent?: number;
+  withholdingTaxGoodsPercent?: number;
+  vatCalculationBasis?: "base_plus_service" | "base_only";
+  diplomaticVatExemptionEnabled?: boolean;
+
+  // Tax Registration & Licensing
+  vatRegistrationNumber?: string;
+  vatRegistrationDate?: string;
+  tradeLicenseExpiryDate?: string;
+  ministryOfTourismLicense?: string;
+  ministryOfTourismRating?: string;
+
+  // Fiscal Cash Register (ERCA / MoR Sales Register Machine)
+  fiscalCashRegisterEnabled?: boolean;
+  fiscalMachineCode?: string;
+  fiscalMachineSerial?: string;
+  fiscalTerminalId?: string;
+  fiscalIntegrationStatus?: "online" | "offline" | "standalone";
+
+  // Document Uploads
+  complianceDocuments?: ComplianceDocument[];
   breakfastServiceHours?: string;
   breakfastPriceAdult?: number;
   breakfastPriceChild?: number;
@@ -383,6 +442,86 @@ const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccountSpecifier[] = [
   },
 ];
 
+const DEFAULT_POLICIES: CustomPolicyItem[] = [
+  {
+    id: "policy-refund",
+    title: "Official Cancellation & Refund Policy",
+    category: "Refunds",
+    badge: "Active Policy",
+    initials: "CR",
+    content: `<h3>Standard Cancellation & Refund Policy</h3><p>Our hotel strives to provide flexible, transparent terms for both business and leisure guests.</p><h4>Cancellation Windows:</h4><ul><li><strong>Free Cancellation:</strong> Bookings cancelled up to 48 hours prior to arrival date by 14:00 local time receive a 100% full refund.</li><li><strong>Late Cancellation:</strong> Cancellations received within 48 hours of check-in, or failure to arrive (No-Show), will be billed for the first night room rate plus applicable taxes.</li><li><strong>Non-Refundable Tariffs:</strong> Promotional rates flagged as non-refundable are charged at booking and cannot be refunded or transferred.</li></ul><h4>Refund Settlement Timeline:</h4><p>Approved refunds are credited directly to the original settlement instrument within 3 to 5 business days.</p>`,
+  },
+  {
+    id: "policy-folio",
+    title: "Guest Folio & Invoice Legal Terms",
+    category: "Legal & Invoicing",
+    badge: "Invoice Footer",
+    initials: "TC",
+    content: `<h4>Guest Liability & Security Notice:</h4><ul><li><strong>Safe Deposit Boxes:</strong> Individual safe deposit boxes are provided at the Front Desk free of charge. Management disclaims all liability for cash, jewelry, or documents left in guest rooms.</li><li><strong>Property Damages:</strong> Registered guests assume full financial responsibility for any physical breakage, smoke damage, or fixture loss caused during their stay.</li><li><strong>Settlement of Charges:</strong> Unbilled incidental charges discovered post-departure will be posted to the credit card or billing account on record.</li></ul>`,
+  },
+  {
+    id: "policy-regcard",
+    title: "Arrival Registration Card Agreement",
+    category: "Check-In Agreement",
+    badge: "Registration Agreement",
+    initials: "RC",
+    content: `<h4>Guest Registration Agreement & Terms:</h4><p>I hereby certify that all information submitted during registration is accurate and complete.</p><ul><li>I agree to comply with hotel safety regulations, quiet hours, and property guidelines.</li><li>I agree that my personal liability for all room charges, taxes, and incidentals is not waived if any third party, employer, or sponsoring organization fails to pay in full.</li><li>I understand check-out time is 12:00 PM. Delayed departures without prior front desk clearance may incur half-day or full-day surcharges.</li></ul>`,
+  },
+  {
+    id: "policy-smoking-pets",
+    title: "Smoking & Pet Accommodation Policies",
+    category: "House Rules",
+    badge: "Property Guidelines",
+    initials: "SP",
+    content: `<h4>Smoking Policy:</h4><p>This property operates as a strictly non-smoking facility in all guest rooms, hallways, and indoor public venues. Dedicated smoking areas are available in landscaped garden terraces. Violations will incur a deep-cleaning penalty fee.</p><h4>Pet Accommodation:</h4><p>Pets are not permitted on hotel premises, with the exception of certified service animals registered at check-in.</p>`,
+  },
+];
+
+const DEFAULT_COMPLIANCE_DOCUMENTS: ComplianceDocument[] = [
+  {
+    id: "doc-tin",
+    title: "TIN Certificate",
+    category: "tax_tin",
+    docNumber: "0012345678",
+    issueDate: "2018-04-10",
+    status: "valid",
+    fileName: "TIN_Certificate.pdf",
+    fileSize: "1.2 MB",
+  },
+  {
+    id: "doc-vat",
+    title: "VAT Registration Certificate",
+    category: "vat_cert",
+    docNumber: "VAT-10-00892415",
+    issueDate: "2020-01-11",
+    status: "valid",
+    fileName: "VAT_Certificate.pdf",
+    fileSize: "1.8 MB",
+  },
+  {
+    id: "doc-trade",
+    title: "Business Trade License",
+    category: "trade_license",
+    docNumber: "ETH-HTL-2020-00142",
+    issueDate: "2024-07-08",
+    expiryDate: "2026-07-07",
+    status: "valid",
+    fileName: "Trade_License.pdf",
+    fileSize: "2.4 MB",
+  },
+  {
+    id: "doc-tourism",
+    title: "Tourism Star Rating Certificate",
+    category: "tourism_rating",
+    docNumber: "MoT-HTL-CAT5-0042",
+    issueDate: "2023-11-20",
+    expiryDate: "2027-11-19",
+    status: "valid",
+    fileName: "Tourism_Star_Rating.pdf",
+    fileSize: "3.1 MB",
+  },
+];
+
 const DEFAULT_SETTINGS: HotelSettings = {
   earlyCheckInAllowedTime: "10:00",
   lateCheckOutGracePeriod: 30,
@@ -413,6 +552,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   heroImageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85",
   galleryImages: DEFAULT_GALLERY,
 
+  customPoliciesList: DEFAULT_POLICIES,
   cancellationPolicyType: "moderate",
   cancellationFreeHours: 48,
   cancellationPenaltyPercent: 100,
@@ -428,7 +568,25 @@ const DEFAULT_SETTINGS: HotelSettings = {
   checkoutTriggerState: "dirty",
   linenChangeFrequency: 3,
   turndownServiceEnabled: true,
-  defaultBoardBasis: "bb",
+  defaultBoardBasis: "Bed & Breakfast (BB)",
+  vatRatePercent: 15,
+  serviceChargePercent: 10,
+  serviceChargeEnabled: true,
+  withholdingTaxServicePercent: 3,
+  withholdingTaxGoodsPercent: 2,
+  vatCalculationBasis: "base_plus_service",
+  diplomaticVatExemptionEnabled: true,
+  vatRegistrationNumber: "VAT-10-00892415",
+  vatRegistrationDate: "2020-01-11",
+  tradeLicenseExpiryDate: "2026-07-07",
+  ministryOfTourismLicense: "MoT-HTL-CAT5-0042",
+  ministryOfTourismRating: "5 Star Luxury Hotel",
+  fiscalCashRegisterEnabled: false,
+  fiscalMachineCode: "MRC-AA-789230",
+  fiscalMachineSerial: "FBR-2024-00918",
+  fiscalTerminalId: "TID-FD-01",
+  fiscalIntegrationStatus: "online",
+  complianceDocuments: DEFAULT_COMPLIANCE_DOCUMENTS,
   breakfastServiceHours: "06:30 - 10:00",
   breakfastPriceAdult: 450,
   breakfastPriceChild: 250,
@@ -601,20 +759,85 @@ function getPaymentMetadata(account: PaymentAccountSpecifier) {
 // MAIN COMPONENT
 // ---------------------------------------------------------------------------
 export default function HotelPage() {
+  const { user, activeBranch, branches, switchBranch } = useAuth();
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const branchId = activeBranch?.id || user?.primaryBranchId || branches?.[0]?.id;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [isEditing, setIsEditing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: rawHotel, isLoading, isError, refetch } = useQuery({
+  // 1. Fetch Chain HQ Hotel defaults
+  const { data: rawHotel, isLoading: isHotelLoading, isError: isHotelError, refetch: refetchHotel } = useQuery({
     queryKey: ["hotel"],
     queryFn: () => apiFetch<any>("/hotel"),
   });
 
-  const hotel: Hotel | undefined = Array.isArray(rawHotel)
+  const chainHotel: Hotel | undefined = Array.isArray(rawHotel)
     ? rawHotel[0]
     : (rawHotel?.data?.[0] ?? rawHotel);
+
+  // 2. Fetch Branch-specific configuration if branch-scoped
+  const { data: branchData, isLoading: isBranchLoading, isError: isBranchError, refetch: refetchBranch } = useQuery({
+    queryKey: ["branch", branchId],
+    queryFn: () => (branchId ? apiFetch<any>(`/branches/${branchId}`) : null),
+    enabled: !isGlobal && !!branchId,
+  });
+
+  const isLoading = isHotelLoading || (!isGlobal && isBranchLoading);
+  const isError = isHotelError || (!isGlobal && isBranchError);
+  const refetch = () => {
+    refetchHotel();
+    if (!isGlobal) refetchBranch();
+  };
+
+  // Effective Hotel Object: Exact same layout as Super Admin Hotel Config,
+  // populated with branch values where set, with seamless fallback to Chain HQ defaults
+  const hotel: Hotel | undefined = useMemo(() => {
+    if (!chainHotel) return undefined;
+    if (isGlobal || !branchData) return chainHotel;
+
+    const bSettings = branchData.settings || {};
+    const hSettings = chainHotel.settings || {};
+
+    return {
+      ...chainHotel,
+      id: chainHotel.id,
+      hotelName: branchData.branchName || chainHotel.hotelName,
+      hotelCode: branchData.branchCode || chainHotel.hotelCode,
+      legalName: branchData.manager || chainHotel.legalName,
+      phone: branchData.phone || chainHotel.phone,
+      email: branchData.email || chainHotel.email,
+      address: branchData.address || chainHotel.address,
+      description: branchData.description || chainHotel.description,
+      starRating: branchData.starRating ? Number(branchData.starRating) : chainHotel.starRating,
+      checkInTime: branchData.checkInTime || chainHotel.checkInTime,
+      checkOutTime: branchData.checkOutTime || chainHotel.checkOutTime,
+      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel.lateCheckoutGraceMinutes,
+      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel.lateCheckoutHourlyFee,
+      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel.lateCheckoutTier1Percent,
+      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel.lateCheckoutTier2Percent,
+      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel.lateCheckoutCutoffTime,
+      settings: {
+        ...hSettings,
+        ...bSettings,
+        propertyFacilities: bSettings.propertyFacilities || hSettings.propertyFacilities,
+        galleryImages: bSettings.galleryImages || hSettings.galleryImages,
+        heroImageUrl: bSettings.heroImageUrl || hSettings.heroImageUrl,
+        extraBedsList: bSettings.extraBedsList || hSettings.extraBedsList,
+        paymentAccountsList: bSettings.paymentAccountsList || hSettings.paymentAccountsList,
+        customFacilitiesList: bSettings.customFacilitiesList || hSettings.customFacilitiesList,
+        refundTermsText: bSettings.refundTermsText || hSettings.refundTermsText,
+        folioTermsFooter: bSettings.folioTermsFooter || hSettings.folioTermsFooter,
+        registrationCardDisclaimer: bSettings.registrationCardDisclaimer || hSettings.registrationCardDisclaimer,
+      },
+    };
+  }, [chainHotel, branchData, isGlobal]);
 
   // -------------------------------------------------------------------------
   // REACTIVE LOCAL STATES (SYNCHRONIZED WITH BACKEND)
@@ -632,6 +855,18 @@ export default function HotelPage() {
 
   const [extraBeds, setExtraBeds] = useState<ExtraBedItem[]>(DEFAULT_EXTRA_BEDS);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
+  const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocument[]>(DEFAULT_COMPLIANCE_DOCUMENTS);
+  const [fiscalCashRegisterEnabled, setFiscalCashRegisterEnabled] = useState(false);
+  const [policiesList, setPoliciesList] = useState<CustomPolicyItem[]>(DEFAULT_POLICIES);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState<CustomPolicyItem | null>(null);
+
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<ComplianceDocument | null>(null);
+  const [docFileUrl, setDocFileUrl] = useState<string>("");
+  const [docFileName, setDocFileName] = useState<string>("");
+  const [docFileSize, setDocFileSize] = useState<string>("");
+
 
   // Rich Text State Holders
   const [refundText, setRefundText] = useState(DEFAULT_SETTINGS.refundTermsText || "");
@@ -669,6 +904,9 @@ export default function HotelPage() {
       if (s.heroImageUrl) setHeroImage(s.heroImageUrl);
       if (s.extraBedsList && s.extraBedsList.length > 0) setExtraBeds(s.extraBedsList);
       if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
+      if (s.complianceDocuments && s.complianceDocuments.length > 0) setComplianceDocuments(s.complianceDocuments);
+      if (s.fiscalCashRegisterEnabled !== undefined) setFiscalCashRegisterEnabled(s.fiscalCashRegisterEnabled);
+      if (s.customPoliciesList && s.customPoliciesList.length > 0) setPoliciesList(s.customPoliciesList);
       if (s.refundTermsText) setRefundText(s.refundTermsText);
       if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
       if (s.registrationCardDisclaimer) setRegCardText(s.registrationCardDisclaimer);
@@ -696,13 +934,49 @@ export default function HotelPage() {
   // MUTATION
   // -------------------------------------------------------------------------
   const saveMutation = useMutation({
-    mutationFn: (data: Partial<Hotel>) =>
-      hotel?.id
+    mutationFn: (data: Partial<Hotel>) => {
+      if (!isGlobal && branchId) {
+        // Save as per branch scope
+        const branchSettings = {
+          ...(branchData?.settings || {}),
+          ...data.settings,
+          lateCheckoutGraceMinutes: data.lateCheckoutGraceMinutes,
+          lateCheckoutHourlyFee: data.lateCheckoutHourlyFee,
+          lateCheckoutTier1Percent: data.lateCheckoutTier1Percent,
+          lateCheckoutTier2Percent: data.lateCheckoutTier2Percent,
+          lateCheckoutCutoffTime: data.lateCheckoutCutoffTime,
+        };
+
+        return apiFetch(`/branches/${branchId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            branchName: data.hotelName,
+            manager: data.legalName,
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
+            description: data.description,
+            checkInTime: data.checkInTime,
+            checkOutTime: data.checkOutTime,
+            starRating: data.starRating ? Number(data.starRating) : undefined,
+            settings: branchSettings,
+          }),
+        });
+      }
+
+      return hotel?.id
         ? apiFetch(`/hotel/${hotel.id}`, { method: "PATCH", body: JSON.stringify(data) })
-        : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) }),
+        : apiFetch("/hotel", { method: "POST", body: JSON.stringify(data) });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["hotel"] });
-      toast({ title: "Hotel configuration updated successfully" });
+      if (!isGlobal && branchId) {
+        queryClient.invalidateQueries({ queryKey: ["branch", branchId] });
+        queryClient.invalidateQueries({ queryKey: ["branches"] });
+        toast({ title: "Branch configuration saved successfully" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["hotel"] });
+        toast({ title: "Hotel configuration updated successfully" });
+      }
       setIsEditing(false);
     },
     onError: (err: Error) => {
@@ -884,6 +1158,119 @@ export default function HotelPage() {
     setEditingPaymentAccount(null);
   };
 
+
+  // Compliance Document Handlers
+  const handleSaveComplianceDoc = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const title = String(fd.get("title") || "").trim();
+    if (!title) {
+      toast({ title: "Title Required", description: "Please enter a document title", variant: "destructive" });
+      return;
+    }
+
+    const docCategory = (fd.get("category") as any) || "other";
+    const docNumber = String(fd.get("docNumber") || "").trim();
+    const issueDate = String(fd.get("issueDate") || "").trim();
+    const expiryDate = String(fd.get("expiryDate") || "").trim();
+    const notes = String(fd.get("notes") || "").trim();
+    const explicitUrl = String(fd.get("fileUrl") || "").trim();
+    const finalUrl = explicitUrl || docFileUrl || "";
+
+    if (editingDoc) {
+      setComplianceDocuments((prev) =>
+        prev.map((d) =>
+          d.id === editingDoc.id
+            ? {
+                ...d,
+                title,
+                category: docCategory,
+                docNumber,
+                issueDate,
+                expiryDate,
+                notes,
+                fileUrl: finalUrl,
+                fileName: docFileName || d.fileName,
+                fileSize: docFileSize || d.fileSize,
+              }
+            : d
+        )
+      );
+      toast({ title: "Document updated successfully" });
+    } else {
+      const newDoc: ComplianceDocument = {
+        id: "doc-" + Date.now(),
+        title,
+        category: docCategory,
+        docNumber,
+        issueDate,
+        expiryDate,
+        notes,
+        fileUrl: finalUrl,
+        fileName: docFileName || (finalUrl ? "attached_document" : "document.pdf"),
+        fileSize: docFileSize || "Uploaded File",
+        status: "valid",
+      };
+      setComplianceDocuments((prev) => [...prev, newDoc]);
+      toast({ title: "New document attached successfully" });
+    }
+    setIsDocModalOpen(false);
+    setEditingDoc(null);
+    setDocFileUrl("");
+    setDocFileName("");
+    setDocFileSize("");
+  };
+
+
+  // Dynamic Policy Handlers
+  const handleSavePolicy = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const title = String(fd.get("title") || "").trim();
+    if (!title) {
+      toast({ title: "Title Required", description: "Please enter a policy title", variant: "destructive" });
+      return;
+    }
+    const category = String(fd.get("category") || "General").trim();
+    const badge = String(fd.get("badge") || "Active Policy").trim();
+    const contentText = String(fd.get("content") || "").trim();
+    const initials = title.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL";
+
+    if (editingPolicy) {
+      setPoliciesList((prev) =>
+        prev.map((p) =>
+          p.id === editingPolicy.id
+            ? { ...p, title, category, badge, initials, content: contentText }
+            : p
+        )
+      );
+      toast({ title: "Policy updated successfully" });
+    } else {
+      const newPolicy: CustomPolicyItem = {
+        id: "policy-" + Date.now(),
+        title,
+        category,
+        badge,
+        initials,
+        content: contentText,
+      };
+      setPoliciesList((prev) => [...prev, newPolicy]);
+      toast({ title: "New policy issue created" });
+    }
+    setIsPolicyModalOpen(false);
+    setEditingPolicy(null);
+  };
+
+  const handleDeletePolicy = (id: string) => {
+    setPoliciesList((prev) => prev.filter((p) => p.id !== id));
+    toast({ title: "Policy removed" });
+  };
+
+  const handleDeleteComplianceDoc = (id: string) => {
+    setComplianceDocuments((prev) => prev.filter((d) => d.id !== id));
+    toast({ title: "Compliance document removed" });
+  };
+
   const handleDeletePaymentAccount = (channelId: string) => {
     setPaymentAccounts((prev) => prev.filter((acc) => acc.channelId !== channelId));
     toast({ title: "Payment service deleted" });
@@ -941,7 +1328,28 @@ export default function HotelPage() {
       checkoutTriggerState: formObj.checkoutTriggerState === "cleaning" ? "cleaning" : "dirty",
       linenChangeFrequency: Number(formObj.linenChangeFrequency) || 3,
       turndownServiceEnabled: formObj.turndownServiceEnabled === "on",
-      defaultBoardBasis: (formObj.defaultBoardBasis as any) || "bb",
+      defaultBoardBasis: String(formObj.defaultBoardBasis || mergedSettings.defaultBoardBasis || "Bed & Breakfast (BB)").trim(),
+
+      // Ethiopian Tax & Compliance
+      vatRatePercent: Number(formObj.vatRatePercent) || 15,
+      serviceChargePercent: Number(formObj.serviceChargePercent) || 10,
+      serviceChargeEnabled: formObj.serviceChargeEnabled === "on" || formObj.serviceChargeEnabled === "true",
+      withholdingTaxServicePercent: Number(formObj.withholdingTaxServicePercent) || 3,
+      withholdingTaxGoodsPercent: Number(formObj.withholdingTaxGoodsPercent) || 2,
+      vatCalculationBasis: (formObj.vatCalculationBasis as any) || "base_plus_service",
+      diplomaticVatExemptionEnabled: formObj.diplomaticVatExemptionEnabled === "on" || formObj.diplomaticVatExemptionEnabled === "true",
+      vatRegistrationNumber: String(formObj.vatRegistrationNumber || mergedSettings.vatRegistrationNumber || "VAT-10-00892415"),
+      vatRegistrationDate: String(formObj.vatRegistrationDate || mergedSettings.vatRegistrationDate || "2020-01-11"),
+      tradeLicenseExpiryDate: String(formObj.tradeLicenseExpiryDate || mergedSettings.tradeLicenseExpiryDate || "2026-07-07"),
+      ministryOfTourismLicense: String(formObj.ministryOfTourismLicense || mergedSettings.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"),
+      ministryOfTourismRating: String(formObj.ministryOfTourismRating || mergedSettings.ministryOfTourismRating || "5 Star Luxury Hotel"),
+      fiscalCashRegisterEnabled: fiscalCashRegisterEnabled,
+      customPoliciesList: policiesList,
+      fiscalMachineCode: String(formObj.fiscalMachineCode || mergedSettings.fiscalMachineCode || "MRC-AA-789230"),
+      fiscalMachineSerial: String(formObj.fiscalMachineSerial || mergedSettings.fiscalMachineSerial || "FBR-2024-00918"),
+      fiscalTerminalId: String(formObj.fiscalTerminalId || mergedSettings.fiscalTerminalId || "TID-FD-01"),
+      fiscalIntegrationStatus: (formObj.fiscalIntegrationStatus as any) || "online",
+      complianceDocuments: complianceDocuments,
       breakfastServiceHours: String(formObj.breakfastServiceHours || mergedSettings.breakfastServiceHours || "06:30 - 10:00"),
       breakfastPriceAdult: Number(formObj.breakfastPriceAdult) || 0,
       breakfastPriceChild: Number(formObj.breakfastPriceChild) || 0,
@@ -1395,7 +1803,7 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* Tax & Legal Licensing */}
+              {/* Tax & Licensing */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
                 <div>
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
@@ -1409,12 +1817,12 @@ export default function HotelPage() {
                       <input
                         type="text"
                         name="taxNumber"
-                        defaultValue={hotel?.taxNumber || "TIN-ET-001234567"}
+                        defaultValue={hotel?.taxNumber || "0012345678"}
                         className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
                       <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-                        {hotel?.taxNumber || "TIN-ET-001234567"}
+                        {hotel?.taxNumber || "0012345678"}
                       </span>
                     )}
                   </div>
@@ -1435,10 +1843,392 @@ export default function HotelPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Standard</span>
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">15% Standard VAT</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">License Expiry Date</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="tradeLicenseExpiryDate"
+                        defaultValue={hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.tradeLicenseExpiryDate || "2026-07-07"}
+                      </span>
+                    )}
                   </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Registration Number</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="vatRegistrationNumber"
+                        defaultValue={hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRegistrationNumber || "VAT-10-00892415"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Registration Date</span>
+                    {isEditing ? (
+                      <input
+                        type="date"
+                        name="vatRegistrationDate"
+                        defaultValue={hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRegistrationDate || "2020-01-11"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tourism Classification License</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="ministryOfTourismLicense"
+                        defaultValue={hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                        className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.ministryOfTourismLicense || "MoT-HTL-CAT5-0042"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Tourism Star Rating</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="ministryOfTourismRating"
+                        defaultValue={hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.ministryOfTourismRating || "5 Star Luxury Hotel"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tax Rates & Service Charge */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Tax Rates & Service Charge
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Standard Rate</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="vatRatePercent"
+                          defaultValue={hotel?.settings?.vatRatePercent ?? 15}
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatRatePercent ?? 15}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hotel Service Charge</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            name="serviceChargePercent"
+                            defaultValue={hotel?.settings?.serviceChargePercent ?? 10}
+                            min={0}
+                            max={30}
+                            step={0.5}
+                            className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                          <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="serviceChargeEnabled"
+                            defaultChecked={hotel?.settings?.serviceChargeEnabled !== false}
+                            className="rounded border-[var(--border)] text-blue-700"
+                          />
+                          <span>Enabled</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.serviceChargePercent ?? 10}% ({hotel?.settings?.serviceChargeEnabled !== false ? "Enabled" : "Disabled"})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">VAT Calculation Basis</span>
+                    {isEditing ? (
+                      <select
+                        name="vatCalculationBasis"
+                        defaultValue={hotel?.settings?.vatCalculationBasis || "base_plus_service"}
+                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      >
+                        <option value="base_plus_service">Base Room Rate + Service Charge</option>
+                        <option value="base_only">Base Room Rate Only</option>
+                      </select>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.vatCalculationBasis === "base_only"
+                          ? "Base Room Rate Only"
+                          : "Base Room Rate + Service Charge"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Withholding Tax (Services)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="withholdingTaxServicePercent"
+                          defaultValue={hotel?.settings?.withholdingTaxServicePercent ?? 3}
+                          min={0}
+                          max={20}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.withholdingTaxServicePercent ?? 3}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Withholding Tax (Goods)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="number"
+                          name="withholdingTaxGoodsPercent"
+                          defaultValue={hotel?.settings?.withholdingTaxGoodsPercent ?? 2}
+                          min={0}
+                          max={20}
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-sm font-medium text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.withholdingTaxGoodsPercent ?? 2}%
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Diplomatic VAT Exemption</span>
+                    {isEditing ? (
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="diplomaticVatExemptionEnabled"
+                          defaultChecked={hotel?.settings?.diplomaticVatExemptionEnabled !== false}
+                          className="rounded border-[var(--border)] text-blue-700"
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.diplomaticVatExemptionEnabled !== false ? "Enabled" : "Disabled"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Fiscal Sales Register Machine */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Fiscal Cash Register
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Integration Status</span>
+                    {isEditing ? (
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="fiscalCashRegisterEnabled"
+                          checked={fiscalCashRegisterEnabled}
+                          onChange={(e) => setFiscalCashRegisterEnabled(e.target.checked)}
+                          className="rounded border-[var(--border)] text-blue-700"
+                        />
+                        <span>{fiscalCashRegisterEnabled ? "Enabled (Apply Machine Codes)" : "Disabled"}</span>
+                      </label>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {fiscalCashRegisterEnabled ? "Enabled" : "Disabled"}
+                      </span>
+                    )}
+                  </div>
+
+                  {fiscalCashRegisterEnabled && (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Machine Code (MRC)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalMachineCode"
+                            defaultValue={hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalMachineCode || "MRC-AA-789230"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Hardware Serial (MSN)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalMachineSerial"
+                            defaultValue={hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalMachineSerial || "FBR-2024-00918"}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                        <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Terminal ID (TID)</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            name="fiscalTerminalId"
+                            defaultValue={hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                            className="flex-1 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                          />
+                        ) : (
+                          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                            {hotel?.settings?.fiscalTerminalId || "TID-FD-01"}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Compliance Documents */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Compliance Documents
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)]">Attached Licenses & Certificates</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDoc(null);
+                        setDocFileUrl("");
+                        setDocFileName("");
+                        setDocFileSize("");
+                        setIsDocModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Document</span>
+                    </button>
+                  </div>
+
+                  {complianceDocuments.length === 0 ? (
+                    <div className="py-3 text-sm text-[var(--text-secondary)]">No documents attached.</div>
+                  ) : (
+                    <div className="divide-y divide-[var(--border)]">
+                      {complianceDocuments.map((doc) => (
+                        <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5">
+                          <div>
+                            <span className="text-sm font-medium text-[var(--text-primary)]">{doc.title}</span>
+                            {doc.docNumber && (
+                              <span className="ml-2 text-xs font-mono text-[var(--text-secondary)]">#{doc.docNumber}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {doc.fileUrl && (
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-700 dark:text-blue-400 hover:underline"
+                              >
+                                View
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDoc(doc);
+                                setDocFileUrl(doc.fileUrl || "");
+                                setDocFileName(doc.fileName || "");
+                                setDocFileSize(doc.fileSize || "");
+                                setIsDocModalOpen(true);
+                              }}
+                              className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 transition-colors cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComplianceDoc(doc.id)}
+                              className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1735,16 +2525,36 @@ export default function HotelPage() {
           {/* ================================================================= */}
           {activeTab === "policies" && (
             <div className="space-y-6">
-              {/* Header with Expand All / Collapse All */}
-              <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
-                <h3 className="text-base font-bold text-[var(--text-primary)]">
-                  Hotel Policies, Refund Terms & Legal Disclaimers
-                </h3>
+              {/* Header with Add Policy & Expand/Collapse */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+                <div>
+                  <h3 className="text-base font-bold text-[var(--text-primary)]">
+                    Hotel Policies, Terms & Legal Guidelines
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Manage guest cancellation terms, invoice footers, check-in disclaimers, and house rules.
+                  </p>
+                </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleAllPolicies(true)}
+                    onClick={() => {
+                      setEditingPolicy(null);
+                      setIsPolicyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Policy / Issue</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      policiesList.forEach((p) => { next[p.id] = true; });
+                      setExpandedPolicies(next);
+                    }}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
@@ -1752,7 +2562,11 @@ export default function HotelPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggleAllPolicies(false)}
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      policiesList.forEach((p) => { next[p.id] = false; });
+                      setExpandedPolicies(next);
+                    }}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
@@ -1761,417 +2575,172 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* ACCORDION 1: Cancellation & Refund Policy */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("refund")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
-                      CR
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Official Cancellation & Refund Policy (Full Text)
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      Active Policy
-                    </span>
-                    {expandedPolicies.refund ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
+              {/* Dynamic Policy Accordions */}
+              {policiesList.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-3">
+                  <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
+                  <p className="text-sm font-medium text-[var(--text-primary)]">No policies configured</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPolicy(null);
+                      setIsPolicyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create First Policy</span>
+                  </button>
                 </div>
-
-                {expandedPolicies.refund && (
-                  <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-[var(--border)]">
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Policy Archetype
-                        </label>
-                        {isEditing ? (
-                          <select
-                            name="cancellationPolicyType"
-                            defaultValue={hotel?.settings?.cancellationPolicyType || "moderate"}
-                            className="w-full h-9 px-3 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                          >
-                            <option value="flexible">Flexible (24 Hours Prior)</option>
-                            <option value="moderate">Moderate (48 Hours Prior)</option>
-                            <option value="strict">Strict (7 Days Prior)</option>
-                            <option value="non_refundable">100% Non-Refundable</option>
-                          </select>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)] capitalize">
-                            {hotel?.settings?.cancellationPolicyType || "moderate"}
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Free Cancellation Window
-                        </label>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              name="cancellationFreeHours"
-                              defaultValue={hotel?.settings?.cancellationFreeHours ?? 48}
-                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            />
-                            <span className="text-xs text-[var(--text-secondary)]">Hours before check-in</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)]">
-                            Up to {hotel?.settings?.cancellationFreeHours ?? 48} hours prior
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
-                          Refund Settlement Timeline
-                        </label>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              name="refundProcessingDays"
-                              defaultValue={hotel?.settings?.refundProcessingDays ?? 5}
-                              className="w-24 h-9 px-3 text-sm font-mono rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            />
-                            <span className="text-xs text-[var(--text-secondary)]">Business days</span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-primary)]">
-                            {hotel?.settings?.refundProcessingDays ?? 5} Business Days
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-2">
-                        Official Cancellation & Refund Policy Document
-                      </label>
-                      <RichTextEditor
-                        name="refundTermsText"
-                        value={refundText}
-                        onChange={setRefundText}
-                        isEditable={isEditing}
-                        minHeight="240px"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 2: Guest Folio Legal T&C Footer */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("folio")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
-                      TC
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Guest Folio & Invoice Legal T&C Footer
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-                      Invoice Footer
-                    </span>
-                    {expandedPolicies.folio ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.folio && (
-                  <div className="p-6">
-                    <RichTextEditor
-                      name="folioTermsFooter"
-                      value={folioFooterText}
-                      onChange={setFolioFooterText}
-                      isEditable={isEditing}
-                      minHeight="180px"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 3: Arrival Registration Card Agreement */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("regCard")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
-                      RC
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Arrival Registration Card Agreement
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                      Check-In Agreement
-                    </span>
-                    {expandedPolicies.regCard ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.regCard && (
-                  <div className="p-6">
-                    <RichTextEditor
-                      name="registrationCardDisclaimer"
-                      value={regCardText}
-                      onChange={setRegCardText}
-                      isEditable={isEditing}
-                      minHeight="180px"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ACCORDION 4: Smoking & Pet Accommodation Policies */}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden">
-                <div
-                  onClick={() => togglePolicyCollapse("smokingPet")}
-                  className="flex items-center justify-between p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold text-xs">
-                      SP
-                    </div>
-                    <h4 className="text-sm font-bold text-[var(--text-primary)]">
-                      Smoking & Pet Accommodation Policies
-                    </h4>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {expandedPolicies.smokingPet ? (
-                      <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedPolicies.smokingPet && (
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Cigarette className="w-4 h-4 text-rose-600" />
-                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Smoking Policy</h5>
-                      </div>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                          <span className="text-[var(--text-secondary)]">Room Policy</span>
-                          {isEditing ? (
-                            <select
-                              name="smokingPolicy"
-                              defaultValue={hotel?.settings?.smokingPolicy || "strictly_non_smoking"}
-                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            >
-                              <option value="strictly_non_smoking">Strictly Non-Smoking Indoors</option>
-                              <option value="designated_areas">Designated Outdoor Smoking Zones Only</option>
-                              <option value="allowed">Smoking Permitted</option>
-                            </select>
-                          ) : (
-                            <span className="font-semibold text-rose-600">
-                              {hotel?.settings?.smokingPolicy === "designated_areas"
-                                ? "Designated Outdoor Zones Only"
-                                : hotel?.settings?.smokingPolicy === "allowed"
-                                ? "Smoking Permitted"
-                                : "Strictly Non-Smoking Indoors"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                          <span className="text-[var(--text-secondary)]">Deep Clean Violation Fee</span>
-                          {isEditing ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[var(--text-secondary)]">$</span>
-                              <input
-                                type="number"
-                                name="smokingPenaltyFee"
-                                defaultValue={hotel?.settings?.smokingPenaltyFee ?? 250}
-                                min={0}
-                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                              />
-                              <span className="text-[var(--text-secondary)]">USD / 15,000 ETB</span>
+              ) : (
+                <div className="space-y-4">
+                  {policiesList.map((policy) => {
+                    const isExpanded = expandedPolicies[policy.id] !== false;
+                    return (
+                      <div
+                        key={policy.id}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xs overflow-hidden"
+                      >
+                        <div
+                          onClick={() => {
+                            setExpandedPolicies((prev) => ({
+                              ...prev,
+                              [policy.id]: !isExpanded,
+                            }));
+                          }}
+                          className="flex items-center justify-between p-4 sm:p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                              {policy.initials || policy.title.slice(0, 2).toUpperCase()}
                             </div>
-                          ) : (
-                            <span className="font-mono font-bold text-[var(--text-primary)]">
-                              ${hotel?.settings?.smokingPenaltyFee ?? 250} USD / 15,000 ETB
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Dog className="w-4 h-4 text-amber-600" />
-                        <h5 className="text-sm font-bold text-[var(--text-primary)]">Pet Accommodation Policy</h5>
-                      </div>
-                      <div className="space-y-3 text-xs">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5 border-b border-[var(--border)]">
-                          <span className="text-[var(--text-secondary)]">Policy Status</span>
-                          {isEditing ? (
-                            <select
-                              name="petPolicy"
-                              defaultValue={hotel?.settings?.petPolicy || "not_allowed"}
-                              className="h-8 px-2 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                            >
-                              <option value="not_allowed">Certified Guide & Service Dogs Only</option>
-                              <option value="charges_apply">Pets Allowed (Surcharge Applies)</option>
-                              <option value="allowed">Pets Fully Welcome (All Breeds)</option>
-                            </select>
-                          ) : (
-                            <span className="font-semibold text-[var(--text-primary)]">
-                              {hotel?.settings?.petPolicy === "allowed"
-                                ? "Pets Fully Welcome (All Breeds)"
-                                : hotel?.settings?.petPolicy === "charges_apply"
-                                ? "Pets Allowed (Surcharge Applies)"
-                                : "Certified Guide & Service Dogs Only"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-1.5">
-                          <span className="text-[var(--text-secondary)]">Pet Cleaning Deposit</span>
-                          {isEditing ? (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="number"
-                                name="petFee"
-                                defaultValue={hotel?.settings?.petFee ?? 0}
-                                min={0}
-                                placeholder="0"
-                                className="w-24 h-8 px-2 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                              />
-                              <span className="text-[var(--text-secondary)]">ETB (0 = waived)</span>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                {policy.title}
+                              </h4>
+                              {policy.category && (
+                                <span className="text-[11px] text-[var(--text-secondary)]">
+                                  {policy.category}
+                                </span>
+                              )}
                             </div>
-                          ) : (
-                            <span className="font-mono font-bold text-[var(--text-primary)]">
-                              {hotel?.settings?.petFee && hotel.settings.petFee > 0
-                                ? `${hotel.settings.petFee} ETB per stay`
-                                : "Waived for Service Animals"}
-                            </span>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {policy.badge && (
+                              <span className="text-xs font-mono font-medium px-2.5 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 hidden sm:inline-block">
+                                {policy.badge}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPolicy(policy);
+                                setIsPolicyModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
+                              title="Edit Policy Details"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePolicy(policy.id);
+                              }}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                              title="Delete Policy"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="pl-1">
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                              )}
+                            </div>
+                          </div>
                         </div>
+
+                        {isExpanded && (
+                          <div className="p-5 sm:p-6 space-y-4">
+                            <RichTextEditor
+                              name={`policy_${policy.id}`}
+                              value={policy.content}
+                              onChange={(val) => {
+                                setPoliciesList((prev) =>
+                                  prev.map((p) => (p.id === policy.id ? { ...p, content: val } : p))
+                                );
+                              }}
+                              isEditable={isEditing}
+                              minHeight="200px"
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ================================================================= */}
-          {/* TAB 5: OPERATIONS & TIMERS                                        */}
-          {/* ================================================================= */}
           {activeTab === "operations" && (
             <div className="space-y-8">
-              {/* Check-In / Check-Out Triggers */}
+              {/* Arrival & Check-In Triggers */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                 <div>
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Check-In & Check-Out Triggers
+                    Arrival & Check-In Triggers
                   </h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Official arrival window and complimentary early check-in allowance.
+                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-In</span>
+                    <div>
+                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-In</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">Official hotel arrival time</span>
+                    </div>
                     {isEditing ? (
                       <input
-                        type="time"
+                        type="text"
                         name="checkInTime"
                         defaultValue={hotel?.checkInTime || "14:00"}
+                        placeholder="14:00"
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{hotel?.checkInTime || "14:00"}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
-                    {isEditing ? (
-                      <input
-                        type="time"
-                        name="checkOutTime"
-                        defaultValue={hotel?.checkOutTime || "12:00"}
-                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-bold text-[var(--text-primary)]">{hotel?.checkOutTime || "12:00"}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Early Check-In Allowed</span>
-                    {isEditing ? (
-                      <input
-                        type="time"
-                        name="earlyCheckInAllowedTime"
-                        defaultValue={hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
-                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      />
-                    ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.earlyCheckInAllowedTime || "10:00"} (Complimentary)</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Check-Out Grace</span>
-                    {isEditing ? (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          name="lateCheckOutGracePeriod"
-                          defaultValue={hotel?.settings?.lateCheckOutGracePeriod ?? 30}
-                          min={0}
-                          max={120}
-                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                        />
-                        <span className="text-xs text-[var(--text-secondary)]">Minutes past 12:00</span>
+                        <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                          {hotel?.checkInTime || "14:00"}
+                        </span>
+                        <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Reservations)</span>
                       </div>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutGracePeriod ?? 30} minutes</span>
                     )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Half-Day Charge Cutoff</span>
+                    <div>
+                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Early Check-In Allowed</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">Complimentary arrival before standard check-in</span>
+                    </div>
                     {isEditing ? (
                       <input
-                        type="time"
-                        name="lateCheckOutHalfDayCutoff"
-                        defaultValue={hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"}
+                        type="text"
+                        name="earlyCheckInAllowedTime"
+                        defaultValue={hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
+                        placeholder="10:00"
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">{hotel?.settings?.lateCheckOutHalfDayCutoff || "15:00"} (Full night billed past cutoff)</span>
+                      <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Complimentary)</span>
+                      </span>
                     )}
                   </div>
                 </div>
@@ -2766,27 +3335,39 @@ export default function HotelPage() {
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Default Board Basis</span>
+                    <div>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">Default Board Basis</span>
+                      <p className="text-xs text-[var(--text-secondary)]">Standard guest meal plan applied to room bookings by default</p>
+                    </div>
                     {isEditing ? (
-                      <select
+                      <input
+                        type="text"
                         name="defaultBoardBasis"
-                        defaultValue={hotel?.settings?.defaultBoardBasis || "bb"}
-                        className="flex-1 h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
-                      >
-                        <option value="ro">Room Only (RO)</option>
-                        <option value="bb">Bed & Breakfast (BB)</option>
-                        <option value="hb">Half Board (HB)</option>
-                        <option value="fb">Full Board (FB)</option>
-                      </select>
+                        defaultValue={
+                          hotel?.settings?.defaultBoardBasis === "ro"
+                            ? "Room Only (RO)"
+                            : hotel?.settings?.defaultBoardBasis === "bb"
+                            ? "Bed & Breakfast (BB)"
+                            : hotel?.settings?.defaultBoardBasis === "hb"
+                            ? "Half Board (HB)"
+                            : hotel?.settings?.defaultBoardBasis === "fb"
+                            ? "Full Board (FB)"
+                            : hotel?.settings?.defaultBoardBasis || "Bed & Breakfast (BB)"
+                        }
+                        placeholder="e.g. Bed & Breakfast (BB), Room Only (RO), Half Board (HB), Full Board (FB)"
+                        className="flex-1 max-w-sm h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">
                         {hotel?.settings?.defaultBoardBasis === "ro"
                           ? "Room Only (RO)"
+                          : hotel?.settings?.defaultBoardBasis === "bb"
+                          ? "Bed & Breakfast (BB)"
                           : hotel?.settings?.defaultBoardBasis === "hb"
                           ? "Half Board (HB)"
                           : hotel?.settings?.defaultBoardBasis === "fb"
                           ? "Full Board (FB)"
-                          : "Bed & Breakfast (BB)"}
+                          : hotel?.settings?.defaultBoardBasis || "Bed & Breakfast (BB)"}
                       </span>
                     )}
                   </div>
@@ -3365,6 +3946,183 @@ export default function HotelPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* =================================================================== */}
+      {/* MODAL 5: COMPLIANCE DOCUMENT UPLOAD & VERIFICATION MODAL           */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isDocModalOpen}
+        onOpenChange={(open) => {
+          setIsDocModalOpen(open);
+          if (!open) {
+            setEditingDoc(null);
+            setDocFileUrl("");
+            setDocFileName("");
+            setDocFileSize("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-700" />
+              <span>{editingDoc ? "Edit Compliance Document" : "Upload Compliance Certificate / License"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveComplianceDoc} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Document Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                defaultValue={editingDoc?.title || ""}
+                placeholder="e.g. Ministry of Revenues TIN Certificate, Commercial Trade License"
+                required
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Document Category
+                </label>
+                <select
+                  name="category"
+                  defaultValue={editingDoc?.category || "trade_license"}
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                >
+                  <option value="tax_tin">TIN Certificate</option>
+                  <option value="vat_cert">VAT Certificate</option>
+                  <option value="trade_license">Trade License</option>
+                  <option value="tourism_rating">Tourism Star Rating Certificate</option>
+                  <option value="health_fire_safety">Fire Safety / Health Inspection</option>
+                  <option value="other">Other Document</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  License / Document Number
+                </label>
+                <input
+                  type="text"
+                  name="docNumber"
+                  defaultValue={editingDoc?.docNumber || ""}
+                  placeholder="e.g. 0012345678, VAT-10-883"
+                  className="w-full h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Issue Date
+                </label>
+                <input
+                  type="date"
+                  name="issueDate"
+                  defaultValue={editingDoc?.issueDate || ""}
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Expiry / Renewal Date
+                </label>
+                <input
+                  type="date"
+                  name="expiryDate"
+                  defaultValue={editingDoc?.expiryDate || ""}
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            {/* File Upload Attachment Box */}
+            <div className="p-3.5 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-hover)] space-y-2">
+              <label className="text-xs font-bold text-[var(--text-primary)] block">
+                Attach Official PDF / Image File
+              </label>
+              <input
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setDocFileName(file.name);
+                  setDocFileSize(`${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setDocFileUrl(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                className="block w-full text-xs text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-700 file:text-white hover:file:bg-blue-800 file:cursor-pointer cursor-pointer"
+              />
+              {(docFileName || editingDoc?.fileName) && (
+                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>File Selected: {docFileName || editingDoc?.fileName} ({docFileSize || editingDoc?.fileSize || "Ready"})</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Or Document Web / Cloud Link (Optional)
+              </label>
+              <input
+                type="url"
+                name="fileUrl"
+                defaultValue={editingDoc?.fileUrl || ""}
+                placeholder="https://storage.provider.com/licenses/cert.pdf"
+                className="w-full h-8 px-3 text-xs font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Compliance Notes
+              </label>
+              <textarea
+                name="notes"
+                defaultValue={editingDoc?.notes || ""}
+                rows={2}
+                placeholder="e.g. Document notes or issuing office"
+                className="w-full p-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 resize-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDocModalOpen(false);
+                  setEditingDoc(null);
+                  setDocFileUrl("");
+                  setDocFileName("");
+                  setDocFileSize("");
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingDoc ? "Save Changes" : "Attach Document"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

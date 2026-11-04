@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { hotelsTable } from "./hotels";
 
 export const branchesTable = pgTable("branches", {
@@ -12,6 +12,10 @@ export const branchesTable = pgTable("branches", {
   address: text("address"),
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
+  checkInTime: text("check_in_time"),
+  checkOutTime: text("check_out_time"),
+  starRating: integer("star_rating"),
+  settings: jsonb("settings").$type<Record<string, any>>().default({}),
   createdBy: text("created_by"),
   updatedBy: text("updated_by"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
