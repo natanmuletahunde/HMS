@@ -866,6 +866,7 @@ export default function HotelPage() {
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
   const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocument[]>(DEFAULT_COMPLIANCE_DOCUMENTS);
   const [fiscalCashRegisterEnabled, setFiscalCashRegisterEnabled] = useState(false);
+  const [allowBranchCatalogManagement, setAllowBranchCatalogManagement] = useState(true);
   const [policiesList, setPoliciesList] = useState<CustomPolicyItem[]>(DEFAULT_POLICIES);
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<CustomPolicyItem | null>(null);
@@ -916,6 +917,7 @@ export default function HotelPage() {
       if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
       if (s.complianceDocuments && s.complianceDocuments.length > 0) setComplianceDocuments(s.complianceDocuments);
       if (s.fiscalCashRegisterEnabled !== undefined) setFiscalCashRegisterEnabled(s.fiscalCashRegisterEnabled);
+      if (s.allowBranchCatalogManagement !== undefined) setAllowBranchCatalogManagement(s.allowBranchCatalogManagement !== false);
       if (s.customPoliciesList && s.customPoliciesList.length > 0) setPoliciesList(s.customPoliciesList);
       if (s.refundTermsText) setRefundText(s.refundTermsText);
       if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
@@ -1007,6 +1009,18 @@ export default function HotelPage() {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleToggleBranchCatalog = (enabled: boolean) => {
+    setAllowBranchCatalogManagement(enabled);
+    if (!isEditing && hotel) {
+      saveMutation.mutate({
+        settings: {
+          ...(hotel.settings || {}),
+          allowBranchCatalogManagement: enabled,
+        },
+      } as any);
+    }
   };
 
   // Facility Actions
@@ -1336,7 +1350,7 @@ export default function HotelPage() {
       nightAuditTime: String(formObj.nightAuditTime || mergedSettings.nightAuditTime || "02:00"),
       noShowReleaseWindow: String(formObj.noShowReleaseWindow || mergedSettings.noShowReleaseWindow || "18:00"),
       overbookingThreshold: Number(formObj.overbookingThreshold) || 0,
-      allowBranchCatalogManagement: formObj.allowBranchCatalogManagement !== undefined ? formObj.allowBranchCatalogManagement === "on" : (mergedSettings.allowBranchCatalogManagement ?? true),
+      allowBranchCatalogManagement: allowBranchCatalogManagement,
 
       // Facilities CRUD list & Active IDs
       propertyFacilities: selectedFacilities,
@@ -2999,21 +3013,18 @@ export default function HotelPage() {
                     <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">
                       Branch Catalog Management
                     </span>
-                    {isEditing ? (
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          name="allowBranchCatalogManagement"
-                          defaultChecked={hotel?.settings?.allowBranchCatalogManagement !== false}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    ) : (
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.allowBranchCatalogManagement !== false ? "Enabled" : "Disabled"}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allowBranchCatalogManagement}
+                        onChange={(e) => handleToggleBranchCatalog(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <span className="ml-3 text-sm font-semibold text-[var(--text-primary)]">
+                        {allowBranchCatalogManagement ? "Enabled" : "Disabled"}
                       </span>
-                    )}
+                    </label>
                   </div>
                 </div>
               </div>

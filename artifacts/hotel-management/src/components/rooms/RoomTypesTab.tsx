@@ -25,7 +25,13 @@ const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESE
 export function RoomTypesTab() {
   const { user, hasPermission } = useAuth();
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
-  const canManage = isGlobal || user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*");
+
+  const { data: hotels = [] } = useQuery({
+    queryKey: ["hotels-primary-setting"],
+    queryFn: () => apiFetch<any[]>("/hotels"),
+  });
+  const allowBranchCatalog = hotels[0]?.settings?.allowBranchCatalogManagement !== false;
+  const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
