@@ -16,8 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 
 export function RoomCategoriesTab() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
+  const canManage = isGlobal || user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*");
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -73,7 +74,7 @@ export function RoomCategoriesTab() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Room Categories</h3>
-        {isGlobal && (
+        {canManage && (
           <Dialog open={isAddOpen} onOpenChange={(open) => {
             setIsAddOpen(open);
             if (!open) setEditItem(null);
@@ -120,15 +121,15 @@ export function RoomCategoriesTab() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Description</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Sort Order</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
-              {isGlobal && <TableHead className="w-[80px]"></TableHead>}
+              {canManage && <TableHead className="w-[80px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={isGlobal ? 5 : 4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : categories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isGlobal ? 5 : 4} className="h-48 text-center text-[var(--text-secondary)]">
+                <TableCell colSpan={canManage ? 5 : 4} className="h-48 text-center text-[var(--text-secondary)]">
                   <Tag className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No room categories found.</p>
                 </TableCell>
@@ -142,7 +143,7 @@ export function RoomCategoriesTab() {
                   <TableCell>
                     <Badge variant={cat.status === 'active' ? 'success' : 'muted'}>{cat.status || 'Active'}</Badge>
                   </TableCell>
-                  {isGlobal && (
+                  {canManage && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

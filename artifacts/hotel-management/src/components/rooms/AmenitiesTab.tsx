@@ -14,10 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
+import { useAuth } from "@/components/auth-provider";
 
 const CATEGORIES = ["All", "Technology", "Comfort", "View", "Bathroom", "Food & Beverage", "Recreation", "Other"];
 
 export function AmenitiesTab() {
+  const { user, hasPermission } = useAuth();
+  const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
+  const canManage = isGlobal || user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*");
+
   const [activeCategory, setActiveCategory] = useState("All");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -73,7 +78,8 @@ export function AmenitiesTab() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Room Amenities</h3>
-        <Dialog open={isAddOpen} onOpenChange={(open) => {
+        {canManage && (
+          <Dialog open={isAddOpen} onOpenChange={(open) => {
           setIsAddOpen(open);
           if (!open) setEditItem(null);
         }}>
@@ -125,6 +131,7 @@ export function AmenitiesTab() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="flex overflow-x-auto pb-2 gap-2">
@@ -151,15 +158,15 @@ export function AmenitiesTab() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Icon</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Sort Order</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              {canManage && <TableHead className="w-[80px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManage ? 6 : 5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : amenities.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-[var(--text-secondary)]">
+                <TableCell colSpan={canManage ? 6 : 5} className="h-48 text-center text-[var(--text-secondary)]">
                   <Sparkles className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No amenities found.</p>
                 </TableCell>
@@ -174,17 +181,19 @@ export function AmenitiesTab() {
                   <TableCell>
                     <Badge variant={amenity.status === 'active' ? 'success' : 'muted'}>{amenity.status || 'Active'}</Badge>
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
-                        <DropdownMenuItem onClick={() => { setEditItem(amenity); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(amenity.id)}>Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0 text-[var(--text-secondary)]"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
+                          <DropdownMenuItem onClick={() => { setEditItem(amenity); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(amenity.id)}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

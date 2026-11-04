@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, numeric, integer, uniqueIndex } from "drizzle-orm/pg-core";
 import { roomTypesTable } from "./room-types";
 import { roomCategoriesTable } from "./room-categories";
 import { bedTypesTable } from "./bed-types";
@@ -14,7 +14,7 @@ export type RoomStatus = (typeof roomStatusEnum)[number];
 export const roomsTable = pgTable("rooms", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   // Legacy fields kept for backward compat
-  number: text("number").notNull().unique(),
+  number: text("number").notNull(),
   floor: text("floor").notNull().default("1"),
   notes: text("notes"),
   // Phase 2 additions
@@ -39,7 +39,9 @@ export const roomsTable = pgTable("rooms", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  uniqueIndex("rooms_building_number_unique").on(table.buildingId, table.number),
+]);
 
 export type Room = typeof roomsTable.$inferSelect;
 export type InsertRoom = typeof roomsTable.$inferInsert;

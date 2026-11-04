@@ -47,7 +47,11 @@ export class BranchesService {
 
   async update(id: string, b: any) {
     const u: any = {};
-    for (const k of ['branchName','manager','email','phone','address','description','isActive','checkInTime','checkOutTime','starRating','settings']) if (b[k] !== undefined) u[k] = b[k];
+    for (const k of [
+      'branchName', 'branchCode', 'legalName', 'manager', 'email', 'phone', 'website',
+      'address', 'city', 'country', 'timezone', 'currencyCode', 'taxNumber', 'licenseNumber',
+      'description', 'isActive', 'checkInTime', 'checkOutTime', 'starRating', 'settings'
+    ]) if (b[k] !== undefined) u[k] = b[k];
     u.updatedBy = b.updatedBy;
     const [row] = await db.update(branchesTable).set(u).where(eq(branchesTable.id, id)).returning();
     if (!row) throw new NotFoundException('Branch not found');

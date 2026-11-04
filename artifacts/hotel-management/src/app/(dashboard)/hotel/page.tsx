@@ -145,6 +145,7 @@ export type HotelSettings = {
   nightAuditTime?: string;
   noShowReleaseWindow?: string;
   overbookingThreshold?: number;
+  allowBranchCatalogManagement?: boolean;
 
   // Facilities
   propertyFacilities?: string[];
@@ -530,6 +531,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   nightAuditTime: "02:00",
   noShowReleaseWindow: "18:00",
   overbookingThreshold: 2,
+  allowBranchCatalogManagement: true,
 
   propertyFacilities: [
     "gardens",
@@ -799,30 +801,37 @@ export default function HotelPage() {
   // Effective Hotel Object: Exact same layout as Super Admin Hotel Config,
   // populated with branch values where set, with seamless fallback to Chain HQ defaults
   const hotel: Hotel | undefined = useMemo(() => {
-    if (!chainHotel) return undefined;
+    if (!chainHotel && !branchData) return undefined;
     if (isGlobal || !branchData) return chainHotel;
 
     const bSettings = branchData.settings || {};
-    const hSettings = chainHotel.settings || {};
+    const hSettings = chainHotel?.settings || {};
 
     return {
-      ...chainHotel,
-      id: chainHotel.id,
-      hotelName: branchData.branchName || chainHotel.hotelName,
-      hotelCode: branchData.branchCode || chainHotel.hotelCode,
-      legalName: branchData.manager || chainHotel.legalName,
-      phone: branchData.phone || chainHotel.phone,
-      email: branchData.email || chainHotel.email,
-      address: branchData.address || chainHotel.address,
-      description: branchData.description || chainHotel.description,
-      starRating: branchData.starRating ? Number(branchData.starRating) : chainHotel.starRating,
-      checkInTime: branchData.checkInTime || chainHotel.checkInTime,
-      checkOutTime: branchData.checkOutTime || chainHotel.checkOutTime,
-      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel.lateCheckoutGraceMinutes,
-      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel.lateCheckoutHourlyFee,
-      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel.lateCheckoutTier1Percent,
-      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel.lateCheckoutTier2Percent,
-      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel.lateCheckoutCutoffTime,
+      ...(chainHotel || {}),
+      id: branchData.id || chainHotel?.id,
+      hotelName: branchData.branchName ?? chainHotel?.hotelName ?? "",
+      hotelCode: branchData.branchCode ?? chainHotel?.hotelCode ?? "",
+      legalName: branchData.legalName ?? branchData.manager ?? chainHotel?.legalName ?? "",
+      phone: branchData.phone ?? chainHotel?.phone ?? "",
+      email: branchData.email ?? chainHotel?.email ?? "",
+      website: branchData.website ?? chainHotel?.website ?? "",
+      address: branchData.address ?? chainHotel?.address ?? "",
+      city: branchData.city ?? chainHotel?.city ?? "",
+      country: branchData.country ?? chainHotel?.country ?? "Ethiopia",
+      timezone: branchData.timezone ?? chainHotel?.timezone ?? "Africa/Addis_Ababa",
+      currencyCode: branchData.currencyCode ?? chainHotel?.currencyCode ?? "ETB",
+      taxNumber: branchData.taxNumber ?? chainHotel?.taxNumber ?? "",
+      licenseNumber: branchData.licenseNumber ?? chainHotel?.licenseNumber ?? "",
+      description: branchData.description ?? chainHotel?.description ?? "",
+      starRating: branchData.starRating ? Number(branchData.starRating) : (chainHotel?.starRating ?? 5),
+      checkInTime: branchData.checkInTime || chainHotel?.checkInTime || "14:00",
+      checkOutTime: branchData.checkOutTime || chainHotel?.checkOutTime || "12:00",
+      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel?.lateCheckoutGraceMinutes ?? 30,
+      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel?.lateCheckoutHourlyFee ?? "25",
+      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel?.lateCheckoutTier1Percent ?? "25",
+      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel?.lateCheckoutTier2Percent ?? "50",
+      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel?.lateCheckoutCutoffTime ?? "18:00",
       settings: {
         ...hSettings,
         ...bSettings,
@@ -860,6 +869,7 @@ export default function HotelPage() {
   const [policiesList, setPoliciesList] = useState<CustomPolicyItem[]>(DEFAULT_POLICIES);
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<CustomPolicyItem | null>(null);
+  const [editablePolicyIds, setEditablePolicyIds] = useState<Record<string, boolean>>({});
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<ComplianceDocument | null>(null);
@@ -951,10 +961,18 @@ export default function HotelPage() {
           method: "PATCH",
           body: JSON.stringify({
             branchName: data.hotelName,
+            legalName: data.legalName,
             manager: data.legalName,
             phone: data.phone,
             email: data.email,
+            website: data.website,
             address: data.address,
+            city: data.city,
+            country: data.country,
+            timezone: data.timezone,
+            currencyCode: data.currencyCode,
+            taxNumber: data.taxNumber,
+            licenseNumber: data.licenseNumber,
             description: data.description,
             checkInTime: data.checkInTime,
             checkOutTime: data.checkOutTime,
@@ -1223,6 +1241,15 @@ export default function HotelPage() {
 
 
   // Dynamic Policy Handlers
+  const formatContentForInput = (html: string) => {
+    if (!html) return "";
+    return html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+  };
+
   const handleSavePolicy = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -1233,14 +1260,20 @@ export default function HotelPage() {
     }
     const category = String(fd.get("category") || "General").trim();
     const badge = String(fd.get("badge") || "Active Policy").trim();
-    const contentText = String(fd.get("content") || "").trim();
+    let contentText = String(fd.get("content") || "").trim();
+    if (contentText && !contentText.startsWith("<")) {
+      contentText = contentText
+        .split("\n\n")
+        .map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`)
+        .join("");
+    }
     const initials = title.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL";
 
     if (editingPolicy) {
       setPoliciesList((prev) =>
         prev.map((p) =>
           p.id === editingPolicy.id
-            ? { ...p, title, category, badge, initials, content: contentText }
+            ? { ...p, title, category, badge, initials, content: contentText || p.content }
             : p
         )
       );
@@ -1252,9 +1285,10 @@ export default function HotelPage() {
         category,
         badge,
         initials,
-        content: contentText,
+        content: contentText || "<p>Policy terms and operating guidelines.</p>",
       };
       setPoliciesList((prev) => [...prev, newPolicy]);
+      setExpandedPolicies((prev) => ({ ...prev, [newPolicy.id]: true }));
       toast({ title: "New policy issue created" });
     }
     setIsPolicyModalOpen(false);
@@ -1302,6 +1336,7 @@ export default function HotelPage() {
       nightAuditTime: String(formObj.nightAuditTime || mergedSettings.nightAuditTime || "02:00"),
       noShowReleaseWindow: String(formObj.noShowReleaseWindow || mergedSettings.noShowReleaseWindow || "18:00"),
       overbookingThreshold: Number(formObj.overbookingThreshold) || 0,
+      allowBranchCatalogManagement: formObj.allowBranchCatalogManagement !== undefined ? formObj.allowBranchCatalogManagement === "on" : (mergedSettings.allowBranchCatalogManagement ?? true),
 
       // Facilities CRUD list & Active IDs
       propertyFacilities: selectedFacilities,
@@ -1368,22 +1403,23 @@ export default function HotelPage() {
     };
 
     saveMutation.mutate({
-      hotelName: String(formObj.hotelName || hotel?.hotelName),
-      legalName: String(formObj.legalName || hotel?.legalName),
-      hotelCode: String(formObj.hotelCode || hotel?.hotelCode),
+      hotelName: String(formObj.hotelName || hotel?.hotelName || ""),
+      legalName: String(formObj.legalName || hotel?.legalName || ""),
+      hotelCode: String(formObj.hotelCode || hotel?.hotelCode || ""),
       starRating: Number(formObj.starRating) || 5,
-      email: String(formObj.email || hotel?.email),
-      phone: String(formObj.phone || hotel?.phone),
-      website: String(formObj.website || hotel?.website),
-      address: String(formObj.address || hotel?.address),
-      city: String(formObj.city || hotel?.city),
-      country: String(formObj.country || hotel?.country),
-      timezone: String(formObj.timezone || hotel?.timezone),
-      currencyCode: String(formObj.currencyCode || hotel?.currencyCode),
-      checkInTime: String(formObj.checkInTime || hotel?.checkInTime),
-      checkOutTime: String(formObj.checkOutTime || hotel?.checkOutTime),
-      taxNumber: String(formObj.taxNumber || hotel?.taxNumber),
-      licenseNumber: String(formObj.licenseNumber || hotel?.licenseNumber),
+      email: String(formObj.email || hotel?.email || ""),
+      phone: String(formObj.phone || hotel?.phone || ""),
+      website: String(formObj.website || hotel?.website || ""),
+      address: String(formObj.address || hotel?.address || ""),
+      city: String(formObj.city || hotel?.city || ""),
+      country: String(formObj.country || hotel?.country || "Ethiopia"),
+      timezone: String(formObj.timezone || hotel?.timezone || "Africa/Addis_Ababa"),
+      currencyCode: String(formObj.currencyCode || hotel?.currencyCode || "ETB"),
+      checkInTime: String(formObj.checkInTime || hotel?.checkInTime || "14:00"),
+      checkOutTime: String(formObj.checkOutTime || hotel?.checkOutTime || "12:00"),
+      taxNumber: String(formObj.taxNumber || hotel?.taxNumber || ""),
+      licenseNumber: String(formObj.licenseNumber || hotel?.licenseNumber || ""),
+      description: String(formObj.description || hotel?.description || ""),
       lateCheckoutGraceMinutes: formObj.lateCheckoutGraceMinutes !== undefined ? Number(formObj.lateCheckoutGraceMinutes) : (hotel?.lateCheckoutGraceMinutes ?? 30),
       lateCheckoutHourlyFee: formObj.lateCheckoutHourlyFee !== undefined ? String(formObj.lateCheckoutHourlyFee) : (hotel?.lateCheckoutHourlyFee ?? "25"),
       lateCheckoutTier1Percent: formObj.lateCheckoutTier1Percent !== undefined ? String(formObj.lateCheckoutTier1Percent) : (hotel?.lateCheckoutTier1Percent ?? "25"),
@@ -2577,25 +2613,16 @@ export default function HotelPage() {
 
               {/* Dynamic Policy Accordions */}
               {policiesList.length === 0 ? (
-                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-3">
+                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-2">
                   <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
                   <p className="text-sm font-medium text-[var(--text-primary)]">No policies configured</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingPolicy(null);
-                      setIsPolicyModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Create First Policy</span>
-                  </button>
+                  <p className="text-xs text-[var(--text-secondary)]">Use the &quot;Add Policy / Issue&quot; button above to create a new hotel policy or house rule.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {policiesList.map((policy) => {
                     const isExpanded = expandedPolicies[policy.id] !== false;
+                    const isPolicyWritable = isEditing || !!editablePolicyIds[policy.id];
                     return (
                       <div
                         key={policy.id}
@@ -2610,18 +2637,48 @@ export default function HotelPage() {
                           }}
                           className="flex items-center justify-between p-4 sm:p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
                               {policy.initials || policy.title.slice(0, 2).toUpperCase()}
                             </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                                {policy.title}
-                              </h4>
-                              {policy.category && (
-                                <span className="text-[11px] text-[var(--text-secondary)]">
-                                  {policy.category}
-                                </span>
+                            <div className="min-w-0 flex-1">
+                              {isPolicyWritable ? (
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={policy.title}
+                                    onChange={(e) => {
+                                      const newTitle = e.target.value;
+                                      setPoliciesList((prev) =>
+                                        prev.map((p) =>
+                                          p.id === policy.id
+                                            ? {
+                                                ...p,
+                                                title: newTitle,
+                                                initials: newTitle.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL",
+                                              }
+                                            : p
+                                        )
+                                      );
+                                    }}
+                                    className="text-sm font-bold text-[var(--text-primary)] px-2.5 py-1 rounded-lg border border-blue-500 bg-[var(--surface)] outline-none w-full max-w-sm"
+                                    placeholder="Policy Title"
+                                  />
+                                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 w-fit">
+                                    Writable Mode
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                    {policy.title}
+                                  </h4>
+                                  {policy.category && (
+                                    <span className="text-[11px] text-[var(--text-secondary)]">
+                                      {policy.category}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -2636,13 +2693,26 @@ export default function HotelPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingPolicy(policy);
-                                setIsPolicyModalOpen(true);
+                                setExpandedPolicies((prev) => ({
+                                  ...prev,
+                                  [policy.id]: true,
+                                }));
+                                setEditablePolicyIds((prev) => ({
+                                  ...prev,
+                                  [policy.id]: !prev[policy.id],
+                                }));
+                                if (!isEditing) {
+                                  setIsEditing(true);
+                                }
                               }}
-                              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
-                              title="Edit Policy Details"
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isPolicyWritable
+                                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-xs"
+                                  : "text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)]"
+                              }`}
+                              title={isPolicyWritable ? "Writable Active (Click to finish)" : "Make Policy Writable & Edit"}
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              {isPolicyWritable ? <Check className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
                             </button>
                             <button
                               type="button"
@@ -2675,7 +2745,7 @@ export default function HotelPage() {
                                   prev.map((p) => (p.id === policy.id ? { ...p, content: val } : p))
                                 );
                               }}
-                              isEditable={isEditing}
+                              isEditable={isPolicyWritable}
                               minHeight="200px"
                             />
                           </div>
@@ -2696,16 +2766,10 @@ export default function HotelPage() {
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
                     Arrival & Check-In Triggers
                   </h3>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    Official arrival window and complimentary early check-in allowance.
-                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <div>
-                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-In</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">Official hotel arrival time</span>
-                    </div>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-In</span>
                     {isEditing ? (
                       <input
                         type="text"
@@ -2715,20 +2779,14 @@ export default function HotelPage() {
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
-                          {hotel?.checkInTime || "14:00"}
-                        </span>
-                        <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Reservations)</span>
-                      </div>
+                      <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                        {hotel?.checkInTime || "14:00"}
+                      </span>
                     )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <div>
-                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Early Check-In Allowed</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">Complimentary arrival before standard check-in</span>
-                    </div>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Early Check-In Allowed</span>
                     {isEditing ? (
                       <input
                         type="text"
@@ -2739,132 +2797,119 @@ export default function HotelPage() {
                       />
                     ) : (
                       <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Complimentary)</span>
+                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Check-Out Time */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+              {/* Departure & Late Check-Out Policies */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
                 <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-Out</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Official hotel departure deadline</span>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Departure & Late Check-Out
+                  </h3>
                 </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="checkOutTime"
-                    defaultValue={hotel?.checkOutTime || "12:00"}
-                    required
-                    placeholder="12:00"
-                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
-                      {hotel?.checkOutTime || "12:00"}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Folios)</span>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="checkOutTime"
+                        defaultValue={hotel?.checkOutTime || "12:00"}
+                        required
+                        placeholder="12:00"
+                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                        {hotel?.checkOutTime || "12:00"}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Late Check-Out Grace Period */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Check-Out Grace Period</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Buffer window before any late penalty is levied</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutGraceMinutes"
-                      defaultValue={hotel?.lateCheckoutGraceMinutes ?? 30}
-                      min="0"
-                      max="180"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">Minutes</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Check-Out Grace Period</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutGraceMinutes"
+                          defaultValue={hotel?.lateCheckoutGraceMinutes ?? 30}
+                          min="0"
+                          max="180"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">min</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutGraceMinutes ?? 30} minutes
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutGraceMinutes ?? 30} minutes <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Zero charge)</span>
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Tier 1 Fee (1h–3h) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 1 Rate (1h – 3h late)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Percentage of daily room accommodation rate</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutTier1Percent"
-                      defaultValue={hotel?.lateCheckoutTier1Percent ?? 25}
-                      min="0"
-                      max="100"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Tier 1 Rate (1h – 3h late)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutTier1Percent"
+                          defaultValue={hotel?.lateCheckoutTier1Percent ?? 25}
+                          min="0"
+                          max="100"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutTier1Percent ?? 25}% of daily rate
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutTier1Percent ?? 25}% of daily rate
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Tier 2 Fee (3h–6h) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 2 Rate (3h – 6h late)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Half-day charge percentage</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutTier2Percent"
-                      defaultValue={hotel?.lateCheckoutTier2Percent ?? 50}
-                      min="0"
-                      max="100"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate (Half-day)</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Tier 2 Rate (3h – 6h late)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutTier2Percent"
+                          defaultValue={hotel?.lateCheckoutTier2Percent ?? 50}
+                          min="0"
+                          max="100"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutTier2Percent ?? 50}% of daily rate
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutTier2Percent ?? 50}% of daily rate (Half-day)
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Cut-Off Deadline */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Cut-Off Time</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">After this hour, 100% full night rate is charged</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Cut-Off Time</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="lateCheckoutCutoffTime"
+                        defaultValue={hotel?.lateCheckoutCutoffTime || "18:00"}
+                        placeholder="18:00"
+                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutCutoffTime || "18:00"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="lateCheckoutCutoffTime"
-                    defaultValue={hotel?.lateCheckoutCutoffTime || "18:00"}
-                    placeholder="18:00"
-                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                  />
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutCutoffTime || "18:00"} <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">(Full night rate applies thereafter)</span>
-                  </span>
-                )}
               </div>
 
               {/* Night Audit & Safeguards */}
@@ -2937,6 +2982,45 @@ export default function HotelPage() {
                       </div>
                     ) : (
                       <span className="text-sm font-semibold text-[var(--text-primary)]">{hotel?.settings?.overbookingThreshold ?? 2}%</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Branch Governance & Room Catalog Delegation */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Branch Delegation & Room Catalog
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Permission-based room configuration delegation to branch managers.
+                  </p>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <div>
+                      <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0 block">Allow Branch Catalog Management</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">When enabled, branch managers can create and manage room types, categories, bed types, and amenities directly.</span>
+                    </div>
+                    {isEditing ? (
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="allowBranchCatalogManagement"
+                          defaultChecked={hotel?.settings?.allowBranchCatalogManagement !== false}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    ) : (
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                        hotel?.settings?.allowBranchCatalogManagement !== false
+                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                          : "bg-gray-500/10 text-gray-500 border border-gray-500/20"
+                      }`}>
+                        {hotel?.settings?.allowBranchCatalogManagement !== false ? "Enabled (Delegated)" : "Disabled (Global Only)"}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -4117,6 +4201,103 @@ export default function HotelPage() {
                 className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
               >
                 {editingDoc ? "Save Changes" : "Attach Document"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 6: ADD / EDIT CUSTOM HOTEL POLICY (CRUD)                      */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isPolicyModalOpen}
+        onOpenChange={(open) => {
+          setIsPolicyModalOpen(open);
+          if (!open) setEditingPolicy(null);
+        }}
+      >
+        <DialogContent className="max-w-xl border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-700" />
+              <span>{editingPolicy ? "Edit Hotel Policy / Issue" : "Add Hotel Policy / Issue"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSavePolicy} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Policy Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                defaultValue={editingPolicy?.title || ""}
+                placeholder="e.g. Standard Cancellation & Refund Policy, Pet Accommodation"
+                required
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Category
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  defaultValue={editingPolicy?.category || "Guest Policy & Guidelines"}
+                  placeholder="e.g. Reservations, House Rules"
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Badge / Tag Label
+                </label>
+                <input
+                  type="text"
+                  name="badge"
+                  defaultValue={editingPolicy?.badge || "Active Policy"}
+                  placeholder="e.g. Mandatory, Core Policy"
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Policy Content / Operating Guidelines *
+              </label>
+              <textarea
+                name="content"
+                defaultValue={editingPolicy ? formatContentForInput(editingPolicy.content) : ""}
+                rows={6}
+                placeholder="Enter detailed guidelines, operating rules, disclaimers, or cancellation timelines..."
+                required
+                className="w-full p-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 leading-relaxed resize-y"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPolicyModalOpen(false);
+                  setEditingPolicy(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingPolicy ? "Save Policy Changes" : "Create Policy"}
               </button>
             </DialogFooter>
           </form>

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { eq, and, sql, like, inArray, getTableColumns } from 'drizzle-orm';
 import {
   db, roomsTable, roomTypesTable, roomCategoriesTable, bedTypesTable,
@@ -130,21 +130,28 @@ export class RoomsService {
   }
 
   async create(b: any) {
-    const [room] = await db.insert(roomsTable).values({
-      number: b.number, floor: String(b.floor ?? '1'), notes: b.notes,
-      roomName: b.roomName, roomCode: b.roomCode,
-      roomTypeId: b.roomTypeId, roomCategoryId: b.roomCategoryId,
-      bedTypeId: b.bedTypeId, buildingId: b.buildingId, floorId: b.floorId,
-      capacityAdults: b.capacityAdults ?? 2, capacityChildren: b.capacityChildren ?? 1,
-      size: b.size ? String(b.size) : undefined, view: b.view,
-      smokingAllowed: b.smokingAllowed ?? false, description: b.description,
-      currentPrice: b.currentPrice ? String(b.currentPrice) : undefined,
-      createdBy: b.createdBy,
-    }).returning();
-    const [row] = await base().where(eq(roomsTable.id, room.id));
-    const result = fmt(row);
-    this.eventBus.publish('room.created', result);
-    return result;
+    try {
+      const [room] = await db.insert(roomsTable).values({
+        number: b.number, floor: String(b.floor ?? '1'), notes: b.notes,
+        roomName: b.roomName, roomCode: b.roomCode,
+        roomTypeId: b.roomTypeId, roomCategoryId: b.roomCategoryId,
+        bedTypeId: b.bedTypeId, buildingId: b.buildingId, floorId: b.floorId,
+        capacityAdults: b.capacityAdults ?? 2, capacityChildren: b.capacityChildren ?? 1,
+        size: b.size ? String(b.size) : undefined, view: b.view,
+        smokingAllowed: b.smokingAllowed ?? false, description: b.description,
+        currentPrice: b.currentPrice ? String(b.currentPrice) : undefined,
+        createdBy: b.createdBy,
+      }).returning();
+      const [row] = await base().where(eq(roomsTable.id, room.id));
+      const result = fmt(row);
+      this.eventBus.publish('room.created', result);
+      return result;
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.cause?.code === '23505') {
+        throw new ConflictException(`Room number '${b.number}' already exists in this building.`);
+      }
+      throw err;
+    }
   }
 
   async findOne(id: string) {
@@ -181,19 +188,26 @@ export class RoomsService {
   }
 
   async update(id: string, b: any) {
-    const u: any = {};
-    const fields = ['number','floor','roomName','roomCode','roomTypeId','roomCategoryId','bedTypeId','buildingId','floorId','capacityAdults','capacityChildren','view','smokingAllowed','description','notes','status','isActive'];
-    for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
-    if (b.size !== undefined) u.size = b.size ? String(b.size) : null;
-    if (b.currentPrice !== undefined) u.currentPrice = b.currentPrice ? String(b.currentPrice) : null;
-    if (b.floor !== undefined) u.floor = String(b.floor);
-    u.updatedBy = b.updatedBy;
-    await db.update(roomsTable).set(u).where(eq(roomsTable.id, id));
-    const [room] = await base().where(eq(roomsTable.id, id));
-    if (!room) throw new NotFoundException('Room not found');
-    const result = fmt(room);
-    this.eventBus.publish('room.updated', result);
-    return result;
+    try {
+      const u: any = {};
+      const fields = ['number','floor','roomName','roomCode','roomTypeId','roomCategoryId','bedTypeId','buildingId','floorId','capacityAdults','capacityChildren','view','smokingAllowed','description','notes','status','isActive'];
+      for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
+      if (b.size !== undefined) u.size = b.size ? String(b.size) : null;
+      if (b.currentPrice !== undefined) u.currentPrice = b.currentPrice ? String(b.currentPrice) : null;
+      if (b.floor !== undefined) u.floor = String(b.floor);
+      u.updatedBy = b.updatedBy;
+      await db.update(roomsTable).set(u).where(eq(roomsTable.id, id));
+      const [room] = await base().where(eq(roomsTable.id, id));
+      if (!room) throw new NotFoundException('Room not found');
+      const result = fmt(room);
+      this.eventBus.publish('room.updated', result);
+      return result;
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.cause?.code === '23505') {
+        throw new ConflictException(`Room number '${b.number}' already exists in this building.`);
+      }
+      throw err;
+    }
   }
 
   async changeStatus(id: string, status: string) {
