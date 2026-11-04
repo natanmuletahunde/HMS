@@ -1,6 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { eq, and, like, sql, inArray, getTableColumns } from 'drizzle-orm';
-import { db, buildingsTable, branchesTable, hotelsTable, floorsTable } from '@workspace/db';
+import {
+  db,
+  buildingsTable,
+  branchesTable,
+  hotelsTable,
+  floorsTable,
+  roomsTable,
+  housekeepingAssignmentsTable,
+  maintenanceRequestsTable,
+  userBranchesTable,
+  usersTable,
+} from '@workspace/db';
 
 const bldCols = getTableColumns(buildingsTable);
 const fmt = (r: any) => ({ ...r, branchName: r.branchName ?? null, hotelName: r.hotelName ?? null, deletedAt: r.deletedAt?.toISOString() ?? null, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() });
@@ -76,7 +87,106 @@ export class BuildingsService {
   }
 
   async remove(id: string) {
+    const [bld] = await db.select().from(buildingsTable).where(eq(buildingsTable.id, id));
+    if (!bld) throw new NotFoundException('Building not found');
+
+    // 1. Check for active rooms in this building
+    const [activeRooms] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(roomsTable)
+      .where(and(eq(roomsTable.buildingId, id), eq(roomsTable.isActive, true)));
+
+    if (activeRooms && activeRooms.count > 0) {
+      // Check if any rooms are occupied
+      const [occupied] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(roomsTable)
+        .where(and(eq(roomsTable.buildingId, id), eq(roomsTable.isActive, true), eq(roomsTable.status, 'occupied')));
+
+      if (occupied && occupied.count > 0) {
+        throw new BadRequestException(
+          `Cannot delete building '${bld.buildingName}': ${occupied.count} room(s) are currently occupied by guests.`
+        );
+      }
+
+      throw new BadRequestException(
+        `Cannot delete building '${bld.buildingName}': ${activeRooms.count} active room(s) exist in this building. Please reassign or remove the rooms first.`
+      );
+    }
+
+    // 2. Check for active staff task assignments in this building (housekeeping & maintenance)
+    const buildingRooms = await db
+      .select({ id: roomsTable.id })
+      .from(roomsTable)
+      .where(eq(roomsTable.buildingId, id));
+
+    const roomIds = buildingRooms.map((r) => r.id);
+    if (roomIds.length > 0) {
+      const [activeHousekeeping] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(housekeepingAssignmentsTable)
+        .where(
+          and(
+            inArray(housekeepingAssignmentsTable.roomId, roomIds),
+            inArray(housekeepingAssignmentsTable.status, ['pending', 'assigned', 'accepted', 'in_progress'])
+          )
+        );
+
+      if (activeHousekeeping && activeHousekeeping.count > 0) {
+        throw new BadRequestException(
+          `Cannot delete building '${bld.buildingName}': There are ${activeHousekeeping.count} active housekeeping task(s) assigned to staff in this building.`
+        );
+      }
+
+      const [activeMaintenance] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(maintenanceRequestsTable)
+        .where(
+          and(
+            inArray(maintenanceRequestsTable.roomId, roomIds),
+            inArray(maintenanceRequestsTable.status, ['pending', 'approved', 'assigned', 'in_progress'])
+          )
+        );
+
+      if (activeMaintenance && activeMaintenance.count > 0) {
+        throw new BadRequestException(
+          `Cannot delete building '${bld.buildingName}': There are ${activeMaintenance.count} active maintenance task(s) assigned to staff in this building.`
+        );
+      }
+    }
+
+    // 3. Check if this is the only building in the branch and staff users are assigned to that branch
+    if (bld.branchId) {
+      const [otherBuildings] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(buildingsTable)
+        .where(and(eq(buildingsTable.branchId, bld.branchId), eq(buildingsTable.isActive, true), sql`${buildingsTable.id} != ${id}`));
+
+      if (!otherBuildings || otherBuildings.count === 0) {
+        const [assignedUsers] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(userBranchesTable)
+          .where(eq(userBranchesTable.branchId, bld.branchId));
+
+        const [primaryUsers] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(usersTable)
+          .where(and(eq(usersTable.primaryBranchId, bld.branchId), eq(usersTable.isActive, true)));
+
+        const totalUsers = (assignedUsers?.count || 0) + (primaryUsers?.count || 0);
+        if (totalUsers > 0) {
+          throw new BadRequestException(
+            `Cannot delete building '${bld.buildingName}': It is the primary operating building for this branch, and ${totalUsers} staff user(s) are assigned to it. Reassign or transfer staff before deleting.`
+          );
+        }
+      }
+    }
+
+    // 4. Soft-delete associated empty floors if any
+    await db.update(floorsTable).set({ isActive: false, deletedAt: new Date() }).where(eq(floorsTable.buildingId, id));
+
+    // 5. Soft-delete building
     await db.update(buildingsTable).set({ isActive: false, deletedAt: new Date() }).where(eq(buildingsTable.id, id));
-    return { message: 'Building deleted' };
+    return { message: 'Building deleted successfully' };
   }
 }

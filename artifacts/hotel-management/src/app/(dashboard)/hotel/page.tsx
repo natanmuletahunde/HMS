@@ -2987,22 +2987,18 @@ export default function HotelPage() {
                 </div>
               </div>
 
-              {/* Branch Governance & Room Catalog Delegation */}
+              {/* Branch Delegation */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
                 <div>
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                    Branch Delegation & Room Catalog
+                    Branch Delegation
                   </h3>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    Permission-based room configuration delegation to branch managers.
-                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <div>
-                      <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0 block">Allow Branch Catalog Management</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">When enabled, branch managers can create and manage room types, categories, bed types, and amenities directly.</span>
-                    </div>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">
+                      Branch Catalog Management
+                    </span>
                     {isEditing ? (
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -3014,12 +3010,8 @@ export default function HotelPage() {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     ) : (
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        hotel?.settings?.allowBranchCatalogManagement !== false
-                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                          : "bg-gray-500/10 text-gray-500 border border-gray-500/20"
-                      }`}>
-                        {hotel?.settings?.allowBranchCatalogManagement !== false ? "Enabled (Delegated)" : "Disabled (Global Only)"}
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.settings?.allowBranchCatalogManagement !== false ? "Enabled" : "Disabled"}
                       </span>
                     )}
                   </div>

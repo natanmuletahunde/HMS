@@ -105,7 +105,8 @@ export function BuildingsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["buildings"] });
       toast({ title: "Building deleted" });
-    }
+    },
+    onError: (err: Error) => toast({ title: "Cannot Delete Building", description: err.message, variant: "destructive" })
   });
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {

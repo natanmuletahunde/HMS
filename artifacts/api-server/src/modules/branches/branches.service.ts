@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { eq, and, like, sql, inArray, getTableColumns } from 'drizzle-orm';
-import { db, branchesTable, hotelsTable } from '@workspace/db';
+import { db, branchesTable, hotelsTable, buildingsTable, userBranchesTable, usersTable } from '@workspace/db';
 
 const branchCols = getTableColumns(branchesTable);
 const fmt = (r: any) => ({ ...r, hotelName: r.hotelName ?? null, deletedAt: r.deletedAt?.toISOString() ?? null, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() });
@@ -60,7 +60,40 @@ export class BranchesService {
   }
 
   async remove(id: string) {
+    const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
+    if (!branch) throw new NotFoundException('Branch not found');
+
+    // 1. Check for active buildings
+    const [activeBuildings] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(buildingsTable)
+      .where(and(eq(buildingsTable.branchId, id), eq(buildingsTable.isActive, true)));
+
+    if (activeBuildings && activeBuildings.count > 0) {
+      throw new BadRequestException(
+        `Cannot delete branch '${branch.branchName}': ${activeBuildings.count} active building(s) exist in this branch. Remove or reassign buildings first.`
+      );
+    }
+
+    // 2. Check for assigned users/staff
+    const [assignedUsers] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(userBranchesTable)
+      .where(eq(userBranchesTable.branchId, id));
+
+    const [primaryUsers] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(usersTable)
+      .where(and(eq(usersTable.primaryBranchId, id), eq(usersTable.isActive, true)));
+
+    const totalStaff = (assignedUsers?.count || 0) + (primaryUsers?.count || 0);
+    if (totalStaff > 0) {
+      throw new BadRequestException(
+        `Cannot delete branch '${branch.branchName}': ${totalStaff} staff user(s) are assigned to this branch. Reassign staff members before deleting the branch.`
+      );
+    }
+
     await db.update(branchesTable).set({ isActive: false, deletedAt: new Date() }).where(eq(branchesTable.id, id));
-    return { message: 'Branch deleted' };
+    return { message: 'Branch deleted successfully' };
   }
 }
