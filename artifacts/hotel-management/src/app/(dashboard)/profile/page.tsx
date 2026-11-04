@@ -221,7 +221,7 @@ export default function ProfilePage() {
               <div className="p-4 rounded-lg bg-[var(--blue-50)]/50 border border-[var(--blue-200)] flex items-center gap-3">
                 <Globe className="w-5 h-5 text-[var(--blue-600)] shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-[var(--blue-900)]">Chain-Wide Multi-Branch Access</h4>
+                  <h4 className="text-xs font-bold text-[var(--blue-900)]">System-Wide Multi-Branch Access</h4>
                   <p className="text-xs text-[var(--blue-800)] mt-0.5">
                     Your account has global administrative scope with unrestricted access across all current and future hotel branches.
                   </p>

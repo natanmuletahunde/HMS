@@ -32,6 +32,7 @@ export function BuildingsTab() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const { toast } = useToast();
@@ -43,8 +44,8 @@ export function BuildingsTab() {
   }, [search]);
 
   const { data: rawBuildings, isLoading } = useQuery({
-    queryKey: ["buildings", debouncedSearch],
-    queryFn: () => apiFetch<any>(`/buildings?search=${debouncedSearch}`),
+    queryKey: ["buildings", debouncedSearch, statusFilter],
+    queryFn: () => apiFetch<any>(`/buildings?search=${debouncedSearch}&status=${statusFilter}`),
   });
   const allBuildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
 
@@ -85,7 +86,7 @@ export function BuildingsTab() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, branchFilter, setCurrentPage]);
+  }, [debouncedSearch, branchFilter, statusFilter, setCurrentPage]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => 
@@ -109,10 +110,25 @@ export function BuildingsTab() {
     onError: (err: Error) => toast({ title: "Cannot Delete Building", description: err.message, variant: "destructive" })
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiFetch(`/buildings/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["buildings"] });
+      toast({ title: vars.isActive ? "Building activated" : "Building deactivated" });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Action Failed", description: err.message, variant: "destructive" }),
+  });
+
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    saveMutation.mutate(Object.fromEntries(fd));
+    const data: any = Object.fromEntries(fd);
+    if (editItem) {
+      data.isActive = fd.get("isActive") === "true";
+    }
+    saveMutation.mutate(data);
   };
 
   return (
@@ -135,6 +151,16 @@ export function BuildingsTab() {
               {accessibleBranches.map((b: any) => (
                 <SelectItem key={b.id} value={b.id}>{b.branchName}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px] border-[var(--border)] bg-[var(--surface)]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="border-[var(--border)] bg-[var(--surface)]">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active Only</SelectItem>
+              <SelectItem value="inactive">Inactive Only</SelectItem>
             </SelectContent>
           </Select>
           {canManageBuildings && accessibleBranches.length > 0 && (
@@ -187,6 +213,24 @@ export function BuildingsTab() {
                     <Label className="text-xs font-semibold text-[var(--text-primary)]">Total Floors</Label>
                     <Input name="numberOfFloors" type="number" defaultValue={editItem?.numberOfFloors || 1} min={1} className="border-[var(--border)] bg-[var(--surface)]" />
                   </div>
+                  {editItem && (
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]">
+                      <div>
+                        <Label className="text-xs font-semibold text-[var(--text-primary)] block">Operational Status</Label>
+                        <span className="text-[11px] text-[var(--text-secondary)]">Inactive buildings cannot have active bookings or floors</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="isActive"
+                          value="true"
+                          defaultChecked={editItem.isActive !== false}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  )}
                   <Button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 text-white" disabled={saveMutation.isPending}>
                     {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Building
@@ -206,15 +250,16 @@ export function BuildingsTab() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Branch</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Building Code</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Floors</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
               {canManageBuildings && <TableHead className="w-[80px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={canManageBuildings ? 5 : 4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManageBuildings ? 6 : 5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : buildings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canManageBuildings ? 5 : 4} className="h-48 text-center text-[var(--text-secondary)]">
+                <TableCell colSpan={canManageBuildings ? 6 : 5} className="h-48 text-center text-[var(--text-secondary)]">
                   <Building className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No buildings found.</p>
                 </TableCell>
@@ -228,6 +273,17 @@ export function BuildingsTab() {
                     <TableCell className="text-[var(--text-secondary)]">{branch?.branchName || '-'}</TableCell>
                     <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{bldg.buildingCode}</TableCell>
                     <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{bldg.numberOfFloors || '-'}</TableCell>
+                    <TableCell>
+                      {bldg.isActive ? (
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-semibold text-[10px]">
+                          Active
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 font-semibold text-[10px]">
+                          Inactive
+                        </Badge>
+                      )}
+                    </TableCell>
                     {canManageBuildings && (
                       <TableCell>
                         <DropdownMenu>
@@ -236,6 +292,15 @@ export function BuildingsTab() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="border-[var(--border)] bg-[var(--surface)]">
                             <DropdownMenuItem onClick={() => { setEditItem(bldg); setIsAddOpen(true); }}>Edit</DropdownMenuItem>
+                            {bldg.isActive ? (
+                              <DropdownMenuItem onClick={() => toggleActiveMutation.mutate({ id: bldg.id, isActive: false })}>
+                                Deactivate Building
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => toggleActiveMutation.mutate({ id: bldg.id, isActive: true })}>
+                                Activate Building
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem className="text-danger" onClick={() => deleteMutation.mutate(bldg.id)}>Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

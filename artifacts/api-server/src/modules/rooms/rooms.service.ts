@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { eq, and, sql, like, inArray, getTableColumns } from 'drizzle-orm';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { eq, and, or, sql, like, inArray, getTableColumns } from 'drizzle-orm';
 import {
   db, roomsTable, roomTypesTable, roomCategoriesTable, bedTypesTable,
   buildingsTable, floorsTable, branchesTable, roomAmenityAssignmentsTable, roomAmenitiesTable,
@@ -59,7 +59,10 @@ export class RoomsService {
   async findAll(q: any, allowedBranchIds?: string[] | null) {
     const { status, floor, roomTypeId, roomCategoryId, bedTypeId, buildingId, branchId, floorId, search, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
-    const conds: any[] = [eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (status) conds.push(eq(roomsTable.status, status));
     if (floor) conds.push(eq(roomsTable.floor, floor));
     if (roomTypeId) conds.push(eq(roomsTable.roomTypeId, roomTypeId));
@@ -96,7 +99,10 @@ export class RoomsService {
 
   async exportRooms(q: any, allowedBranchIds?: string[] | null) {
     const { status, buildingId, branchId } = q;
-    const conds: any[] = [eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (status) conds.push(eq(roomsTable.status, status));
     if (buildingId) conds.push(eq(roomsTable.buildingId, buildingId));
     if (branchId) {
@@ -117,7 +123,11 @@ export class RoomsService {
   }
 
   async findAvailable(roomTypeId?: string, allowedBranchIds?: string[] | null) {
-    const conds: any[] = [eq(roomsTable.status, 'available'), eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.status, 'available'),
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (roomTypeId) conds.push(eq(roomsTable.roomTypeId, roomTypeId));
     if (allowedBranchIds) {
       if (allowedBranchIds.length === 0) {
@@ -130,6 +140,15 @@ export class RoomsService {
   }
 
   async create(b: any) {
+    if (b.buildingId) {
+      const [bld] = await db
+        .select({ isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, b.buildingId));
+      if (bld && !bld.isActive) {
+        throw new BadRequestException(`Cannot add rooms to inactive building '${bld.buildingName}'.`);
+      }
+    }
     try {
       const [room] = await db.insert(roomsTable).values({
         number: b.number, floor: String(b.floor ?? '1'), notes: b.notes,

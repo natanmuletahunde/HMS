@@ -19,6 +19,9 @@ import {
   Mail,
   MapPin,
   User,
+  Snowflake,
+  Sun,
+  AlertTriangle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
@@ -30,6 +33,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   PageHeader,
   DataTable,
@@ -52,6 +63,12 @@ type Branch = {
   address?: string;
   status?: string;
   isActive?: boolean;
+  settings?: {
+    isFrozen?: boolean;
+    frozenAt?: string;
+    freezeReason?: string;
+    [key: string]: any;
+  };
 };
 
 function BranchesContent() {
@@ -82,6 +99,8 @@ function BranchesContent() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editItem, setEditItem] = useState<Branch | null>(null);
+  const [freezeModalBranch, setFreezeModalBranch] = useState<Branch | null>(null);
+  const [freezeReason, setFreezeReason] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -163,6 +182,41 @@ function BranchesContent() {
     },
   });
 
+  // Freeze mutation (Administrative Decommissioning Freeze)
+  const freezeMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      apiFetch(`/branches/${id}/freeze`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      toast({
+        title: "Branch Frozen",
+        description: "Decommissioning freeze active. Inbound bookings and check-ins are locked.",
+      });
+      setFreezeModalBranch(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Freeze Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Unfreeze mutation
+  const unfreezeMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/branches/${id}/unfreeze`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branches"] });
+      toast({
+        title: "Branch Unfrozen",
+        description: "Full operational and booking access restored.",
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Unfreeze Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleOpenAdd = () => {
     setEditItem(null);
     setIsDrawerOpen(true);
@@ -241,9 +295,22 @@ function BranchesContent() {
     {
       key: "status",
       header: "Status",
-      render: (branch) => (
-        <StatusPill status={branch.status || (branch.isActive !== false ? "active" : "inactive")} />
-      ),
+      render: (branch) => {
+        if (branch.settings?.isFrozen) {
+          return (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50"
+              title={`Frozen at ${branch.settings.frozenAt || ""}. Reason: ${branch.settings.freezeReason || "Administrative Decommissioning Freeze"}`}
+            >
+              <Snowflake className="w-3 h-3 text-blue-700 dark:text-blue-400" />
+              <span>Frozen</span>
+            </span>
+          );
+        }
+        return (
+          <StatusPill status={branch.status || (branch.isActive !== false ? "active" : "inactive")} />
+        );
+      },
     },
     ...((canManageBranches || hasPermission("hotel:*"))
       ? [
@@ -262,7 +329,7 @@ function BranchesContent() {
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
+                <DropdownMenuContent align="end" className="w-44 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
                   <DropdownMenuItem
                     onClick={() => handleOpenEdit(branch)}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
@@ -270,12 +337,35 @@ function BranchesContent() {
                     <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
                   </DropdownMenuItem>
                   {canManageBranches && (
-                    <DropdownMenuItem
-                      onClick={() => deleteMutation.mutate(branch.id)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
-                    >
-                      <Trash2 className="w-4 h-4" /> Delete
-                    </DropdownMenuItem>
+                    <>
+                      {branch.settings?.isFrozen ? (
+                        <DropdownMenuItem
+                          onClick={() => unfreezeMutation.mutate(branch.id)}
+                          disabled={unfreezeMutation.isPending}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-emerald-50 text-sm text-emerald-700 dark:text-emerald-400 font-medium"
+                        >
+                          <Sun className="w-4 h-4 text-emerald-600" />
+                          <span>Unfreeze Branch</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setFreezeReason("Terminal property closure & relocation");
+                            setFreezeModalBranch(branch);
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/30 text-sm text-blue-700 dark:text-blue-400 font-medium"
+                        >
+                          <Snowflake className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                          <span>Freeze Branch</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => deleteMutation.mutate(branch.id)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete
+                      </DropdownMenuItem>
+                    </>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -503,6 +593,79 @@ function BranchesContent() {
           </div>
         </form>
       </SideDrawer>
+
+      {/* FREEZE CONFIRMATION MODAL */}
+      <Dialog
+        open={!!freezeModalBranch}
+        onOpenChange={(open) => {
+          if (!open) setFreezeModalBranch(null);
+        }}
+      >
+        <DialogContent className="max-w-md border border-[var(--border)] bg-white dark:bg-[var(--surface)] shadow-2xl rounded-2xl p-6">
+          <DialogHeader className="space-y-1.5 pb-2">
+            <DialogTitle className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 flex items-center justify-center shrink-0 border border-blue-200/60 dark:border-blue-900/40">
+                <Snowflake className="w-4 h-4" />
+              </div>
+              <span>Administrative Decommissioning Freeze</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Placing <strong className="text-[var(--text-primary)] font-semibold">{freezeModalBranch?.branchName}</strong> into an Administrative Freeze locks all inbound reservations and check-ins immediately so operations can safely relocate guests and settle folios.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/70 dark:bg-blue-950/20 text-xs space-y-2">
+              <div className="font-semibold text-blue-950 dark:text-blue-300 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                <span>Operational rules during freeze:</span>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                <li>New online and front desk reservations are blocked.</li>
+                <li>New guest check-ins are blocked.</li>
+                <li>Front desk enters folio settlement and check-out mode.</li>
+                <li>Zero interruption to existing in-house guest services.</li>
+              </ul>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1.5">
+                Decommissioning or Freeze Reason
+              </label>
+              <input
+                type="text"
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value)}
+                placeholder="e.g. Property closure, lease expiration, major renovation"
+                className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-white dark:bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-blue-700/20 focus:border-blue-700 transition-all"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-[var(--border)] gap-2">
+            <button
+              type="button"
+              onClick={() => setFreezeModalBranch(null)}
+              className="px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (freezeModalBranch) {
+                  freezeMutation.mutate({ id: freezeModalBranch.id, reason: freezeReason });
+                }
+              }}
+              disabled={freezeMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {freezeMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Confirm Freeze</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

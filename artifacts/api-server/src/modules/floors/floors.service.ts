@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, and, like, sql, inArray, getTableColumns } from 'drizzle-orm';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { eq, and, or, like, sql, inArray, getTableColumns } from 'drizzle-orm';
 import { db, floorsTable, buildingsTable, branchesTable } from '@workspace/db';
 
 const flrCols = getTableColumns(floorsTable);
@@ -11,7 +11,10 @@ export class FloorsService {
   async findAll(q: any, allowedBranchIds?: string[] | null) {
     const { buildingId, search, page = 1, limit = 100 } = q;
     const l = Math.min(+limit, 500); const offset = (+page - 1) * l;
-    const conds: any[] = [eq(floorsTable.isActive, true)];
+    const conds: any[] = [
+      eq(floorsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     
     if (buildingId) conds.push(eq(floorsTable.buildingId, buildingId));
     if (allowedBranchIds) {
@@ -37,6 +40,15 @@ export class FloorsService {
   }
 
   async create(b: any) {
+    if (b.buildingId) {
+      const [bld] = await db
+        .select({ isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, b.buildingId));
+      if (bld && !bld.isActive) {
+        throw new BadRequestException(`Cannot add floors to inactive building '${bld.buildingName}'.`);
+      }
+    }
     const [row] = await db.insert(floorsTable).values({ buildingId: b.buildingId, floorName: b.floorName, floorNumber: +b.floorNumber, description: b.description, createdBy: b.createdBy }).returning();
     const [r] = await base().where(eq(floorsTable.id, row.id));
     return fmt(r);

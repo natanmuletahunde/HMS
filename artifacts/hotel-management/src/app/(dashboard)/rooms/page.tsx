@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { RoomTypesTab } from "@/components/rooms/RoomTypesTab";
 import { RoomCategoriesTab } from "@/components/rooms/RoomCategoriesTab";
+import { PricingTab } from "@/components/rooms/PricingTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
@@ -78,8 +79,8 @@ function RoomsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
 
-  const activeMainTab: "rooms" | "types" | "categories" =
-    tabParam === "types" ? "types" : tabParam === "categories" ? "categories" : "rooms";
+  const activeMainTab: "rooms" | "types" | "categories" | "pricing" =
+    tabParam === "types" ? "types" : tabParam === "categories" ? "categories" : tabParam === "pricing" ? "pricing" : "rooms";
 
   const activeRoomSubTab: "inventory" | "availability" | "calendar" =
     tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
@@ -100,7 +101,7 @@ function RoomsContent() {
     hasPermission("hotel:*") ||
     hasPermission("rooms:*");
 
-  const handleMainTabChange = (tab: "rooms" | "types" | "categories") => {
+  const handleMainTabChange = (tab: "rooms" | "types" | "categories" | "pricing") => {
     if (tab === "rooms") {
       router.replace("/rooms", { scroll: false });
     } else {
@@ -494,6 +495,7 @@ function RoomsContent() {
 
       {activeMainTab === "types" && <RoomTypesTab />}
       {activeMainTab === "categories" && <RoomCategoriesTab />}
+      {activeMainTab === "pricing" && <PricingTab />}
 
       {activeMainTab === "rooms" && (
         <div className="space-y-4">

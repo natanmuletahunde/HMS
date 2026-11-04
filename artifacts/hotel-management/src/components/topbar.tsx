@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Clock,
   Info,
+  Snowflake,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -206,13 +207,24 @@ export function Topbar() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--blue-50)] transition-all text-xs font-semibold text-[var(--text-primary)] shadow-sm cursor-pointer"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-semibold shadow-sm cursor-pointer",
+                  (activeBranch?.settings as any)?.isFrozen
+                    ? "border-blue-300 bg-blue-50/80 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--blue-50)] text-[var(--text-primary)]"
+                )}
                 title="Switch Active Hotel Branch"
               >
                 <Building2 className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />
                 <span className="truncate max-w-[150px] sm:max-w-[200px]">
                   {activeBranch?.branchName || "Select Branch"}
                 </span>
+                {(activeBranch?.settings as any)?.isFrozen && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-700 text-white rounded">
+                    <Snowflake className="w-2.5 h-2.5" />
+                    <span>Frozen</span>
+                  </span>
+                )}
                 <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] opacity-70 flex-shrink-0" />
               </button>
             </DropdownMenuTrigger>
@@ -235,7 +247,14 @@ export function Topbar() {
                     )}
                   >
                     <div className="flex flex-col min-w-0 pr-2">
-                      <span className="truncate">{b.branchName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{b.branchName}</span>
+                        {(b.settings as any)?.isFrozen && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 px-1 py-0.2 rounded inline-flex items-center gap-0.5">
+                            <Snowflake className="w-2.5 h-2.5" /> Frozen
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-[var(--text-secondary)] font-mono">{b.branchCode}</span>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 text-[var(--blue-600)] flex-shrink-0" />}

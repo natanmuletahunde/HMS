@@ -190,6 +190,22 @@ Once settled:
 - Cashier shift open/close with drawer balance verification.
 - Accounts Receivable (AR), Accounts Payable (AP), and general ledger postings.
 
+### 2.7 Property Hierarchy, Building Deactivation & Staff Edge Cases
+- **Facility vs Personnel Separation**: Staff accounts belong to **Branches** (`primary_branch_id` and `user_branches`), not physical buildings. Decommissioning an empty building does not disturb staff accounts, on-duty states, or branch scopes.
+- **Occupancy Safeguard**: Deactivating (`isActive: false`) or deleting a building is rejected if rooms currently hold occupied guests (`status = 'occupied'`). Guests must be checked out or relocated first.
+- **Automated Cascading State Machine**: Deactivating a building automatically sets its floors and rooms to `isActive = false`, immediately removing them from availability, room rack, and booking engines. Reactivating the building restores them.
+- **Creation Protection**: Adding rooms or floors to an inactive building returns HTTP 400 (`Cannot add rooms/floors to inactive building`).
+- **Staff Reassignment Synchronization**: Updating a user's branch via `branchId`, `primaryBranchId`, or `branchIds` synchronizes both `users.primary_branch_id` and `user_branches` with `isPrimary: true`.
+- **Reference**: Full specification in [`docs/operations/BUILDING_LIFECYCLE_AND_STAFF_EDGE_CASES.md`](file:///C:/Users/Administrator/HMS/docs/operations/BUILDING_LIFECYCLE_AND_STAFF_EDGE_CASES.md).
+
+### 2.8 Branch Deletion Safeguards & Decommissioning Freeze Mode
+- **Sole Active Branch Guard**: Deleting the final remaining active branch in a hotel chain is strictly blocked.
+- **Active Physical Buildings Guard**: Deleting a branch is blocked if active buildings remain assigned to it.
+- **Active & Future Reservations Guard**: Deleting a branch is blocked if active (`checked_in`) or upcoming (`confirmed`, `guaranteed`) reservations exist for rooms in that branch.
+- **Staff Reassignment Guard**: Deleting a branch is blocked if active staff members are stationed or assigned to that branch.
+- **Administrative Decommissioning Freeze**: Management can trigger `POST /api/branches/:id/freeze` to freeze all inbound reservations and check-ins, allowing controlled guest relocation and folio settlements before deletion.
+- **Reference**: Full specification in [`docs/operations/BRANCH_DELETION_RULES_AND_FREEZE_ARCHITECTURE.md`](file:///C:/Users/Administrator/HMS/docs/operations/BRANCH_DELETION_RULES_AND_FREEZE_ARCHITECTURE.md).
+
 ---
 
 ## 3. Security, RBAC & Multi-Tenancy

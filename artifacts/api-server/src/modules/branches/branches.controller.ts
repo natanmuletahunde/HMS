@@ -38,6 +38,18 @@ export class BranchesController {
     return this.svc.update(id, body);
   }
 
+  @Post(':id/freeze')
+  async freeze(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() body: any) {
+    await assertCanManageBranches(user);
+    return this.svc.freeze(id, body?.reason, user.userId);
+  }
+
+  @Post(':id/unfreeze')
+  async unfreeze(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await assertCanManageBranches(user);
+    return this.svc.unfreeze(id, user.userId);
+  }
+
   @Delete(':id')
   async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     await assertCanManageBranches(user);

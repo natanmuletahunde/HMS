@@ -20,9 +20,20 @@ const base = () => db.select({ ...bldCols, branchName: branchesTable.branchName,
 @Injectable()
 export class BuildingsService {
   async findAll(q: any, allowedBranchIds?: string[] | null) {
-    const { branchId, hotelId, search, page = 1, limit = 50 } = q;
+    const { branchId, hotelId, search, status, isActive, includeInactive, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
-    const conds: any[] = [eq(buildingsTable.isActive, true)];
+    const conds: any[] = [];
+    
+    if (isActive !== undefined) {
+      conds.push(eq(buildingsTable.isActive, isActive === 'true' || isActive === true));
+    } else if (status === 'active') {
+      conds.push(eq(buildingsTable.isActive, true));
+    } else if (status === 'inactive') {
+      conds.push(eq(buildingsTable.isActive, false));
+    } else if (status !== 'all' && includeInactive !== 'true') {
+      // Default: show only active operational buildings
+      conds.push(eq(buildingsTable.isActive, true));
+    }
     
     if (branchId) {
       if (allowedBranchIds && !allowedBranchIds.includes(branchId)) {
@@ -40,7 +51,7 @@ export class BuildingsService {
 
     if (hotelId) conds.push(eq(branchesTable.hotelId, hotelId));
     if (search) conds.push(like(buildingsTable.buildingName, `%${search}%`));
-    const where = and(...conds);
+    const where = conds.length > 0 ? and(...conds) : undefined;
     const [rows, [{ count }]] = await Promise.all([
       base().where(where).limit(l).offset(offset).orderBy(buildingsTable.buildingName),
       db.select({ count: sql<number>`count(*)::int` }).from(buildingsTable).leftJoin(branchesTable, eq(buildingsTable.branchId, branchesTable.id)).where(where),
@@ -77,8 +88,52 @@ export class BuildingsService {
   }
 
   async update(id: string, b: any) {
+    const [existing] = await db.select().from(buildingsTable).where(eq(buildingsTable.id, id));
+    if (!existing) throw new NotFoundException('Building not found');
+
     const u: any = {};
-    for (const k of ['buildingName','numberOfFloors','description','isActive']) if (b[k] !== undefined) u[k] = b[k];
+    for (const k of ['buildingName', 'numberOfFloors', 'description']) {
+      if (b[k] !== undefined) u[k] = b[k];
+    }
+
+    if (b.isActive !== undefined) {
+      const newActive = Boolean(b.isActive);
+      u.isActive = newActive;
+
+      // If deactivating, ensure no rooms are currently occupied and no staff are stationed here
+      if (!newActive && existing.isActive) {
+        const [occupied] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(roomsTable)
+          .where(and(eq(roomsTable.buildingId, id), eq(roomsTable.isActive, true), eq(roomsTable.status, 'occupied')));
+
+        if (occupied && occupied.count > 0) {
+          throw new BadRequestException(
+            `Cannot deactivate building '${existing.buildingName}': ${occupied.count} room(s) are currently occupied by guests. Please check out or relocate guests first.`
+          );
+        }
+
+        const [stationedStaff] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(usersTable)
+          .where(and(eq(usersTable.buildingId, id), eq(usersTable.isActive, true)));
+
+        if (stationedStaff && stationedStaff.count > 0) {
+          throw new BadRequestException(
+            `Cannot deactivate building '${existing.buildingName}': ${stationedStaff.count} active staff member(s) are assigned to this building. Please reassign them to another wing first.`
+          );
+        }
+
+        // Cascade deactivation to associated floors and rooms
+        await db.update(floorsTable).set({ isActive: false }).where(eq(floorsTable.buildingId, id));
+        await db.update(roomsTable).set({ isActive: false }).where(eq(roomsTable.buildingId, id));
+      } else if (newActive && !existing.isActive) {
+        // Cascade reactivation to associated floors and rooms
+        await db.update(floorsTable).set({ isActive: true }).where(eq(floorsTable.buildingId, id));
+        await db.update(roomsTable).set({ isActive: true }).where(eq(roomsTable.buildingId, id));
+      }
+    }
+
     u.updatedBy = b.updatedBy;
     const [row] = await db.update(buildingsTable).set(u).where(eq(buildingsTable.id, id)).returning();
     if (!row) throw new NotFoundException('Building not found');
@@ -155,31 +210,16 @@ export class BuildingsService {
       }
     }
 
-    // 3. Check if this is the only building in the branch and staff users are assigned to that branch
-    if (bld.branchId) {
-      const [otherBuildings] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(buildingsTable)
-        .where(and(eq(buildingsTable.branchId, bld.branchId), eq(buildingsTable.isActive, true), sql`${buildingsTable.id} != ${id}`));
+    // 3. Check for stationed staff
+    const [stationedStaff] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(usersTable)
+      .where(and(eq(usersTable.buildingId, id), eq(usersTable.isActive, true)));
 
-      if (!otherBuildings || otherBuildings.count === 0) {
-        const [assignedUsers] = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(userBranchesTable)
-          .where(eq(userBranchesTable.branchId, bld.branchId));
-
-        const [primaryUsers] = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(usersTable)
-          .where(and(eq(usersTable.primaryBranchId, bld.branchId), eq(usersTable.isActive, true)));
-
-        const totalUsers = (assignedUsers?.count || 0) + (primaryUsers?.count || 0);
-        if (totalUsers > 0) {
-          throw new BadRequestException(
-            `Cannot delete building '${bld.buildingName}': It is the primary operating building for this branch, and ${totalUsers} staff user(s) are assigned to it. Reassign or transfer staff before deleting.`
-          );
-        }
-      }
+    if (stationedStaff && stationedStaff.count > 0) {
+      throw new BadRequestException(
+        `Cannot delete building '${bld.buildingName}': ${stationedStaff.count} active staff member(s) are assigned to this building. Please reassign them to another wing first.`
+      );
     }
 
     // 4. Soft-delete associated empty floors if any

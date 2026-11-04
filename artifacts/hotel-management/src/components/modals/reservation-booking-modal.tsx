@@ -24,6 +24,10 @@ import {
   Heart,
   FileText,
   DoorOpen,
+  Tag,
+  Percent,
+  DollarSign,
+  Gift,
   AlertCircle,
   Check,
 } from "lucide-react";
@@ -158,12 +162,91 @@ export function ReservationBookingModal({
     }
   }, [open, guest]);
 
+  
+  // Financial & Rate Plan Engine States
+  const [ratePlan, setRatePlan] = useState<string>("standard");
+  const [discountCode, setDiscountCode] = useState<string>("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; percent?: number; amount?: number; label: string } | null>(null);
+  const [securityDeposit, setSecurityDeposit] = useState<number>(1000);
+
+  // Determine Base Price per night based on selected Room Types
+  const primaryRoomType = roomTypes.find((t) => t.id === resRoomTypeId);
+  const secondaryRoomType = roomTypes.find((t) => t.id === (secondaryRoomTypeId || resRoomTypeId));
+
+  const baseRatePerNight = React.useMemo(() => {
+    let rate = Number(primaryRoomType?.basePrice) || 2500;
+    if (accommodationMode === "separate_rooms" && Number(resAdults) >= 2) {
+      rate += Number(secondaryRoomType?.basePrice) || 2500;
+    }
+    return rate;
+  }, [primaryRoomType, secondaryRoomType, accommodationMode, resAdults]);
+
+  // Weekend & Seasonal Multiplier Calculation (e.g. Friday/Saturday nights have 1.15x multiplier)
+  const rateMultiplier = React.useMemo(() => {
+    if (!resCheckIn) return 1.0;
+    const day = new Date(resCheckIn).getDay();
+    // 5 = Friday, 6 = Saturday
+    if (day === 5 || day === 6) return 1.15;
+    return 1.0;
+  }, [resCheckIn]);
+
+  // Rate Plan Package Price Override if applicable
+  const packagePriceOverride = React.useMemo(() => {
+    if (ratePlan === "pkg_weekend_retreat") return 16500;
+    if (ratePlan === "pkg_honeymoon") return 28000;
+    return null;
+  }, [ratePlan]);
+
+  // Discount code application handler
+  const handleApplyDiscountCode = () => {
+    const code = discountCode.trim().toUpperCase();
+    if (!code) {
+      setAppliedDiscount(null);
+      return;
+    }
+    if (code === "SUMMER20") {
+      setAppliedDiscount({ code: "SUMMER20", percent: 20, label: "Summer Special (20% OFF)" });
+      toast({ title: "Discount Applied", description: "20% deducted from room rate." });
+    } else if (code === "CORP-ETHIOAIR" || code === "ETHIOAIR") {
+      setAppliedDiscount({ code: "CORP-ETHIOAIR", percent: 15, label: "Ethiopian Airlines Corporate (15% OFF)" });
+      toast({ title: "Corporate Tariff Applied", description: "15% corporate rate discount applied." });
+    } else if (code === "BOLE500" || code === "TRANSIT") {
+      setAppliedDiscount({ code: "BOLE500", amount: 500, label: "Transit Voucher (500 ETB OFF)" });
+      toast({ title: "Voucher Applied", description: "500 ETB deducted." });
+    } else {
+      toast({ title: "Invalid Promo Code", description: "Code not found or expired. Check active campaigns.", variant: "destructive" });
+    }
+  };
+
   // Calculate nights
   const nights = React.useMemo(() => {
     if (!resCheckIn || !resCheckOut) return 1;
     const diff = new Date(resCheckOut).getTime() - new Date(resCheckIn).getTime();
     return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
   }, [resCheckIn, resCheckOut]);
+
+  // Calculation Breakdown
+  const grossRoomCharge = React.useMemo(() => {
+    if (packagePriceOverride !== null) return packagePriceOverride;
+    return Math.round(baseRatePerNight * rateMultiplier * nights);
+  }, [baseRatePerNight, rateMultiplier, nights, packagePriceOverride]);
+
+  const discountAmount = React.useMemo(() => {
+    if (!appliedDiscount) return 0;
+    if (appliedDiscount.percent) {
+      return Math.round((grossRoomCharge * appliedDiscount.percent) / 100);
+    }
+    if (appliedDiscount.amount) {
+      return Math.min(appliedDiscount.amount, grossRoomCharge);
+    }
+    return 0;
+  }, [appliedDiscount, grossRoomCharge]);
+
+  const netRoomCharge = Math.max(0, grossRoomCharge - discountAmount);
+  // Ethiopian Tax standard: 15% VAT + 2% Tourism/Municipal levy = 17% on Net Room Charge
+  const taxAmount = Math.round(netRoomCharge * 0.17);
+  // Final Folio: (Gross Rate * Multiplier - Discount) + Taxes + Incidentals/Deposit
+  const finalFolioTotal = netRoomCharge + taxAmount + securityDeposit;
 
   // Count available rooms for the selected type
   const roomsForType = React.useMemo(() => {
@@ -236,6 +319,12 @@ export function ReservationBookingModal({
       children: Number(resChildren) || 0,
       reservationType: resType || "walk_in",
       bookingSource: "direct",
+      totalAmount: finalFolioTotal,
+      paidAmount: 0,
+      discountAmount: discountAmount,
+      taxAmount: taxAmount,
+      depositRequired: securityDeposit,
+      ratePlan: ratePlan,
     };
     if (resRoomTypeId) payload.roomTypeId = resRoomTypeId;
     if (finalSpecialRequests) payload.specialRequests = finalSpecialRequests;
@@ -623,6 +712,136 @@ export function ReservationBookingModal({
                   </Badge>
                 </div>
               )}
+            </div>
+
+
+            {/* SECTION 4: RATE PLAN, DISCOUNTS & FINAL FOLIO BREAKDOWN */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Rate Plan, Discounts & Live Folio Calculation</span>
+                </div>
+                <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10 font-mono">
+                  MoR Tax Compliant
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Rate Plan / Package Selector */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ratePlan" className="text-xs font-semibold">
+                    Rate Plan / Promotional Package
+                  </Label>
+                  <select
+                    id="ratePlan"
+                    value={ratePlan}
+                    onChange={(e) => setRatePlan(e.target.value)}
+                    className="h-10 w-full rounded-md border border-border bg-white dark:bg-[#0E172E] px-3 py-2 text-xs text-foreground cursor-pointer"
+                  >
+                    <option value="standard">Standard Flexible Rate (Dynamic Daily)</option>
+                    <option value="pkg_weekend_retreat">Weekend Retreat & Spa (Fixed 16,500 ETB / 2 Nights)</option>
+                    <option value="pkg_honeymoon">Presidential Honeymoon Package (Fixed 28,000 ETB)</option>
+                    <option value="corporate">Corporate Negotiated Tariff (Standard Terms)</option>
+                  </select>
+                </div>
+
+                {/* Promo / Discount Coupon Input */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="discountCode" className="text-xs font-semibold">
+                    Promotional Coupon / Corporate Code
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="discountCode"
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value)}
+                      placeholder="e.g. SUMMER20, ETHIOAIR"
+                      className="h-10 text-xs font-mono uppercase"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleApplyDiscountCode}
+                      className="h-10 px-3 text-xs font-semibold shrink-0"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                  {appliedDiscount && (
+                    <div className="flex items-center justify-between text-[11px] text-emerald-600 font-medium px-1">
+                      <span>✓ {appliedDiscount.label}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedDiscount(null);
+                          setDiscountCode("");
+                        }}
+                        className="text-[10px] text-muted-foreground hover:text-red-500 underline cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dynamic Live Formula Breakdown Card */}
+              <div className="rounded-xl border border-border bg-muted/30 dark:bg-[#0A1020] p-4 space-y-2.5 text-xs font-mono">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <span className="text-muted-foreground font-sans text-xs">
+                    Room Rate ({baseRatePerNight.toLocaleString()} ETB/night × {nights} {nights === 1 ? "night" : "nights"}{rateMultiplier > 1.0 ? ` @ ${rateMultiplier}x weekend` : ""}):
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    ETB {grossRoomCharge.toLocaleString()}.00
+                  </span>
+                </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-600 font-semibold">
+                    <span className="font-sans text-xs">
+                      Promotional Discount ({appliedDiscount?.code}):
+                    </span>
+                    <span>- ETB {discountAmount.toLocaleString()}.00</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="font-sans text-xs">
+                    Net Room Subtotal:
+                  </span>
+                  <span>ETB {netRoomCharge.toLocaleString()}.00</span>
+                </div>
+
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="font-sans text-xs">
+                    Taxes (15% VAT + 2% Tourism Levy on Net Subtotal):
+                  </span>
+                  <span>+ ETB {taxAmount.toLocaleString()}.00</span>
+                </div>
+
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="font-sans text-xs">
+                    Incidentals & Security Deposit (Refundable at Check-out):
+                  </span>
+                  <span>+ ETB {securityDeposit.toLocaleString()}.00</span>
+                </div>
+
+                {/* Final Folio Formula Total */}
+                <div className="pt-2.5 border-t-2 border-border flex items-center justify-between text-sm font-bold text-foreground">
+                  <div className="font-sans">
+                    <span>Estimated Final Folio</span>
+                    <p className="text-[10px] text-muted-foreground font-normal">
+                      Formula: (Base Rate × Multiplier − Discount) + Taxes + Incidentals
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-base text-primary font-bold">
+                      ETB {finalFolioTotal.toLocaleString()}.00
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* SECTION 3: OTHER / SPECIAL REQUESTS CATALOG DROPDOWN */}

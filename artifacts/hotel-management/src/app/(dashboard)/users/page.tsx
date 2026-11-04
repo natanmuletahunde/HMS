@@ -48,6 +48,8 @@ type User = {
   roleName?: string | null;
   roleScope?: string | null;
   primaryBranchId?: string | null;
+  buildingId?: string | null;
+  buildingName?: string | null;
   branches?: AssignedBranch[];
   isActive: boolean;
   isOnDuty?: boolean;
@@ -331,6 +333,7 @@ function UsersAndRolesContent() {
   const [roleId, setRoleId] = useState("");
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [primaryBranchId, setPrimaryBranchId] = useState("");
+  const [buildingId, setBuildingId] = useState("");
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editFirstName, setEditFirstName] = useState("");
@@ -344,6 +347,7 @@ function UsersAndRolesContent() {
   const [editRoleId, setEditRoleId] = useState("");
   const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
   const [editPrimaryBranchId, setEditPrimaryBranchId] = useState("");
+  const [editBuildingId, setEditBuildingId] = useState("");
   const [editUserErrorMsg, setEditUserErrorMsg] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
@@ -364,6 +368,12 @@ function UsersAndRolesContent() {
     queryFn: () => apiFetch<any>("/branches"),
   });
   const branches: Branch[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
+
+  const { data: rawBuildings } = useQuery({
+    queryKey: ["buildings"],
+    queryFn: () => apiFetch<any>("/buildings?status=active"),
+  });
+  const buildings: { id: string; buildingName: string; branchId: string }[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
 
   const createUserMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -526,6 +536,7 @@ function UsersAndRolesContent() {
 
   const closeAddUserDialog = () => {
     setIsAddUserOpen(false);
+    setBuildingId("");
     setUserErrorMsg("");
   };
 
@@ -540,9 +551,10 @@ function UsersAndRolesContent() {
     setEditCopiedPass(false);
     setEditRoleId(u.roleId || "");
     const existingIds = (u.branches || []).map((b) => b.id);
-    const initialBranches = existingIds.length > 0 ? existingIds : (branches[0] ? [branches[0].id] : []);
+    const initialBranches = existingIds.length > 0 ? existingIds : (u.primaryBranchId ? [u.primaryBranchId] : (branches[0] ? [branches[0].id] : []));
     setEditBranchIds(initialBranches);
     setEditPrimaryBranchId(u.primaryBranchId || initialBranches[0] || branches[0]?.id || "");
+    setEditBuildingId(u.buildingId || "");
     setEditUserErrorMsg("");
   };
 
@@ -618,6 +630,7 @@ function UsersAndRolesContent() {
       roleId,
       branchIds: selectedBranchIds,
       primaryBranchId: primaryBranchId || selectedBranchIds[0] || null,
+      buildingId: buildingId || null,
     });
   };
 
@@ -645,8 +658,10 @@ function UsersAndRolesContent() {
       faydaId: editFaydaId.trim() || null,
       department: editDepartment.trim() || null,
       roleId: editRoleId,
+      branchId: editPrimaryBranchId || editBranchIds[0] || null,
       branchIds: editBranchIds,
       primaryBranchId: editPrimaryBranchId || editBranchIds[0] || null,
+      buildingId: editBuildingId || null,
     };
 
     if (editPassword && editPassword.trim()) {
@@ -983,6 +998,11 @@ function UsersAndRolesContent() {
                               <span>{primaryBranch.branchName}</span>
                               <span className="text-[9px] uppercase tracking-wider bg-[var(--blue-50)] text-[var(--blue-700)] font-bold px-1 rounded ml-1">Home</span>
                             </div>
+                            {user.buildingName && (
+                              <span className="text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 rounded">
+                                Wing: {user.buildingName}
+                              </span>
+                            )}
                             {extraBranchCount > 0 && (
                               <span className="text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 rounded">
                                 +{extraBranchCount} more
@@ -1438,6 +1458,32 @@ function UsersAndRolesContent() {
                     </select>
                   </div>
                 )}
+
+                {/* Stationed Building / Wing Selector */}
+                {selectedBranchIds.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        Stationed Building / Wing
+                      </Label>
+                      <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
+                    </div>
+                    <select
+                      value={buildingId}
+                      onChange={(e) => setBuildingId(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    >
+                      <option value="">All Wings / Main Facility</option>
+                      {buildings
+                        .filter((b) => b.branchId === (primaryBranchId || selectedBranchIds[0]))
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.buildingName}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1677,6 +1723,32 @@ function UsersAndRolesContent() {
                     </select>
                   </div>
                 )}
+
+                {/* Stationed Building / Wing Selector */}
+                {editBranchIds.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        Stationed Building / Wing
+                      </Label>
+                      <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
+                    </div>
+                    <select
+                      value={editBuildingId}
+                      onChange={(e) => setEditBuildingId(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    >
+                      <option value="">All Wings / Main Facility</option>
+                      {buildings
+                        .filter((b) => b.branchId === (editPrimaryBranchId || editBranchIds[0]))
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.buildingName}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1819,7 +1891,7 @@ function UsersAndRolesContent() {
                     className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
                   >
                     <option value="branch">Branch-Bound (Property Scope)</option>
-                    <option value="global">Global (Chain-Wide / Multi-Branch)</option>
+                    <option value="global">Global (System-Wide)</option>
                   </select>
                 </div>
 

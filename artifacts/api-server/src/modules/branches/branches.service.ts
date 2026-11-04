@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { eq, and, like, sql, inArray, getTableColumns } from 'drizzle-orm';
-import { db, branchesTable, hotelsTable, buildingsTable, userBranchesTable, usersTable } from '@workspace/db';
+import { eq, and, or, like, sql, inArray, getTableColumns } from 'drizzle-orm';
+import { db, branchesTable, hotelsTable, buildingsTable, userBranchesTable, usersTable, reservationsTable, roomsTable } from '@workspace/db';
 
 const branchCols = getTableColumns(branchesTable);
 const fmt = (r: any) => ({ ...r, hotelName: r.hotelName ?? null, deletedAt: r.deletedAt?.toISOString() ?? null, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() });
@@ -59,11 +59,70 @@ export class BranchesService {
     return fmt(r);
   }
 
+  async freeze(id: string, reason?: string, updatedBy?: string) {
+    const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
+    if (!branch) throw new NotFoundException('Branch not found');
+
+    const currentSettings = (branch.settings as Record<string, any>) || {};
+    const updatedSettings = {
+      ...currentSettings,
+      isFrozen: true,
+      frozenAt: new Date().toISOString(),
+      freezeReason: reason || 'Administrative Decommissioning Freeze',
+    };
+
+    const [row] = await db
+      .update(branchesTable)
+      .set({
+        settings: updatedSettings,
+        updatedBy: updatedBy || branch.updatedBy,
+      })
+      .where(eq(branchesTable.id, id))
+      .returning();
+
+    return fmt(row);
+  }
+
+  async unfreeze(id: string, updatedBy?: string) {
+    const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
+    if (!branch) throw new NotFoundException('Branch not found');
+
+    const currentSettings = (branch.settings as Record<string, any>) || {};
+    const updatedSettings = {
+      ...currentSettings,
+      isFrozen: false,
+      unfrozenAt: new Date().toISOString(),
+    };
+
+    const [row] = await db
+      .update(branchesTable)
+      .set({
+        settings: updatedSettings,
+        updatedBy: updatedBy || branch.updatedBy,
+      })
+      .where(eq(branchesTable.id, id))
+      .returning();
+
+    return fmt(row);
+  }
+
   async remove(id: string) {
     const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
     if (!branch) throw new NotFoundException('Branch not found');
 
-    // 1. Check for active buildings
+    // 1. Check if this is the sole active branch in the hotel chain
+    const [activeBranches] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(branchesTable)
+      .where(and(eq(branchesTable.hotelId, branch.hotelId), eq(branchesTable.isActive, true)));
+
+    if (activeBranches && activeBranches.count <= 1) {
+      throw new BadRequestException(
+        `Cannot delete branch '${branch.branchName}': This is the sole active branch in the hotel chain. The property portfolio must maintain at least one operational branch.`
+      );
+    }
+
+    // 2. Check for active buildings
     const [activeBuildings] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(buildingsTable)
@@ -75,21 +134,44 @@ export class BranchesService {
       );
     }
 
-    // 2. Check for assigned users/staff
-    const [assignedUsers] = await db
+    // 3. Check for active or upcoming reservations tied to rooms in this branch
+    const [activeReservations] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(userBranchesTable)
-      .where(eq(userBranchesTable.branchId, id));
+      .from(reservationsTable)
+      .innerJoin(roomsTable, eq(reservationsTable.roomId, roomsTable.id))
+      .innerJoin(buildingsTable, eq(roomsTable.buildingId, buildingsTable.id))
+      .where(
+        and(
+          eq(buildingsTable.branchId, id),
+          inArray(reservationsTable.status, ['confirmed', 'guaranteed', 'checked_in'])
+        )
+      );
 
-    const [primaryUsers] = await db
-      .select({ count: sql<number>`count(*)::int` })
+    if (activeReservations && activeReservations.count > 0) {
+      throw new BadRequestException(
+        `Cannot delete branch '${branch.branchName}': ${activeReservations.count} active or upcoming reservation(s) exist for this branch. Please relocate, check out, or cancel these reservations first.`
+      );
+    }
+
+    // 4. Check for assigned users/staff (distinct active users)
+    const [staffCount] = await db
+      .select({ count: sql<number>`count(distinct ${usersTable.id})::int` })
       .from(usersTable)
-      .where(and(eq(usersTable.primaryBranchId, id), eq(usersTable.isActive, true)));
+      .leftJoin(userBranchesTable, eq(usersTable.id, userBranchesTable.userId))
+      .where(
+        and(
+          eq(usersTable.isActive, true),
+          or(
+            eq(usersTable.primaryBranchId, id),
+            eq(userBranchesTable.branchId, id)
+          )
+        )
+      );
 
-    const totalStaff = (assignedUsers?.count || 0) + (primaryUsers?.count || 0);
+    const totalStaff = staffCount?.count || 0;
     if (totalStaff > 0) {
       throw new BadRequestException(
-        `Cannot delete branch '${branch.branchName}': ${totalStaff} staff user(s) are assigned to this branch. Reassign staff members before deleting the branch.`
+        `Cannot delete branch '${branch.branchName}': ${totalStaff} active staff member(s) are assigned to this branch. Reassign staff members before deleting the branch.`
       );
     }
 
