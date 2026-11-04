@@ -4,15 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { 
-  LayoutDashboard, CalendarCheck, Users, BedDouble, 
+  LayoutDashboard, CalendarCheck, Users, BedDouble, SlidersHorizontal, 
   Sparkles, Wrench, UtensilsCrossed, FileText, 
-  CreditCard, Package, UserCog, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
+  CreditCard, Package, Building2, GitBranch, Building, Layers, Tag, BedSingle, DollarSign,
   Shield, Lock, ClipboardList,
   CalendarDays, ShoppingCart, Bed, LogOut,
   ShoppingBag, Users2,
-  BarChart2, Bell,
-  Globe, Puzzle, GitMerge, Cpu, CreditCard as SubscriptionIcon,
-  TrendingUp, ShieldCheck, QrCode, ChefHat, Receipt, Boxes,
+  BarChart2,
+  GitMerge,
+  QrCode, ChefHat, Receipt, Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
@@ -30,25 +30,20 @@ const NAV_GROUPS = [
     items: [
       { name: "Hotel Config", href: "/hotel", icon: Building2 },
       { name: "Branches", href: "/branches", icon: GitBranch },
-      { name: "Buildings", href: "/buildings", icon: Building },
-      { name: "Floors", href: "/floors", icon: Layers },
     ]
   },
   {
     title: "Room Setup",
     items: [
-      { name: "Room Types", href: "/room-types", icon: BedDouble },
-      { name: "Room Categories", href: "/room-categories", icon: Tag },
-      { name: "Bed Types", href: "/bed-types", icon: BedSingle },
-      { name: "Amenities", href: "/room-amenities", icon: Sparkles },
-      { name: "Pricing", href: "/room-pricing", icon: DollarSign },
+      { name: "Rooms", href: "/rooms", icon: BedDouble },
+      { name: "Configs", href: "/room-configs", icon: SlidersHorizontal },
     ]
   },
   {
     title: "Front Desk",
     items: [
       { name: "Guests", href: "/guests", icon: Users },
-      { name: "Rooms", href: "/rooms", icon: BedDouble },
+      { name: "Res. Calendar", href: "/reservations/calendar", icon: CalendarDays },
       { name: "Guest QR Codes", href: "/qr-codes", icon: QrCode },
     ]
   },
@@ -91,30 +86,9 @@ const NAV_GROUPS = [
   {
     title: "Admin",
     items: [
-      { name: "Employees", href: "/employees", icon: UserCog },
       { name: "HR", href: "/hr", icon: Users2 },
-      { name: "Users", href: "/users", icon: Shield },
-      { name: "Roles", href: "/roles", icon: Lock },
+      { name: "Users & Roles", href: "/users", icon: Shield },
       { name: "Audit Logs", href: "/audit-logs", icon: ClipboardList },
-    ]
-  },
-  {
-    title: "Enterprise",
-    items: [
-      { name: "Notifications", href: "/notifications", icon: Bell },
-      { name: "BI Dashboard", href: "/bi", icon: TrendingUp },
-      { name: "Security", href: "/security", icon: ShieldCheck },
-    ]
-  },
-  {
-    title: "SaaS Platform",
-    items: [
-      { name: "Tenants", href: "/tenants", icon: Globe },
-      { name: "Organizations", href: "/organizations", icon: Building2 },
-      { name: "Subscriptions", href: "/subscriptions", icon: SubscriptionIcon },
-      { name: "Workflows", href: "/workflows", icon: GitMerge },
-      { name: "Modules", href: "/module-config", icon: Cpu },
-      { name: "Plugins", href: "/plugins", icon: Puzzle },
     ]
   },
   {
@@ -132,12 +106,12 @@ export function Sidebar() {
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const isWaiter = normalizeRole(currentRole) === "waiter";
 
-  // Filter navigation groups based on role authorization
+  // Filter navigation groups based on role authorization & dynamic permissions
   const filteredNavGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => {
       const authorizedItems = group.items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
-        return isRouteAuthorized(currentRole, pathOnly);
+        return isRouteAuthorized(user, pathOnly, user?.permissions);
       }).map((item) => {
         if (isWaiter && item.href === "/restaurant") {
           return { ...item, name: "Waiter" };
@@ -149,17 +123,22 @@ export function Sidebar() {
         items: authorizedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [currentRole, isWaiter]);
+  }, [user, currentRole, isWaiter]);
 
   return (
-    <aside className="w-64 flex flex-col bg-[#071039] border-r border-[#0F2270] h-screen sticky top-0 overflow-y-auto z-20 select-none">
+    <aside 
+      className="w-64 flex flex-col h-screen sticky top-0 overflow-y-auto z-20 select-none border-r border-white/10 shadow-2xl"
+      style={{
+        background: "linear-gradient(180deg, #7898ed 0%, #5067aa 35%, #263360 68%, #070c28 100%)",
+      }}
+    >
       {/* Brand Header */}
-      <div className="flex items-center px-6 py-5 border-b border-[#0F2270] shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-[#1A3BB0] flex items-center justify-center text-white mr-3 shadow-xs">
-          <Building2 className="h-4 w-4 stroke-[1.5] text-[#AFC5F8]" />
+      <div className="flex items-center px-6 py-5 border-b border-white/15 shrink-0 bg-white/5 backdrop-blur-xs">
+        <div className="w-8 h-8 rounded-lg bg-white/20 border border-white/30 flex items-center justify-center text-white mr-3 shadow-xs">
+          <Building2 className="h-4 w-4 stroke-[2] text-white" />
         </div>
         <div>
-          <span className="font-bold text-base tracking-tight text-white block">
+          <span className="font-bold text-base tracking-tight text-white block drop-shadow-xs">
             Nexus HMS
           </span>
         </div>
@@ -169,7 +148,7 @@ export function Sidebar() {
       <div className="flex-1 py-5 px-3 space-y-6">
         {filteredNavGroups.map((group) => (
           <div key={group.title}>
-            <h4 className="px-3 mb-2 text-[11px] font-bold text-[#6E92F2] uppercase tracking-[0.08em]">
+            <h4 className="px-3 mb-2 text-[11px] font-bold text-white/75 uppercase tracking-[0.08em] drop-shadow-xs">
               {group.title}
             </h4>
             <div className="space-y-1">
@@ -192,16 +171,16 @@ export function Sidebar() {
                       }
                     }}
                     className={cn(
-                      "flex items-center px-3 py-2 text-sm font-medium transition-all group",
+                      "flex items-center px-3 py-2 text-sm font-medium transition-all group rounded-lg",
                       isActive 
-                        ? "bg-gradient-to-r from-blue-700/80 via-blue-800/40 to-transparent text-white border-l-[3px] border-blue-400 pl-[9px] rounded-r-lg font-semibold" 
-                        : "text-[#AFC5F8] hover:bg-white/5 hover:text-white rounded-lg"
+                        ? "bg-white/20 text-white font-semibold shadow-xs border-l-[3px] border-white pl-[9px] backdrop-blur-xs" 
+                        : "text-white/80 hover:bg-white/15 hover:text-white"
                     )}
                   >
                     <item.icon
                       className={cn(
-                        "mr-3 h-4 w-4 shrink-0 transition-colors stroke-[1.5]",
-                        isActive ? "text-[#6E92F2]" : "text-[#AFC5F8] group-hover:text-white"
+                        "mr-3 h-4 w-4 shrink-0 transition-colors stroke-[1.75]",
+                        isActive ? "text-white" : "text-white/75 group-hover:text-white"
                       )}
                     />
                     <span className="truncate">{item.name}</span>

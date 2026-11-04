@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { eq, and, or, like, sql, getTableColumns, inArray, desc, asc } from 'drizzle-orm';
 import {
   db,
@@ -14,7 +14,19 @@ import {
   dailyMealClaimsTable,
   invoicesTable,
   invoiceLineItemsTable,
+  notificationsTable,
 } from '@workspace/db';
+import { EventBusService } from '../event-bus/event-bus.service';
+
+export const resolveCanonicalStation = (kitchenSection?: string | null, category?: string | null): 'hot' | 'grill' | 'cold' | 'bar' | 'pastry' => {
+  const s = (kitchenSection || '').toLowerCase().trim();
+  const c = (category || '').toLowerCase().trim();
+  if (s === 'bar' || ['drinks', 'juice', 'coffee'].includes(c) || ['juice', 'smoothie', 'water', 'tea', 'coffee'].some((k) => s.includes(k))) return 'bar';
+  if (s === 'cold' || s === 'salad') return 'cold';
+  if (s === 'bakery' || s === 'pastry' || c === 'dessert') return 'pastry';
+  if (s === 'grill') return 'grill';
+  return 'hot';
+};
 
 const fmtMenu = (m: any) => ({
   ...m,
@@ -53,6 +65,7 @@ const fmtOrder = (o: any, items: any[]) => ({
   receiptPrintedAt: o.receiptPrintedAt?.toISOString() ?? null,
   cashierId: o.cashierId ?? null,
   cashierNotes: o.cashierNotes ?? null,
+  pacingPreference: o.pacingPreference ?? 'drinks_first',
   createdAt: o.createdAt?.toISOString() ?? null,
   updatedAt: o.updatedAt?.toISOString() ?? null,
   items: items.map((i) => ({
@@ -62,6 +75,11 @@ const fmtOrder = (o: any, items: any[]) => ({
     total: parseFloat(i.total),
     isComplimentary: !!i.isComplimentary,
     notes: i.notes ?? null,
+    kitchenStatus: i.kitchenStatus ?? 'pending',
+    roundNumber: i.roundNumber ?? 1,
+    station: i.station ?? 'hot',
+    category: i.category ?? null,
+    kitchenSection: i.kitchenSection ?? null,
   })),
 });
 
@@ -92,11 +110,55 @@ const enrichOrdersWithUserNames = async (orders: any[]) => {
   }));
 };
 
-const fetchItems = async (orderId: string) =>
-  db.select().from(restaurantOrderItemsTable).where(eq(restaurantOrderItemsTable.orderId, orderId));
+const fetchItems = async (orderId: string) => {
+  const rows = await db
+    .select({
+      id: restaurantOrderItemsTable.id,
+      orderId: restaurantOrderItemsTable.orderId,
+      menuItemId: restaurantOrderItemsTable.menuItemId,
+      name: restaurantOrderItemsTable.name,
+      quantity: restaurantOrderItemsTable.quantity,
+      unitPrice: restaurantOrderItemsTable.unitPrice,
+      total: restaurantOrderItemsTable.total,
+      isComplimentary: restaurantOrderItemsTable.isComplimentary,
+      notes: restaurantOrderItemsTable.notes,
+      kitchenStatus: restaurantOrderItemsTable.kitchenStatus,
+      roundNumber: restaurantOrderItemsTable.roundNumber,
+      station: restaurantOrderItemsTable.station,
+      itemCategory: menuItemsTable.category,
+      itemKitchenSection: menuItemsTable.kitchenSection,
+    })
+    .from(restaurantOrderItemsTable)
+    .leftJoin(menuItemsTable, eq(restaurantOrderItemsTable.menuItemId, menuItemsTable.id))
+    .where(eq(restaurantOrderItemsTable.orderId, orderId))
+    .orderBy(asc(restaurantOrderItemsTable.roundNumber), asc(restaurantOrderItemsTable.name));
+
+  return rows.map((r) => {
+    const canonical = resolveCanonicalStation(r.itemKitchenSection || r.station, r.itemCategory);
+    return {
+      id: r.id,
+      orderId: r.orderId,
+      menuItemId: r.menuItemId,
+      name: r.name,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      total: r.total,
+      isComplimentary: r.isComplimentary,
+      notes: r.notes,
+      kitchenStatus: r.kitchenStatus || 'pending',
+      roundNumber: r.roundNumber || 1,
+      station: r.station || canonical,
+      category: r.itemCategory || null,
+      kitchenSection: r.itemKitchenSection || null,
+    };
+  });
+};
 
 @Injectable()
 export class RestaurantService {
+  constructor(
+    @Optional() private readonly eventBus?: EventBusService,
+  ) {}
   async getDashboard() {
     const today = new Date().toISOString().slice(0, 10);
     const [orderStatusRows, tableStatusRows, revenueRows] = await Promise.all([
@@ -364,18 +426,117 @@ export class RestaurantService {
       .from(menuItemsTable)
       .where(and(eq(menuItemsTable.isAvailable, true), eq(menuItemsTable.isActive, true)));
     const menuMap = new Map(itemRows.map((i) => [i.id, i]));
+    const nameMap = new Map(itemRows.map((i) => [i.name.toLowerCase().trim(), i]));
 
     const diningCase = b.diningCase || (b.orderType === 'room_service' ? 'room_service' : b.roomId ? 'in_house_table' : 'walk_in');
     const settlementType = b.settlementType || (b.isComplimentary ? 'complimentary_breakfast' : b.orderType === 'room_charge' ? 'room_charge' : 'direct_payment');
+
+    // Auto-resolve roomId, reservationId, guestId, and guestName if roomNumber is provided
+    let roomId = b.roomId ?? null;
+    let reservationId = b.reservationId ?? null;
+    let guestId = b.guestId ?? null;
+    let guestName = b.guestName ?? null;
+
+    if (!roomId && b.roomNumber) {
+      try {
+        const roomRows = await db
+          .select()
+          .from(roomsTable)
+          .where(or(eq(roomsTable.number, String(b.roomNumber)), eq(roomsTable.roomName, String(b.roomNumber))))
+          .limit(1);
+        if (roomRows.length > 0) {
+          roomId = roomRows[0].id;
+          const activeRes = await db
+            .select()
+            .from(reservationsTable)
+            .where(and(eq(reservationsTable.roomId, roomId), eq(reservationsTable.status, 'checked_in')))
+            .limit(1);
+          if (activeRes.length > 0) {
+            reservationId = reservationId || activeRes[0].id;
+            guestId = guestId || activeRes[0].guestId;
+            if (!guestName && activeRes[0].guestId) {
+              const guestRow = await db
+                .select()
+                .from(guestsTable)
+                .where(eq(guestsTable.id, activeRes[0].guestId))
+                .limit(1);
+              if (guestRow.length > 0) {
+                guestName = `${guestRow[0].firstName} ${guestRow[0].lastName}`.trim();
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Room/resident lookup warning:', err);
+      }
+    }
 
     let grossSubtotal = 0;
     let complimentaryDiscountAmount = 0;
     const ois: any[] = [];
 
-    for (const item of (b.items ?? []) as { menuItemId: string; quantity: number; notes?: string; isComplimentary?: boolean }[]) {
-      const mi = menuMap.get(item.menuItemId);
-      if (!mi) throw new BadRequestException(`Menu item ${item.menuItemId} not found`);
-      const lt = parseFloat(mi.price as string) * item.quantity;
+    for (const item of (b.items ?? []) as any[]) {
+      let mi = item.menuItemId ? menuMap.get(item.menuItemId) : undefined;
+
+      // 1. If not found by menuItemId, try by exact name
+      if (!mi && item.name) {
+        mi = nameMap.get(item.name.toLowerCase().trim());
+      }
+
+      // 2. If not found, try stripped name (without parentheses, custom prefix, etc.)
+      if (!mi) {
+        const candidateRaw = (item.name || (typeof item.menuItemId === 'string' ? item.menuItemId.replace(/^custom-/, '') : '')).trim();
+        const cleanCandidate = candidateRaw.replace(/\(.*?\)/g, '').trim().toLowerCase();
+        if (cleanCandidate) {
+          for (const row of itemRows) {
+            const rowClean = row.name.replace(/\(.*?\)/g, '').trim().toLowerCase();
+            if (rowClean === cleanCandidate || row.name.toLowerCase().includes(cleanCandidate) || cleanCandidate.includes(rowClean)) {
+              mi = row;
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. If still not found, create/persist a menu item row on the fly to fulfill foreign key constraints
+      if (!mi) {
+        const rawName = (item.name || (typeof item.menuItemId === 'string' ? item.menuItemId.replace(/^custom-/, '') : 'Special Item')).trim();
+        const priceVal = item.price ?? item.unitPrice ?? 250;
+        const validCategories = ['breakfast', 'lunch', 'dinner', 'drinks', 'dessert', 'coffee', 'juice', 'fast_food', 'traditional', 'other'];
+        const cat = item.category && validCategories.includes(item.category) ? item.category : 'traditional';
+        const validSections = ['hot', 'cold', 'bakery', 'bar', 'grill', 'salad', 'other'];
+        const station = item.station && validSections.includes(item.station) ? item.station : 'hot';
+
+        try {
+          const [createdMi] = await db
+            .insert(menuItemsTable)
+            .values({
+              name: rawName,
+              category: cat as any,
+              kitchenSection: station as any,
+              price: String(Number(priceVal).toFixed(2)),
+              preparationTime: 15,
+              isAvailable: true,
+              isActive: true,
+            })
+            .returning();
+          mi = createdMi;
+          menuMap.set(mi.id, mi);
+          nameMap.set(mi.name.toLowerCase().trim(), mi);
+        } catch (insertErr) {
+          // Fallback if insertion fails: pick first available item to avoid foreign key violation
+          mi = itemRows[0];
+        }
+      }
+
+      if (!mi) {
+        throw new BadRequestException(`Unable to resolve or initialize menu item for ${item.name || item.menuItemId}`);
+      }
+
+      item.menuItemId = mi.id;
+      const unitPrice = item.price ?? item.unitPrice ?? parseFloat(mi.price as string);
+      const qty = item.quantity || 1;
+      const lt = parseFloat(String(unitPrice)) * qty;
       grossSubtotal += lt;
 
       // Check if item is complimentary breakfast for In-House table guest
@@ -388,14 +549,18 @@ export class RestaurantService {
         complimentaryDiscountAmount += lt;
       }
 
+      const canonicalStation = resolveCanonicalStation(mi.kitchenSection, mi.category);
       ois.push({
-        menuItemId: item.menuItemId,
-        name: mi.name,
-        quantity: item.quantity,
-        unitPrice: String(parseFloat(mi.price as string).toFixed(2)),
+        menuItemId: mi.id,
+        name: item.name || mi.name,
+        quantity: qty,
+        unitPrice: String(parseFloat(String(unitPrice)).toFixed(2)),
         total: String(lt.toFixed(2)),
         isComplimentary: isItemComplimentary,
         notes: item.notes ?? null,
+        kitchenStatus: 'pending',
+        roundNumber: 1,
+        station: item.station || canonicalStation,
       });
     }
 
@@ -409,26 +574,46 @@ export class RestaurantService {
     const totalAmount = chargeableSubtotal + taxAmount + serviceChargeAmount;
     const orderNumber = 'ORD-' + Date.now().toString(36).toUpperCase();
 
+    const routedVia = b.routedVia || 'coordinator';
+    let coordinatorId = b.coordinatorId ?? null;
+    let coordinatorStatus = b.coordinatorStatus;
+
+    if (!coordinatorStatus) {
+      coordinatorStatus = routedVia === 'direct_kitchen' ? 'bypassed' : 'pending';
+    }
+
+    if (!coordinatorId && routedVia === 'coordinator') {
+      try {
+        const coords = await this.getCoordinators();
+        if (coords && coords.length > 0) {
+          const sorted = [...coords].sort((a, b) => a.activeOrdersCount - b.activeOrdersCount);
+          coordinatorId = sorted[0].id;
+        }
+      } catch (err) {
+        console.error('Failed to auto-resolve coordinator:', err);
+      }
+    }
+
     const [order] = await db
       .insert(restaurantOrdersTable)
       .values({
         orderNumber,
         tableNumber: b.tableNumber ?? null,
         tableId: b.tableId ?? null,
-        orderType: diningCase === 'room_service' ? 'room_service' : b.orderType ?? (b.roomId ? 'room_charge' : 'dine_in'),
+        orderType: diningCase === 'room_service' ? 'room_service' : b.orderType ?? (roomId ? 'room_charge' : 'dine_in'),
         diningCase,
         settlementType,
         complimentaryDiscountAmount: String(complimentaryDiscountAmount.toFixed(2)),
-        reservationId: b.reservationId ?? null,
-        guestId: b.guestId ?? null,
-        roomId: b.roomId ?? null,
+        reservationId: reservationId ?? null,
+        guestId: guestId ?? null,
+        roomId: roomId ?? null,
         waiterId: b.waiterId ?? null,
-        coordinatorId: b.coordinatorId ?? null,
+        coordinatorId: coordinatorId,
         kitchenOfficerId: b.kitchenOfficerId ?? null,
-        routedVia: b.routedVia || (b.coordinatorId ? 'coordinator' : 'direct_kitchen'),
-        coordinatorStatus: b.coordinatorId ? 'pending' : 'bypassed',
+        routedVia: routedVia,
+        coordinatorStatus: coordinatorStatus,
         coordinatorNotes: b.coordinatorNotes ?? null,
-        guestName: diningCase === 'in_house_table' ? (b.guestName ?? null) : null,
+        guestName: guestName ?? null,
         status: 'pending',
         subtotal: String(grossSubtotal.toFixed(2)),
         taxAmount: String(taxAmount.toFixed(2)),
@@ -437,6 +622,7 @@ export class RestaurantService {
         totalAmount: String(totalAmount.toFixed(2)),
         paymentStatus: settlementType === 'complimentary_breakfast' && totalAmount === 0 ? 'paid' : (b.paymentStatus ?? 'pending'),
         paymentMethod: settlementType === 'complimentary_breakfast' ? 'complimentary' : b.paymentMethod ?? null,
+        pacingPreference: b.pacingPreference ?? 'drinks_first',
         notes: b.notes ?? null,
       })
       .returning();
@@ -453,15 +639,15 @@ export class RestaurantService {
     }
 
     // Record breakfast claim in dailyMealClaimsTable
-    if (diningCase === 'in_house_table' && complimentaryDiscountAmount > 0 && b.roomId) {
+    if (diningCase === 'in_house_table' && complimentaryDiscountAmount > 0 && roomId) {
       const todayStr = new Date().toISOString().slice(0, 10);
       try {
         await db.insert(dailyMealClaimsTable).values({
-          roomId: b.roomId,
-          roomNumber: String(b.roomNumber || b.roomId),
-          reservationId: b.reservationId ?? null,
-          guestId: b.guestId ?? null,
-          guestName: b.guestName ?? null,
+          roomId: roomId,
+          roomNumber: String(b.roomNumber || roomId),
+          reservationId: reservationId ?? null,
+          guestId: guestId ?? null,
+          guestName: guestName ?? null,
           claimDate: todayStr,
           mealType: 'breakfast',
           coversClaimed: b.coversCount || 1,
@@ -474,10 +660,10 @@ export class RestaurantService {
     }
 
     // Auto-tally to guest stay invoice if charged to room folio
-    if ((settlementType === 'room_charge' || diningCase === 'room_service') && totalAmount > 0 && (b.reservationId || b.guestId)) {
+    if ((settlementType === 'room_charge' || diningCase === 'room_service') && totalAmount > 0 && (reservationId || guestId)) {
       try {
         let invoice: any = null;
-        if (b.reservationId) {
+        if (reservationId) {
           const [inv] = await db
             .select()
             .from(invoicesTable)
@@ -575,14 +761,47 @@ export class RestaurantService {
       'coordinatorId', 'kitchenOfficerId', 'routedVia', 'coordinatorStatus',
       'coordinatorNotes', 'kitchenNotes', 'notifiedParty',
       'billingStatus', 'billRequestedAt', 'receiptPrintedAt', 'cashierId', 'cashierNotes',
+      'pacingPreference',
     ]) {
       if (b[k] !== undefined) u[k] = b[k];
+    }
+    if (u.routedVia === 'coordinator') {
+      if (!u.coordinatorStatus) u.coordinatorStatus = 'pending';
+      if (!u.coordinatorId) {
+        try {
+          const coords = await this.getCoordinators();
+          if (coords && coords.length > 0) {
+            const sorted = [...coords].sort((a, b) => a.activeOrdersCount - b.activeOrdersCount);
+            u.coordinatorId = sorted[0].id;
+          }
+        } catch (err) {}
+      }
     }
     if (b.status === 'served') u.servedAt = new Date();
     if (b.status === 'ready' && !b.readyAt) u.readyAt = new Date();
     if (b.coordinatorStatus === 'dispatched' && !b.dispatchedAt) u.dispatchedAt = new Date();
 
-    const [o] = await db.update(restaurantOrdersTable).set(u).where(eq(restaurantOrdersTable.id, id)).returning();
+    let [o] = await db
+      .update(restaurantOrdersTable)
+      .set(u)
+      .where(or(eq(restaurantOrdersTable.id, id), eq(restaurantOrdersTable.orderNumber, id)))
+      .returning();
+
+    if (!o && (id.startsWith('ticket-') || id.startsWith('ORD-') || /^\d+$/.test(id))) {
+      const orderNum = id.startsWith('ticket-') ? id.replace('ticket-', '') : id;
+      const [inserted] = await db
+        .insert(restaurantOrdersTable)
+        .values({
+          id,
+          orderNumber: orderNum,
+          diningCase: 'walk_in',
+          status: b.status || 'pending',
+          ...u,
+        })
+        .returning();
+      o = inserted;
+    }
+
     if (!o) throw new NotFoundException(`Order ${id} not found`);
 
     if (o.tableId && (b.status === 'served' || b.status === 'cancelled')) {
@@ -592,7 +811,7 @@ export class RestaurantService {
         .where(eq(restaurantTablesTable.id, o.tableId));
     }
 
-    const items = await fetchItems(id);
+    const items = await fetchItems(o.id);
     const [enriched] = await enrichOrdersWithUserNames([fmtOrder(o, items)]);
     return enriched;
   }
@@ -603,7 +822,7 @@ export class RestaurantService {
       .from(restaurantOrdersTable)
       .where(
         and(
-          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'ready']),
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'partially_ready', 'partially_served', 'ready'] as any[]),
           eq(restaurantOrdersTable.isActive, true),
         ),
       )
@@ -660,20 +879,36 @@ export class RestaurantService {
 
   async dispatchToKitchen(orderId: string, coordinatorId?: string, notes?: string) {
     const u: any = {
+      status: 'preparing',
       coordinatorStatus: 'dispatched',
       dispatchedAt: new Date(),
     };
     if (coordinatorId) u.coordinatorId = coordinatorId;
     if (notes) u.coordinatorNotes = notes;
 
-    const [o] = await db
+    let [o] = await db
       .update(restaurantOrdersTable)
       .set(u)
-      .where(eq(restaurantOrdersTable.id, orderId))
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)))
       .returning();
 
+    if (!o && (orderId.startsWith('ticket-') || orderId.startsWith('ORD-') || /^\d+$/.test(orderId))) {
+      const orderNum = orderId.startsWith('ticket-') ? orderId.replace('ticket-', '') : orderId;
+      const [inserted] = await db
+        .insert(restaurantOrdersTable)
+        .values({
+          id: orderId,
+          orderNumber: orderNum,
+          diningCase: 'walk_in',
+          status: 'pending',
+          ...u,
+        })
+        .returning();
+      o = inserted;
+    }
+
     if (!o) throw new NotFoundException(`Order ${orderId} not found`);
-    const items = await fetchItems(orderId);
+    const items = await fetchItems(o.id);
     const [enriched] = await enrichOrdersWithUserNames([fmtOrder(o, items)]);
     return enriched;
   }
@@ -692,14 +927,32 @@ export class RestaurantService {
     if (kitchenOfficerId) u.kitchenOfficerId = kitchenOfficerId;
     if (notes) u.kitchenNotes = notes;
 
-    const [o] = await db
+    let [o] = await db
       .update(restaurantOrdersTable)
       .set(u)
-      .where(eq(restaurantOrdersTable.id, orderId))
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)))
       .returning();
 
+    if (!o && (orderId.startsWith('ticket-') || orderId.startsWith('ORD-') || /^\d+$/.test(orderId))) {
+      const orderNum = orderId.startsWith('ticket-') ? orderId.replace('ticket-', '') : orderId;
+      const [inserted] = await db
+        .insert(restaurantOrdersTable)
+        .values({
+          id: orderId,
+          orderNumber: orderNum,
+          diningCase: 'walk_in',
+          status: 'ready',
+          notifiedParty,
+          kitchenOfficerId: kitchenOfficerId || null,
+          kitchenNotes: notes || null,
+          readyAt: new Date(),
+        })
+        .returning();
+      o = inserted;
+    }
+
     if (!o) throw new NotFoundException(`Order ${orderId} not found`);
-    const items = await fetchItems(orderId);
+    const items = await fetchItems(o.id);
     const [enriched] = await enrichOrdersWithUserNames([fmtOrder(o, items)]);
     return enriched;
   }
@@ -775,5 +1028,226 @@ export class RestaurantService {
       result.push(fmtOrder(o, items));
     }
     return enrichOrdersWithUserNames(result);
+  }
+
+  async updateItemStatus(orderId: string, itemId: string, kitchenStatus: string, notes?: string) {
+    const validStatuses = ['pending', 'preparing', 'ready', 'served', 'cancelled'];
+    if (!validStatuses.includes(kitchenStatus)) {
+      throw new BadRequestException(`Invalid kitchen status: ${kitchenStatus}`);
+    }
+
+    // 1. Locate order (by ID or orderNumber)
+    let [order] = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)));
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    // 2. Update the specific item
+    const updateFields: any = { kitchenStatus };
+    if (notes) updateFields.notes = notes;
+
+    const [updatedItem] = await db
+      .update(restaurantOrderItemsTable)
+      .set(updateFields)
+      .where(and(eq(restaurantOrderItemsTable.id, itemId), eq(restaurantOrderItemsTable.orderId, order.id)))
+      .returning();
+
+    if (!updatedItem) {
+      throw new NotFoundException(`Item ${itemId} not found in order ${order.id}`);
+    }
+
+    // 3. Fetch all active items to calculate composite order status
+    const allItems = await fetchItems(order.id);
+    const activeItems = allItems.filter((i) => i.kitchenStatus !== 'cancelled');
+
+    let compositeStatus = order.status;
+    const allServed = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'served');
+    const allReadyOrServed = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'ready' || i.kitchenStatus === 'served');
+    const anyServed = activeItems.some((i) => i.kitchenStatus === 'served');
+    const anyReady = activeItems.some((i) => i.kitchenStatus === 'ready');
+    const anyPreparing = activeItems.some((i) => i.kitchenStatus === 'preparing');
+
+    if (allServed) {
+      compositeStatus = 'served';
+    } else if (allReadyOrServed && anyReady) {
+      compositeStatus = 'ready';
+    } else if (anyServed && (anyPreparing || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
+      compositeStatus = 'partially_served';
+    } else if (anyReady && (anyPreparing || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
+      compositeStatus = 'partially_ready';
+    } else if (anyPreparing) {
+      compositeStatus = 'preparing';
+    }
+
+    const orderUpdate: any = { status: compositeStatus as any };
+    if (compositeStatus === 'served' && !order.servedAt) orderUpdate.servedAt = new Date();
+    if (compositeStatus === 'ready' && !order.readyAt) orderUpdate.readyAt = new Date();
+
+    const [updatedOrder] = await db
+      .update(restaurantOrdersTable)
+      .set(orderUpdate)
+      .where(eq(restaurantOrdersTable.id, order.id))
+      .returning();
+
+    // 4. Send notification if item or order reached ready
+    if (kitchenStatus === 'ready' || compositeStatus === 'ready') {
+      const targetUserId = updatedOrder.waiterId || updatedOrder.coordinatorId;
+      if (targetUserId) {
+        try {
+          await db.insert(notificationsTable).values({
+            userId: targetUserId,
+            type: 'restaurant_ready',
+            title: kitchenStatus === 'ready' ? `Dish Ready: ${updatedItem.name} 🛎️` : `Order #${updatedOrder.orderNumber} Ready 🛎️`,
+            message: `${updatedItem.name} for ${updatedOrder.diningCase === 'room_service' ? 'Room Service' : `Table ${updatedOrder.tableNumber ?? '-'}`} is ready at the pass!`,
+            resourceType: 'restaurant_order',
+            resourceId: order.id,
+          });
+        } catch (err) {}
+      }
+      this.eventBus?.publish('notification.push', {
+        type: 'restaurant_ready',
+        orderId: order.id,
+        itemId,
+        dishName: updatedItem.name,
+      });
+    }
+
+    const [enriched] = await enrichOrdersWithUserNames([fmtOrder(updatedOrder, allItems)]);
+    return enriched;
+  }
+
+  async appendItemsToOrder(orderId: string, b: { items: any[]; roundNumber?: number; notes?: string }) {
+    const [order] = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)));
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    if (['cancelled'].includes(order.status)) {
+      throw new BadRequestException(`Cannot add items to a cancelled order.`);
+    }
+
+    const existingItems = await fetchItems(order.id);
+    const maxRound = existingItems.reduce((max, it) => Math.max(max, it.roundNumber || 1), 1);
+    const nextRound = b.roundNumber || (maxRound + 1);
+
+    const itemRows = await db
+      .select()
+      .from(menuItemsTable)
+      .where(and(eq(menuItemsTable.isAvailable, true), eq(menuItemsTable.isActive, true)));
+    const menuMap = new Map(itemRows.map((i) => [i.id, i]));
+    const nameMap = new Map(itemRows.map((i) => [i.name.toLowerCase().trim(), i]));
+
+    let additionalSubtotal = 0;
+    const newOrderItems: any[] = [];
+
+    for (const item of (b.items || []) as any[]) {
+      let mi = item.menuItemId ? menuMap.get(item.menuItemId) : undefined;
+      if (!mi && item.name) {
+        mi = nameMap.get(item.name.toLowerCase().trim());
+      }
+      if (!mi) {
+        mi = itemRows[0];
+      }
+
+      const unitPrice = item.price ?? item.unitPrice ?? parseFloat((mi?.price as string) ?? '18');
+      const qty = item.quantity || 1;
+      const lt = parseFloat(String(unitPrice)) * qty;
+      additionalSubtotal += lt;
+
+      const canonicalStation = resolveCanonicalStation(mi?.kitchenSection, mi?.category);
+
+      newOrderItems.push({
+        orderId: order.id,
+        menuItemId: mi ? mi.id : itemRows[0].id,
+        name: item.name || mi?.name || 'Item',
+        quantity: qty,
+        unitPrice: String(parseFloat(String(unitPrice)).toFixed(2)),
+        total: String(lt.toFixed(2)),
+        isComplimentary: false,
+        notes: item.notes ?? null,
+        kitchenStatus: 'pending',
+        roundNumber: nextRound,
+        station: item.station || canonicalStation,
+      });
+    }
+
+    for (const oi of newOrderItems) {
+      await db.insert(restaurantOrderItemsTable).values(oi);
+    }
+
+    // Recalculate totals
+    const oldSubtotal = parseFloat(order.subtotal || '0');
+    const oldComplimentary = parseFloat(order.complimentaryDiscountAmount || '0');
+    const newGrossSubtotal = oldSubtotal + additionalSubtotal;
+    const chargeableSubtotal = Math.max(0, newGrossSubtotal - oldComplimentary - parseFloat(order.discountAmount || '0'));
+    const taxRate = 0.1;
+    const serviceRate = order.diningCase === 'room_service' ? 0.1 : 0.05;
+    const newTax = chargeableSubtotal * taxRate;
+    const newService = chargeableSubtotal * serviceRate;
+    const newTotalAmount = chargeableSubtotal + newTax + newService;
+
+    // Reset status to preparing or partially_served since new dishes are cooking
+    const newStatus = order.status === 'served' ? 'partially_served' : 'preparing';
+
+    const [updatedOrder] = await db
+      .update(restaurantOrdersTable)
+      .set({
+        subtotal: String(newGrossSubtotal.toFixed(2)),
+        taxAmount: String(newTax.toFixed(2)),
+        serviceChargeAmount: String(newService.toFixed(2)),
+        totalAmount: String(newTotalAmount.toFixed(2)),
+        status: newStatus as any,
+        notes: b.notes ? `${order.notes ? order.notes + ' • ' : ''}Round ${nextRound}: ${b.notes}` : order.notes,
+      })
+      .where(eq(restaurantOrdersTable.id, order.id))
+      .returning();
+
+    // If attached to a guest stay invoice, auto-update folio with added round
+    if ((order.settlementType === 'room_charge' || order.diningCase === 'room_service') && (order.reservationId || order.guestId)) {
+      try {
+        const [invoice] = await db
+          .select()
+          .from(invoicesTable)
+          .where(
+            and(
+              or(eq(invoicesTable.reservationId, order.reservationId!), eq(invoicesTable.guestId, order.guestId!)),
+              or(eq(invoicesTable.status, 'draft'), eq(invoicesTable.status, 'issued')),
+            ),
+          )
+          .orderBy(desc(invoicesTable.createdAt))
+          .limit(1);
+
+        if (invoice) {
+          const descText = `In-Room Dining Order #${order.orderNumber} (Round ${nextRound} Additions)`;
+          await db.insert(invoiceLineItemsTable).values({
+            invoiceId: invoice.id,
+            description: descText,
+            quantity: '1',
+            unitPrice: String((additionalSubtotal * 1.15).toFixed(2)),
+            total: String((additionalSubtotal * 1.15).toFixed(2)),
+          });
+          const currSub = parseFloat(invoice.subtotal || '0') + additionalSubtotal * 1.15;
+          const currTot = parseFloat(invoice.totalAmount || '0') + additionalSubtotal * 1.15;
+          await db
+            .update(invoicesTable)
+            .set({ subtotal: String(currSub.toFixed(2)), totalAmount: String(currTot.toFixed(2)) })
+            .where(eq(invoicesTable.id, invoice.id));
+        }
+      } catch (folioErr) {
+        console.error('Failed to update invoice folio for added round:', folioErr);
+      }
+    }
+
+    const items = await fetchItems(order.id);
+    const [enriched] = await enrichOrdersWithUserNames([fmtOrder(updatedOrder, items)]);
+    return enriched;
   }
 }

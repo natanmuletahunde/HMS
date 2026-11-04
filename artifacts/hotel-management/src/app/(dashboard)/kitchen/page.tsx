@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { 
   ChefHat, Flame, UtensilsCrossed, Clock, CheckCircle2, 
-  AlertCircle, Bell, ArrowRight, RefreshCw, Send, Check, 
+  AlertCircle, Bell, ArrowRight, RefreshCw, Send, Check, Loader2, 
   Utensils, Calendar, Filter, ChevronDown, AlertTriangle, 
   Users, BarChart2, Sparkles, Thermometer, Timer, Volume2, 
   ShieldAlert, CheckSquare, Square, Radio, ArrowUpRight,
@@ -37,8 +37,12 @@ type KitchenOrderItem = {
   total: number;
   isComplimentary?: boolean;
   notes?: string | null;
-  station?: "grill" | "hot" | "cold" | "pastry";
+  station?: "grill" | "hot" | "cold" | "pastry" | "bar" | string;
   isItemCompleted?: boolean;
+  kitchenStatus?: "pending" | "preparing" | "ready" | "served" | "cancelled" | string;
+  roundNumber?: number;
+  category?: string | null;
+  kitchenSection?: string | null;
 };
 
 type KitchenOrder = {
@@ -49,11 +53,12 @@ type KitchenOrder = {
   diningCase?: "walk_in" | "in_house_table" | "room_service";
   roomNumber?: string | null;
   orderType?: string;
-  status: "pending" | "preparing" | "ready" | "served" | "cancelled";
+  status: "pending" | "preparing" | "partially_ready" | "partially_served" | "ready" | "served" | "cancelled";
   coordinatorId?: string | null;
   coordinatorName?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenOfficerId?: string | null;
   routedVia?: "coordinator" | "direct_kitchen";
   coordinatorStatus?: "pending" | "dispatched" | "bypassed";
@@ -66,13 +71,13 @@ type KitchenOrder = {
   items: KitchenOrderItem[];
 };
 
-type StationType = "all" | "hot" | "grill" | "cold" | "pastry" | "pass" | "shortages";
+type StationType = "all" | "hot" | "cold" | "bar" | "pastry" | "pass" | "shortages";
 
 type MenuCategoryType = "food" | "drink";
 
 interface MenuItemDef {
   name: string;
-  station: "grill" | "hot" | "cold" | "pastry";
+  station: "grill" | "hot" | "cold" | "pastry" | "bar";
 }
 
 interface MenuCategoryDef {
@@ -208,15 +213,15 @@ const ETHIOPIAN_HOTEL_MENU: MenuCategoryDef[] = [
     name: "Hot Drinks",
     type: "drink",
     items: [
-      { name: "Ethiopian Coffee (ቡና)", station: "hot" },
-      { name: "Macchiato", station: "hot" },
-      { name: "Espresso", station: "hot" },
-      { name: "Cappuccino", station: "hot" },
-      { name: "Latte", station: "hot" },
-      { name: "Black Tea", station: "hot" },
-      { name: "Spiced Tea", station: "hot" },
-      { name: "Hot Chocolate", station: "hot" },
-      { name: "Ethiopian Coffee Ceremony", station: "hot" },
+      { name: "Ethiopian Coffee (ቡና)", station: "bar" as any },
+      { name: "Macchiato", station: "bar" as any },
+      { name: "Espresso", station: "bar" as any },
+      { name: "Cappuccino", station: "bar" as any },
+      { name: "Latte", station: "bar" as any },
+      { name: "Black Tea", station: "bar" as any },
+      { name: "Spiced Tea", station: "bar" as any },
+      { name: "Hot Chocolate", station: "bar" as any },
+      { name: "Ethiopian Coffee Ceremony", station: "bar" as any },
     ],
   },
   // 9. Fresh Juices and Smoothies
@@ -225,15 +230,15 @@ const ETHIOPIAN_HOTEL_MENU: MenuCategoryDef[] = [
     name: "Fresh Juices & Smoothies",
     type: "drink",
     items: [
-      { name: "Spris (ስፕሪስ)", station: "cold" },
-      { name: "Avocado Juice", station: "cold" },
-      { name: "Mango Juice", station: "cold" },
-      { name: "Papaya Juice", station: "cold" },
-      { name: "Pineapple Juice", station: "cold" },
-      { name: "Orange Juice", station: "cold" },
-      { name: "Watermelon Juice", station: "cold" },
-      { name: "Mixed Fruit Juice", station: "cold" },
-      { name: "Banana Smoothie", station: "cold" },
+      { name: "Spris (ስፕሪስ)", station: "bar" as any },
+      { name: "Avocado Juice", station: "bar" as any },
+      { name: "Mango Juice", station: "bar" as any },
+      { name: "Papaya Juice", station: "bar" as any },
+      { name: "Pineapple Juice", station: "bar" as any },
+      { name: "Orange Juice", station: "bar" as any },
+      { name: "Watermelon Juice", station: "bar" as any },
+      { name: "Mixed Fruit Juice", station: "bar" as any },
+      { name: "Banana Smoothie", station: "bar" as any },
     ],
   },
   // 10. Cold Drinks and Soft Drinks
@@ -242,30 +247,61 @@ const ETHIOPIAN_HOTEL_MENU: MenuCategoryDef[] = [
     name: "Cold Drinks & Soft Drinks",
     type: "drink",
     items: [
-      { name: "Bottled Water", station: "cold" },
-      { name: "Sparkling Water", station: "cold" },
-      { name: "Coca-Cola", station: "cold" },
-      { name: "Fanta", station: "cold" },
-      { name: "Sprite", station: "cold" },
-      { name: "Pepsi", station: "cold" },
-      { name: "Soda Water", station: "cold" },
-      { name: "Malt Drink", station: "cold" },
-      { name: "Energy Drink", station: "cold" },
+      { name: "Bottled Water", station: "bar" as any },
+      { name: "Sparkling Water", station: "bar" as any },
+      { name: "Coca-Cola", station: "bar" as any },
+      { name: "Fanta", station: "bar" as any },
+      { name: "Sprite", station: "bar" as any },
+      { name: "Pepsi", station: "bar" as any },
+      { name: "Soda Water", station: "bar" as any },
+      { name: "Malt Drink", station: "bar" as any },
+      { name: "Energy Drink", station: "bar" as any },
     ],
   },
 ];
 
-// Assign stations automatically to items based on keywords
-const assignStation = (itemName: string): "grill" | "hot" | "cold" | "pastry" => {
+// Assign stations automatically to items based on configured section, category, or keywords
+export const assignStation = (itemName: string, category?: string | null, section?: string | null): "grill" | "hot" | "cold" | "pastry" | "bar" => {
+  const s = (section || "").toLowerCase().trim();
+  if (s === "bar" || s === "drinks" || s === "beverage") return "bar";
+  if (s === "cold" || s === "salad" || s === "pantry") return "cold";
+  if (s === "bakery" || s === "pastry" || s === "dessert") return "pastry";
+  if (s === "hot" || s === "grill") return "hot";
+
+  const c = (category || "").toLowerCase().trim();
+  if (c.includes("drink") || c.includes("juice") || c.includes("coffee") || c.includes("bar") || c.includes("beverage")) return "bar";
+  if (c.includes("dessert") || c.includes("pastry") || c.includes("bakery")) return "pastry";
+  if (c.includes("salad")) return "cold";
+
   const lower = itemName.toLowerCase();
-  if (lower.includes("steak") || lower.includes("burger") || lower.includes("grill") || lower.includes("bbq") || lower.includes("wing") || lower.includes("tibs")) {
-    return "grill";
+  if (
+    lower.includes("juice") || lower.includes("water") || lower.includes("coffee") ||
+    lower.includes("tea") || lower.includes("smoothie") || lower.includes("spris") ||
+    lower.includes("macchiato") || lower.includes("espresso") || lower.includes("latte") ||
+    lower.includes("cappuccino") || lower.includes("fanta") || lower.includes("coca") ||
+    lower.includes("sprite") || lower.includes("pepsi") || lower.includes("beer") ||
+    lower.includes("wine") || lower.includes("cocktail") || lower.includes("mocktail") ||
+    lower.includes("drink") || lower.includes("malt") || lower.includes("energy drink")
+  ) {
+    return "bar";
   }
-  if (lower.includes("salad") || lower.includes("tartare") || lower.includes("carpaccio") || lower.includes("cold") || lower.includes("sandwich") || lower.includes("juice") || lower.includes("water") || lower.includes("smoothie") || lower.includes("spris") || lower.includes("fanta") || lower.includes("coca")) {
+  if (
+    lower.includes("cake") || lower.includes("dessert") || lower.includes("ice cream") ||
+    lower.includes("tart") || lower.includes("pastry") || lower.includes("souffle") ||
+    lower.includes("brownie") || lower.includes("pudding") || lower.includes("fondant") ||
+    lower.includes("tiramisu")
+  ) {
+    return "pastry";
+  }
+  if (
+    lower.includes("salad") || lower.includes("tartare") || lower.includes("carpaccio") ||
+    lower.includes("cold") || lower.includes("sandwich") || lower.includes("fruit platter") ||
+    lower.includes("beyaynetu")
+  ) {
     return "cold";
   }
-  if (lower.includes("cake") || lower.includes("dessert") || lower.includes("ice cream") || lower.includes("tart") || lower.includes("pastry") || lower.includes("souffle")) {
-    return "pastry";
+  if (lower.includes("steak") || lower.includes("burger") || lower.includes("grill") || lower.includes("bbq") || lower.includes("wing") || lower.includes("tibs")) {
+    return "grill";
   }
   return "hot"; // default to saute & hot line (Wot, Kitfo, Firfir, etc.)
 };
@@ -275,19 +311,34 @@ export default function KitchenOfficerOperationPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const [activeStation, setActiveStation] = useState<StationType>("all");
-  const [originFilter, setOriginFilter] = useState<"all" | "waiter" | "coordinator">("all");
+  const [showActiveSubTabs, setShowActiveSubTabs] = useState(false);
+  const [activeOriginTab, setActiveOriginTab] = useState<"all" | "waiter" | "coordinator">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [completedItemMap, setCompletedItemMap] = useState<Record<string, boolean>>({});
+  const [cookedItemsMap, setCookedItemsMap] = useState<Record<string, boolean>>({});
   const [rushTickets, setRushTickets] = useState<Record<string, boolean>>({});
   const [mainTab, setMainTab] = useState<"active" | "served">("active");
-  const [servedClassTab, setServedClassTab] = useState<"all" | "dine_in" | "room_service" | "waiter" | "coordinator">("all");
+  const [servedFilter, setServedFilter] = useState<"all" | "coordinator" | "waiter">("all");
   const [servedSearch, setServedSearch] = useState("");
   const [localOrderStatus, setLocalOrderStatus] = useState<Record<string, KitchenOrder["status"]>>({});
+  const [sentOrdersMap, setSentOrdersMap] = useState<Record<string, boolean>>({});
   const [activePage, setActivePage] = useState(1);
   const activePageSize = 5;
   const [servedPage, setServedPage] = useState(1);
   const servedPageSize = 5;
+
+  // Station and View Mode states
+  const [selectedStation, setSelectedStation] = useState<StationType>("all");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [itemStatusMap, setItemStatusMap] = useState<Record<string, string>>({});
+  const [shortageSearch, setShortageSearch] = useState("");
+  const [shortageCategory, setShortageCategory] = useState("All");
+
+  // Real Database Menu Items for live 86'd management
+  const { data: realMenuItems = [], refetch: refetchMenuItems } = useQuery<any[]>({
+    queryKey: ["restaurant-all-menu-items"],
+    queryFn: () => apiFetch("/restaurant/menu-items"),
+  });
 
   // 86'd items state
   const [shortageItems, setShortageItems] = useState<Array<{ id: string; name: string; category: string; is86: boolean }>>([
@@ -325,9 +376,9 @@ export default function KitchenOfficerOperationPage() {
   const [newTicketGuest, setNewTicketGuest] = useState("");
   const [newTicketRush, setNewTicketRush] = useState(false);
   const [newTicketNotes, setNewTicketNotes] = useState("");
-  const [selectedDishesList, setSelectedDishesList] = useState<Array<{ name: string; quantity: number; station: "grill" | "hot" | "cold" | "pastry" }>>([]);
+  const [selectedDishesList, setSelectedDishesList] = useState<Array<{ name: string; quantity: number; station: "grill" | "hot" | "cold" | "pastry" | "bar" }>>([]);
   const [customDishInput, setCustomDishInput] = useState("");
-  const [customDishStation, setCustomDishStation] = useState<"grill" | "hot" | "cold" | "pastry">("hot");
+  const [customDishStation, setCustomDishStation] = useState<"grill" | "hot" | "cold" | "pastry" | "bar">("hot");
   const [localKitchenTickets, setLocalKitchenTickets] = useState<KitchenOrder[]>([]);
 
   // Ethiopian Hotel Menu tab & search state (default Food -> Meat Dishes)
@@ -495,6 +546,8 @@ export default function KitchenOfficerOperationPage() {
         }),
       }),
     onSuccess: (_, vars) => {
+      setSentOrdersMap(prev => ({ ...prev, [vars.id]: true }));
+      setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "ready" }));
       queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
       queryClient.invalidateQueries({ queryKey: ["coordinator-workbench-orders"] });
@@ -513,8 +566,78 @@ export default function KitchenOfficerOperationPage() {
         description: `Buzzer notification sent to ${vars.notifiedParty === "waiter" ? "Floor Waiter" : "F&B Coordinator"}.`,
       });
     },
+    onError: (err: any, vars) => {
+      setSentOrdersMap(prev => ({ ...prev, [vars.id]: true }));
+      setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "ready" }));
+      queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      if (typeof window !== "undefined") {
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "ORDER_READY", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
+      setIsNotifyModalOpen(false);
+      setSelectedOrder(null);
+      setKitchenOfficerNote("");
+      toast({
+        title: "Dishes Plated at Pass 🛎️",
+        description: `Buzzer notification sent to ${vars.notifiedParty === "waiter" ? "Floor Waiter" : "F&B Coordinator"}.`,
+      });
+    },
+  });
+
+  // Individual Dish Preparation Mutation (Pending -> Preparing -> Ready)
+  const updateItemStatusMutation = useMutation({
+    mutationFn: ({ orderId, itemId, status, notes }: { orderId: string; itemId: string; status: string; notes?: string }) =>
+      apiFetch(`/restaurant/orders/${orderId}/items/${itemId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, notes }),
+      }),
+    onSuccess: (_, vars) => {
+      setItemStatusMap(prev => ({ ...prev, [vars.itemId]: vars.status }));
+      queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["coordinator-workbench-orders"] });
+      if (typeof window !== "undefined") {
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "ITEM_STATUS_UPDATED", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
+      toast({
+        title: "Station Status Updated",
+        description: `Dish moved to ${vars.status.toUpperCase()}`,
+      });
+    },
+    onError: (err: any, vars) => {
+      setItemStatusMap(prev => ({ ...prev, [vars.itemId]: vars.status }));
+      toast({
+        title: "Status Updated (Local)",
+        description: `Dish updated to ${vars.status.toUpperCase()}`,
+      });
+    },
+  });
+
+  // Live 86'd Menu Availability Toggle Mutation
+  const toggle86Mutation = useMutation({
+    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
+      apiFetch(`/restaurant/menu-items/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isAvailable }),
+      }),
+    onSuccess: (_, vars) => {
+      refetchMenuItems();
+      queryClient.invalidateQueries({ queryKey: ["restaurant-menu-items"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-all-menu-items"] });
+      toast({
+        title: vars.isAvailable ? "Item Restocked & Available ✅" : "Item 86'd (Out of Stock) ⚠️",
+        description: "Live availability updated across all waiter terminals and KDS stations.",
+      });
+    },
     onError: (err: any) => {
-      toast({ title: "Notification Failed", description: err.message, variant: "destructive" });
+      toast({ title: "Failed to update 86 status", description: err.message, variant: "destructive" });
     },
   });
 
@@ -800,38 +923,38 @@ export default function KitchenOfficerOperationPage() {
         ...order,
         status: currentStatus,
         isRushPriority: rushTickets[order.id] !== undefined ? rushTickets[order.id] : order.isRushPriority,
-        items: (order.items || []).map(item => ({
-          ...item,
-          station: item.station || assignStation(item.name),
-          isItemCompleted: completedItemMap[item.id] || false,
-        })),
+        items: (order.items || []).map(item => {
+          const itemStation = (item.station as string) || assignStation(item.name, item.category, item.kitchenSection);
+          const itemKStatus = itemStatusMap[item.id] || item.kitchenStatus || (currentStatus === "ready" ? "ready" : currentStatus === "served" ? "served" : currentStatus === "preparing" ? "preparing" : "pending");
+          return {
+            ...item,
+            station: itemStation,
+            kitchenStatus: itemKStatus,
+            roundNumber: item.roundNumber || 1,
+            isItemCompleted: completedItemMap[item.id] || itemKStatus === "ready" || itemKStatus === "served" || false,
+          };
+        }),
       };
     });
-  }, [combinedOrders, completedItemMap, rushTickets, localOrderStatus]);
+  }, [combinedOrders, completedItemMap, rushTickets, localOrderStatus, itemStatusMap]);
 
-  // Counts and classification for Already Served orders
+  // Counts for Already Served orders
   const servedCounts = useMemo(() => {
     const list = enrichedOrders.filter(o => o.status === "served");
     return {
       all: list.length,
-      dine_in: list.filter(o => o.diningCase !== "room_service").length,
-      room_service: list.filter(o => o.diningCase === "room_service").length,
       waiter: list.filter(o => o.routedVia !== "coordinator").length,
       coordinator: list.filter(o => o.routedVia === "coordinator").length,
     };
   }, [enrichedOrders]);
 
-  // Filtered served orders based on sub-tab and search
+  // Filtered served orders based on dropdown filter (all | coordinator | waiter) and search
   const filteredServedOrders = useMemo(() => {
     let list = enrichedOrders.filter(o => o.status === "served");
 
-    if (servedClassTab === "dine_in") {
-      list = list.filter(o => o.diningCase !== "room_service");
-    } else if (servedClassTab === "room_service") {
-      list = list.filter(o => o.diningCase === "room_service");
-    } else if (servedClassTab === "waiter") {
+    if (servedFilter === "waiter") {
       list = list.filter(o => o.routedVia !== "coordinator");
-    } else if (servedClassTab === "coordinator") {
+    } else if (servedFilter === "coordinator") {
       list = list.filter(o => o.routedVia === "coordinator");
     }
 
@@ -849,29 +972,30 @@ export default function KitchenOfficerOperationPage() {
     }
 
     return list;
-  }, [enrichedOrders, servedClassTab, servedSearch]);
+  }, [enrichedOrders, servedFilter, servedSearch]);
 
-  // Filtered orders according to active station tab, origin filter and search query
-  const stationFilteredOrders = useMemo(() => {
-    let list = enrichedOrders;
+  // Active line orders filtered by 2 origin tabs and Selected Kitchen Station
+  const activeLineOrders = useMemo(() => {
+    let list = enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled");
 
-    if (activeStation === "pass") {
-      list = list.filter(o => o.status === "ready");
-    } else if (activeStation === "shortages") {
-      return [];
-    } else if (activeStation !== "all") {
-      list = list.filter(o => {
-        if (o.status === "served" || o.status === "cancelled") return false;
-        return o.items.some(item => item.station === activeStation);
-      });
-    } else {
-      list = list.filter(o => o.status !== "served" && o.status !== "cancelled");
+    if (showActiveSubTabs) {
+      if (activeOriginTab === "waiter") {
+        list = list.filter(o => o.routedVia !== "coordinator");
+      } else if (activeOriginTab === "coordinator") {
+        list = list.filter(o => o.routedVia === "coordinator");
+      }
     }
 
-    if (originFilter === "waiter") {
-      list = list.filter(o => o.routedVia !== "coordinator");
-    } else if (originFilter === "coordinator") {
-      list = list.filter(o => o.routedVia === "coordinator");
+    if (selectedStation === "pass") {
+      list = list.filter(o => o.status === "ready" || o.status === "partially_ready");
+    } else if (selectedStation === "hot") {
+      list = list.filter(o => (o.items || []).some(i => (i.station === "hot" || i.station === "grill") && i.kitchenStatus !== "served"));
+    } else if (selectedStation === "cold") {
+      list = list.filter(o => (o.items || []).some(i => i.station === "cold" && i.kitchenStatus !== "served"));
+    } else if (selectedStation === "bar") {
+      list = list.filter(o => (o.items || []).some(i => i.station === "bar" && i.kitchenStatus !== "served"));
+    } else if (selectedStation === "pastry") {
+      list = list.filter(o => (o.items || []).some(i => i.station === "pastry" && i.kitchenStatus !== "served"));
     }
 
     if (searchQuery.trim()) {
@@ -888,13 +1012,27 @@ export default function KitchenOfficerOperationPage() {
     }
 
     return list;
-  }, [enrichedOrders, activeStation, originFilter, searchQuery]);
+  }, [enrichedOrders, showActiveSubTabs, activeOriginTab, selectedStation, searchQuery]);
 
-  const activeTotalPages = Math.max(1, Math.ceil(stationFilteredOrders.length / activePageSize));
+  // Real-time Station counts across the active cooking queue
+  const stationCounts = useMemo(() => {
+    const unserved = enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled");
+    return {
+      all: unserved.length,
+      hot: unserved.filter(o => (o.items || []).some(i => (i.station === "hot" || i.station === "grill") && i.kitchenStatus !== "served")).length,
+      cold: unserved.filter(o => (o.items || []).some(i => i.station === "cold" && i.kitchenStatus !== "served")).length,
+      bar: unserved.filter(o => (o.items || []).some(i => i.station === "bar" && i.kitchenStatus !== "served")).length,
+      pastry: unserved.filter(o => (o.items || []).some(i => i.station === "pastry" && i.kitchenStatus !== "served")).length,
+      pass: unserved.filter(o => o.status === "ready" || o.status === "partially_ready").length,
+      shortages: realMenuItems.length > 0 ? realMenuItems.filter(m => !m.isAvailable).length : shortageItems.filter(s => s.is86).length,
+    };
+  }, [enrichedOrders, realMenuItems, shortageItems]);
+
+  const activeTotalPages = Math.max(1, Math.ceil(activeLineOrders.length / activePageSize));
   const paginatedActiveOrders = useMemo(() => {
     const start = (activePage - 1) * activePageSize;
-    return stationFilteredOrders.slice(start, start + activePageSize);
-  }, [stationFilteredOrders, activePage]);
+    return activeLineOrders.slice(start, start + activePageSize);
+  }, [activeLineOrders, activePage]);
 
   const servedTotalPages = Math.max(1, Math.ceil(filteredServedOrders.length / servedPageSize));
   const paginatedServedOrders = useMemo(() => {
@@ -902,66 +1040,40 @@ export default function KitchenOfficerOperationPage() {
     return filteredServedOrders.slice(start, start + servedPageSize);
   }, [filteredServedOrders, servedPage]);
 
-  // Counts for each station
-  const stationCounts = useMemo(() => {
-    const activeOnly = enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled");
-    return {
-      all: activeOnly.length,
-      hot: activeOnly.filter(o => o.items.some(i => i.station === "hot")).length,
-      grill: activeOnly.filter(o => o.items.some(i => i.station === "grill")).length,
-      cold: activeOnly.filter(o => o.items.some(i => i.station === "cold")).length,
-      pastry: activeOnly.filter(o => o.items.some(i => i.station === "pastry")).length,
-      pass: enrichedOrders.filter(o => o.status === "ready").length,
-    };
+  // Active line counts for the 2 buttons
+  const waiterActiveCount = useMemo(() => {
+    return enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled" && o.routedVia !== "coordinator").length;
   }, [enrichedOrders]);
 
-  // Origin distribution counts
-  const originCounts = useMemo(() => {
-    const activeOnly = enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled");
-    return {
-      all: activeOnly.length,
-      waiter: activeOnly.filter(o => o.routedVia !== "coordinator").length,
-      coordinator: activeOnly.filter(o => o.routedVia === "coordinator").length,
-    };
+  const coordinatorActiveCount = useMemo(() => {
+    return enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled" && o.routedVia === "coordinator").length;
   }, [enrichedOrders]);
 
-  const toggleItemCompletion = (itemId: string) => {
-    setCompletedItemMap(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId],
-    }));
-  };
+  const totalActiveCount = useMemo(() => {
+    return enrichedOrders.filter(o => o.status !== "served" && o.status !== "cancelled").length;
+  }, [enrichedOrders]);
 
-  const toggleRushPriority = (orderId: string) => {
-    setRushTickets(prev => ({
-      ...prev,
-      [orderId]: !prev[orderId],
-    }));
-    toast({
-      title: "Priority Tagged",
-      description: "Ticket urgency updated on culinary line display.",
-    });
-  };
-
-  const toggle86Item = (id: string) => {
-    setShortageItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const nextState = !item.is86;
-        toast({
-          title: nextState ? "⚠️ Item 86'd (Out of Stock)" : "✅ Item Restocked",
-          description: `${item.name} is now ${nextState ? "blocked from orders" : "available for dining & room service"}.`,
-        });
-        return { ...item, is86: nextState };
-      }
-      return item;
-    }));
-  };
-
-  const openNotifyModal = (order: KitchenOrder, target: "waiter" | "coordinator") => {
+  const openSendModal = (order: KitchenOrder) => {
     setSelectedOrder(order);
-    setNotifyPartyTarget(target);
+    setNotifyPartyTarget(order.routedVia === "coordinator" ? "coordinator" : "waiter");
     setKitchenOfficerNote(order.kitchenNotes || "");
+    const map: Record<string, boolean> = {};
+    (order.items || []).forEach(it => {
+      map[it.id] = true;
+    });
+    setCookedItemsMap(map);
     setIsNotifyModalOpen(true);
+  };
+
+  const handleConfirmSend = () => {
+    if (!selectedOrder) return;
+    setSentOrdersMap(prev => ({ ...prev, [selectedOrder.id]: true }));
+    setLocalOrderStatus(prev => ({ ...prev, [selectedOrder.id]: "ready" }));
+    notifyReadyMutation.mutate({
+      id: selectedOrder.id,
+      notifiedParty: notifyPartyTarget,
+      notes: kitchenOfficerNote.trim() || undefined,
+    });
   };
 
   return (
@@ -970,441 +1082,734 @@ export default function KitchenOfficerOperationPage() {
       {/* 1. TOP MAIN TAB SWITCHER: ACTIVE KDS OPERATIONS VS ALREADY SERVED ORDERS  */}
       {/* ========================================================================= */}
       <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border">
-        <div className="flex items-center gap-2">
+        <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-zinc-900/60 rounded-2xl border border-slate-200/80 dark:border-zinc-800">
           <button
-            onClick={() => setMainTab("active")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            type="button"
+            onClick={() => {
+              if (mainTab === "active") {
+                setShowActiveSubTabs((prev) => !prev);
+              } else {
+                setMainTab("active");
+                setShowActiveSubTabs(true);
+                setActiveOriginTab("waiter");
+              }
+              setActivePage(1);
+            }}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs transition-all cursor-pointer",
               mainTab === "active"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "bg-surface border border-border text-text-muted hover:text-text hover:bg-muted/40"
-            }`}
+                ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 dark:border-zinc-700 font-bold"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/60 dark:hover:bg-zinc-800/40 border border-transparent font-medium"
+            )}
           >
             <ChefHat className="w-4 h-4 text-orange-500" />
             <span>Active Kitchen Line</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              mainTab === "active" ? "bg-white/20 text-white dark:bg-black/20 dark:text-slate-900" : "bg-muted text-text"
-            }`}>
-              {stationCounts.all}
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-colors",
+              mainTab === "active"
+                ? "bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/20"
+                : "bg-slate-200/60 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+            )}>
+              {totalActiveCount}
             </span>
           </button>
 
           <button
-            onClick={() => { setMainTab("served"); setServedPage(1); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            type="button"
+            onClick={() => {
+              setMainTab("served");
+              setServedPage(1);
+            }}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs transition-all cursor-pointer",
               mainTab === "served"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                : "bg-surface border border-border text-text-muted hover:text-text hover:bg-muted/40"
-            }`}
+                ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 dark:border-zinc-700 font-bold"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/60 dark:hover:bg-zinc-800/40 border border-transparent font-medium"
+            )}
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>Already Served (Archive)</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              mainTab === "served" ? "bg-white/20 text-white dark:bg-black/20 dark:text-slate-900" : "bg-muted text-text-muted"
-            }`}>
+            <span>Already Served</span>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-colors",
+              mainTab === "served"
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                : "bg-slate-200/60 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+            )}>
               {servedCounts.all}
             </span>
           </button>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            size="sm"
-            onClick={() => setIsNewTicketOpen(true)}
-            className="h-8 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" /> Add Order
-          </Button>
-        </div>
       </div>
 
       {mainTab === "active" ? (
-        <>
+        <div className="space-y-4">
           {/* ========================================================================= */}
-          {/* 2. UNIFIED KITCHEN TOOLBAR: CATEGORY DROPDOWN, ORIGIN & SEARCH            */}
+          {/* 2. STATION SELECTOR TOOLBAR: HOT LINE, PANTRY, BAR, PASTRY, PASS, 86'D   */}
           {/* ========================================================================= */}
-          <div className="p-3.5 bg-surface border border-border rounded-xl shadow-2xs space-y-3">
-            {/* Top Control Bar: Category Dropdown & Search */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <Select 
-                  value={activeStation} 
-                  onValueChange={(val) => {
-                    setActiveStation(val as StationType);
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: "all", label: "All Stations", icon: LayoutGrid, count: stationCounts.all, color: "text-slate-700 dark:text-slate-200" },
+              { id: "hot", label: "🔥 Hot Line KDS", icon: Flame, count: stationCounts.hot, color: "text-orange-500" },
+              { id: "cold", label: "🥗 Pantry KDS", icon: Utensils, count: stationCounts.cold, color: "text-emerald-500" },
+              { id: "bar", label: "🍸 Bar Station", icon: Coffee, count: stationCounts.bar, color: "text-cyan-500" },
+              { id: "pastry", label: "🍰 Pastry & Bakery", icon: Sparkles, count: stationCounts.pastry, color: "text-pink-500" },
+              { id: "pass", label: "🛎️ Expediter Pass", icon: Bell, count: stationCounts.pass, color: "text-amber-500" },
+              { id: "shortages", label: "⚠️ 86'd Shortages", icon: AlertTriangle, count: stationCounts.shortages, color: "text-rose-500" },
+            ].map((st) => {
+              const isSel = selectedStation === st.id;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStation(st.id as any);
                     setActivePage(1);
                   }}
+                  className={cn(
+                    "px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap border shrink-0",
+                    isSel
+                      ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border-slate-300 dark:border-zinc-700 ring-2 ring-primary/20"
+                      : "bg-surface border-border text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-muted/40"
+                  )}
                 >
-                  <SelectTrigger className="w-[240px] h-9 text-xs rounded-lg border-border bg-muted/40 hover:bg-muted/60 font-medium transition-all shadow-2xs">
-                    <SelectValue placeholder="All Stations" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-surface border-border rounded-lg shadow-lg">
-                    <SelectItem value="all" className="text-xs font-medium cursor-pointer">
-                      All Active Stations
-                    </SelectItem>
-                    <SelectItem value="hot" className="text-xs font-medium cursor-pointer">
-                      Hot Line &amp; Stoves
-                    </SelectItem>
-                    <SelectItem value="grill" className="text-xs font-medium cursor-pointer">
-                      Grill &amp; Broiler
-                    </SelectItem>
-                    <SelectItem value="cold" className="text-xs font-medium cursor-pointer">
-                      Cold Larder
-                    </SelectItem>
-                    <SelectItem value="pastry" className="text-xs font-medium cursor-pointer">
-                      Pastry &amp; Bakery
-                    </SelectItem>
-                    <SelectItem value="pass" className="text-xs font-medium cursor-pointer">
-                      Expediter Pass (Plated)
-                    </SelectItem>
-                    <SelectItem value="shortages" className="text-xs font-medium cursor-pointer">
-                      86'd Shortages &amp; Prep
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Right: Search Box */}
-              <div className="relative w-56 sm:w-72">
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setActivePage(1);
-                  }}
-                  placeholder="Search ticket, table, guest..."
-                  className="h-8 text-xs bg-muted/30 border-border rounded-lg pl-8"
-                />
-                <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Sender Origin Row (Direct Waiter vs Coordinator Dispatched) */}
-            {activeStation !== "shortages" && (
-              <div className="flex items-center justify-between flex-wrap gap-2 pt-2.5 border-t border-border/60">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    onClick={() => { setOriginFilter("all"); setActivePage(1); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      originFilter === "all"
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                        : "bg-muted/50 text-text-muted hover:text-text hover:bg-muted"
-                    }`}
-                  >
-                    All Senders
-                  </button>
-                  <button
-                    onClick={() => { setOriginFilter("waiter"); setActivePage(1); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      originFilter === "waiter"
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                        : "bg-muted/50 text-text-muted hover:text-text hover:bg-muted"
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Direct from Waiter</span>
-                  </button>
-                  <button
-                    onClick={() => { setOriginFilter("coordinator"); setActivePage(1); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      originFilter === "coordinator"
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                        : "bg-muted/50 text-text-muted hover:text-text hover:bg-muted"
-                    }`}
-                  >
-                    <GitMerge className="w-3.5 h-3.5" />
-                    <span>Coordinator Dispatched</span>
-                  </button>
-                </div>
-
-                {Object.values(rushTickets).some(Boolean) && (
-                  <Badge variant="outline" className="text-xs font-medium text-amber-600 border-amber-300">
-                    ⚡ Rush Tickets Active
-                  </Badge>
-                )}
-              </div>
-            )}
+                  <st.icon className={cn("w-3.5 h-3.5", st.color)} />
+                  <span>{st.label}</span>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
+                    isSel
+                      ? "bg-primary/15 text-primary border border-primary/20"
+                      : "bg-slate-200/60 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                  )}>
+                    {st.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* ========================================================================= */}
-          {/* 3. STATION WORKSPACE: 86'd MANAGER VIEW OR KDS TICKETS TABLE              */}
+          {/* 3. CASE A: 86'D SHORTAGE MANAGER (LIVE MENU OUT-OF-STOCK SYNC)            */}
           {/* ========================================================================= */}
-          {activeStation === "shortages" ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left: 86'd Fast Toggle */}
-              <Card className="bg-surface border-border">
-                <CardHeader className="pb-3 border-b border-border/60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-base font-bold flex items-center gap-2">
-                        <ShieldAlert className="w-4 h-4 text-red-500" />
-                        <span>86'd Item Fast Toggle (Emergency Out-of-Stock)</span>
-                      </CardTitle>
-                      <p className="text-xs text-text-muted mt-1">
-                        Marking an item 86'd immediately disables it across Floor Waiter tablets and Room Service online order portals.
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-3">
-                  {shortageItems.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                        item.is86 
-                          ? "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400" 
-                          : "bg-surface/50 border-border text-text"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-bold text-sm flex items-center gap-2">
-                          <span>{item.name}</span>
-                          {item.is86 && (
-                            <Badge className="bg-red-500 text-white text-[10px] font-mono">86'D</Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-text-muted mt-0.5">Category: {item.category}</div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant={item.is86 ? "destructive" : "outline"}
-                        onClick={() => toggle86Item(item.id)}
-                        className="text-xs h-8 font-bold"
-                      >
-                        {item.is86 ? "Restore Item (In Stock)" : "86 This Item (Out of Stock)"}
-                      </Button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Right: Prep Batch Inventory Level Checklist */}
-              <Card className="bg-surface border-border">
-                <CardHeader className="pb-3 border-b border-border/60">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Utensils className="w-4 h-4 text-primary" />
-                    <span>Culinary Prep Batch Levels</span>
-                  </CardTitle>
-                  <p className="text-xs text-text-muted mt-1">
-                    Monitored mise en place batches for line cooks prior to dinner service.
-                  </p>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-3">
-                  {prepChecklist.map((batch, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border/40">
-                      <div>
-                        <div className="font-bold text-xs text-text">{batch.name}</div>
-                        <div className="text-[10px] text-text-muted font-medium mt-0.5">Station: {batch.station}</div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {(["Full", "Med", "Low", "Out"] as const).map((lvl) => (
-                          <button
-                            key={lvl}
-                            onClick={() => {
-                              setPrepChecklist(prev => prev.map((p, i) => i === idx ? { ...p, level: lvl } : p));
-                            }}
-                            className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
-                              batch.level === lvl
-                                ? lvl === "Full" ? "bg-emerald-500 text-white border-emerald-500"
-                                : lvl === "Med" ? "bg-amber-500 text-white border-amber-500"
-                                : lvl === "Low" ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-red-500 text-white border-red-500"
-                                : "bg-surface border-border text-text-muted hover:bg-muted"
-                            }`}
-                          >
-                            {lvl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            /* ========================================================================= */
-            /* KDS ORDERS IN NEAT, CLEAR TABLE (Matching In-House Guests Table Style)     */
-            /* ========================================================================= */
+          {selectedStation === "shortages" ? (
             <Card>
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle className="text-base font-semibold">Active Kitchen Line</CardTitle>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-500" />
+                    <span>86'd Menu Shortage Manager (Real-Time Availability)</span>
+                  </CardTitle>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Mark items unavailable when kitchen runs out of ingredients. Waiters and POS cannot place orders for 86'd items.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search dishes to 86..."
+                    value={shortageSearch}
+                    onChange={(e) => setShortageSearch(e.target.value)}
+                    className="h-8 text-xs w-48 sm:w-60 bg-muted/20"
+                  />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="rounded-b-md border-t border-border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px]">ID</TableHead>
-                        <TableHead>Waiter Name</TableHead>
-                        <TableHead>Room / Table</TableHead>
-                        <TableHead>Cooking Status</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedActiveOrders.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center text-text-muted">
-                            No active kitchen tickets in this view.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedActiveOrders.map((order) => {
-                          const isCooking = order.status === "preparing";
-                          const isReady = order.status === "ready";
-                          const isRush = order.isRushPriority || rushTickets[order.id];
-                          const loc = order.diningCase === "room_service" ? `Room ${order.roomNumber}` : `Table ${order.tableNumber || 1}`;
-                          const cleanId = (order.orderNumber || "").replace(/^[#]/, "");
-                          const waiterDisplayName = order.waiterName || (order.routedVia === "coordinator" ? (order.coordinatorName || "Expediter") : "Floor Waiter");
-
-                          return (
-                            <TableRow key={order.id} className="hover:bg-muted/40">
-                              {/* 1. ID */}
-                              <TableCell className="font-medium">
-                                <span className="font-mono text-xs font-semibold text-text">
-                                  {cleanId}
-                                </span>
-                                {isRush && (
-                                  <span className="ml-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                                    (Rush)
-                                  </span>
-                                )}
-                              </TableCell>
-
-                              {/* 2. Waiter Name */}
-                              <TableCell className="text-xs font-medium text-text">
-                                {waiterDisplayName}
-                              </TableCell>
-
-                              {/* 3. Room / Table */}
-                              <TableCell className="font-semibold text-primary text-xs">
-                                {loc}
-                              </TableCell>
-
-                              {/* 4. Cooking Status */}
-                              <TableCell>
-                                {isReady ? (
-                                  <Badge variant="muted" className="text-xs">
-                                    Plated at Pass
-                                  </Badge>
-                                ) : isCooking ? (
-                                  <Badge variant="muted" className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800">
-                                    Cooking
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="muted" className="text-xs">
-                                    Queued
-                                  </Badge>
-                                )}
-                              </TableCell>
-
-                              {/* 5. Action */}
-                              <TableCell className="text-right">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-muted rounded-lg">
-                                      <MoreHorizontal className="h-4 w-4 text-text-muted" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48 bg-surface border-border shadow-lg">
-                                    {order.status === "pending" && (
-                                      <DropdownMenuItem 
-                                        onClick={() => updateStatusMutation.mutate({ id: order.id, status: "preparing" })}
-                                        className="text-xs font-medium cursor-pointer"
-                                      >
-                                        <Flame className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                                        Fire Cooking
-                                      </DropdownMenuItem>
-                                    )}
-                                    {order.status === "preparing" && (
-                                      <>
-                                        <DropdownMenuItem 
-                                          onClick={() => openNotifyModal(order, "waiter")}
-                                          className="text-xs font-medium cursor-pointer"
-                                        >
-                                          <Send className="w-3.5 h-3.5 mr-2 text-emerald-500" />
-                                          Plated → Notify Waiter
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                          onClick={() => openNotifyModal(order, "coordinator")}
-                                          className="text-xs font-medium cursor-pointer"
-                                        >
-                                          <Bell className="w-3.5 h-3.5 mr-2 text-teal-500" />
-                                          Notify Coordinator
-                                        </DropdownMenuItem>
-                                      </>
-                                    )}
-                                    {order.status === "ready" && (
-                                      <DropdownMenuItem 
-                                        onClick={() => updateStatusMutation.mutate({ id: order.id, status: "served" })}
-                                        className="text-xs font-medium cursor-pointer"
-                                      >
-                                        <Check className="w-3.5 h-3.5 mr-2 text-emerald-600" />
-                                        Mark as Served
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem 
-                                      onClick={() => toggleRushPriority(order.id)}
-                                      className="text-xs font-medium cursor-pointer"
-                                    >
-                                      <Zap className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                                      {isRush ? "Remove Rush Priority" : "Tag as Rush Priority"}
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                  <TablePagination
-                    currentPage={activePage}
-                    totalPages={activeTotalPages}
-                    totalItems={stationFilteredOrders.length}
-                    pageSize={activePageSize}
-                    onPrev={() => setActivePage((p) => Math.max(1, p - 1))}
-                    onNext={() => setActivePage((p) => Math.min(activeTotalPages, p + 1))}
-                  />
+              <CardContent className="p-4 pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-1">
+                  {(realMenuItems.length > 0 ? realMenuItems : ETHIOPIAN_HOTEL_MENU.flatMap(c => c.items).map((it, idx) => ({
+                    id: `local-${idx}`,
+                    name: it.name,
+                    category: "Menu",
+                    kitchenSection: it.station,
+                    isAvailable: !shortageItems.some(s => s.name === it.name && s.is86),
+                  })))
+                    .filter((item: any) => !shortageSearch.trim() || item.name.toLowerCase().includes(shortageSearch.toLowerCase()))
+                    .map((item: any) => {
+                      const isAvail = item.isAvailable !== false;
+                      const canonicalSt = assignStation(item.name, item.category, item.kitchenSection);
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "p-3 rounded-xl border flex items-center justify-between gap-3 transition-all",
+                            isAvail
+                              ? "bg-surface border-border"
+                              : "bg-rose-500/5 border-rose-500/30 dark:bg-rose-950/20"
+                          )}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-xs text-text truncate">{item.name}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted/50 text-text-muted uppercase">
+                                {canonicalSt}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-bold px-2 py-0.2 rounded-full",
+                                isAvail
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold"
+                              )}>
+                                {isAvail ? "In Stock" : "86'd (Out of Stock)"}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={isAvail ? "outline" : "default"}
+                            disabled={toggle86Mutation.isPending}
+                            onClick={() => toggle86Mutation.mutate({ id: item.id, isAvailable: !isAvail })}
+                            className={cn(
+                              "h-8 px-3 text-xs font-bold cursor-pointer shrink-0",
+                              isAvail
+                                ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            )}
+                          >
+                            {isAvail ? "86 Item" : "Restock"}
+                          </Button>
+                        </div>
+                      );
+                    })}
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <>
+              {/* ========================================================================= */}
+              {/* 3. CASE B: ACTIVE COOKING LINE WITH CARDS & TABLE VIEW                    */}
+              {/* ========================================================================= */}
+              <div className="p-3 bg-surface border border-border rounded-xl shadow-2xs space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {showActiveSubTabs ? (
+                    <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-zinc-900/60 rounded-2xl border border-slate-200/80 dark:border-zinc-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveOriginTab("waiter");
+                          setActivePage(1);
+                        }}
+                        className={cn(
+                          "px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2",
+                          activeOriginTab === "waiter"
+                            ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 dark:border-zinc-700 font-bold"
+                            : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/60 dark:hover:bg-zinc-800/40 border border-transparent font-medium"
+                        )}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Direct from Waiter</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-colors",
+                          activeOriginTab === "waiter"
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                            : "bg-slate-200/60 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                        )}>
+                          {waiterActiveCount}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveOriginTab("coordinator");
+                          setActivePage(1);
+                        }}
+                        className={cn(
+                          "px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2",
+                          activeOriginTab === "coordinator"
+                            ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 dark:border-zinc-700 font-bold"
+                            : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-white/60 dark:hover:bg-zinc-800/40 border border-transparent font-medium"
+                        )}
+                      >
+                        <GitMerge className="w-3.5 h-3.5 text-teal-500" />
+                        <span>Coordinator Dispatch</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-colors",
+                          activeOriginTab === "coordinator"
+                            ? "bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/20"
+                            : "bg-slate-200/60 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                        )}>
+                          {coordinatorActiveCount}
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-text-muted">
+                      <ChefHat className="w-4 h-4 text-amber-500" />
+                      <span className="font-semibold text-text">
+                        {selectedStation === "all" ? "All Kitchen Stations" : `${selectedStation.toUpperCase()} KDS`} ({activeLineOrders.length} Tickets)
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Right: View Toggle, Search & Add Kitchen Order */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex p-0.5 bg-muted/50 rounded-xl border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("cards")}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer",
+                          viewMode === "cards" ? "bg-surface text-text shadow-xs" : "text-text-muted hover:text-text"
+                        )}
+                        title="KDS Card Tickets"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="hidden sm:inline">KDS Cards</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("table")}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer",
+                          viewMode === "table" ? "bg-surface text-text shadow-xs" : "text-text-muted hover:text-text"
+                        )}
+                        title="Compact Table"
+                      >
+                        <LayoutList className="w-3.5 h-3.5 text-sky-500" />
+                        <span className="hidden sm:inline">Table</span>
+                      </button>
+                    </div>
+
+                    <div className="relative w-48 sm:w-60">
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setActivePage(1);
+                        }}
+                        placeholder="Search ticket, dish, table..."
+                        className="h-9 text-xs bg-muted/30 border-border rounded-lg pl-8"
+                      />
+                      <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => setIsNewTicketOpen(true)}
+                      className="h-9 px-3.5 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-xl shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span className="hidden sm:inline">Create Ticket</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ========================================================================= */}
+              {/* VIEW 1: KDS INTERACTIVE STATION CARDS                                      */}
+              {/* ========================================================================= */}
+              {viewMode === "cards" ? (
+                <div>
+                  {paginatedActiveOrders.length === 0 ? (
+                    <div className="py-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10 p-6">
+                      <ChefHat className="w-10 h-10 mx-auto text-text-muted/40 mb-3" />
+                      <h3 className="text-sm font-bold text-text">No Active Orders for {selectedStation === "all" ? "Kitchen Line" : `${selectedStation.toUpperCase()} Station`}</h3>
+                      <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+                        All incoming tickets are completed, or no dishes match this station routing.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {paginatedActiveOrders.map((order) => {
+                        const isReady = order.status === "ready";
+                        const isPartiallyReady = order.status === "partially_ready";
+                        const isPartiallyServed = order.status === "partially_served";
+                        const isCooking = order.status === "preparing";
+                        const isRush = order.isRushPriority || rushTickets[order.id];
+                        const loc = order.diningCase === "room_service" ? `Room ${order.roomNumber}` : `Table ${order.tableNumber || 1}`;
+                        const cleanId = (order.orderNumber || "").replace(/^[#]/, "");
+                        const elapsed = getElapsedMinutes(order.createdAt);
+                        const waiterDisplayName = order.waiterName || (order.routedVia === "coordinator" ? (order.coordinatorName || "Expediter") : "Floor Waiter");
+
+                        // Filter items relevant to selected station
+                        const relevantItems = (order.items || []).filter(item => {
+                          if (selectedStation === "all" || selectedStation === "pass") return true;
+                          const s = item.station === "grill" ? "hot" : item.station;
+                          return s === selectedStation;
+                        });
+
+                        const maxRound = (order.items || []).reduce((max, it) => Math.max(max, it.roundNumber || 1), 1);
+                        const hasAddedRounds = maxRound > 1;
+
+                        return (
+                          <div
+                            key={order.id}
+                            className={cn(
+                              "rounded-2xl border p-4 flex flex-col justify-between transition-all bg-surface shadow-xs",
+                              isRush ? "border-rose-500/60 ring-2 ring-rose-500/20" : "border-border",
+                              isReady ? "bg-emerald-500/5 border-emerald-500/40" : ""
+                            )}
+                          >
+                            {/* Card Header */}
+                            <div className="space-y-2.5 pb-3 border-b border-border">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-sm font-bold text-text">#{cleanId}</span>
+                                  {isRush && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                                      🔥 RUSH
+                                    </span>
+                                  )}
+                                  {hasAddedRounds && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                                      Round {maxRound} Added
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-text-muted flex items-center gap-1 font-mono">
+                                  <Clock className="w-3 h-3 text-text-muted" />
+                                  <span>{elapsed}m ago</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="font-black text-base text-primary block leading-tight">{loc}</span>
+                                  <span className="text-[11px] text-text-muted">{order.guestName || "Guest"} • {waiterDisplayName}</span>
+                                </div>
+                                <div>
+                                  {isReady ? (
+                                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold">
+                                      Plated at Pass 🛎️
+                                    </Badge>
+                                  ) : isPartiallyReady ? (
+                                    <Badge className="bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-bold">
+                                      Drinks Plated 🍸
+                                    </Badge>
+                                  ) : isPartiallyServed ? (
+                                    <Badge className="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-bold">
+                                      Drinks Served ✓
+                                    </Badge>
+                                  ) : isCooking ? (
+                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold">
+                                      Cooking 🔥
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="muted">Queued</Badge>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Guest Beverage Pacing Banner */}
+                              {order.pacingPreference === "serve_together" ? (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-[11px] font-semibold">
+                                  <Utensils className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                  <span>⏱️ HOLD BEVERAGES: SERVE TOGETHER WITH MEAL</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded text-amber-700 dark:text-amber-300 text-[10px] font-medium">
+                                  <span>🍸 Guest Pacing: Serve drinks as ready while food cooks</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Card Items List */}
+                            <div className="py-3 space-y-2 flex-1">
+                              {relevantItems.map((item) => {
+                                const st = item.station === "grill" ? "hot" : item.station || "hot";
+                                const isItemReady = item.kitchenStatus === "ready";
+                                const isItemCooking = item.kitchenStatus === "preparing";
+                                const isItemServed = item.kitchenStatus === "served";
+                                const isItemPending = !item.kitchenStatus || item.kitchenStatus === "pending";
+
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className={cn(
+                                      "p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all",
+                                      isItemReady
+                                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-emerald-100"
+                                        : isItemServed
+                                        ? "bg-muted/40 border-border text-text-muted opacity-70"
+                                        : "bg-surface border-border/80"
+                                    )}
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-xs text-text">{item.quantity}× {item.name}</span>
+                                        <span className={cn(
+                                          "text-[9px] font-mono uppercase px-1.5 py-0.2 rounded font-bold",
+                                          st === "bar" ? "bg-cyan-500/15 text-cyan-600" :
+                                          st === "cold" ? "bg-emerald-500/15 text-emerald-600" :
+                                          st === "pastry" ? "bg-pink-500/15 text-pink-600" :
+                                          "bg-orange-500/15 text-orange-600"
+                                        )}>
+                                          {st}
+                                        </span>
+                                        {item.roundNumber && item.roundNumber > 1 && (
+                                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold">
+                                            R{item.roundNumber}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {item.notes && (
+                                        <div className="text-[10px] text-text-muted italic truncate mt-0.5">
+                                          Note: {item.notes}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Action button per item */}
+                                    <div className="shrink-0">
+                                      {isItemServed ? (
+                                        <span className="text-[10px] font-bold text-text-muted flex items-center gap-1">
+                                          <Check className="w-3 h-3 text-emerald-600" /> Served
+                                        </span>
+                                      ) : isItemReady ? (
+                                        <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5">
+                                          Ready 🛎️
+                                        </Badge>
+                                      ) : isItemCooking ? (
+                                        <Button
+                                          size="sm"
+                                          disabled={updateItemStatusMutation.isPending}
+                                          onClick={() => updateItemStatusMutation.mutate({ orderId: order.id, itemId: item.id, status: "ready" })}
+                                          className="h-7 px-2.5 text-[11px] font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 cursor-pointer shadow-2xs"
+                                        >
+                                          Mark Ready 🛎️
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={updateItemStatusMutation.isPending}
+                                          onClick={() => updateItemStatusMutation.mutate({ orderId: order.id, itemId: item.id, status: "preparing" })}
+                                          className="h-7 px-2.5 text-[11px] font-medium border-border hover:bg-muted/50 cursor-pointer"
+                                        >
+                                          Start Prep
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Card Footer: Send / Expedite */}
+                            <div className="pt-2 border-t border-border flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => openSendModal(order)}
+                                className={cn(
+                                  "w-full h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all",
+                                  isReady
+                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    : "bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950"
+                                )}
+                              >
+                                <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>{isReady ? "Plated • Send to Waiter" : "Send Plated Food"}</span>
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  <div className="pt-4">
+                    <TablePagination
+                      currentPage={activePage}
+                      totalPages={activeTotalPages}
+                      totalItems={activeLineOrders.length}
+                      pageSize={activePageSize}
+                      onPrev={() => setActivePage((p) => Math.max(1, p - 1))}
+                      onNext={() => setActivePage((p) => Math.min(activeTotalPages, p + 1))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* ========================================================================= */
+                /* VIEW 2: COMPACT TABLE VIEW                                                */
+                /* ========================================================================= */
+                <Card>
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base font-semibold">
+                        {!showActiveSubTabs || activeOriginTab === "all"
+                          ? "Active Kitchen Line Orders"
+                          : activeOriginTab === "waiter"
+                          ? "Direct from Waiter Orders"
+                          : "Coordinator Dispatched Orders"}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="rounded-b-md border-t border-border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[120px]">ID</TableHead>
+                            <TableHead>
+                              {showActiveSubTabs && activeOriginTab === "coordinator"
+                                ? "Coordinator Name"
+                                : showActiveSubTabs && activeOriginTab === "waiter"
+                                ? "Waiter Name"
+                                : "Server"}
+                            </TableHead>
+                            <TableHead>Dining Location</TableHead>
+                            <TableHead>Stations & Items</TableHead>
+                            <TableHead>Cooking Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedActiveOrders.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="h-28 text-center text-text-muted text-xs">
+                                No active kitchen tickets found.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            paginatedActiveOrders.map((order) => {
+                              const isCooking = order.status === "preparing";
+                              const isReady = order.status === "ready";
+                              const isPartiallyReady = order.status === "partially_ready";
+                              const isSent = isReady || !!order.notifiedParty || !!sentOrdersMap[order.id];
+                              const isRush = order.isRushPriority || rushTickets[order.id];
+                              const loc = order.diningCase === "room_service" ? `Room ${order.roomNumber}` : `Table ${order.tableNumber || 1}`;
+                              const cleanId = (order.orderNumber || "").replace(/^[#]/, "");
+                              const waiterDisplayName = order.waiterName || (order.routedVia === "coordinator" ? (order.coordinatorName || "Expediter") : "Floor Waiter");
+                              const maxRound = (order.items || []).reduce((max, it) => Math.max(max, it.roundNumber || 1), 1);
+
+                              return (
+                                <TableRow key={order.id} className="hover:bg-muted/40">
+                                  {/* 1. ID */}
+                                  <TableCell className="font-medium">
+                                    <span className="font-mono text-xs font-semibold text-text">
+                                      {cleanId}
+                                    </span>
+                                    {isRush && (
+                                      <span className="ml-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                        (Rush)
+                                      </span>
+                                    )}
+                                    {maxRound > 1 && (
+                                      <span className="ml-1 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                                        (R{maxRound})
+                                      </span>
+                                    )}
+                                    {order.pacingPreference === "serve_together" ? (
+                                      <span className="ml-1 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                        (Hold Drinks)
+                                      </span>
+                                    ) : (
+                                      <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                        (Drinks 1st)
+                                      </span>
+                                    )}
+                                  </TableCell>
+
+                                  {/* 2. Waiter Name */}
+                                  <TableCell className="text-xs font-medium text-text">
+                                    {waiterDisplayName}
+                                  </TableCell>
+
+                                  {/* 3. Room / Table */}
+                                  <TableCell className="font-semibold text-primary text-xs">
+                                    {loc}
+                                  </TableCell>
+
+                                  {/* 4. Stations & Items */}
+                                  <TableCell className="text-xs text-text max-w-xs truncate">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {Array.from(new Set((order.items || []).map(i => i.station === "grill" ? "hot" : i.station || "hot"))).map(st => (
+                                        <Badge key={st} variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0.2">
+                                          {st}
+                                        </Badge>
+                                      ))}
+                                      <span className="text-text-muted truncate">
+                                        {(order.items || []).map(i => `${i.quantity}× ${i.name}`).join(", ")}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+
+                                  {/* 5. Cooking Status */}
+                                  <TableCell>
+                                    {isReady ? (
+                                      <Badge variant="muted" className="text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200">
+                                        Plated at Pass
+                                      </Badge>
+                                    ) : isPartiallyReady ? (
+                                      <Badge variant="muted" className="text-xs text-cyan-700 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200">
+                                        Drinks Ready
+                                      </Badge>
+                                    ) : isCooking ? (
+                                      <Badge variant="muted" className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200">
+                                        Cooking
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="muted" className="text-xs">
+                                        Queued
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+
+                                  {/* 6. Action */}
+                                  <TableCell className="text-right">
+                                    {isSent ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => openSendModal(order)}
+                                        className="h-8 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                      >
+                                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>Sent</span>
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => openSendModal(order)}
+                                        className="h-8 px-3.5 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                      >
+                                        <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>Send</span>
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                      <TablePagination
+                        currentPage={activePage}
+                        totalPages={activeTotalPages}
+                        totalItems={activeLineOrders.length}
+                        pageSize={activePageSize}
+                        onPrev={() => setActivePage((p) => Math.max(1, p - 1))}
+                        onNext={() => setActivePage((p) => Math.min(activeTotalPages, p + 1))}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
-        </>
+        </div>
       ) : (
         /* ========================================================================= */
-        /* ALREADY SERVED ORDERS (Dedicated Tabbed View with Classification Tabs)    */
+        /* ALREADY SERVED TAB (Single Dropdown: All | Coordinator | Waiter)          */
         /* ========================================================================= */
         <div className="space-y-4">
-          {/* Classification Tabs for Served Orders */}
           <div className="flex items-center justify-between flex-wrap gap-3 p-3.5 bg-surface border border-border rounded-xl shadow-2xs">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-semibold text-text-muted mr-1">Classify Served:</span>
-              {[
-                { id: "all", label: "All Served" },
-                { id: "dine_in", label: "Dine-In Tables" },
-                { id: "room_service", label: "Room Service" },
-                { id: "waiter", label: "Direct Waiter" },
-                { id: "coordinator", label: "Coordinator Routed" },
-              ].map((st) => (
-                <button
-                  key={st.id}
-                  onClick={() => {
-                    setServedClassTab(st.id as any);
-                    setServedPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    servedClassTab === st.id
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                      : "bg-muted/50 text-text-muted hover:text-text hover:bg-muted"
-                  }`}
-                >
-                  <span>{st.label}</span>
-                </button>
-              ))}
+            <div className="flex items-center gap-2.5">
+              <Label className="text-xs font-semibold text-text-muted">Filter Source:</Label>
+              <Select
+                value={servedFilter}
+                onValueChange={(val: "all" | "coordinator" | "waiter") => {
+                  setServedFilter(val);
+                  setServedPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px] h-9 text-xs rounded-lg border-border bg-surface font-medium">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="coordinator">Coordinator</SelectItem>
+                  <SelectItem value="waiter">Waiter</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Search Box for Served Orders */}
@@ -1416,82 +1821,9 @@ export default function KitchenOfficerOperationPage() {
                   setServedPage(1);
                 }}
                 placeholder="Search served ticket, table, server..."
-                className="h-8 text-xs bg-muted/30 border-border rounded-lg pl-8"
+                className="h-9 text-xs bg-muted/30 border-border rounded-lg pl-8"
               />
               <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Heat Lamp Warming Pass (Holding Plates Shelf awaiting Dispatch / Served) */}
-          <div className="bg-surface border border-border rounded-xl p-4 shadow-2xs">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <h3 className="font-bold text-sm text-text flex items-center gap-1.5">
-                  <span>Heat Lamp Warming Pass (Expediter Shelf)</span>
-                  <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-600">
-                    {stationCounts.pass} Plates Holding
-                  </Badge>
-                </h3>
-              </div>
-              <span className="text-[11px] text-text-muted">
-                Stainless pass window holding warm dishes until waiter or coordinator collection.
-              </span>
-            </div>
-
-            <div className="pt-3">
-              {stationCounts.pass === 0 ? (
-                <div className="text-center py-4 text-xs text-text-muted font-medium">
-                  Heat lamp pass is clear. All finished dishes have been dispatched to dining floor.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {enrichedOrders.filter(o => o.status === "ready").map((ord) => (
-                    <div key={ord.id} className="p-3 rounded-xl bg-emerald-500/[0.05] border border-emerald-500/30 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-xs text-text">{ord.orderNumber.replace(/^[#]/, "")}</span>
-                          <span className="text-[11px] font-semibold text-emerald-600">
-                            {ord.diningCase === "room_service" ? `Room ${ord.roomNumber}` : `Table ${ord.tableNumber || 1}`}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-text-muted truncate mt-0.5">
-                          {ord.items?.map(i => i.name).join(", ")}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[10px] px-2 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 font-bold rounded-lg"
-                          onClick={() => openNotifyModal(ord, "waiter")}
-                        >
-                          <Bell className="w-3 h-3 mr-1" /> Re-Buzz Waiter
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-2xs gap-1"
-                          onClick={() => {
-                            setLocalOrderStatus(prev => ({ ...prev, [ord.id]: "served" }));
-                            updateStatusMutation.mutate({ id: ord.id, status: "served" });
-                            if (ord.roomNumber) {
-                              markInHouseRequestServed(ord.roomNumber);
-                            }
-                            toast({
-                              title: "Dishes Marked as Served ✓",
-                              description: `Order ${ord.orderNumber.replace(/^[#]/, "")} dispatched and moved to Already Served tab.`,
-                            });
-                          }}
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Served</span>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -1499,7 +1831,7 @@ export default function KitchenOfficerOperationPage() {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Already Served (Archive)</CardTitle>
+                <CardTitle className="text-base font-semibold">Already Served Orders</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -1509,9 +1841,9 @@ export default function KitchenOfficerOperationPage() {
                     <CheckCircle2 className="w-10 h-10 mx-auto text-text-muted/40 mb-3" />
                     <h3 className="text-sm font-semibold text-text">No Served Tickets in this View</h3>
                     <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
-                      No completed orders match the current classification tab or search criteria.
+                      No completed orders match the selected filter or search criteria.
                     </p>
-                    <Button size="sm" variant="outline" className="mt-4 text-xs font-semibold" onClick={() => { setServedClassTab("all"); setServedSearch(""); }}>
+                    <Button size="sm" variant="outline" className="mt-4 text-xs font-semibold" onClick={() => { setServedFilter("all"); setServedSearch(""); }}>
                       Show All Served Orders
                     </Button>
                   </div>
@@ -1520,8 +1852,8 @@ export default function KitchenOfficerOperationPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[120px]">ID</TableHead>
-                        <TableHead>Waiter Name</TableHead>
-                        <TableHead>Room / Table</TableHead>
+                        <TableHead>Server</TableHead>
+                        <TableHead>Dining Location</TableHead>
                         <TableHead>Cooking Status</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
@@ -1534,55 +1866,43 @@ export default function KitchenOfficerOperationPage() {
 
                         return (
                           <TableRow key={ord.id} className="hover:bg-muted/40 transition-colors">
-                            {/* 1. ID */}
                             <TableCell className="font-medium">
                               <span className="font-mono text-xs font-semibold text-text">
                                 {cleanId}
                               </span>
                             </TableCell>
 
-                            {/* 2. Waiter Name */}
                             <TableCell className="text-xs font-medium text-text">
                               {waiterDisplayName}
                             </TableCell>
 
-                            {/* 3. Room / Table */}
                             <TableCell className="font-semibold text-primary text-xs">
                               {loc}
                             </TableCell>
 
-                            {/* 4. Cooking Status */}
                             <TableCell>
-                              <Badge variant="muted" className="text-xs">
+                              <Badge variant="muted" className="text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200">
                                 Served
                               </Badge>
                             </TableCell>
 
-                            {/* 5. Action */}
                             <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-muted rounded-lg">
-                                    <MoreHorizontal className="h-4 w-4 text-text-muted" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48 bg-surface border-border shadow-lg">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setLocalOrderStatus(prev => ({ ...prev, [ord.id]: "ready" }));
-                                      updateStatusMutation.mutate({ id: ord.id, status: "ready" });
-                                      toast({
-                                        title: "Order Returned to Pass 🛎️",
-                                        description: `Order ${cleanId} returned to Heat Lamp Warming Pass.`,
-                                      });
-                                    }}
-                                    className="text-xs font-medium cursor-pointer"
-                                  >
-                                    <Undo2 className="w-3.5 h-3.5 mr-2 text-text-muted" />
-                                    Re-Open Ticket
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setLocalOrderStatus(prev => ({ ...prev, [ord.id]: "ready" }));
+                                  updateStatusMutation.mutate({ id: ord.id, status: "ready" });
+                                  toast({
+                                    title: "Order Returned to Pass 🛎️",
+                                    description: `Order ${cleanId} returned to Warming Pass.`,
+                                  });
+                                }}
+                                className="h-7 text-xs font-medium"
+                              >
+                                <Undo2 className="w-3.5 h-3.5 mr-1" />
+                                Re-Open
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );
@@ -1605,96 +1925,193 @@ export default function KitchenOfficerOperationPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. PLATED DISH NOTIFICATION & DISPATCH MODAL                             */}
+      {/* 4. SEND COOKED ORDER MODAL                                                */}
       {/* ========================================================================= */}
       <Dialog open={isNotifyModalOpen} onOpenChange={setIsNotifyModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <ChefHat className="h-5 w-5 text-red-500" />
-              <span>Mark Dishes Plated & Alert {notifyPartyTarget === "waiter" ? "Floor Waiter" : "F&B Coordinator"}</span>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-text">
+              <ChefHat className="h-5 w-5 text-[#FBB72C]" />
+              <span>Send Cooked Food Order</span>
             </DialogTitle>
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4 text-xs">
-              <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1">
-                <div className="flex items-center justify-between font-bold text-sm">
-                  <span>Order #{selectedOrder.orderNumber}</span>
-                  <span className="text-primary font-mono">
-                    {selectedOrder.diningCase === "room_service" ? `Room #${selectedOrder.roomNumber}` : `Table #${selectedOrder.tableNumber || 1}`}
+            <div className="space-y-4 text-xs pt-1">
+              {/* Order summary banner */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-border flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">Dining Location</span>
+                  <span className="font-bold text-sm text-text">
+                    {selectedOrder.diningCase === "room_service"
+                      ? `Room ${selectedOrder.roomNumber}`
+                      : `Table ${selectedOrder.tableNumber || 1}`}
                   </span>
+                  {selectedOrder.guestName && (
+                    <span className="text-xs text-text-muted block mt-0.5">Guest: {selectedOrder.guestName}</span>
+                  )}
                 </div>
-                <p className="text-text-muted">
-                  Recipient: <span className="font-semibold text-text">{notifyPartyTarget === "waiter" ? selectedOrder.waiterName || "Floor Waiter" : selectedOrder.coordinatorName || "F&B Coordinator"}</span>
-                </p>
-                <div className="pt-1.5 border-t border-border/50 text-[11px] text-text-muted">
-                  {selectedOrder.items?.map(i => `${i.quantity}x ${i.name}`).join(", ")}
+                <Badge variant="outline" className="font-mono text-xs">
+                  {selectedOrder.diningCase === "room_service"
+                    ? "Room Service"
+                    : selectedOrder.diningCase === "in_house_table"
+                    ? "In-House Table"
+                    : "Walk-In Table"}
+                </Badge>
+              </div>
+
+              {/* 1. Food Order & 2. Already Cooked Food Checklist */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-text">
+                    Food Order & Already Cooked Checklist *
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allCooked = Object.values(cookedItemsMap).every(Boolean);
+                      const nextMap: Record<string, boolean> = {};
+                      (selectedOrder.items || []).forEach(it => {
+                        nextMap[it.id] = !allCooked;
+                      });
+                      setCookedItemsMap(nextMap);
+                    }}
+                    className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    {Object.values(cookedItemsMap).every(Boolean) ? "Uncheck All" : "Mark All Cooked"}
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-52 overflow-y-auto p-1.5 rounded-xl border border-border bg-muted/20">
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item) => {
+                      const isCooked = cookedItemsMap[item.id] !== false;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setCookedItemsMap(prev => ({
+                              ...prev,
+                              [item.id]: !isCooked,
+                            }));
+                          }}
+                          className={cn(
+                            "flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer select-none",
+                            isCooked
+                              ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-emerald-100"
+                              : "bg-surface border-border hover:bg-muted/40 text-text"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isCooked}
+                              onChange={() => {}} // handled by parent onClick
+                              className="rounded border-border text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                            />
+                            <div className="truncate">
+                              <span className="font-semibold text-xs block truncate">
+                                {item.quantity}× {item.name}
+                              </span>
+                              {item.notes && (
+                                <span className="text-[10px] text-text-muted italic block truncate">
+                                  Notes: {item.notes}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0",
+                            isCooked
+                              ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                              : "bg-muted text-text-muted"
+                          )}>
+                            {isCooked ? "Cooked & Ready" : "Preparing"}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-3 text-center text-text-muted text-xs">
+                      No dishes listed in this order ticket.
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-text">Notification Target</label>
+              {/* Two Buttons: Coordinator and Waiter */}
+              <div className="space-y-1.5 pt-1">
+                <Label className="text-xs font-semibold text-text">Select Recipient to Notify *</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setNotifyPartyTarget("waiter")}
-                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      notifyPartyTarget === "waiter"
-                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 font-bold"
-                        : "bg-surface border-border text-text hover:bg-muted"
-                    }`}
+                    onClick={() => setNotifyPartyTarget("coordinator")}
+                    className={cn(
+                      "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+                      notifyPartyTarget === "coordinator"
+                        ? "border-[#FBB72C] bg-[#FBB72C]/10 text-slate-900 dark:text-amber-200 font-bold ring-1 ring-[#FBB72C]"
+                        : "border-border hover:bg-muted/40 text-text-muted"
+                    )}
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Floor Server ({selectedOrder.waiterName || "Waiter"})</span>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <GitMerge className="h-4 w-4 text-teal-600" />
+                      <span>Coordinator</span>
+                    </div>
+                    <span className="text-[10px] text-text-muted font-normal leading-tight">
+                      {selectedOrder.coordinatorName || "F&B Coordinator"}
+                    </span>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => setNotifyPartyTarget("coordinator")}
-                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
-                      notifyPartyTarget === "coordinator"
-                        ? "bg-teal-500/10 border-teal-500/40 text-teal-600 font-bold"
-                        : "bg-surface border-border text-text hover:bg-muted"
-                    }`}
+                    onClick={() => setNotifyPartyTarget("waiter")}
+                    className={cn(
+                      "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+                      notifyPartyTarget === "waiter"
+                        ? "border-[#FBB72C] bg-[#FBB72C]/10 text-slate-900 dark:text-amber-200 font-bold ring-1 ring-[#FBB72C]"
+                        : "border-border hover:bg-muted/40 text-text-muted"
+                    )}
                   >
-                    <Bell className="w-3.5 h-3.5" />
-                    <span>F&B Coordinator</span>
+                    <div className="flex items-center gap-2 text-xs font-semibold">
+                      <Users className="h-4 w-4 text-indigo-600" />
+                      <span>Waiter</span>
+                    </div>
+                    <span className="text-[10px] text-text-muted font-normal leading-tight">
+                      {selectedOrder.waiterName || "Floor Waiter"}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-text">Chef Plating Notes (Optional)</label>
+              {/* Chef Notes (Optional) */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-text">Chef Plating Note (Optional)</Label>
                 <Textarea
-                  placeholder="e.g. Steak rested 4 mins; truffle sauce on side; hot plates carefully handle."
+                  placeholder="e.g. Plated on hot dish, garnish ready, sauce on side..."
                   value={kitchenOfficerNote}
                   onChange={(e) => setKitchenOfficerNote(e.target.value)}
-                  rows={3}
-                  className="text-xs rounded-xl"
+                  rows={2}
+                  className="text-xs rounded-lg resize-none"
                 />
               </div>
 
-              <DialogFooter className="gap-2">
-                <Button variant="outline" size="sm" onClick={() => setIsNotifyModalOpen(false)}>
-                  Cancel
-                </Button>
+              {/* Bottom Send Button */}
+              <div className="pt-2">
                 <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                  onClick={() => {
-                    if (selectedOrder) {
-                      notifyReadyMutation.mutate({
-                        id: selectedOrder.id,
-                        notifiedParty: notifyPartyTarget,
-                        notes: kitchenOfficerNote.trim() || undefined,
-                      });
-                    }
-                  }}
+                  type="button"
+                  onClick={handleConfirmSend}
                   disabled={notifyReadyMutation.isPending}
+                  className="w-full h-10 font-bold text-xs bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-2 rounded-xl shadow-xs transition-all active:scale-95"
                 >
-                  {notifyReadyMutation.isPending ? "Sending Notification..." : "Confirm & Send Alert"}
+                  {notifyReadyMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 stroke-[2.5]" />
+                  )}
+                  <span>{selectedOrder && (selectedOrder.status === "ready" || !!sentOrdersMap[selectedOrder.id]) ? "Re-Send Notification to" : "Send to"} {notifyPartyTarget === "coordinator" ? "Coordinator" : "Waiter"}</span>
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -2070,6 +2487,7 @@ export default function KitchenOfficerOperationPage() {
                     <SelectItem value="hot">Hot Line</SelectItem>
                     <SelectItem value="grill">Grill</SelectItem>
                     <SelectItem value="cold">Cold</SelectItem>
+                    <SelectItem value="bar">Bar & Drinks</SelectItem>
                     <SelectItem value="pastry">Pastry</SelectItem>
                   </SelectContent>
                 </Select>

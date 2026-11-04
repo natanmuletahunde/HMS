@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { eq, and, like, sql, getTableColumns } from 'drizzle-orm';
+import { eq, and, like, sql, inArray, getTableColumns } from 'drizzle-orm';
 import { db, buildingsTable, branchesTable, hotelsTable, floorsTable } from '@workspace/db';
 
 const bldCols = getTableColumns(buildingsTable);
@@ -8,11 +8,25 @@ const base = () => db.select({ ...bldCols, branchName: branchesTable.branchName,
 
 @Injectable()
 export class BuildingsService {
-  async findAll(q: any) {
+  async findAll(q: any, allowedBranchIds?: string[] | null) {
     const { branchId, hotelId, search, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
     const conds: any[] = [eq(buildingsTable.isActive, true)];
-    if (branchId) conds.push(eq(buildingsTable.branchId, branchId));
+    
+    if (branchId) {
+      if (allowedBranchIds && !allowedBranchIds.includes(branchId)) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(eq(buildingsTable.branchId, branchId));
+      }
+    } else if (allowedBranchIds) {
+      if (allowedBranchIds.length === 0) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(inArray(buildingsTable.branchId, allowedBranchIds));
+      }
+    }
+
     if (hotelId) conds.push(eq(branchesTable.hotelId, hotelId));
     if (search) conds.push(like(buildingsTable.buildingName, `%${search}%`));
     const where = and(...conds);
@@ -22,11 +36,13 @@ export class BuildingsService {
     ]);
     return { data: rows.map(fmt), meta: { total: count, page: +page, limit: l, totalPages: Math.ceil(count / l) } };
   }
+
   async findOne(id: string) {
     const [r] = await base().where(eq(buildingsTable.id, id));
     if (!r) throw new NotFoundException('Building not found');
     return fmt(r);
   }
+
   async create(b: any) {
     const [exist] = await db.select().from(buildingsTable).where(eq(buildingsTable.buildingCode, b.buildingCode));
     if (exist) throw new ConflictException('Building code already exists');
@@ -48,6 +64,7 @@ export class BuildingsService {
     const [r] = await base().where(eq(buildingsTable.id, row.id));
     return fmt(r);
   }
+
   async update(id: string, b: any) {
     const u: any = {};
     for (const k of ['buildingName','numberOfFloors','description','isActive']) if (b[k] !== undefined) u[k] = b[k];
@@ -57,6 +74,7 @@ export class BuildingsService {
     const [r] = await base().where(eq(buildingsTable.id, id));
     return fmt(r);
   }
+
   async remove(id: string) {
     await db.update(buildingsTable).set({ isActive: false, deletedAt: new Date() }).where(eq(buildingsTable.id, id));
     return { message: 'Building deleted' };

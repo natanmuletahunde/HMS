@@ -18,6 +18,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.cjs.json",
+    "postbuild": "node scripts/sync-dist.cjs",
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
   },

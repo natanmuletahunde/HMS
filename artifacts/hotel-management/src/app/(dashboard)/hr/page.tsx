@@ -701,11 +701,7 @@ export default function HRPage() {
                 {employees.map(e => <option key={e.id} value={e.id}>{getEmployeeName(e)}</option>)}
               </select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <Input name="notes" placeholder="Optional notes" />
-            </div>
-            <Button type="submit" className="w-full" disabled={clockInMutation.isPending}>
+            <Button type="submit" className="w-full mt-2" disabled={clockInMutation.isPending}>
               {clockInMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Clock In
             </Button>

@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Building, Layers } from "lucide-react";
+import { BuildingsTab } from "@/components/setup/BuildingsTab";
+import { FloorsTab } from "@/components/setup/FloorsTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -17,6 +21,7 @@ import {
   User,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import {
@@ -49,7 +54,30 @@ type Branch = {
   isActive?: boolean;
 };
 
-export default function BranchesPage() {
+function BranchesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: "branches" | "buildings" | "floors" = 
+    tabParam === "buildings" ? "buildings" : tabParam === "floors" ? "floors" : "branches";
+
+  const handleTabChange = (tab: "branches" | "buildings" | "floors") => {
+    const url = tab === "branches" ? "/branches" : `/branches?tab=${tab}`;
+    router.replace(url, { scroll: false });
+  };
+  const { user, hasPermission } = useAuth();
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const canManageBranches =
+    isGlobal &&
+    (user?.roleName === "Admin" ||
+      user?.roleName === "System Admin" ||
+      hasPermission("*") ||
+      hasPermission("hotel:*"));
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -68,9 +96,20 @@ export default function BranchesPage() {
     queryFn: () => apiFetch<any>(`/branches?search=${encodeURIComponent(debouncedSearch)}`),
   });
 
-  const branches: Branch[] = Array.isArray(rawBranches)
+  const allBranches: Branch[] = Array.isArray(rawBranches)
     ? rawBranches
     : (rawBranches?.data ?? []);
+
+  const allowedBranchIds = isGlobal
+    ? null
+    : new Set(
+        user?.branches?.map((b) => b.id) ||
+        [user?.activeBranchId, user?.primaryBranchId].filter(Boolean)
+      );
+
+  const branches: Branch[] = isGlobal
+    ? allBranches
+    : allBranches.filter((b) => allowedBranchIds?.has(b.id));
 
   const {
     currentPage,
@@ -206,48 +245,95 @@ export default function BranchesPage() {
         <StatusPill status={branch.status || (branch.isActive !== false ? "active" : "inactive")} />
       ),
     },
-    {
-      key: "actions",
-      header: "",
-      className: "w-12 text-right",
-      render: (branch) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] dark:hover:bg-[var(--navy-950)] transition-colors cursor-pointer"
-              title="Branch Actions"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
-            <DropdownMenuItem
-              onClick={() => handleOpenEdit(branch)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
-            >
-              <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => deleteMutation.mutate(branch.id)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
-            >
-              <Trash2 className="w-4 h-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
+    ...(canManageBranches
+      ? [
+          {
+            key: "actions",
+            header: "",
+            className: "w-12 text-right",
+            render: (branch: Branch) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--blue-50)] dark:hover:bg-[var(--navy-950)] transition-colors cursor-pointer"
+                    title="Branch Actions"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg">
+                  <DropdownMenuItem
+                    onClick={() => handleOpenEdit(branch)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--blue-50)] text-sm text-[var(--text-primary)]"
+                  >
+                    <Edit className="w-4 h-4 text-[var(--blue-700)] dark:text-[var(--blue-400)]" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => deleteMutation.mutate(branch.id)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--status-danger-bg)] text-sm text-[var(--danger-text,#B42318)]"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ),
+          } as Column<Branch>,
+        ]
+      : []),
   ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Page Header with search and primary Add Branch capsule button */}
-      <PageHeader
-        title="Branches"
-        actions={
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search field */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          Branches & Properties
+        </h1>
+      </div>
+
+      {/* Main Tabs: Branches | Buildings | Floors */}
+      <div className="flex gap-2 border-b border-[var(--border)]">
+        <button
+          onClick={() => handleTabChange("branches")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "branches"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <GitBranch className="h-4 w-4" />
+          <span>Branches</span>
+        </button>
+        <button
+          onClick={() => handleTabChange("buildings")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "buildings"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <Building className="h-4 w-4" />
+          <span>Buildings</span>
+        </button>
+        <button
+          onClick={() => handleTabChange("floors")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeTab === "floors"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Floors</span>
+        </button>
+      </div>
+
+      {activeTab === "buildings" && <BuildingsTab />}
+      {activeTab === "floors" && <FloorsTab />}
+
+      {activeTab === "branches" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
               <input
@@ -259,42 +345,44 @@ export default function BranchesPage() {
               />
             </div>
 
-            {/* Primary blue-700 Add Branch Button */}
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Branch</span>
-            </button>
+            {canManageBranches && (
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Branch</span>
+              </button>
+            )}
           </div>
-        }
-      />
 
-      {/* Table Card */}
-      <DataTable
-        columns={columns}
-        data={paginatedBranches}
-        isLoading={isLoading}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        pageSize={5}
-        onPrev={onPrev}
-        onNext={onNext}
-        emptyTitle="No branches registered"
-        emptyDescription="Create your first property branch to begin assigning buildings, floors, and rooms."
-        emptyAction={
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
-        }
-      />
+          <DataTable
+            columns={columns}
+            data={paginatedBranches}
+            isLoading={isLoading}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={5}
+            onPrev={onPrev}
+            onNext={onNext}
+            emptyTitle="No branches registered"
+            emptyDescription="Create your first property branch to begin assigning buildings, floors, and rooms."
+            emptyAction={
+              canManageBranches ? (
+                <button
+                  type="button"
+                  onClick={handleOpenAdd}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Add Branch
+                </button>
+              ) : undefined
+            }
+          />
+        </div>
+      )}
 
       {/* 3. Add / Edit Branch 480px Right-Side Drawer */}
       <SideDrawer
@@ -414,5 +502,14 @@ export default function BranchesPage() {
         </form>
       </SideDrawer>
     </div>
+  );
+}
+
+
+export default function BranchesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-secondary)]">Loading branches...</div>}>
+      <BranchesContent />
+    </Suspense>
   );
 }

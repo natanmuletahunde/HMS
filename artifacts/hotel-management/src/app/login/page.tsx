@@ -16,6 +16,7 @@ import {
   Sparkles,
   Loader2,
   ArrowRight,
+  BedDouble,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -43,6 +44,19 @@ type LoginStep = "credentials" | "mfa";
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [step, setStep] = useState<LoginStep>("credentials");
+  const [isDeactivatedNotice, setIsDeactivatedNotice] = useState(false);
+
+  useEffect(() => {
+    // Read query parameter safely after hydration on client
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deactivated") === "1") {
+      setIsDeactivatedNotice(true);
+      // Clean up URL so query parameter doesn't persist across login/refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete("deactivated");
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    }
+  }, []);
   const [mfaToken, setMfaToken] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [mfaSubmitting, setMfaSubmitting] = useState(false);
@@ -91,10 +105,11 @@ export default function LoginPage() {
     } catch {}
   }, [setValue]);
 
-  // Submit email + password
+  // Step 1: submit email + password
   const onSubmit = async (data: z.infer<typeof schema>) => {
     try {
       setError("");
+      setIsDeactivatedNotice(false);
       const res = await apiFetch<any>("/auth/login", {
         method: "POST",
         body: JSON.stringify(data),
@@ -301,6 +316,14 @@ export default function LoginPage() {
               Staff & Management Operations Suite
             </p>
           </div>
+
+          {/* Deactivated Notice Banner */}
+          {isDeactivatedNotice && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in shadow-lg">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span className="leading-relaxed font-medium">Your account has been deactivated by an administrator. Access has been locked.</span>
+            </div>
+          )}
 
           {/* Error Banner */}
           {error && (

@@ -29,10 +29,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
-  const authorized = isRouteAuthorized(currentRole, pathname);
+  const authorized = isRouteAuthorized(user, pathname, user?.permissions);
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)]">
+    <div className="management-portal flex min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)]">
       <NavigationProgress />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">

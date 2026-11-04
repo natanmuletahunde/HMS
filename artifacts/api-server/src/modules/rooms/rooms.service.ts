@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, and, sql, like, getTableColumns } from 'drizzle-orm';
+import { eq, and, sql, like, inArray, getTableColumns } from 'drizzle-orm';
 import {
   db, roomsTable, roomTypesTable, roomCategoriesTable, bedTypesTable,
   buildingsTable, floorsTable, branchesTable, roomAmenityAssignmentsTable, roomAmenitiesTable,
@@ -56,7 +56,7 @@ const fmt = (r: any) => ({
 export class RoomsService {
   constructor(private readonly eventBus: EventBusService) {}
 
-  async findAll(q: any) {
+  async findAll(q: any, allowedBranchIds?: string[] | null) {
     const { status, floor, roomTypeId, roomCategoryId, bedTypeId, buildingId, branchId, floorId, search, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
     const conds: any[] = [eq(roomsTable.isActive, true)];
@@ -66,7 +66,21 @@ export class RoomsService {
     if (roomCategoryId) conds.push(eq(roomsTable.roomCategoryId, roomCategoryId));
     if (bedTypeId) conds.push(eq(roomsTable.bedTypeId, bedTypeId));
     if (buildingId) conds.push(eq(roomsTable.buildingId, buildingId));
-    if (branchId) conds.push(eq(buildingsTable.branchId, branchId));
+    
+    if (branchId) {
+      if (allowedBranchIds && !allowedBranchIds.includes(branchId)) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(eq(buildingsTable.branchId, branchId));
+      }
+    } else if (allowedBranchIds) {
+      if (allowedBranchIds.length === 0) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(inArray(buildingsTable.branchId, allowedBranchIds));
+      }
+    }
+
     if (floorId) conds.push(eq(roomsTable.floorId, floorId));
     if (search) conds.push(sql`(${roomsTable.number} ilike ${'%' + search + '%'} or ${roomsTable.roomName} ilike ${'%' + search + '%'})`);
     const where = and(...conds);
@@ -80,18 +94,38 @@ export class RoomsService {
     return { data: rows.map(fmt), meta: { total: count, page: +page, limit: l, totalPages: Math.ceil(count / l) } };
   }
 
-  async exportRooms(q: any) {
-    const { status, buildingId } = q;
+  async exportRooms(q: any, allowedBranchIds?: string[] | null) {
+    const { status, buildingId, branchId } = q;
     const conds: any[] = [eq(roomsTable.isActive, true)];
     if (status) conds.push(eq(roomsTable.status, status));
     if (buildingId) conds.push(eq(roomsTable.buildingId, buildingId));
+    if (branchId) {
+      if (allowedBranchIds && !allowedBranchIds.includes(branchId)) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(eq(buildingsTable.branchId, branchId));
+      }
+    } else if (allowedBranchIds) {
+      if (allowedBranchIds.length === 0) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(inArray(buildingsTable.branchId, allowedBranchIds));
+      }
+    }
     const rows = await base().where(and(...conds)).orderBy(roomsTable.number);
     return { data: rows.map(fmt), total: rows.length };
   }
 
-  async findAvailable(roomTypeId?: string) {
+  async findAvailable(roomTypeId?: string, allowedBranchIds?: string[] | null) {
     const conds: any[] = [eq(roomsTable.status, 'available'), eq(roomsTable.isActive, true)];
     if (roomTypeId) conds.push(eq(roomsTable.roomTypeId, roomTypeId));
+    if (allowedBranchIds) {
+      if (allowedBranchIds.length === 0) {
+        conds.push(sql`1=0`);
+      } else {
+        conds.push(inArray(buildingsTable.branchId, allowedBranchIds));
+      }
+    }
     return (await base().where(and(...conds))).map(fmt);
   }
 
@@ -172,7 +206,6 @@ export class RoomsService {
   }
 
   async assignAmenities(roomId: string, amenityIds: string[]) {
-    // Remove existing, re-assign
     await db.delete(roomAmenityAssignmentsTable).where(eq(roomAmenityAssignmentsTable.roomId, roomId));
     if (amenityIds?.length) {
       await db.insert(roomAmenityAssignmentsTable).values(amenityIds.map(amenityId => ({ roomId, amenityId })));

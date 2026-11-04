@@ -28,6 +28,9 @@ type CoordinatorOrderItem = {
   total: number;
   notes?: string | null;
   isComplimentary?: boolean;
+  station?: string;
+  kitchenStatus?: string;
+  roundNumber?: number;
 };
 
 type CoordinatorOrder = {
@@ -37,11 +40,12 @@ type CoordinatorOrder = {
   guestName?: string | null;
   diningCase?: "walk_in" | "in_house_table" | "room_service";
   roomNumber?: string | null;
-  status: "pending" | "preparing" | "ready" | "served" | "cancelled";
+  status: "pending" | "preparing" | "partially_ready" | "partially_served" | "ready" | "served" | "cancelled";
   coordinatorId?: string | null;
   coordinatorName?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenOfficerId?: string | null;
   kitchenOfficerName?: string | null;
   routedVia?: "coordinator" | "direct_kitchen";
@@ -68,6 +72,8 @@ export default function CoordinatorPage() {
   const [selectedStation, setSelectedStation] = useState<string>("Hot Line & Stoves");
   const [selectedPriority, setSelectedPriority] = useState<string>("normal");
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [dispatchedOrdersMap, setDispatchedOrdersMap] = useState<Record<string, boolean>>({});
+  const [servedOrdersMap, setServedOrdersMap] = useState<Record<string, boolean>>({});
 
   // Tab 2 (Food QA & Hand-Off) State
   const [qaOrder, setQaOrder] = useState<CoordinatorOrder | null>(null);
@@ -134,7 +140,8 @@ export default function CoordinatorPage() {
           notes: notes ? `[${priority === 'rush' ? 'RUSH • ' : ''}${station || 'Hot Line'}] ${notes}` : `Routed to ${station || 'Kitchen Station'}${priority === 'rush' ? ' (PRIORITY RUSH)' : ''}`,
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
+      setDispatchedOrdersMap((prev) => ({ ...prev, [vars.id]: true }));
       queryClient.invalidateQueries({ queryKey: ["coordinator-workbench-orders"] });
       queryClient.invalidateQueries({ queryKey: ["coordinator-dashboard-orders"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
@@ -285,7 +292,9 @@ export default function CoordinatorPage() {
     const list = rawOrders.filter(
       (o) =>
         (o.status === "pending" || o.status === "preparing") &&
-        (o.coordinatorStatus === "pending" || !o.coordinatorStatus)
+        (o.coordinatorStatus === "pending" || !o.coordinatorStatus || o.routedVia === "coordinator") &&
+        o.coordinatorStatus !== "dispatched" &&
+        o.coordinatorStatus !== "qa_verified"
     );
     if (list.length > 0) return list;
     return defaultCoordinatorQueue;
@@ -413,6 +422,7 @@ export default function CoordinatorPage() {
   };
 
   const handleMarkServed = (order: CoordinatorOrder) => {
+    setServedOrdersMap((prev) => ({ ...prev, [order.id]: true }));
     if (order.id.startsWith("pass-")) {
       toast({
         title: "Order Served to Guest ✓",
@@ -549,7 +559,7 @@ export default function CoordinatorPage() {
                   <TableHead className="w-28">Order #</TableHead>
                   <TableHead className="w-28">Scenario</TableHead>
                   <TableHead className="w-24">Location</TableHead>
-                  <TableHead className="w-32">Server / Waiter</TableHead>
+                  <TableHead className="w-32">Assigned Server</TableHead>
                   <TableHead>Ordered Dishes & Special Requests</TableHead>
                   <TableHead className="w-28 text-center">Status</TableHead>
                   <TableHead className="w-36 text-right">Dispatch Action</TableHead>
@@ -568,6 +578,8 @@ export default function CoordinatorPage() {
                     const isUrgent = elapsed >= 8;
                     const isRoom = ord.diningCase === "room_service";
                     const isInHouse = ord.diningCase === "in_house_table";
+
+                    const isDispatched = ord.coordinatorStatus === "dispatched" || !!dispatchedOrdersMap[ord.id];
 
                     return (
                       <TableRow key={ord.id} className="hover:bg-slate-50/80 dark:hover:bg-muted/30">
@@ -598,8 +610,26 @@ export default function CoordinatorPage() {
                           {ord.waiterName || "Floor Server"}
                         </TableCell>
                         <TableCell>
-                          <div className="font-semibold text-slate-800 dark:text-foreground">
-                            {ord.items?.map((i) => `${i.quantity}x ${i.name}`).join(", ") || "Standard Dishes"}
+                          <div className="font-semibold text-slate-800 dark:text-foreground flex items-center gap-1.5 flex-wrap">
+                            {ord.items && ord.items.length > 0 ? (
+                              ord.items.map((i) => (
+                                <span key={i.id} className="inline-flex items-center gap-1 bg-muted/30 px-1.5 py-0.5 rounded border border-border/50">
+                                  <span>{i.quantity}× {i.name}</span>
+                                  {i.station && (
+                                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-muted text-text-muted uppercase">
+                                      {i.station}
+                                    </span>
+                                  )}
+                                  {i.roundNumber && i.roundNumber > 1 && (
+                                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold">
+                                      R{i.roundNumber}
+                                    </span>
+                                  )}
+                                </span>
+                              ))
+                            ) : (
+                              "Standard Dishes"
+                            )}
                           </div>
                           <div className="text-[11px] text-text-muted mt-0.5">
                             {isInHouse && ord.guestName && (
@@ -613,19 +643,37 @@ export default function CoordinatorPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                            Awaiting Review
-                          </span>
+                          {isDispatched ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              Dispatched
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Awaiting Review
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => openDispatch(ord)}
-                            className="h-8 px-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs gap-1.5 shadow-xs"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span>Review & Dispatch →</span>
-                          </Button>
+                          {isDispatched ? (
+                            <Button
+                              size="sm"
+                              disabled
+                              className="h-8 px-3.5 rounded-xl bg-emerald-600 text-white font-bold text-xs gap-1.5 shadow-xs opacity-90 cursor-default"
+                            >
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                              <span>Dispatched</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => openDispatch(ord)}
+                              className="h-8 px-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs gap-1.5 shadow-xs cursor-pointer"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Review & Dispatch →</span>
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -674,7 +722,7 @@ export default function CoordinatorPage() {
                   <TableHead className="w-28">Order #</TableHead>
                   <TableHead className="w-28">Scenario</TableHead>
                   <TableHead className="w-24">Location</TableHead>
-                  <TableHead className="w-32">Server / Runner</TableHead>
+                  <TableHead className="w-32">Assigned Server</TableHead>
                   <TableHead>Plated Dishes from Kitchen</TableHead>
                   <TableHead className="w-32 text-center">Heat Pass Timer</TableHead>
                   <TableHead className="w-32 text-center">QA Status</TableHead>
@@ -695,6 +743,7 @@ export default function CoordinatorPage() {
                     const isRoom = ord.diningCase === "room_service";
                     const isInHouse = ord.diningCase === "in_house_table";
                     const isQaVerified = ord.coordinatorStatus === "qa_verified";
+                    const isServed = ord.status === "served" || !!servedOrdersMap[ord.id];
 
                     return (
                       <TableRow key={ord.id} className="hover:bg-slate-50/80 dark:hover:bg-muted/30">
@@ -774,14 +823,25 @@ export default function CoordinatorPage() {
                               <span>Inspect Food 🔍</span>
                             </Button>
 
-                            <Button
-                              size="sm"
-                              onClick={() => handleMarkServed(ord)}
-                              className="h-8 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Served ✓</span>
-                            </Button>
+                            {isServed ? (
+                              <Button
+                                size="sm"
+                                disabled
+                                className="h-8 px-2.5 text-xs font-bold bg-emerald-600 text-white gap-1 shadow-xs opacity-90 cursor-default"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Served ✓</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleMarkServed(ord)}
+                                className="h-8 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 shadow-xs cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Served ✓</span>
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -825,6 +885,15 @@ export default function CoordinatorPage() {
                 </div>
                 <p className="text-slate-400">
                   Guest: <span className="font-semibold text-slate-900 dark:text-foreground">{selectedOrder.guestName || "Walk-in Guest"}</span> • Server: <span className="font-semibold text-slate-900 dark:text-foreground">{selectedOrder.waiterName || "Floor Waiter"}</span>
+                  {selectedOrder.pacingPreference === "serve_together" ? (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/50">
+                      🍽️ Hold Drinks With Meal
+                    </span>
+                  ) : (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/50">
+                      🍸 Drinks First
+                    </span>
+                  )}
                 </p>
                 <div className="pt-2 border-t border-slate-200/40 text-[11px] text-slate-600 dark:text-muted-foreground">
                   Dishes: {selectedOrder.items?.map((i) => `${i.quantity}x ${i.name}`).join(", ")}

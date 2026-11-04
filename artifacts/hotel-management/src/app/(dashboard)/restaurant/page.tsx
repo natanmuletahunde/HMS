@@ -10,7 +10,7 @@ import {
   ShoppingBag, Bike, ChevronDown, FileSpreadsheet, UtensilsCrossed,
   QrCode, GitMerge, ChefHat, Send, Check,
   Search, Bell, FileText, ArrowRight, CreditCard, Wallet, Banknote, DollarSign, DoorClosed,
-  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye
+  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye, Wine
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -94,6 +94,7 @@ type Order = {
   receiptPrintedAt?: string;
   cashierName?: string;
   waiterName?: string;
+  pacingPreference?: "drinks_first" | "serve_together";
   kitchenNotes?: string;
   notes?: string;
   createdAt?: string;
@@ -125,6 +126,73 @@ const TABLE_STATUS_COLOR: Record<string, string> = {
 
 const MENU_CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Drinks", "Dessert", "Coffee", "Juice", "Fast Food", "Traditional"];
 
+const SETTLED_STORAGE_KEY = "nexus_settled_orders";
+
+interface SettledOrderInfo {
+  settled: boolean;
+  method: string;
+  settledAt: string;
+  notes?: string;
+}
+
+function getStoredSettledOrders(): Record<string, SettledOrderInfo> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(SETTLED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredSettledOrder(
+  id: string,
+  orderNumber?: string,
+  method = "cash",
+  notes = ""
+): Record<string, SettledOrderInfo> {
+  if (typeof window === "undefined") return {};
+  try {
+    const map = getStoredSettledOrders();
+    const entry: SettledOrderInfo = {
+      settled: true,
+      method,
+      settledAt: new Date().toISOString(),
+      notes,
+    };
+    if (id) {
+      map[id] = entry;
+      map[id.toLowerCase()] = entry;
+    }
+    if (orderNumber) {
+      map[orderNumber] = entry;
+      map[orderNumber.toLowerCase()] = entry;
+      const stripped = orderNumber.replace(/^#/, "").replace(/^ORD-/, "").trim();
+      if (stripped) {
+        map[stripped] = entry;
+        map[`ticket-${stripped}`] = entry;
+        map[`ORD-${stripped}`] = entry;
+      }
+    }
+    localStorage.setItem(SETTLED_STORAGE_KEY, JSON.stringify(map));
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+function checkIsSettled(
+  ord: { id?: string; orderNumber?: string; billingStatus?: string; paymentStatus?: string },
+  settledMap: Record<string, SettledOrderInfo>
+): boolean {
+  if (ord.billingStatus === "settled" || ord.paymentStatus === "paid") return true;
+  if (ord.id && (settledMap[ord.id]?.settled || settledMap[ord.id.toLowerCase()]?.settled)) return true;
+  if (ord.orderNumber && (settledMap[ord.orderNumber]?.settled || settledMap[ord.orderNumber.toLowerCase()]?.settled)) return true;
+  const num = (ord.orderNumber || "").replace(/^#/, "").replace(/^ORD-/, "").trim();
+  if (num && (settledMap[num]?.settled || settledMap[`ticket-${num}`]?.settled || settledMap[`ORD-${num}`]?.settled)) return true;
+  return false;
+}
+
 export default function RestaurantPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -149,6 +217,9 @@ export default function RestaurantPage() {
   const [paymentModalOrder, setPaymentModalOrder] = useState<Order | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "telebirr" | "card" | "room_charge" | "complimentary_breakfast">("cash");
   const [cashTendered, setCashTendered] = useState("");
+
+  // Persistent settled orders map
+  const [settledMap, setSettledMap] = useState<Record<string, SettledOrderInfo>>({});
 
   const formattedDate = useMemo(() => {
     return new Intl.DateTimeFormat("en-US", {
@@ -204,9 +275,17 @@ export default function RestaurantPage() {
   // Coordinator & Table QR state
   const [newOrderRoutedVia, setNewOrderRoutedVia] = useState<"coordinator" | "direct_kitchen">("coordinator");
   const [newOrderCoordinatorId, setNewOrderCoordinatorId] = useState("");
+  const [newOrderPacingPreference, setNewOrderPacingPreference] = useState<"drinks_first" | "serve_together">("drinks_first");
   const [isTableQrModalOpen, setIsTableQrModalOpen] = useState(false);
   const [menuTickSearch, setMenuTickSearch] = useState("");
   const [menuTickCategory, setMenuTickCategory] = useState("All");
+
+  // Multi-round / Re-ordering state (Adding dishes to existing open tab)
+  const [isAddRoundOpen, setIsAddRoundOpen] = useState(false);
+  const [roundTargetOrder, setRoundTargetOrder] = useState<Order | null>(null);
+  const [roundDishesList, setRoundDishesList] = useState<Array<{ menuItemId?: string; name: string; quantity: number; price: number; station?: string }>>([]);
+  const [roundNotes, setRoundNotes] = useState("");
+  const [roundMenuSearch, setRoundMenuSearch] = useState("");
 
   // Synchronized In-House Guest Requests
   const [inHouseRequests, setInHouseRequests] = useState<InHouseServiceRequest[]>([]);
@@ -214,6 +293,7 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     setInHouseRequests(getInHouseRequests());
+    setSettledMap(getStoredSettledOrders());
 
     const handleSync = (e: any) => {
       if (e?.detail) {
@@ -221,15 +301,36 @@ export default function RestaurantPage() {
       } else {
         setInHouseRequests(getInHouseRequests());
       }
+      setSettledMap(getStoredSettledOrders());
+      queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-dashboard"] });
     };
 
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("hms_orders_channel");
+      channel.onmessage = () => {
+        setInHouseRequests(getInHouseRequests());
+        setSettledMap(getStoredSettledOrders());
+        queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+        queryClient.invalidateQueries({ queryKey: ["restaurant-dashboard"] });
+      };
+    } catch {}
+
     window.addEventListener("nexus_inhouse_requests_updated", handleSync);
+    window.addEventListener("hms_order_sync", handleSync);
+    window.addEventListener("hms_order_settled", handleSync);
     window.addEventListener("storage", handleSync);
     return () => {
+      if (channel) channel.close();
       window.removeEventListener("nexus_inhouse_requests_updated", handleSync);
+      window.removeEventListener("hms_order_sync", handleSync);
+      window.removeEventListener("hms_order_settled", handleSync);
       window.removeEventListener("storage", handleSync);
     };
-  }, []);
+  }, [queryClient]);
 
   const waiterPendingRequests = useMemo(() => {
     const role = (user?.role || (user as any)?.roleName || "").toLowerCase();
@@ -250,12 +351,13 @@ export default function RestaurantPage() {
 
   // Dedicated In-House Room Order Fulfillment Modal
   const [isFulfillOpen, setIsFulfillOpen] = useState(false);
-  const [fulfillTarget, setFulfillTarget] = useState<InHouseServiceRequest | null>(null);
+  const [fulfillTarget, setFulfillTarget] = useState<any>(null);
   const [fulfillRoute, setFulfillRoute] = useState<"coordinator" | "direct_kitchen">("coordinator");
   const [inHouseSubFilter, setInHouseSubFilter] = useState<"all" | "assigned" | "created">("all");
+  const [roomServiceSubFilter, setRoomServiceSubFilter] = useState<"all" | "assigned" | "created">("all");
 
   const assignedInHouseRequests = useMemo(() => {
-    return inHouseRequests.filter((r) => r.status === "pending" || r.stage === "waiter_assigned");
+    return inHouseRequests.filter((r) => r.status === "pending" || r.stage === "waiter_assigned" || r.status === "dispatched");
   }, [inHouseRequests]);
 
   const handleDispatchAssignedOrder = (req: InHouseServiceRequest, route: "coordinator" | "direct_kitchen") => {
@@ -268,11 +370,25 @@ export default function RestaurantPage() {
       waiterId: user?.id,
       routedVia: route,
       coordinatorId: route === "coordinator" ? (coordinators[0]?.id || undefined) : undefined,
-      items: req.items.map((i) => {
-        const matchedMenu = menuItems.find((m) => m.name.toLowerCase() === i.name.toLowerCase());
+      items: req.items.map((i: any) => {
+        const cleanName = (i.name || "").replace(/\(.*?\)/g, "").trim().toLowerCase();
+        const matchedMenu = menuItems.find((m) => {
+          const mClean = m.name.replace(/\(.*?\)/g, "").trim().toLowerCase();
+          return (
+            m.name.toLowerCase() === i.name.toLowerCase() ||
+            mClean === cleanName ||
+            m.name.toLowerCase().includes(cleanName) ||
+            cleanName.includes(m.name.toLowerCase())
+          );
+        });
         return {
-          menuItemId: matchedMenu?.id || `custom-${i.name}`,
-          quantity: i.quantity,
+          menuItemId: matchedMenu?.id,
+          name: i.name,
+          price: i.price ?? (matchedMenu ? parseFloat(matchedMenu.price as any) : undefined),
+          unitPrice: i.price ?? (matchedMenu ? parseFloat(matchedMenu.price as any) : undefined),
+          quantity: i.quantity || 1,
+          category: i.category || matchedMenu?.category || "traditional",
+          station: i.station || (matchedMenu as any)?.kitchenSection || "hot",
           isComplimentary: false,
         };
       }),
@@ -301,11 +417,25 @@ export default function RestaurantPage() {
       waiterId: user?.id,
       routedVia: fulfillRoute,
       coordinatorId: fulfillRoute === "coordinator" ? (coordinators[0]?.id || undefined) : undefined,
-      items: fulfillTarget.items.map((i) => {
-        const matchedMenu = menuItems.find((m) => m.name.toLowerCase() === i.name.toLowerCase());
+      items: fulfillTarget.items.map((i: any) => {
+        const cleanName = (i.name || "").replace(/\(.*?\)/g, "").trim().toLowerCase();
+        const matchedMenu = menuItems.find((m) => {
+          const mClean = m.name.replace(/\(.*?\)/g, "").trim().toLowerCase();
+          return (
+            m.name.toLowerCase() === i.name.toLowerCase() ||
+            mClean === cleanName ||
+            m.name.toLowerCase().includes(cleanName) ||
+            cleanName.includes(m.name.toLowerCase())
+          );
+        });
         return {
-          menuItemId: matchedMenu?.id || `custom-${i.name}`,
-          quantity: i.quantity,
+          menuItemId: matchedMenu?.id,
+          name: i.name,
+          price: i.price ?? (matchedMenu ? parseFloat(matchedMenu.price as any) : undefined),
+          unitPrice: i.price ?? (matchedMenu ? parseFloat(matchedMenu.price as any) : undefined),
+          quantity: i.quantity || 1,
+          category: i.category || matchedMenu?.category || "traditional",
+          station: i.station || (matchedMenu as any)?.kitchenSection || "hot",
           isComplimentary: false,
         };
       }),
@@ -349,6 +479,30 @@ export default function RestaurantPage() {
     });
   };
 
+  const handleOpenNewOrder = (
+    diningCaseOverride?: "walk_in" | "in_house_table" | "room_service",
+    tableIdOverride?: string
+  ) => {
+    setNewOrderItems([]);
+    setNewOrderResidentVerified(null);
+    setNewOrderRoomNumber("");
+    setNewOrderGuestName("");
+    setNewOrderTableId(tableIdOverride || "");
+
+    const targetCase = diningCaseOverride
+      ? diningCaseOverride
+      : waiterDiningFilter === "room_service"
+      ? "room_service"
+      : waiterDiningFilter === "in_house_table"
+      ? "in_house_table"
+      : "walk_in";
+
+    setNewOrderDiningCase(targetCase);
+    setNewOrderSettlementType(targetCase === "walk_in" ? "direct_payment" : "room_charge");
+    setNewOrderPacingPreference("drinks_first");
+    setIsNewOrderOpen(true);
+  };
+
   // Kitchen auto-refresh
   const [kitchenTick, setKitchenTick] = useState(0);
   useEffect(() => {
@@ -367,13 +521,13 @@ export default function RestaurantPage() {
   const { data: menuItems = [], isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["restaurant-menu"],
     queryFn: () => apiFetch<MenuItem[]>("/restaurant/menu-items"),
-    enabled: tab === "menu" || tab === "orders" || tab === "kitchen" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing",
+    enabled: tab === "menu" || tab === "orders" || tab === "kitchen" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing" || tab === "created_orders" || tab === "ready_pass",
   });
 
   const { data: tables = [], isLoading: tablesLoading } = useQuery<RestaurantTable[]>({
     queryKey: ["restaurant-tables"],
     queryFn: () => apiFetch<RestaurantTable[]>("/restaurant/tables"),
-    enabled: tab === "tables" || tab === "orders" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing",
+    enabled: tab === "tables" || tab === "orders" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing" || tab === "created_orders" || tab === "ready_pass",
   });
 
   const { data: coordinators = [] } = useQuery<Array<{ id: string; name: string; isFree: boolean; activeOrdersCount: number }>>({
@@ -390,7 +544,8 @@ export default function RestaurantPage() {
       if (orderType !== "all") p.set("orderType", orderType);
       return apiFetch<Order[]>(`/restaurant/orders?${p}`);
     },
-    enabled: tab === "orders" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing" || tab === "tables",
+    enabled: tab === "orders" || tab === "dashboard" || tab === "waiter_dashboard" || tab === "kitchen_pass" || tab === "billing" || tab === "tables" || tab === "created_orders" || tab === "ready_pass" || isWaiter,
+    refetchInterval: 3000,
   });
 
   const { data: kitchenOrders = [], isLoading: kitchenLoading } = useQuery<Order[]>({
@@ -464,8 +619,29 @@ export default function RestaurantPage() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiFetch(`/restaurant/orders/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    mutationFn: ({
+      id,
+      status,
+      billingStatus,
+      paymentStatus,
+      paymentMethod,
+    }: {
+      id: string;
+      status?: string;
+      billingStatus?: string;
+      paymentStatus?: string;
+      paymentMethod?: string;
+    }) => {
+      if (id.startsWith("mock-") || id.startsWith("pay-")) {
+        return Promise.resolve({ ok: true, id });
+      }
+      const body: any = {};
+      if (status) body.status = status;
+      if (billingStatus) body.billingStatus = billingStatus;
+      if (paymentStatus) body.paymentStatus = paymentStatus;
+      if (paymentMethod) body.paymentMethod = paymentMethod;
+      return apiFetch(`/restaurant/orders/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+    },
     onSuccess: (_, vars) => { 
       invalidateOrders(); 
       if (vars.status === "served") {
@@ -503,6 +679,34 @@ export default function RestaurantPage() {
       });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const appendItemsMutation = useMutation({
+    mutationFn: ({ orderId, items, notes }: { orderId: string; items: any[]; notes?: string }) =>
+      apiFetch(`/restaurant/orders/${orderId}/items`, {
+        method: "POST",
+        body: JSON.stringify({ items, notes }),
+      }),
+    onSuccess: (_, vars) => {
+      invalidateOrders();
+      setIsAddRoundOpen(false);
+      setRoundDishesList([]);
+      setRoundNotes("");
+      if (typeof window !== "undefined") {
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "ORDER_UPDATED", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
+      toast({
+        title: "Added Dishes Dispatched to Kitchen Line 🍳",
+        description: `New items added to table tab and routed to appropriate station.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to Add Dishes", description: err.message, variant: "destructive" });
+    },
   });
 
   const dispatchRouteMutation = useMutation({
@@ -759,7 +963,8 @@ export default function RestaurantPage() {
         orderNumber: req.requestNumber ? req.requestNumber.replace(/#/g, "").replace(/-/g, " ") : `RS ${req.roomNumber}`,
         tableNumber: undefined,
         roomNumber: req.roomNumber,
-        diningCase: "in_house_table" as const,
+        diningCase: "room_service" as const,
+        orderType: "room_service" as const,
         isAssignedRoomService: true,
         guestName: req.guestName,
         phone: req.phone,
@@ -788,7 +993,7 @@ export default function RestaurantPage() {
     if (orders.length > 0) {
       list.push(...orders);
       for (const m of defaultMockOrders) {
-        if (!list.find((x) => x.orderNumber === m.orderNumber)) {
+        if (!list.find((x) => x.orderNumber === m.orderNumber || x.id === m.id)) {
           list.push(m);
         }
       }
@@ -796,7 +1001,7 @@ export default function RestaurantPage() {
       list.push(...defaultMockOrders);
     }
 
-    // Merge in the assigned in-house room service orders as table rows
+    // Merge in the assigned room service orders as table rows
     for (const a of assignedOrdersAsTableRows) {
       if (!list.find((x) => x.id === a.id || x.orderNumber === a.orderNumber)) {
         list.push(a);
@@ -808,17 +1013,37 @@ export default function RestaurantPage() {
 
   const inHouseOrders = useMemo(() => {
     return waiterActiveOrders.filter(
-      (ord) => ord.diningCase === "in_house_table" || ord.isAssignedRoomService || ord.diningCase === "room_service"
+      (ord) => ord.diningCase === "in_house_table" && !ord.isAssignedRoomService
     );
   }, [waiterActiveOrders]);
 
+  const roomServiceOrders = useMemo(() => {
+    return waiterActiveOrders.filter(
+      (ord) => ord.diningCase === "room_service" || ord.orderType === "room_service" || ord.isAssignedRoomService
+    );
+  }, [waiterActiveOrders]);
+
+  const assignedRoomServiceCount = useMemo(() => {
+    return roomServiceOrders.filter((o) => o.isAssignedRoomService).length;
+  }, [roomServiceOrders]);
+
+  const createdRoomServiceCount = useMemo(() => {
+    return roomServiceOrders.filter((o) => !o.isAssignedRoomService).length;
+  }, [roomServiceOrders]);
+
   const assignedInHouseCount = useMemo(() => {
-    return inHouseOrders.filter((o) => o.isAssignedRoomService).length;
-  }, [inHouseOrders]);
+    return assignedOrdersAsTableRows.length;
+  }, [assignedOrdersAsTableRows]);
 
   const createdInHouseCount = useMemo(() => {
-    return inHouseOrders.filter((o) => !o.isAssignedRoomService).length;
-  }, [inHouseOrders]);
+    return waiterActiveOrders.filter(
+      (ord) => ord.diningCase === "in_house_table" && !ord.isAssignedRoomService
+    ).length;
+  }, [waiterActiveOrders]);
+
+  const inHouseAllCount = useMemo(() => {
+    return assignedInHouseCount + createdInHouseCount;
+  }, [assignedInHouseCount, createdInHouseCount]);
 
   // Tab 1: Created Orders (Active & Dispatch) Filtered
   const filteredCreatedOrders = useMemo(() => {
@@ -826,13 +1051,21 @@ export default function RestaurantPage() {
       // 1. Dining Case Filter
       if (waiterDiningFilter !== "all") {
         if (waiterDiningFilter === "in_house_table") {
-          const isInHouse =
-            ord.diningCase === "in_house_table" || ord.isAssignedRoomService || ord.diningCase === "room_service";
-          if (!isInHouse) return false;
-
-          // In-House sub-toggle: "all" | "assigned" | "created"
+          // In-House sub-filter: "all" | "assigned" | "created"
           if (inHouseSubFilter === "assigned" && !ord.isAssignedRoomService) return false;
-          if (inHouseSubFilter === "created" && ord.isAssignedRoomService) return false;
+          if (inHouseSubFilter === "created" && (ord.isAssignedRoomService || ord.diningCase !== "in_house_table")) return false;
+          if (inHouseSubFilter === "all" && !ord.isAssignedRoomService && ord.diningCase !== "in_house_table") return false;
+        } else if (waiterDiningFilter === "room_service") {
+          // Strictly Room Service (both created orders & assigned room requests)
+          const isRoomService =
+            ord.diningCase === "room_service" || ord.orderType === "room_service" || ord.isAssignedRoomService;
+          if (!isRoomService) return false;
+
+          // Room Service sub-filter: "all" | "assigned" | "created"
+          if (roomServiceSubFilter === "assigned" && !ord.isAssignedRoomService) return false;
+          if (roomServiceSubFilter === "created" && ord.isAssignedRoomService) return false;
+        } else if (waiterDiningFilter === "walk_in") {
+          if (ord.isAssignedRoomService || ord.diningCase !== "walk_in") return false;
         } else {
           if (ord.isAssignedRoomService) return false;
           if (ord.diningCase !== waiterDiningFilter) return false;
@@ -854,7 +1087,7 @@ export default function RestaurantPage() {
       const rm = String(ord.roomNumber || "");
       return guest.includes(q) || ordNum.includes(q) || tbl.includes(q) || rm.includes(q);
     });
-  }, [waiterActiveOrders, waiterOrderSearch, waiterDiningFilter, inHouseSubFilter, waiterRouteFilter, waiterStatusFilter]);
+  }, [waiterActiveOrders, waiterOrderSearch, waiterDiningFilter, inHouseSubFilter, roomServiceSubFilter, waiterRouteFilter, waiterStatusFilter]);
 
   const createdOrdersPagination = usePagination(filteredCreatedOrders, 5);
 
@@ -932,16 +1165,16 @@ export default function RestaurantPage() {
   const paymentOrdersPagination = usePagination(filteredPaymentOrders, 5);
 
   const openFloorTabsCount = useMemo(() => {
-    return orders.filter(o => o.status !== "cancelled" && o.billingStatus !== "settled").length;
-  }, [orders]);
+    return orders.filter(o => o.status !== "cancelled" && !checkIsSettled(o, settledMap)).length;
+  }, [orders, settledMap]);
 
   const billsPrintingCount = useMemo(() => {
-    return orders.filter(o => o.billingStatus === "bill_requested" || o.billingStatus === "bill_printed").length;
-  }, [orders]);
+    return orders.filter(o => !checkIsSettled(o, settledMap) && (o.billingStatus === "bill_requested" || o.billingStatus === "bill_printed")).length;
+  }, [orders, settledMap]);
 
   const settledTodayCount = useMemo(() => {
-    return orders.filter(o => o.billingStatus === "settled").length;
-  }, [orders]);
+    return orders.filter(o => checkIsSettled(o, settledMap)).length;
+  }, [orders, settledMap]);
 
   const activeFloorCount = useMemo(() => {
     return waiterActiveOrders.filter(o => ["pending", "preparing", "ready"].includes(o.status)).length;
@@ -965,15 +1198,53 @@ export default function RestaurantPage() {
 
   function handleConfirmPayment() {
     if (!paymentModalOrder) return;
-    if (!paymentModalOrder.id.startsWith("pay-") && !paymentModalOrder.id.startsWith("mock-")) {
-      updateOrderMutation.mutate({
-        id: paymentModalOrder.id,
-        status: "served",
-      });
+    const targetOrder = paymentModalOrder;
+    const method = paymentMethod;
+
+    // Immediately record locally and in storage
+    const updatedMap = saveStoredSettledOrder(
+      targetOrder.id,
+      targetOrder.orderNumber,
+      method
+    );
+    setSettledMap(updatedMap);
+
+    // Cross-tab broadcast & event dispatch
+    if (typeof window !== "undefined") {
+      try {
+        const channel = new BroadcastChannel("hms_orders_channel");
+        channel.postMessage({
+          type: "PAYMENT_SETTLED",
+          orderId: targetOrder.id,
+          orderNumber: targetOrder.orderNumber,
+          method,
+          timestamp: Date.now(),
+        });
+        channel.close();
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent("hms_order_settled", {
+          detail: {
+            orderId: targetOrder.id,
+            orderNumber: targetOrder.orderNumber,
+            method,
+          },
+        })
+      );
+      window.dispatchEvent(new Event("hms_order_sync"));
     }
+
+    updateOrderMutation.mutate({
+      id: targetOrder.id,
+      status: "served",
+      billingStatus: "settled",
+      paymentStatus: "paid",
+      paymentMethod: method,
+    });
+
     toast({
-      title: "Payment Recorded",
-      description: `Order #${paymentModalOrder.orderNumber} settled via ${paymentMethod.replace("_", " ").toUpperCase()}. Receipt issued.`,
+      title: "Payment Recorded & Settled",
+      description: `Order #${targetOrder.orderNumber} marked settled via ${method.replace("_", " ").toUpperCase()}. Receipt issued.`,
     });
     setPaymentModalOrder(null);
   }
@@ -1141,11 +1412,21 @@ export default function RestaurantPage() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors capitalize ${
+            className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors capitalize flex items-center gap-2 cursor-pointer ${
               tab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-text-muted hover:text-text"
             }`}
           >
-            {t.label}
+            <span>{t.label}</span>
+            {t.id === "ready_pass" && readyPassOrders.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-600 text-white shadow-xs animate-pulse">
+                {readyPassOrders.length}
+              </span>
+            )}
+            {t.id === "created_orders" && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {filteredCreatedOrders.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1176,12 +1457,11 @@ export default function RestaurantPage() {
                 value={waiterDiningFilter}
                 onValueChange={(val) => {
                   setWaiterDiningFilter(val);
-                  if (val !== "in_house_table") {
-                    setInHouseSubFilter("all");
-                  }
+                  setRoomServiceSubFilter("all");
+                  setInHouseSubFilter("all");
                 }}
               >
-                <SelectTrigger className="w-[140px] h-9 text-xs rounded-lg">
+                <SelectTrigger className="w-[155px] h-9 text-xs rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium shadow-2xs">
                   <SelectValue placeholder="Dining Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1192,7 +1472,69 @@ export default function RestaurantPage() {
                 </SelectContent>
               </Select>
 
-              {/* In-House Segment Sub-Toggle: Appears when In-House Guest is selected */}
+              {/* Room Service Sub-Toggle: Appears strictly when Room Service is selected */}
+              {waiterDiningFilter === "room_service" && (
+                <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800/90 rounded-lg border border-slate-200 dark:border-slate-700/80 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => setRoomServiceSubFilter("all")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer",
+                      roomServiceSubFilter === "all"
+                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    All Room Service ({roomServiceOrders.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoomServiceSubFilter("assigned")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      roomServiceSubFilter === "assigned"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <span>Assigned Requests</span>
+                    <span
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                        roomServiceSubFilter === "assigned"
+                          ? "bg-amber-900 text-amber-100"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
+                      )}
+                    >
+                      {assignedRoomServiceCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoomServiceSubFilter("created")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      roomServiceSubFilter === "created"
+                        ? "bg-[#084C42] text-white font-bold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <span>Created Orders</span>
+                    <span
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                        roomServiceSubFilter === "created"
+                          ? "bg-emerald-900 text-emerald-100"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
+                      )}
+                    >
+                      {createdRoomServiceCount}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* In-House Dining Sub-Toggle: Appears strictly when In-House Guest is selected */}
               {waiterDiningFilter === "in_house_table" && (
                 <div className="inline-flex p-0.5 bg-slate-100 dark:bg-slate-800/90 rounded-lg border border-slate-200 dark:border-slate-700/80 text-xs shadow-2xs animate-in fade-in zoom-in-95 duration-150">
                   <button
@@ -1201,11 +1543,11 @@ export default function RestaurantPage() {
                     className={cn(
                       "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer",
                       inHouseSubFilter === "all"
-                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs"
+                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-bold"
                         : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
                     )}
                   >
-                    All In-House ({inHouseOrders.length})
+                    All In-House ({inHouseAllCount})
                   </button>
                   <button
                     type="button"
@@ -1217,7 +1559,7 @@ export default function RestaurantPage() {
                         : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
                     )}
                   >
-                    <span>Assigned</span>
+                    <span>Assigned Requests</span>
                     <span
                       className={cn(
                         "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
@@ -1284,7 +1626,7 @@ export default function RestaurantPage() {
             {/* Create Order Button - Prominently positioned */}
             <div className="flex items-center gap-2">
               <Button
-                onClick={() => setIsNewOrderOpen(true)}
+                onClick={() => handleOpenNewOrder()}
                 className="h-9 px-4 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-lg shadow-xs transition-all active:scale-95"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" /> Create Order
@@ -1298,23 +1640,22 @@ export default function RestaurantPage() {
               <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70 border-b border-slate-200/80 dark:border-slate-800/80">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5 pl-4">Order ID</TableHead>
-                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Table / Location</TableHead>
+                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Dining Location</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Guest & Type</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Ordered Items</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Total</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Stage</TableHead>
-                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Dispatch Routing</TableHead>
                   <TableHead className="text-right font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5 pr-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCreatedOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-36 text-center text-text-muted">
+                    <TableCell colSpan={7} className="h-36 text-center text-text-muted">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <UtensilsCrossed className="w-8 h-8 text-slate-300 dark:text-slate-700" />
                         <span className="font-medium text-xs text-slate-500">No created orders found.</span>
-                        <Button size="sm" variant="outline" onClick={() => setIsNewOrderOpen(true)} className="h-7 text-xs mt-1 border-slate-200 dark:border-slate-700">
+                        <Button size="sm" variant="outline" onClick={() => handleOpenNewOrder()} className="h-7 text-xs mt-1 border-slate-200 dark:border-slate-700">
                           <Plus className="w-3.5 h-3.5 mr-1" /> Create First Order
                         </Button>
                       </div>
@@ -1328,6 +1669,7 @@ export default function RestaurantPage() {
                     const isPreparing = ord.status === "preparing";
                     const isReady = ord.status === "ready";
                     const isServed = ord.status === "served";
+                    const isOrderSettled = checkIsSettled(ord, settledMap);
 
                     // Determine Lifecycle Stage badge - Clean Status Text Without "Level"
                     let stageBadge = (
@@ -1336,25 +1678,11 @@ export default function RestaurantPage() {
                         {ord.isAssignedRoomService ? "Assigned" : "Pending Draft"}
                       </span>
                     );
-                    if (ord.coordinatorStatus === "dispatched" && isPreparing) {
+                    if (isOrderSettled) {
                       stageBadge = (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 shadow-2xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-                          Cooking
-                        </span>
-                      );
-                    } else if (isPreparing) {
-                      stageBadge = (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                          Cooking
-                        </span>
-                      );
-                    } else if (ord.coordinatorStatus === "pending" && !ord.isAssignedRoomService) {
-                      stageBadge = (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                          Coordinator Review
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                          Settled
                         </span>
                       );
                     } else if (isReady) {
@@ -1364,11 +1692,39 @@ export default function RestaurantPage() {
                           Ready to Serve
                         </span>
                       );
+                    } else if (ord.status === "partially_ready") {
+                      stageBadge = (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300 border border-cyan-200/80 dark:border-cyan-800/60 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                          Drinks Plated 🍸 • Food Cooking 🔥
+                        </span>
+                      );
+                    } else if (ord.status === "partially_served") {
+                      stageBadge = (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                          Drinks with Guest 🍸 • Food Cooking 🔥
+                        </span>
+                      );
                     } else if (isServed) {
                       stageBadge = (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                           <Check className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                           Served
+                        </span>
+                      );
+                    } else if (isPreparing || ord.coordinatorStatus === "dispatched") {
+                      stageBadge = (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                          Cooking
+                        </span>
+                      );
+                    } else if (ord.coordinatorStatus === "pending" && !ord.isAssignedRoomService) {
+                      stageBadge = (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                          Coordinator Review
                         </span>
                       );
                     }
@@ -1445,82 +1801,137 @@ export default function RestaurantPage() {
                         </TableCell>
                         <TableCell className="py-3.5">
                           {stageBadge}
-                        </TableCell>
-                        <TableCell className="py-3.5">
-                          {/* Dispatch routing controls: Two buttons or active route badge */}
-                          {isPending && (!ord.routedVia || ord.routedVia === "unassigned" || ord.coordinatorStatus !== "dispatched") ? (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (ord.isAssignedRoomService && ord.rawRequest) {
-                                    handleDispatchAssignedOrder(ord.rawRequest, "coordinator");
-                                  } else {
-                                    dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" });
-                                  }
-                                }}
-                                disabled={dispatchRouteMutation.isPending || createOrderMutation.isPending}
-                                className="h-7 px-2.5 text-xs font-medium border-purple-200 text-purple-700 bg-purple-50/70 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                                title="Send to F&B Coordinator for review and line balancing"
-                              >
-                                <ClipboardList className="w-3.5 h-3.5" />
-                                <span>To Coordinator</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (ord.isAssignedRoomService && ord.rawRequest) {
-                                    handleDispatchAssignedOrder(ord.rawRequest, "direct_kitchen");
-                                  } else {
-                                    dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" });
-                                  }
-                                }}
-                                disabled={dispatchRouteMutation.isPending || createOrderMutation.isPending}
-                                className="h-7 px-2.5 text-xs font-medium border-amber-200 text-amber-700 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 rounded-lg gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                                title="Send directly to Kitchen Line Officer"
-                              >
-                                <Flame className="w-3.5 h-3.5" />
-                                <span>To Kitchen</span>
-                              </Button>
+                          {ord.pacingPreference === "serve_together" ? (
+                            <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/50 mt-1">
+                              🍽️ Hold drinks for meal
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-1 items-start">
-                              {ord.routedVia === "coordinator" ? (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/50 w-fit">
-                                  <ShieldCheck className="w-3 h-3 text-purple-600 shrink-0" />
-                                  <span>Via Coordinator</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 w-fit">
-                                  <Flame className="w-3 h-3 text-amber-600 shrink-0" />
-                                  <span>Direct Kitchen</span>
-                                </span>
-                              )}
-                              {ord.coordinatorName && (
-                                <span className="text-[11px] text-slate-500 font-medium pl-0.5">{ord.coordinatorName}</span>
-                              )}
+                            <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/50 mt-1">
+                              🍸 Drinks first
                             </div>
                           )}
                         </TableCell>
                         <TableCell className="text-right py-3.5 pr-4">
                           <div className="flex items-center justify-end gap-1.5">
-                            {isServed && ord.billingStatus !== "settled" && (
+                            {/* If assigned room request / in-house request */}
+                            {ord.isAssignedRoomService ? (
+                              (ord.status === "dispatched" || ord.status === "preparing" || ord.status === "ready" || ord.status === "served") ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setFulfillTarget(ord.rawRequest || ord);
+                                    setIsFulfillOpen(true);
+                                  }}
+                                  className="h-8 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>Sent</span>
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setFulfillTarget(ord.rawRequest || ord);
+                                    setIsFulfillOpen(true);
+                                  }}
+                                  className="h-8 px-3 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>Send</span>
+                                </Button>
+                              )
+                            ) : (
+                              ord.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}
+                                  disabled={dispatchRouteMutation.isPending}
+                                  className="h-8 px-3 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>{ord.coordinatorStatus === "pending" ? "Resend to Coord" : "Send to Coord"}</span>
+                                </Button>
+                              )
+                            )}
+
+                            {/* Drink-First partial delivery: When Bar marks drinks ready while hot meals are cooking */}
+                            {(ord.status === "partially_ready" || (ord.status === "preparing" && (ord.items || []).some((i: any) => (i.station === "bar" || (i.category || "").toLowerCase().includes("drink") || (i.category || "").toLowerCase().includes("juice")) && (i.kitchenStatus === "ready" || i.isItemCompleted)))) && (
                               <Button
                                 size="sm"
-                                onClick={() => handleOpenPayment(ord)}
-                                className="h-8 px-3 text-xs font-semibold bg-[#084C42] hover:bg-[#063a32] text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                onClick={() => {
+                                  updateOrderMutation.mutate({ id: ord.id, status: "partially_served" });
+                                  toast({
+                                    title: ord.pacingPreference === "serve_together" ? "Drinks Served (Guest Override) 🍸" : "Drinks Delivered to Guest 🍸",
+                                    description: `Drinks served to ${ord.tableNumber ? `Table #${ord.tableNumber}` : `Room #${ord.roomNumber}`}. Kitchen continuing main meal cooking.`,
+                                  });
+                                }}
+                                disabled={updateOrderMutation.isPending}
+                                className={`h-8 px-2.5 text-xs font-semibold gap-1 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer ${
+                                  ord.pacingPreference === "serve_together"
+                                    ? "bg-amber-600/90 hover:bg-amber-700 text-white"
+                                    : "bg-cyan-600 hover:bg-cyan-700 text-white"
+                                }`}
                               >
-                                <CreditCard className="w-3.5 h-3.5" />
-                                <span>Settle</span>
+                                <Coffee className="w-3.5 h-3.5" />
+                                <span>{ord.pacingPreference === "serve_together" ? "Deliver Drinks Early (Override)" : "Serve Drinks First"}</span>
                               </Button>
                             )}
 
-                            {isServed && ord.billingStatus === "settled" && (
-                              <Badge variant="success" className="text-[10px] uppercase font-bold px-2 py-0.5">
-                                ✓ Settled
-                              </Badge>
+                            {isReady && !ord.isAssignedRoomService && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  updateOrderMutation.mutate({ id: ord.id, status: "served" });
+                                  toast({
+                                    title: "Order Delivered & Marked Served",
+                                    description: `Served to ${ord.tableNumber ? `Table #${ord.tableNumber}` : `Room #${ord.roomNumber}`}.`,
+                                  });
+                                }}
+                                disabled={updateOrderMutation.isPending}
+                                className="h-8 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Serve</span>
+                              </Button>
+                            )}
+
+                            {/* Multi-Round Re-Ordering: Add items to active open table */}
+                            {!isOrderSettled && (ord.status === "preparing" || ord.status === "partially_ready" || ord.status === "partially_served" || ord.status === "ready" || ord.status === "served") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setRoundTargetOrder(ord);
+                                  setRoundDishesList([]);
+                                  setRoundNotes("");
+                                  setIsAddRoundOpen(true);
+                                }}
+                                className="h-8 px-2.5 text-xs font-medium border-border hover:bg-muted/50 gap-1 rounded-lg text-primary cursor-pointer"
+                                title="Add dishes to table or late-arriving guests (Round 2)"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-primary" />
+                                <span className="hidden xl:inline">Add Dishes</span>
+                              </Button>
+                            )}
+
+                            {isOrderSettled ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-lg shadow-2xs">
+                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <span>Settled</span>
+                              </span>
+                            ) : (
+                              <>
+                                {isServed && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleOpenPayment(ord)}
+                                    className="h-8 px-3 text-xs font-semibold bg-[#084C42] hover:bg-[#063a32] text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                  >
+                                    <CreditCard className="w-3.5 h-3.5" />
+                                    <span>Settle</span>
+                                  </Button>
+                                )}
+                              </>
                             )}
 
                             <DropdownMenu>
@@ -1530,41 +1941,68 @@ export default function RestaurantPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                {ord.isAssignedRoomService && ord.rawRequest ? (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (ord.isAssignedRoomService && ord.rawRequest) {
+                                      setFulfillTarget(ord.rawRequest);
+                                      setIsFulfillOpen(true);
+                                    } else {
+                                      setFulfillTarget({
+                                        id: ord.id,
+                                        roomNumber: ord.roomNumber || (ord.tableNumber ? `Table ${ord.tableNumber}` : "Takeaway / Bar"),
+                                        guestName: ord.guestName || "Walk-In Guest",
+                                        phone: ord.phone || "",
+                                        items: ord.items || [],
+                                        totalAmount: ord.totalAmount || ord.total || 0,
+                                        isExistingOrder: true,
+                                      });
+                                      setIsFulfillOpen(true);
+                                    }
+                                  }}
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-2" />
+                                  View Order Details
+                                </DropdownMenuItem>
+                                {!isOrderSettled && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setRoundTargetOrder(ord);
+                                      setRoundDishesList([]);
+                                      setRoundNotes("");
+                                      setIsAddRoundOpen(true);
+                                    }}
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-2 text-primary" />
+                                    Add Dishes (Round 2 / Friends)
+                                  </DropdownMenuItem>
+                                )}
+                                {ord.status === "pending" && (
                                   <>
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setFulfillTarget(ord.rawRequest);
-                                        setIsFulfillOpen(true);
-                                      }}
-                                    >
-                                      <Eye className="w-3.5 h-3.5 mr-2" />
-                                      View Order Details
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDispatchAssignedOrder(ord.rawRequest, "coordinator")}>
+                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}>
+                                      <GitMerge className="w-3.5 h-3.5 mr-2 text-teal-600" />
                                       Send to Coordinator
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDispatchAssignedOrder(ord.rawRequest, "direct_kitchen")}>
+                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" })}>
+                                      <ChefHat className="w-3.5 h-3.5 mr-2 text-red-500" />
                                       Send Direct to Kitchen
                                     </DropdownMenuItem>
                                   </>
+                                )}
+                                {isOrderSettled ? (
+                                  <DropdownMenuItem disabled className="text-emerald-600 font-semibold text-xs">
+                                    <Check className="w-3.5 h-3.5 mr-2 text-emerald-600" />
+                                    Payment Settled
+                                  </DropdownMenuItem>
                                 ) : (
-                                  <>
-                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "coordinator" })}>
-                                      Route to F&B Coordinator
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => dispatchRouteMutation.mutate({ id: ord.id, route: "direct_kitchen" })}>
-                                      Route Direct to Kitchen
-                                    </DropdownMenuItem>
-                                    {ord.billingStatus !== "settled" && (
-                                      <DropdownMenuItem onClick={() => handleOpenPayment(ord)}>
-                                        Settle Tab / Issue Bill
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem className="text-danger" onClick={() => updateOrderMutation.mutate({ id: ord.id, status: "cancelled" })}>
-                                      Cancel Order
-                                    </DropdownMenuItem>
-                                  </>
+                                  <DropdownMenuItem onClick={() => handleOpenPayment(ord)}>
+                                    <CreditCard className="w-3.5 h-3.5 mr-2" />
+                                    Settle Tab / Issue Bill
+                                  </DropdownMenuItem>
+                                )}
+                                {!isOrderSettled && (
+                                  <DropdownMenuItem className="text-danger" onClick={() => updateOrderMutation.mutate({ id: ord.id, status: "cancelled" })}>
+                                    Cancel Order
+                                  </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1610,7 +2048,7 @@ export default function RestaurantPage() {
                     <SelectValue placeholder="All Sources" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Prepared Dishes ({readyPassOrders.length})</SelectItem>
+                    <SelectItem value="all">All Prepared Dishes</SelectItem>
                     <SelectItem value="kitchen">Direct from Kitchen Officer</SelectItem>
                     <SelectItem value="coordinator">Verified by F&B Coordinator</SelectItem>
                   </SelectContent>
@@ -1631,7 +2069,7 @@ export default function RestaurantPage() {
               <TableHeader className="bg-slate-50/80 dark:bg-slate-900/70 border-b border-slate-200/80 dark:border-slate-800/80">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5 pl-4">Order ID</TableHead>
-                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Table / Location</TableHead>
+                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Dining Location</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Guest & Type</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Plated Dishes</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Ready</TableHead>
@@ -1966,9 +2404,7 @@ export default function RestaurantPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                setNewOrderTableId(String(table.id || table.tableNumber));
-                                setNewOrderDiningCase("walk_in");
-                                setIsNewOrderOpen(true);
+                                handleOpenNewOrder("walk_in", String(table.id || table.tableNumber));
                               }}
                               className="h-7 text-xs font-semibold gap-1 border-primary/40 text-primary hover:bg-primary/10"
                             >
@@ -1993,8 +2429,7 @@ export default function RestaurantPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                setNewOrderTableId(String(table.id || table.tableNumber));
-                                setIsNewOrderOpen(true);
+                                handleOpenNewOrder("walk_in", String(table.id || table.tableNumber));
                               }}
                               className="h-7 text-xs font-semibold gap-1"
                             >
@@ -2049,7 +2484,7 @@ export default function RestaurantPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => setIsNewOrderOpen(true)}>
+            <Button onClick={() => handleOpenNewOrder()}>
               <Plus className="mr-2 h-4 w-4" /> New Order
             </Button>
           </div>
@@ -2426,7 +2861,11 @@ export default function RestaurantPage() {
             <DialogTitle className="text-lg font-bold flex items-center justify-between">
               <span>New Restaurant Order</span>
               <Badge variant="outline" className="font-mono text-xs">
-                {newOrderDiningCase === "walk_in" ? "Walk-In" : "Room Service"}
+                {newOrderDiningCase === "walk_in"
+                  ? "Walk-In Table"
+                  : newOrderDiningCase === "in_house_table"
+                  ? "In-House Guest Table"
+                  : "Room Service Delivery"}
               </Badge>
             </DialogTitle>
           </DialogHeader>
@@ -2436,7 +2875,19 @@ export default function RestaurantPage() {
             onSubmit={(e) => {
               e.preventDefault();
               if (newOrderDiningCase === "room_service" && !newOrderRoomNumber.trim()) {
-                toast({ title: "Room Number Missing", description: "Please enter and verify resident room number.", variant: "destructive" });
+                toast({ title: "Room Number Missing", description: "Please enter and verify resident room number for room delivery.", variant: "destructive" });
+                return;
+              }
+              if (newOrderDiningCase === "walk_in" && !newOrderTableId) {
+                toast({ title: "Table Required", description: "Please select a table for the walk-in guest.", variant: "destructive" });
+                return;
+              }
+              if (newOrderDiningCase === "in_house_table" && !newOrderTableId) {
+                toast({ title: "Table Required", description: "Please select a restaurant table for the in-house guest.", variant: "destructive" });
+                return;
+              }
+              if (newOrderItems.length === 0) {
+                toast({ title: "No Items Selected", description: "Please select at least one item from the menu.", variant: "destructive" });
                 return;
               }
 
@@ -2451,6 +2902,7 @@ export default function RestaurantPage() {
                 waiterId: user?.id,
                 routedVia: newOrderRoutedVia,
                 coordinatorId: newOrderRoutedVia === "coordinator" ? (newOrderCoordinatorId || (coordinators[0]?.id || undefined)) : undefined,
+                pacingPreference: newOrderPacingPreference,
                 items: newOrderItems.map(i => {
                   return {
                     menuItemId: i.menuItemId,
@@ -2465,7 +2917,7 @@ export default function RestaurantPage() {
             {/* Scenario Buttons */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-text-muted">Dining Classification *</Label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -2482,7 +2934,26 @@ export default function RestaurantPage() {
                     <Utensils className="h-3.5 w-3.5" />
                     <span>Walk-In Table</span>
                   </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Outside diner & floor dining</span>
+                  <span className="text-[10px] text-text-muted leading-tight">Floor seating & dining</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewOrderDiningCase("in_house_table");
+                    setNewOrderSettlementType("room_charge");
+                  }}
+                  className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    newOrderDiningCase === "in_house_table"
+                      ? "border-primary bg-primary/10 text-primary font-semibold"
+                      : "border-border hover:bg-muted/40 text-text-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Hotel className="h-3.5 w-3.5" />
+                    <span>In-House Guest</span>
+                  </div>
+                  <span className="text-[10px] text-text-muted leading-tight">Resident at table</span>
                 </button>
 
                 <button
@@ -2499,9 +2970,9 @@ export default function RestaurantPage() {
                 >
                   <div className="flex items-center gap-1.5 text-xs font-medium">
                     <DoorOpen className="h-3.5 w-3.5" />
-                    <span>Room Service Delivery</span>
+                    <span>Room Service</span>
                   </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Deliver direct to guest room</span>
+                  <span className="text-[10px] text-text-muted leading-tight">Direct room delivery</span>
                 </button>
               </div>
             </div>
@@ -2582,7 +3053,105 @@ export default function RestaurantPage() {
               </div>
             )}
 
-            {/* Table & Guest Name: Guest name is ONLY used for In-House Dining (not walk-in or room-service) */}
+            {/* In-House Dining (Resident seated at restaurant table) */}
+            {newOrderDiningCase === "in_house_table" && (
+              <div className="space-y-2.5">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs">Restaurant Table *</Label>
+                  <select
+                    value={newOrderTableId}
+                    onChange={(e) => setNewOrderTableId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs"
+                  >
+                    <option value="">Select Restaurant Table for In-House Guest...</option>
+                    {tables.map((t) => (
+                      <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="p-3 bg-muted/30 rounded-lg border border-border space-y-2.5">
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-8">
+                      <Label className="text-xs">Resident Hotel Room # (For Folio Billing)</Label>
+                      <Input
+                        placeholder="e.g. 204"
+                        value={newOrderRoomNumber}
+                        onChange={(e) => {
+                          setNewOrderRoomNumber(e.target.value);
+                          setNewOrderResidentVerified(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleVerifyResident(newOrderRoomNumber);
+                          }
+                        }}
+                        className="h-9 text-sm font-mono uppercase"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-9 text-xs"
+                        onClick={() => handleVerifyResident(newOrderRoomNumber)}
+                        disabled={newOrderVerifyingResident || !newOrderRoomNumber.trim()}
+                      >
+                        {newOrderVerifyingResident ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Verify Resident"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {newOrderResidentVerified && newOrderResidentVerified.valid && (
+                    <div className="p-2.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1">
+                      <div className="flex items-center justify-between font-medium text-emerald-800 dark:text-emerald-300">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          {newOrderResidentVerified.guestName}
+                        </span>
+                        <span className="font-mono text-[11px]">Room {newOrderResidentVerified.roomNumber}</span>
+                      </div>
+
+                      {newOrderResidentVerified.complimentaryBreakfast && (
+                        <div className="pt-1 border-t border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
+                          {newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed
+                            ? "⚠️ Breakfast already claimed today for this room."
+                            : "✨ Eligible for 100% complimentary hotel breakfast."}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Resident Guest Name</Label>
+                    <Input
+                      value={newOrderGuestName}
+                      onChange={(e) => setNewOrderGuestName(e.target.value)}
+                      placeholder="e.g. Ariel Hikmat"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Settlement Route</Label>
+                    <select
+                      value={newOrderSettlementType}
+                      onChange={(e) => setNewOrderSettlementType(e.target.value as any)}
+                      className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs mt-1"
+                    >
+                      <option value="room_charge">🏨 Charge to Room Folio (Pay at Checkout)</option>
+                      <option value="direct_payment">💳 Direct Payment at Table (Cash / Card / Telebirr)</option>
+                      {newOrderResidentVerified?.complimentaryBreakfast && !newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed && (
+                        <option value="complimentary_breakfast">🍳 100% Complimentary Hotel Breakfast</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Walk-In Table (Outside Floor Diners) */}
             {newOrderDiningCase === "walk_in" && (
               <div className="grid gap-1.5">
                 <Label className="text-xs">Restaurant Table *</Label>
@@ -2596,33 +3165,6 @@ export default function RestaurantPage() {
                     <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
                   ))}
                 </select>
-              </div>
-            )}
-
-            {newOrderDiningCase === "in_house_table" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label className="text-xs">Restaurant Table</Label>
-                  <select
-                    value={newOrderTableId}
-                    onChange={(e) => setNewOrderTableId(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs"
-                  >
-                    <option value="">Select Table...</option>
-                    {tables.map((t) => (
-                      <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-xs">In-House Resident Name</Label>
-                  <Input
-                    value={newOrderGuestName}
-                    onChange={(e) => setNewOrderGuestName(e.target.value)}
-                    placeholder="Resident guest name"
-                    className="h-9 text-xs"
-                  />
-                </div>
               </div>
             )}
 
@@ -2702,6 +3244,47 @@ export default function RestaurantPage() {
                   </select>
                 </div>
               )}
+            </div>
+
+            {/* Guest Beverage Pacing Preference */}
+            <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase text-text-muted">Guest Beverage Delivery Preference *</Label>
+                <span className="text-[10px] text-primary font-medium">Guest Pacing</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewOrderPacingPreference("drinks_first")}
+                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    newOrderPacingPreference === "drinks_first"
+                      ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold"
+                      : "border-border hover:bg-muted/40 text-text-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Wine className="h-3.5 w-3.5 text-amber-600" />
+                    <span>🍸 Serve Drinks First</span>
+                  </div>
+                  <span className="text-[10px] text-text-muted leading-tight">Deliver drinks as soon as ready while food cooks</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewOrderPacingPreference("serve_together")}
+                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
+                    newOrderPacingPreference === "serve_together"
+                      ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold"
+                      : "border-border hover:bg-muted/40 text-text-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Utensils className="h-3.5 w-3.5 text-blue-500" />
+                    <span>🍽️ Serve Together with Meal</span>
+                  </div>
+                  <span className="text-[10px] text-text-muted leading-tight">Hold drinks, deliver at the same time as food</span>
+                </button>
+              </div>
             </div>
 
             {/* Rapid Multi-Tick Menu Selector */}
@@ -3024,10 +3607,15 @@ export default function RestaurantPage() {
                 <Button
                   size="sm"
                   onClick={handleConfirmPayment}
-                  className="bg-[#084C42] hover:bg-[#063b33] text-white font-bold gap-1.5 shadow-xs"
+                  disabled={checkIsSettled(paymentModalOrder, settledMap)}
+                  className={`font-bold gap-1.5 shadow-xs ${
+                    checkIsSettled(paymentModalOrder, settledMap)
+                      ? "bg-muted text-text-muted cursor-not-allowed border border-border"
+                      : "bg-[#084C42] hover:bg-[#063b33] text-white"
+                  }`}
                 >
                   <Check className="w-4 h-4" />
-                  <span>Confirm Settlement</span>
+                  <span>{checkIsSettled(paymentModalOrder, settledMap) ? "✓ Already Settled" : "Confirm Settlement"}</span>
                 </Button>
               </div>
             </div>
@@ -3042,7 +3630,7 @@ export default function RestaurantPage() {
         <DialogContent className="max-w-md p-6 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl">
           <DialogHeader className="p-0 pb-3 border-b border-slate-100 dark:border-slate-800">
             <DialogTitle className="text-lg font-bold text-slate-950 dark:text-white">
-              Room Service Order Fulfillment
+              {fulfillTarget?.isExistingOrder ? "Order Details" : "Room Service Order Fulfillment"}
             </DialogTitle>
           </DialogHeader>
 
@@ -3051,17 +3639,19 @@ export default function RestaurantPage() {
               {/* Guest & Room Details */}
               <div className="space-y-2 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-500 dark:text-slate-400">Room Number</span>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">Room {fulfillTarget.roomNumber}</span>
+                  <span className="font-medium text-slate-500 dark:text-slate-400">Location / Room</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm">{fulfillTarget.roomNumber}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-slate-500 dark:text-slate-400">Guest Name</span>
                   <span className="font-semibold text-slate-900 dark:text-white">{fulfillTarget.guestName}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-500 dark:text-slate-400">Phone Number</span>
-                  <span className="font-mono font-medium text-slate-900 dark:text-white">{fulfillTarget.phone || "0954123456"}</span>
-                </div>
+                {fulfillTarget.phone && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-500 dark:text-slate-400">Phone Number</span>
+                    <span className="font-mono font-medium text-slate-900 dark:text-white">{fulfillTarget.phone}</span>
+                  </div>
+                )}
               </div>
 
               {/* Selected Food & Drinks with Quantities */}
@@ -3071,13 +3661,13 @@ export default function RestaurantPage() {
                 </label>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
                   {Array.isArray(fulfillTarget.items) ? (
-                    fulfillTarget.items.map((item, idx) => (
+                    fulfillTarget.items.map((item: any, idx: number) => (
                       <div key={idx} className="p-2.5 flex items-center justify-between text-xs">
                         <span className="font-medium text-slate-800 dark:text-slate-200">
-                          {item.quantity}× {item.name}
+                          {item.quantity}× {item.name || item.menuItemId || "Dish"}
                         </span>
                         <span className="font-mono font-semibold text-slate-600 dark:text-slate-400">
-                          {item.price ? `${(item.price * item.quantity).toLocaleString()} ETB` : "Included"}
+                          {item.price ? `${(Number(item.price) * (item.quantity || 1)).toLocaleString()} ETB` : "Included"}
                         </span>
                       </div>
                     ))
@@ -3089,81 +3679,244 @@ export default function RestaurantPage() {
                   <div className="p-2.5 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between text-xs font-bold">
                     <span>Total Amount</span>
                     <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                      {(fulfillTarget.totalAmount || 0).toLocaleString()} ETB
+                      {(Number(fulfillTarget.totalAmount || 0)).toLocaleString()} ETB
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Dispatch Routing Options */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Dispatch Routing
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFulfillRoute("coordinator")}
-                    className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      fulfillRoute === "coordinator"
-                        ? "border-purple-500 bg-purple-500/10 text-purple-900 dark:text-purple-200 font-bold"
-                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <ClipboardList className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      <span>To Coordinator</span>
-                    </div>
-                    <span className="text-[10px] opacity-75 font-normal">F&B verification buffer</span>
-                  </button>
+              {/* Dispatch Routing Options (Only for pending room requests needing fulfillment) */}
+              {!fulfillTarget.isExistingOrder && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Dispatch Routing
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFulfillRoute("coordinator")}
+                      className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                        fulfillRoute === "coordinator"
+                          ? "border-purple-500 bg-purple-500/10 text-purple-900 dark:text-purple-200 font-bold"
+                          : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <ClipboardList className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <span>To Coordinator</span>
+                      </div>
+                      <span className="text-[10px] opacity-75 font-normal">F&B verification buffer</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setFulfillRoute("direct_kitchen")}
-                    className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                      fulfillRoute === "direct_kitchen"
-                        ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 font-bold"
-                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <span>To Kitchen</span>
-                    </div>
-                    <span className="text-[10px] opacity-75 font-normal">Direct line chef queue</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setFulfillRoute("direct_kitchen")}
+                      className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                        fulfillRoute === "direct_kitchen"
+                          ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 font-bold"
+                          : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span>To Kitchen</span>
+                      </div>
+                      <span className="text-[10px] opacity-75 font-normal">Direct line chef queue</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Folio Settlement to Cashier */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-semibold">Auto-Charge to Room Folio (Cashier)</span>
+              {!fulfillTarget.isExistingOrder && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-semibold">Auto-Charge to Room Folio (Cashier)</span>
+                  </div>
+                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
+              )}
 
               {/* Action Buttons */}
               <div className="pt-2 flex justify-end gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant={fulfillTarget.isExistingOrder ? "default" : "ghost"}
                   onClick={() => setIsFulfillOpen(false)}
                   className="h-9 px-4 text-xs font-medium"
                 >
-                  Cancel
+                  {fulfillTarget.isExistingOrder ? "Close" : "Cancel"}
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleConfirmFulfill}
-                  className="h-9 px-5 text-xs font-bold bg-[#084C42] hover:bg-[#063a32] text-white rounded-lg shadow-sm cursor-pointer"
-                >
-                  Dispatch & Post to Cashier
-                </Button>
+                {!fulfillTarget.isExistingOrder && (
+                  <Button
+                    type="button"
+                    onClick={handleConfirmFulfill}
+                    className="h-9 px-5 text-xs font-bold bg-[#084C42] hover:bg-[#063a32] text-white rounded-lg shadow-sm cursor-pointer"
+                  >
+                    Dispatch & Post to Cashier
+                  </Button>
+                )}
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MULTI-ROUND RE-ORDERING DIALOG (ROUND 2 / FRIENDS JOINED)                 */}
+      {/* ========================================================================= */}
+      <Dialog open={isAddRoundOpen} onOpenChange={setIsAddRoundOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 bg-surface border border-border shadow-2xl">
+          <DialogHeader className="pb-3 border-b border-border/70">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-text">
+              <UtensilsCrossed className="w-5 h-5 text-amber-500" />
+              <span>Add Dishes to Table {roundTargetOrder?.tableNumber ? `#${roundTargetOrder.tableNumber}` : `Room #${roundTargetOrder?.roomNumber}`} (Round Re-Order)</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Target order summary banner */}
+            {roundTargetOrder && (
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-border flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[11px] text-text-muted uppercase font-semibold block">Active Open Tab</span>
+                  <span className="font-bold text-sm text-text">#{roundTargetOrder.orderNumber} • {roundTargetOrder.tableNumber ? `Table ${roundTargetOrder.tableNumber}` : `Room ${roundTargetOrder.roomNumber}`}</span>
+                  <span className="text-text-muted block mt-0.5">{roundTargetOrder.guestName || "Guest"}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] text-text-muted block">Current Folio Subtotal</span>
+                  <span className="font-mono font-bold text-sm text-text">${Number(roundTargetOrder.totalAmount || roundTargetOrder.total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Selected new dishes summary */}
+            <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-text">Selected Additional Dishes ({roundDishesList.reduce((acc, d) => acc + d.quantity, 0)})</span>
+                {roundDishesList.length > 0 && (
+                  <button type="button" onClick={() => setRoundDishesList([])} className="text-rose-500 text-[11px] hover:underline cursor-pointer">
+                    Clear All
+                  </button>
+                )}
+              </div>
+              {roundDishesList.length === 0 ? (
+                <div className="py-2 text-center text-text-muted">No items selected yet. Tap any dish below to add to Round 2.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                  {roundDishesList.map((dish, idx) => (
+                    <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-border shadow-xs">
+                      <span className="font-semibold text-text">{dish.name}</span>
+                      <span className="text-primary font-mono font-bold">${dish.price}</span>
+                      <div className="flex items-center gap-1 bg-muted rounded px-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRoundDishesList(prev =>
+                              prev.map((d, i) => (i === idx ? { ...d, quantity: d.quantity - 1 } : d)).filter(d => d.quantity > 0)
+                            );
+                          }}
+                          className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text cursor-pointer"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="font-mono font-bold px-1">{dish.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRoundDishesList(prev => prev.map((d, i) => (i === idx ? { ...d, quantity: d.quantity + 1 } : d)));
+                          }}
+                          className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Menu item picker */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Input
+                  placeholder="Search menu items for Round 2..."
+                  value={roundMenuSearch}
+                  onChange={(e) => setRoundMenuSearch(e.target.value)}
+                  className="h-8 text-xs bg-surface"
+                />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 border rounded-xl bg-muted/10">
+                {(menuItems || []).filter(m => m.isAvailable && (!roundMenuSearch.trim() || m.name.toLowerCase().includes(roundMenuSearch.toLowerCase()))).slice(0, 30).map((m) => {
+                  const added = roundDishesList.find(d => d.menuItemId === m.id || d.name === m.name);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setRoundDishesList(prev => {
+                          const exists = prev.find(d => d.menuItemId === m.id || d.name === m.name);
+                          if (exists) {
+                            return prev.map(d => (d.menuItemId === m.id || d.name === m.name ? { ...d, quantity: d.quantity + 1 } : d));
+                          }
+                          return [...prev, { menuItemId: m.id, name: m.name, quantity: 1, price: m.price, station: m.kitchenSection }];
+                        });
+                      }}
+                      className={cn(
+                        "p-2 rounded-lg border text-left flex flex-col justify-between transition-all cursor-pointer",
+                        added ? "bg-primary/5 border-primary shadow-xs" : "bg-surface border-border hover:bg-muted/30"
+                      )}
+                    >
+                      <div className="font-semibold text-xs text-text truncate">{m.name}</div>
+                      <div className="flex items-center justify-between mt-1 text-[11px]">
+                        <span className="font-mono text-primary font-bold">${m.price}</span>
+                        {added ? (
+                          <span className="font-bold text-primary font-mono text-[10px]">x{added.quantity}</span>
+                        ) : (
+                          <span className="text-text-muted text-[10px] flex items-center"><Plus className="w-3 h-3" /> Add</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Special notes */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-text">Round 2 Kitchen Instructions (Optional)</Label>
+              <Input
+                placeholder="e.g. For guests joining table, serve with remaining entrees, etc."
+                value={roundNotes}
+                onChange={(e) => setRoundNotes(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="gap-2 pt-3 border-t flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setIsAddRoundOpen(false)} className="text-xs">
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={roundDishesList.length === 0 || appendItemsMutation.isPending}
+              onClick={() => {
+                if (!roundTargetOrder) return;
+                appendItemsMutation.mutate({
+                  orderId: roundTargetOrder.id,
+                  items: roundDishesList,
+                  notes: roundNotes || undefined,
+                });
+              }}
+              className="text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 cursor-pointer shadow-xs"
+            >
+              <ChefHat className="w-3.5 h-3.5" />
+              <span>{appendItemsMutation.isPending ? "Sending to KDS..." : "Dispatch Round 2 to Kitchen Line"}</span>
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

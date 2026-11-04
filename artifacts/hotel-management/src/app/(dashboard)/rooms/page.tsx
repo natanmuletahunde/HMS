@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { RoomTypesTab } from "@/components/rooms/RoomTypesTab";
+import { RoomCategoriesTab } from "@/components/rooms/RoomCategoriesTab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Plus, MoreHorizontal, Loader2, Filter, BedDouble, 
-  ArrowRight, Search, Users, CalendarSearch, Sparkles, CalendarDays 
+  ArrowRight, Search, Users, CalendarSearch, Sparkles, CalendarDays, Layers, Tag 
 } from "lucide-react";
 import { ReservationCalendarView } from "@/components/reservation-calendar-view";
 import { apiFetch } from "@/lib/api";
@@ -74,28 +77,43 @@ function RoomsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
-  const [activeTab, setActiveTab] = useState<"inventory" | "availability" | "calendar">(initialTab);
+
+  const activeMainTab: "rooms" | "types" | "categories" =
+    tabParam === "types" ? "types" : tabParam === "categories" ? "categories" : "rooms";
+
+  const activeRoomSubTab: "inventory" | "availability" | "calendar" =
+    tabParam === "calendar" ? "calendar" : tabParam === "availability" ? "availability" : "inventory";
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, activeBranch, branches: authBranches, hasPermission } = useAuth();
+  const activeBranchId = activeBranch?.id;
 
-  // Sync tab with URL search parameter if changed externally
-  useEffect(() => {
-    const currentTabParam = searchParams.get("tab");
-    if (currentTabParam === "calendar" && activeTab !== "calendar") {
-      setActiveTab("calendar");
-    } else if (currentTabParam === "availability" && activeTab !== "availability") {
-      setActiveTab("availability");
-    } else if (!currentTabParam && activeTab !== "inventory") {
-      setActiveTab("inventory");
+  const isGlobal =
+    user?.roleName === "Admin" ||
+    user?.roleName === "System Admin" ||
+    user?.roleScope === "global";
+
+  const canManageRooms =
+    isGlobal ||
+    hasPermission("*") ||
+    hasPermission("hotel:*") ||
+    hasPermission("rooms:*");
+
+  const handleMainTabChange = (tab: "rooms" | "types" | "categories") => {
+    if (tab === "rooms") {
+      router.replace("/rooms", { scroll: false });
+    } else {
+      router.replace(`/rooms?tab=${tab}`, { scroll: false });
     }
-  }, [searchParams, activeTab]);
+  };
 
-  const handleTabChange = (tab: "inventory" | "availability" | "calendar") => {
-    setActiveTab(tab);
-    const url = tab === "calendar" ? "/rooms?tab=calendar" : tab === "availability" ? "/rooms?tab=availability" : "/rooms";
-    router.replace(url, { scroll: false });
+  const handleRoomSubTabChange = (subTab: "inventory" | "availability" | "calendar") => {
+    if (subTab === "inventory") {
+      router.replace("/rooms", { scroll: false });
+    } else {
+      router.replace(`/rooms?tab=${subTab}`, { scroll: false });
+    }
   };
 
   // ----------------------------------------------------------------------
@@ -110,25 +128,93 @@ function RoomsContent() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
 
+  // Raw branches from API
+  const { data: rawBranches } = useQuery({ queryKey: ["branches"], queryFn: () => apiFetch<any>("/branches") });
+  const allBranches: any[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
+
+  // Allowed branch IDs for current user
+  const allowedBranchIds = useMemo(() => {
+    if (isGlobal) return null;
+    const ids = new Set<string>();
+    if (user?.branches) {
+      user.branches.forEach((b) => ids.add(b.id));
+    }
+    if (authBranches) {
+      authBranches.forEach((b) => ids.add(b.id));
+    }
+    if (user?.activeBranchId) ids.add(user.activeBranchId);
+    if (user?.primaryBranchId) ids.add(user.primaryBranchId);
+    if (activeBranchId) ids.add(activeBranchId);
+    return ids;
+  }, [isGlobal, user, authBranches, activeBranchId]);
+
+  // Branches strictly accessible to this user
+  const branches: any[] = useMemo(() => {
+    if (isGlobal) return allBranches;
+    return allBranches.filter((b: any) => allowedBranchIds?.has(b.id));
+  }, [isGlobal, allBranches, allowedBranchIds]);
+
+  // Current active branch ID
+  const currentBranchId = useMemo(() => {
+    if (activeBranch?.id && (!allowedBranchIds || allowedBranchIds.has(activeBranch.id))) return activeBranch.id;
+    if (activeBranchId && (!allowedBranchIds || allowedBranchIds.has(activeBranchId))) return activeBranchId;
+    if (user?.activeBranchId && (!allowedBranchIds || allowedBranchIds.has(user.activeBranchId))) return user.activeBranchId;
+    if (user?.primaryBranchId && (!allowedBranchIds || allowedBranchIds.has(user.primaryBranchId))) return user.primaryBranchId;
+    if (branches.length > 0) return branches[0].id;
+    return "";
+  }, [activeBranch, activeBranchId, user, allowedBranchIds, branches]);
+
+  // Scoped buildings
+  const { data: rawBuildings } = useQuery({ queryKey: ["buildings"], queryFn: () => apiFetch<any>("/buildings") });
+  const allBuildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+  const buildings = useMemo(() => {
+    if (isGlobal) return allBuildings;
+    return allBuildings.filter((b: any) => allowedBranchIds?.has(b.branchId));
+  }, [isGlobal, allBuildings, allowedBranchIds]);
+
+  // Scoped floors
+  const { data: rawFloors } = useQuery({ queryKey: ["floors"], queryFn: () => apiFetch<any>("/floors") });
+  const allFloors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
+  const floors = useMemo(() => {
+    if (isGlobal) return allFloors;
+    const bldgIds = new Set(buildings.map((b: any) => b.id));
+    return allFloors.filter((f: any) => bldgIds.has(f.buildingId));
+  }, [isGlobal, allFloors, buildings]);
+
   // Hierarchy selection state for Add/Edit Room
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
   const [selectedFloorId, setSelectedFloorId] = useState<string>("");
   const [selectedFloorNumber, setSelectedFloorNumber] = useState<string>("1");
 
+  // Category -> Type cascading selection state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("");
+  const [formBedTypeId, setFormBedTypeId] = useState<string>("");
+  const [formCurrentPrice, setFormCurrentPrice] = useState<string>("100");
+  const [formCapacityAdults, setFormCapacityAdults] = useState<number>(2);
+  const [formCapacityChildren, setFormCapacityChildren] = useState<number>(1);
+
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(handler);
   }, [search]);
 
+  // Effective branch for querying rooms
+  const effectiveBranchId = useMemo(() => {
+    if (branchFilter !== "all") return branchFilter;
+    if (!isGlobal) return currentBranchId;
+    return "";
+  }, [branchFilter, isGlobal, currentBranchId]);
+
   let queryStr = `/rooms?search=${debouncedSearch}`;
   if (statusFilter !== "all") queryStr += `&status=${statusFilter}`;
   if (typeFilter !== "all") queryStr += `&roomTypeId=${typeFilter}`;
-  if (branchFilter !== "all") queryStr += `&branchId=${branchFilter}`;
+  if (effectiveBranchId) queryStr += `&branchId=${effectiveBranchId}`;
   if (buildingFilter !== "all") queryStr += `&buildingId=${buildingFilter}`;
 
   const { data: rawRooms, isLoading: isRoomsLoading } = useQuery({
-    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter],
+    queryKey: ["rooms", debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter, effectiveBranchId],
     queryFn: () => apiFetch<any>(queryStr),
   });
   const rooms: any[] = Array.isArray(rawRooms) ? rawRooms : (rawRooms?.data ?? []);
@@ -137,17 +223,11 @@ function RoomsContent() {
 
   useEffect(() => {
     inventoryPagination.setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter, branchFilter, buildingFilter, effectiveBranchId]);
 
-  const { data: rawBranches } = useQuery({ queryKey: ["branches"], queryFn: () => apiFetch<any>("/branches") });
-  const branches: any[] = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.data ?? []);
   const { data: types = [] } = useQuery({ queryKey: ["room-types"], queryFn: () => apiFetch<any[]>("/room-types") });
   const { data: categories = [] } = useQuery({ queryKey: ["room-categories"], queryFn: () => apiFetch<any[]>("/room-categories") });
   const { data: bedTypes = [] } = useQuery({ queryKey: ["bed-types"], queryFn: () => apiFetch<any[]>("/bed-types") });
-  const { data: rawBuildings } = useQuery({ queryKey: ["buildings"], queryFn: () => apiFetch<any>("/buildings") });
-  const buildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
-  const { data: rawFloors } = useQuery({ queryKey: ["floors"], queryFn: () => apiFetch<any>("/floors") });
-  const floors: any[] = Array.isArray(rawFloors) ? rawFloors : (rawFloors?.data ?? []);
 
   // Filtered dropdown options based on hierarchy
   const availableBuildings = selectedBranchId
@@ -159,9 +239,48 @@ function RoomsContent() {
         ? floors.filter((f: any) => availableBuildings.some((b: any) => b.id === f.buildingId))
         : floors);
 
+  const availableTypes = selectedCategoryId
+    ? types.filter((t: any) => t.categoryId === selectedCategoryId)
+    : types;
+
+  const handleRoomTypeChange = (typeId: string) => {
+    setSelectedRoomTypeId(typeId);
+    const foundType = types.find((t: any) => t.id === typeId);
+    if (foundType) {
+      if (foundType.categoryId && foundType.categoryId !== selectedCategoryId) {
+        setSelectedCategoryId(foundType.categoryId);
+      }
+      if (foundType.bedTypeId) {
+        setFormBedTypeId(foundType.bedTypeId);
+      }
+      if (foundType.basePrice !== undefined && foundType.basePrice !== null) {
+        setFormCurrentPrice(String(foundType.basePrice));
+      }
+      if (foundType.maximumAdults !== undefined && foundType.maximumAdults !== null) {
+        setFormCapacityAdults(Number(foundType.maximumAdults));
+      }
+      if (foundType.maximumChildren !== undefined && foundType.maximumChildren !== null) {
+        setFormCapacityChildren(Number(foundType.maximumChildren));
+      }
+    }
+  };
+
+  const handleCategoryChange = (catId: string) => {
+    setSelectedCategoryId(catId);
+    const catTypes = catId ? types.filter((t: any) => t.categoryId === catId) : types;
+    if (catTypes.length > 0 && !catTypes.some((t: any) => t.id === selectedRoomTypeId)) {
+      handleRoomTypeChange(catTypes[0].id);
+    }
+  };
+
   const openAddRoom = () => {
     setEditItem(null);
-    const initialBranch = branches[0]?.id || "";
+    const initialBranch = (
+      (!isGlobal ? currentBranchId : null) ||
+      (branchFilter !== "all" ? branchFilter : null) ||
+      branches[0]?.id ||
+      ""
+    );
     setSelectedBranchId(initialBranch);
     const branchBldgs = initialBranch ? buildings.filter((b: any) => b.branchId === initialBranch) : buildings;
     const initialBldg = branchBldgs[0]?.id || "";
@@ -169,6 +288,19 @@ function RoomsContent() {
     const bldgFloors = initialBldg ? floors.filter((f: any) => f.buildingId === initialBldg) : [];
     setSelectedFloorId(bldgFloors[0]?.id || "");
     setSelectedFloorNumber(String(bldgFloors[0]?.floorNumber ?? 1));
+
+    const initialCat = categories[0]?.id || "";
+    setSelectedCategoryId(initialCat);
+    const catTypes = initialCat ? types.filter((t: any) => t.categoryId === initialCat) : types;
+    const initialType = catTypes[0] || types[0];
+    const initialTypeId = initialType?.id || "";
+    setSelectedRoomTypeId(initialTypeId);
+
+    setFormBedTypeId(initialType?.bedTypeId || bedTypes[0]?.id || "");
+    setFormCurrentPrice(initialType?.basePrice !== undefined ? String(initialType.basePrice) : "100");
+    setFormCapacityAdults(initialType?.maximumAdults ?? 2);
+    setFormCapacityChildren(initialType?.maximumChildren ?? 1);
+
     setIsAddOpen(true);
   };
 
@@ -176,11 +308,21 @@ function RoomsContent() {
     setEditItem(room);
     const roomBldg = buildings.find((b: any) => b.id === room.buildingId);
     const roomFlr = floors.find((f: any) => f.id === room.floorId);
-    const branchId = room.branchId || roomBldg?.branchId || branches[0]?.id || "";
+    const branchId = room.branchId || roomBldg?.branchId || currentBranchId || branches[0]?.id || "";
     setSelectedBranchId(branchId);
     setSelectedBuildingId(room.buildingId || "");
     setSelectedFloorId(room.floorId || "");
     setSelectedFloorNumber(String(roomFlr?.floorNumber ?? room.floorNumber ?? room.floor ?? 1));
+
+    const editCat = room.roomCategoryId || types.find((t: any) => t.id === room.roomTypeId)?.categoryId || categories[0]?.id || "";
+    setSelectedCategoryId(editCat);
+    setSelectedRoomTypeId(room.roomTypeId || "");
+
+    setFormBedTypeId(room.bedTypeId || "");
+    setFormCurrentPrice(room.currentPrice ? String(room.currentPrice) : "");
+    setFormCapacityAdults(room.capacityAdults ?? 2);
+    setFormCapacityChildren(room.capacityChildren ?? 1);
+
     setIsAddOpen(true);
   };
 
@@ -255,10 +397,13 @@ function RoomsContent() {
     const fd = new FormData(e.currentTarget);
     saveMutation.mutate({
       ...Object.fromEntries(fd),
-      capacityAdults: Number(fd.get("capacityAdults")),
-      capacityChildren: Number(fd.get("capacityChildren")),
+      roomCategoryId: selectedCategoryId || fd.get("roomCategoryId"),
+      roomTypeId: selectedRoomTypeId || fd.get("roomTypeId"),
+      bedTypeId: formBedTypeId || fd.get("bedTypeId") || null,
+      capacityAdults: Number(formCapacityAdults ?? fd.get("capacityAdults") ?? 2),
+      capacityChildren: Number(formCapacityChildren ?? fd.get("capacityChildren") ?? 1),
       size: Number(fd.get("size")),
-      currentPrice: Number(fd.get("currentPrice")),
+      currentPrice: Number(formCurrentPrice ?? fd.get("currentPrice") ?? 0),
       smokingAllowed: fd.get("smokingAllowed") === "on",
     });
   };
@@ -279,12 +424,13 @@ function RoomsContent() {
     checkIn,
     checkOut,
     ...(availRoomTypeId ? { roomTypeId: availRoomTypeId } : {}),
+    ...(!isGlobal && currentBranchId ? { branchId: currentBranchId } : {}),
   });
 
   const { data: rawAvailRooms = [], isLoading: isAvailLoading, refetch: refetchAvail } = useQuery<AvailRoom[]>({
     queryKey: ["availability", checkIn, checkOut, availRoomTypeId],
     queryFn: () => apiFetch<AvailRoom[]>(`/reservations/availability?${availSearchParams}`),
-    enabled: activeTab === "availability",
+    enabled: activeRoomSubTab === "availability",
   });
 
   const filteredAvailRooms = (Array.isArray(rawAvailRooms) ? rawAvailRooms : []).filter((r) => {
@@ -302,48 +448,86 @@ function RoomsContent() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          Rooms
+        </h1>
+      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      {/* Main Tabs: Rooms | Room Types | Room Categories */}
+      <div className="flex gap-2 border-b border-[var(--border)]">
         <button
-          onClick={() => handleTabChange("inventory")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "inventory"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+          onClick={() => handleMainTabChange("rooms")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "rooms"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
           <BedDouble className="h-4 w-4" />
-          <span>Room Inventory & Status</span>
+          <span>Rooms</span>
         </button>
         <button
-          onClick={() => handleTabChange("availability")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "availability"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+          onClick={() => handleMainTabChange("types")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "types"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
-          <CalendarSearch className="h-4 w-4" />
-          <span>Date Availability & Booking</span>
+          <Layers className="h-4 w-4" />
+          <span>Room Types</span>
         </button>
         <button
-          onClick={() => handleTabChange("calendar")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "calendar"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-muted hover:text-text"
+          onClick={() => handleMainTabChange("categories")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            activeMainTab === "categories"
+              ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+              : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
-          <CalendarDays className="h-4 w-4" />
-          <span>Reservation Calendar</span>
+          <Tag className="h-4 w-4" />
+          <span>Room Categories</span>
         </button>
       </div>
 
-      {/* ================================================================= */}
-      {/* TAB 1: ROOM INVENTORY & STATUS CONTENT                           */}
-      {/* ================================================================= */}
-      {activeTab === "inventory" && (
+      {activeMainTab === "types" && <RoomTypesTab />}
+      {activeMainTab === "categories" && <RoomCategoriesTab />}
+
+      {activeMainTab === "rooms" && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-border/40">
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "inventory" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("inventory")}
+              className="text-xs h-8"
+            >
+              <BedDouble className="mr-1.5 h-3.5 w-3.5" />
+              Room Inventory & Status
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "availability" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("availability")}
+              className="text-xs h-8"
+            >
+              <CalendarSearch className="mr-1.5 h-3.5 w-3.5" />
+              Date Availability & Booking
+            </Button>
+            <Button
+              size="sm"
+              variant={activeRoomSubTab === "calendar" ? "default" : "outline"}
+              onClick={() => handleRoomSubTabChange("calendar")}
+              className="text-xs h-8"
+            >
+              <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+              Reservation Calendar
+            </Button>
+          </div>
+
+          {activeRoomSubTab === "inventory" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -371,34 +555,51 @@ function RoomsContent() {
                   {types.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={branchFilter} onValueChange={(val) => {
-                setBranchFilter(val);
-                setBuildingFilter("all");
-              }}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {isGlobal ? (
+                <Select value={branchFilter} onValueChange={(val) => {
+                  setBranchFilter(val);
+                  setBuildingFilter("all");
+                }}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : branches.length > 1 ? (
+                <Select value={branchFilter} onValueChange={(val) => {
+                  setBranchFilter(val);
+                  setBuildingFilter("all");
+                }}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Assigned Branches</SelectItem>
+                    {branches.map((br: any) => <SelectItem key={br.id} value={br.id}>{br.branchName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : null}
               <Select value={buildingFilter} onValueChange={setBuildingFilter}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Building" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Buildings</SelectItem>
-                  {(branchFilter !== "all" ? buildings.filter((b: any) => b.branchId === branchFilter) : buildings).map((b: any) => (
+                  {(effectiveBranchId ? buildings.filter((b: any) => b.branchId === effectiveBranchId) : buildings).map((b: any) => (
                     <SelectItem key={b.id} value={b.id}>{b.buildingName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <Button onClick={openAddRoom}>
-              <Plus className="mr-2 h-4 w-4" /> Add Room
-            </Button>
+            {canManageRooms && (!allowedBranchIds || branches.length > 0) && (
+              <Button onClick={openAddRoom}>
+                <Plus className="mr-2 h-4 w-4" /> Add Room
+              </Button>
+            )}
 
             <Dialog open={isAddOpen} onOpenChange={(open) => {
               setIsAddOpen(open);
@@ -422,64 +623,16 @@ function RoomsContent() {
                 </DialogHeader>
                 <form className="flex-1 flex flex-col min-h-0 overflow-hidden" onSubmit={onInventorySubmit}>
                   <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label>Room Number</Label>
-                        <Input name="number" defaultValue={editItem?.number} required />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Room Name</Label>
-                        <Input name="roomName" defaultValue={editItem?.roomName} />
-                      </div>
-                    </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Type</Label>
-                      <Select name="roomTypeId" defaultValue={editItem?.roomTypeId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {types.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Category</Label>
-                      <Select name="roomCategoryId" defaultValue={editItem?.roomCategoryId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Bed Type</Label>
-                      <Select name="bedTypeId" defaultValue={editItem?.bedTypeId} required>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Connected Location Hierarchy: Branch -> Building -> Floor -> Floor Number */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-primary">
-                        Location Connection
-                      </Label>
-                      <span className="text-[11px] text-text-muted">
-                        Branch &rarr; Building &rarr; Floor
-                      </span>
-                    </div>
-
+                    {/* Location Hierarchy: Branch -> Building -> Floor */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* 1. Branch Property */}
                       <div className="grid gap-2">
-                        <Label>Branch Property</Label>
-                        <Select value={selectedBranchId} onValueChange={handleBranchChange}>
-                          <SelectTrigger>
+                        <Label>Branch</Label>
+                        <Select 
+                          value={selectedBranchId} 
+                          onValueChange={handleBranchChange} 
+                          disabled={!isGlobal}
+                        >
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select Branch" />
                           </SelectTrigger>
                           <SelectContent>
@@ -490,9 +643,9 @@ function RoomsContent() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <input type="hidden" name="branchId" value={selectedBranchId} />
                       </div>
 
-                      {/* 2. Building (Filtered by Branch) */}
                       <div className="grid gap-2">
                         <Label>Building</Label>
                         <Select value={selectedBuildingId} onValueChange={handleBuildingChange}>
@@ -510,9 +663,8 @@ function RoomsContent() {
                         <input type="hidden" name="buildingId" value={selectedBuildingId} />
                       </div>
 
-                      {/* 3. Floor (Filtered by Building) */}
                       <div className="grid gap-2">
-                        <Label>Floor (Number & Name)</Label>
+                        <Label>Floor</Label>
                         <Select value={selectedFloorId} onValueChange={handleFloorChange}>
                           <SelectTrigger>
                             <SelectValue placeholder={availableFloors.length ? "Select Floor" : "No floors in building"} />
@@ -530,32 +682,74 @@ function RoomsContent() {
                       </div>
                     </div>
 
-                    {/* Hierarchy Summary Badge */}
-                    <div className="text-xs text-text-muted flex items-center gap-2 pt-1 border-t border-border/50 flex-wrap">
-                      <span className="font-medium text-text">Connection:</span>
-                      <span className="font-semibold text-primary">
-                        {branches.find((br: any) => br.id === selectedBranchId)?.branchName || "Branch"}
-                      </span>
-                      <span>&rarr;</span>
-                      <span className="font-semibold text-primary">
-                        {buildings.find((b: any) => b.id === selectedBuildingId)?.buildingName || "Building"}
-                      </span>
-                      <span>&rarr;</span>
-                      <span className="font-semibold text-primary">
-                        Floor {selectedFloorNumber || "1"}
-                        {floors.find((f: any) => f.id === selectedFloorId)?.floorName ? ` (${floors.find((f: any) => f.id === selectedFloorId)?.floorName})` : ""}
-                      </span>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Category</Label>
+                        <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
+                          <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                          <SelectContent>
+                            {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" name="roomCategoryId" value={selectedCategoryId} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Type</Label>
+                        <Select value={selectedRoomTypeId} onValueChange={handleRoomTypeChange} required>
+                          <SelectTrigger>
+                            <SelectValue placeholder={availableTypes.length ? "Select Type" : "No types in category"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableTypes.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" name="roomTypeId" value={selectedRoomTypeId} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Bed Type</Label>
+                        <Select value={formBedTypeId} onValueChange={setFormBedTypeId} required>
+                          <SelectTrigger><SelectValue placeholder="Select Bed Type" /></SelectTrigger>
+                          <SelectContent>
+                            {bedTypes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" name="bedTypeId" value={formBedTypeId} />
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>Room Number</Label>
+                        <Input name="number" defaultValue={editItem?.number} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Room Name</Label>
+                        <Input name="roomName" defaultValue={editItem?.roomName} />
+                      </div>
+                    </div>
 
                   <div className="grid grid-cols-4 gap-4">
                     <div className="grid gap-2">
                       <Label>Adults Cap.</Label>
-                      <Input name="capacityAdults" type="number" min={1} defaultValue={editItem?.capacityAdults || 2} required />
+                      <Input 
+                        name="capacityAdults" 
+                        type="number" 
+                        min={1} 
+                        value={formCapacityAdults} 
+                        onChange={(e) => setFormCapacityAdults(Number(e.target.value))} 
+                        required 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Child Cap.</Label>
-                      <Input name="capacityChildren" type="number" min={0} defaultValue={editItem?.capacityChildren || 0} required />
+                      <Input 
+                        name="capacityChildren" 
+                        type="number" 
+                        min={0} 
+                        value={formCapacityChildren} 
+                        onChange={(e) => setFormCapacityChildren(Number(e.target.value))} 
+                        required 
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label>Size (sqm)</Label>
@@ -563,7 +757,13 @@ function RoomsContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label>Current Price</Label>
-                      <Input name="currentPrice" type="number" defaultValue={editItem?.currentPrice} />
+                      <Input 
+                        name="currentPrice" 
+                        type="number" 
+                        step="0.01" 
+                        value={formCurrentPrice} 
+                        onChange={(e) => setFormCurrentPrice(e.target.value)} 
+                      />
                     </div>
                   </div>
 
@@ -639,8 +839,11 @@ function RoomsContent() {
                           <div className="text-xs text-text-muted">{room.roomName || '-'}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{t?.name || room.type || '-'}</div>
-                          <div className="text-xs text-text-muted">${room.currentPrice || 0}/night</div>
+                          <div className="font-medium text-sm text-[var(--text-primary)]">{t?.name || room.roomTypeName || room.type || '-'}</div>
+                          <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1.5 mt-0.5">
+                            <span className="font-semibold font-mono text-[var(--text-primary)]">${room.currentPrice || 0}/night</span>
+                            {room.bedTypeName && <span>• {room.bedTypeName}</span>}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{room.capacityAdults}A / {room.capacityChildren}C</span>
@@ -675,17 +878,17 @@ function RoomsContent() {
                                   View Detail <ArrowRight className="ml-auto h-3 w-3" />
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditRoom(room)}>Edit</DropdownMenuItem>
+                              {canManageRooms && <DropdownMenuItem onClick={() => openEditRoom(room)}>Edit</DropdownMenuItem>}
                               
-                              {room.status !== 'available' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Mark Available</DropdownMenuItem>}
-                              {room.status !== 'dirty' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'dirty' })}>Mark Dirty</DropdownMenuItem>}
-                              {room.status !== 'out_of_service' ? (
+                              {canManageRooms && room.status !== 'available' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Mark Available</DropdownMenuItem>}
+                              {canManageRooms && room.status !== 'dirty' && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'dirty' })}>Mark Dirty</DropdownMenuItem>}
+                              {canManageRooms && (room.status !== 'out_of_service' ? (
                                 <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'out_of_service' })}>Mark Out of Service</DropdownMenuItem>
                               ) : (
                                 <DropdownMenuItem onClick={() => statusMutation.mutate({ id: room.id, status: 'available' })}>Put In Service</DropdownMenuItem>
-                              )}
+                              ))}
                               
-                              <DropdownMenuItem className="text-danger focus:bg-danger/10 focus:text-danger" onClick={() => deleteMutation.mutate(room.id)}>Delete</DropdownMenuItem>
+                              {canManageRooms && <DropdownMenuItem className="text-danger focus:bg-danger/10 focus:text-danger" onClick={() => deleteMutation.mutate(room.id)}>Delete</DropdownMenuItem>}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -710,7 +913,7 @@ function RoomsContent() {
       {/* ================================================================= */}
       {/* TAB 2: DATE AVAILABILITY & BOOKING CONTENT                       */}
       {/* ================================================================= */}
-      {activeTab === "availability" && (
+      {activeRoomSubTab === "availability" && (
         <div className="space-y-6">
           {/* Availability Search Filter */}
           <Card>
@@ -868,9 +1071,31 @@ function RoomsContent() {
       {/* ================================================================= */}
       {/* TAB 3: RESERVATION CALENDAR CONTENT                             */}
       {/* ================================================================= */}
-      {activeTab === "calendar" && (
+      {activeRoomSubTab === "calendar" && (
         <div className="space-y-4 pt-2">
           <ReservationCalendarView showTitle={true} />
+        </div>
+      )}
+      {/* ── LIVE RESERVATION CALENDAR BELOW ROOMS (FOR INVENTORY TAB) ──── */}
+      {activeRoomSubTab === "inventory" && (
+        <div className="pt-8 border-t border-border mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                Reservation Calendar & Room Schedule
+              </h2>
+            </div>
+            <Link href="/reservations/calendar">
+              <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                Open Full Screen Calendar &rarr;
+              </Button>
+            </Link>
+          </div>
+
+          <ReservationCalendarView showTitle={false} />
+        </div>
+      )}
         </div>
       )}
     </div>
