@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, and, sql, like, inArray, getTableColumns } from 'drizzle-orm';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { eq, and, or, sql, like, inArray, getTableColumns } from 'drizzle-orm';
 import {
   db, roomsTable, roomTypesTable, roomCategoriesTable, bedTypesTable,
   buildingsTable, floorsTable, branchesTable, roomAmenityAssignmentsTable, roomAmenitiesTable,
@@ -59,7 +59,10 @@ export class RoomsService {
   async findAll(q: any, allowedBranchIds?: string[] | null) {
     const { status, floor, roomTypeId, roomCategoryId, bedTypeId, buildingId, branchId, floorId, search, page = 1, limit = 50 } = q;
     const l = Math.min(+limit, 200); const offset = (+page - 1) * l;
-    const conds: any[] = [eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (status) conds.push(eq(roomsTable.status, status));
     if (floor) conds.push(eq(roomsTable.floor, floor));
     if (roomTypeId) conds.push(eq(roomsTable.roomTypeId, roomTypeId));
@@ -96,7 +99,10 @@ export class RoomsService {
 
   async exportRooms(q: any, allowedBranchIds?: string[] | null) {
     const { status, buildingId, branchId } = q;
-    const conds: any[] = [eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (status) conds.push(eq(roomsTable.status, status));
     if (buildingId) conds.push(eq(roomsTable.buildingId, buildingId));
     if (branchId) {
@@ -117,7 +123,11 @@ export class RoomsService {
   }
 
   async findAvailable(roomTypeId?: string, allowedBranchIds?: string[] | null) {
-    const conds: any[] = [eq(roomsTable.status, 'available'), eq(roomsTable.isActive, true)];
+    const conds: any[] = [
+      eq(roomsTable.status, 'available'),
+      eq(roomsTable.isActive, true),
+      or(sql`${buildingsTable.isActive} IS NULL`, eq(buildingsTable.isActive, true)),
+    ];
     if (roomTypeId) conds.push(eq(roomsTable.roomTypeId, roomTypeId));
     if (allowedBranchIds) {
       if (allowedBranchIds.length === 0) {
@@ -130,21 +140,37 @@ export class RoomsService {
   }
 
   async create(b: any) {
-    const [room] = await db.insert(roomsTable).values({
-      number: b.number, floor: String(b.floor ?? '1'), notes: b.notes,
-      roomName: b.roomName, roomCode: b.roomCode,
-      roomTypeId: b.roomTypeId, roomCategoryId: b.roomCategoryId,
-      bedTypeId: b.bedTypeId, buildingId: b.buildingId, floorId: b.floorId,
-      capacityAdults: b.capacityAdults ?? 2, capacityChildren: b.capacityChildren ?? 1,
-      size: b.size ? String(b.size) : undefined, view: b.view,
-      smokingAllowed: b.smokingAllowed ?? false, description: b.description,
-      currentPrice: b.currentPrice ? String(b.currentPrice) : undefined,
-      createdBy: b.createdBy,
-    }).returning();
-    const [row] = await base().where(eq(roomsTable.id, room.id));
-    const result = fmt(row);
-    this.eventBus.publish('room.created', result);
-    return result;
+    if (b.buildingId) {
+      const [bld] = await db
+        .select({ isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, b.buildingId));
+      if (bld && !bld.isActive) {
+        throw new BadRequestException(`Cannot add rooms to inactive building '${bld.buildingName}'.`);
+      }
+    }
+    try {
+      const [room] = await db.insert(roomsTable).values({
+        number: b.number, floor: String(b.floor ?? '1'), notes: b.notes,
+        roomName: b.roomName, roomCode: b.roomCode,
+        roomTypeId: b.roomTypeId, roomCategoryId: b.roomCategoryId,
+        bedTypeId: b.bedTypeId, buildingId: b.buildingId, floorId: b.floorId,
+        capacityAdults: b.capacityAdults ?? 2, capacityChildren: b.capacityChildren ?? 1,
+        size: b.size ? String(b.size) : undefined, view: b.view,
+        smokingAllowed: b.smokingAllowed ?? false, description: b.description,
+        currentPrice: b.currentPrice ? String(b.currentPrice) : undefined,
+        createdBy: b.createdBy,
+      }).returning();
+      const [row] = await base().where(eq(roomsTable.id, room.id));
+      const result = fmt(row);
+      this.eventBus.publish('room.created', result);
+      return result;
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.cause?.code === '23505') {
+        throw new ConflictException(`Room number '${b.number}' already exists in this building.`);
+      }
+      throw err;
+    }
   }
 
   async findOne(id: string) {
@@ -181,19 +207,26 @@ export class RoomsService {
   }
 
   async update(id: string, b: any) {
-    const u: any = {};
-    const fields = ['number','floor','roomName','roomCode','roomTypeId','roomCategoryId','bedTypeId','buildingId','floorId','capacityAdults','capacityChildren','view','smokingAllowed','description','notes','status','isActive'];
-    for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
-    if (b.size !== undefined) u.size = b.size ? String(b.size) : null;
-    if (b.currentPrice !== undefined) u.currentPrice = b.currentPrice ? String(b.currentPrice) : null;
-    if (b.floor !== undefined) u.floor = String(b.floor);
-    u.updatedBy = b.updatedBy;
-    await db.update(roomsTable).set(u).where(eq(roomsTable.id, id));
-    const [room] = await base().where(eq(roomsTable.id, id));
-    if (!room) throw new NotFoundException('Room not found');
-    const result = fmt(room);
-    this.eventBus.publish('room.updated', result);
-    return result;
+    try {
+      const u: any = {};
+      const fields = ['number','floor','roomName','roomCode','roomTypeId','roomCategoryId','bedTypeId','buildingId','floorId','capacityAdults','capacityChildren','view','smokingAllowed','description','notes','status','isActive'];
+      for (const k of fields) if (b[k] !== undefined) u[k] = b[k];
+      if (b.size !== undefined) u.size = b.size ? String(b.size) : null;
+      if (b.currentPrice !== undefined) u.currentPrice = b.currentPrice ? String(b.currentPrice) : null;
+      if (b.floor !== undefined) u.floor = String(b.floor);
+      u.updatedBy = b.updatedBy;
+      await db.update(roomsTable).set(u).where(eq(roomsTable.id, id));
+      const [room] = await base().where(eq(roomsTable.id, id));
+      if (!room) throw new NotFoundException('Room not found');
+      const result = fmt(room);
+      this.eventBus.publish('room.updated', result);
+      return result;
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.cause?.code === '23505') {
+        throw new ConflictException(`Room number '${b.number}' already exists in this building.`);
+      }
+      throw err;
+    }
   }
 
   async changeStatus(id: string, status: string) {

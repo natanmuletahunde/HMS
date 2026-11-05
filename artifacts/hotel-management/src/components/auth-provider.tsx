@@ -9,6 +9,7 @@ export type BranchSummary = {
   branchName: string;
   branchCode: string;
   isPrimary?: boolean;
+  settings?: Record<string, any>;
 };
 
 export type User = {

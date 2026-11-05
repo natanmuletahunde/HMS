@@ -23,8 +23,15 @@ const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "dink_sports_preset";
 
 export function RoomTypesTab() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
+
+  const { data: hotels = [] } = useQuery({
+    queryKey: ["hotels-primary-setting"],
+    queryFn: () => apiFetch<any[]>("/hotels"),
+  });
+  const allowBranchCatalog = hotels[0]?.settings?.allowBranchCatalogManagement !== false;
+  const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -205,7 +212,7 @@ export function RoomTypesTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isGlobal && (
+          {canManage && (
             <Button onClick={openAdd} className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
               <Plus className="mr-2 h-4 w-4" /> Add Room Type
             </Button>
@@ -460,15 +467,15 @@ export function RoomTypesTab() {
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Base Price</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Amenities</TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Status</TableHead>
-              {isGlobal && <TableHead className="w-[80px]"></TableHead>}
+              {canManage && <TableHead className="w-[80px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={isGlobal ? 9 : 8} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManage ? 9 : 8} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--text-secondary)]" /></TableCell></TableRow>
             ) : types.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isGlobal ? 9 : 8} className="h-48 text-center text-[var(--text-secondary)]">
+                <TableCell colSpan={canManage ? 9 : 8} className="h-48 text-center text-[var(--text-secondary)]">
                   <BedDouble className="mx-auto h-8 w-8 mb-2 opacity-50" />
                   <p>No room types found.</p>
                 </TableCell>
@@ -542,7 +549,7 @@ export function RoomTypesTab() {
                         {type.status || 'Active'}
                       </Badge>
                     </TableCell>
-                    {isGlobal && (
+                    {canManage && (
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

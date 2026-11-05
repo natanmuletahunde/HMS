@@ -49,7 +49,12 @@ export function RichTextEditor({
   useEffect(() => {
     const val = value !== undefined ? value : defaultValue;
     setHtmlContent(val);
-    if (editorRef.current && editorRef.current.innerHTML !== val) {
+    if (
+      editorRef.current &&
+      editorRef.current !== document.activeElement &&
+      !editorRef.current.contains(document.activeElement) &&
+      editorRef.current.innerHTML !== val
+    ) {
       editorRef.current.innerHTML = val;
     }
   }, [value, defaultValue, isEditable]);
@@ -330,7 +335,8 @@ export function RichTextEditor({
       ) : (
         <div
           ref={editorRef}
-          contentEditable
+          contentEditable={isEditable}
+          suppressContentEditableWarning={true}
           onInput={handleInput}
           onBlur={handleInput}
           style={{ minHeight }}

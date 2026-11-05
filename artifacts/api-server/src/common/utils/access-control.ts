@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { db, rolesTable, userBranchesTable, usersTable, buildingsTable } from '@workspace/db';
+import { db, rolesTable, userBranchesTable, usersTable, buildingsTable, hotelsTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import type { JwtPayload } from '../../modules/auth/jwt.strategy';
 
@@ -107,19 +107,30 @@ export async function assertCanUpdateBranch(user: JwtPayload, branchId: string):
 export async function assertCanManageGlobalCatalog(user: JwtPayload, catalogName: string): Promise<UserAccessInfo> {
   const access = await getUserAccessInfo(user);
 
-  if (!access.isGlobal) {
-    throw new ForbiddenException(`Only global administrators can manage chain-wide ${catalogName}.`);
+  // Global Super Admins always have access
+  if (access.isGlobal || access.roleName === 'Admin' || access.roleName === 'System Admin') {
+    return access;
   }
 
-  if (
-    access.roleName !== 'Admin' &&
-    access.roleName !== 'System Admin' &&
-    !hasRequiredPermission(access.permissions, ['hotel:*', 'rooms:*'])
-  ) {
-    throw new ForbiddenException(`You do not have permission to manage ${catalogName}.`);
+  // Branch Managers or staff with rooms/hotel permissions
+  const isBranchManager = access.roleName === 'Branch Manager' || access.roleName === 'Manager';
+  const hasRoomPerm = hasRequiredPermission(access.permissions, ['hotel:*', 'rooms:*', '*']);
+
+  if (isBranchManager || hasRoomPerm) {
+    try {
+      const [hotel] = await db.select({ settings: hotelsTable.settings }).from(hotelsTable).limit(1);
+      const settings = (hotel?.settings as Record<string, any>) || {};
+      if (settings.allowBranchCatalogManagement !== false) {
+        return access;
+      }
+    } catch {
+      return access;
+    }
   }
 
-  return access;
+  throw new ForbiddenException(
+    `You do not have permission to manage ${catalogName}. Ask a Super Admin to enable branch catalog management.`
+  );
 }
 
 export async function assertCanManageBuilding(user: JwtPayload, branchId: string): Promise<UserAccessInfo> {
@@ -128,6 +139,7 @@ export async function assertCanManageBuilding(user: JwtPayload, branchId: string
   if (
     access.roleName !== 'Admin' &&
     access.roleName !== 'System Admin' &&
+    access.roleName !== 'Branch Manager' &&
     !hasRequiredPermission(access.permissions, ['hotel:*', 'rooms:*'])
   ) {
     throw new ForbiddenException('You do not have permission to manage buildings.');
@@ -148,6 +160,7 @@ export async function assertCanManageFloor(user: JwtPayload, buildingId: string)
   if (
     access.roleName !== 'Admin' &&
     access.roleName !== 'System Admin' &&
+    access.roleName !== 'Branch Manager' &&
     !hasRequiredPermission(access.permissions, ['hotel:*', 'rooms:*'])
   ) {
     throw new ForbiddenException('You do not have permission to manage floors.');

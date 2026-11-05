@@ -14,7 +14,7 @@ export class UsersController {
   @Get()
   @RequirePermissions('users:read')
   findAll(@Query() q: any) {
-    return this.svc.findAll(+q.page || 1, +q.limit || 20, q.search, q.roleId, q.isActive, q.branchId);
+    return this.svc.findAll(+q.page || 1, +q.limit || 20, q.search, q.roleId, q.isActive, q.branchId, q.buildingId);
   }
 
   @Post()

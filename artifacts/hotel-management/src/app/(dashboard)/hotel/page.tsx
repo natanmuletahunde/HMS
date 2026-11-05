@@ -21,6 +21,9 @@ import {
   Star,
   Clock,
   Coins,
+  Tag,
+  Filter,
+  Gift,
   FileText,
   BedDouble,
   Coffee,
@@ -59,6 +62,7 @@ import {
   Download,
   Percent,
   Receipt,
+  RefreshCw,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
@@ -136,6 +140,56 @@ export type ComplianceDocument = {
   notes?: string;
 };
 
+
+export type SupportedCurrency = {
+  code: string;
+  name: string;
+  symbol: string;
+  exchangeRate: number;
+  isBaseCurrency?: boolean;
+  isEnabled: boolean;
+  updatedAt?: string;
+};
+
+
+export type DiscountRule = {
+  id: string;
+  code: string;
+  name: string;
+  discountType: "percentage" | "fixed_amount";
+  value: number;
+  scope: "global" | "branch";
+  branchId?: string;
+  branchName?: string;
+  applicableTo: "rooms" | "restaurant" | "all";
+  startDate: string;
+  endDate: string;
+  maxUsageCount?: number;
+  currentUsageCount?: number;
+  minNightsRequired?: number;
+  isEnabled: boolean;
+};
+
+export type PromotionalPackage = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  scope: "global" | "branch";
+  branchId?: string;
+  branchName?: string;
+  targetRoomTypeIds: string[];
+  pricingType: "fixed_package" | "discount_percent";
+  packagePrice?: number;
+  discountPercent?: number;
+  inclusions: string[];
+  minNights: number;
+  startDate: string;
+  endDate: string;
+  isEnabled: boolean;
+  featured?: boolean;
+};
+
 export type HotelSettings = {
   // Operations & Timers
   earlyCheckInAllowedTime?: string;
@@ -145,6 +199,7 @@ export type HotelSettings = {
   nightAuditTime?: string;
   noShowReleaseWindow?: string;
   overbookingThreshold?: number;
+  allowBranchCatalogManagement?: boolean;
 
   // Facilities
   propertyFacilities?: string[];
@@ -214,6 +269,10 @@ export type HotelSettings = {
   ageTierAdultMin?: number;
   enabledGateways?: string[];
   paymentAccountsList?: PaymentAccountSpecifier[];
+  currencyRateScope?: "global" | "branch_bounded";
+  supportedCurrencies?: SupportedCurrency[];
+  discounts?: DiscountRule[];
+  promotionalPackages?: PromotionalPackage[];
 };
 
 export type Hotel = {
@@ -346,6 +405,157 @@ const DEFAULT_GALLERY: GalleryImage[] = [
     title: "Landscaped Gardens & Fountain",
     category: "outdoors",
     description: "Lush gardens featuring private walking paths.",
+  },
+];
+
+
+const DEFAULT_SUPPORTED_CURRENCIES: SupportedCurrency[] = [
+  {
+    code: "ETB",
+    name: "Ethiopian Birr",
+    symbol: "ETB",
+    exchangeRate: 1.0,
+    isBaseCurrency: true,
+    isEnabled: true,
+    updatedAt: "2026-11-04",
+  },
+  {
+    code: "USD",
+    name: "US Dollar",
+    symbol: "$",
+    exchangeRate: 135.5,
+    isBaseCurrency: false,
+    isEnabled: true,
+    updatedAt: "2026-11-04",
+  },
+  {
+    code: "EUR",
+    name: "Euro",
+    symbol: "€",
+    exchangeRate: 147.2,
+    isBaseCurrency: false,
+    isEnabled: true,
+    updatedAt: "2026-11-04",
+  },
+  {
+    code: "GBP",
+    name: "British Pound",
+    symbol: "£",
+    exchangeRate: 176.8,
+    isBaseCurrency: false,
+    isEnabled: false,
+    updatedAt: "2026-11-04",
+  },
+];
+
+
+const DEFAULT_DISCOUNTS: DiscountRule[] = [
+  {
+    id: "disc-1",
+    code: "SUMMER20",
+    name: "Summer Getaway 20% Off",
+    discountType: "percentage",
+    value: 20,
+    scope: "global",
+    applicableTo: "rooms",
+    startDate: "2026-06-01",
+    endDate: "2026-10-31",
+    minNightsRequired: 2,
+    isEnabled: true,
+  },
+  {
+    id: "disc-2",
+    code: "CORP-ETHIOAIR",
+    name: "Ethiopian Airlines Corporate Tariff",
+    discountType: "percentage",
+    value: 15,
+    scope: "global",
+    applicableTo: "all",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    minNightsRequired: 1,
+    isEnabled: true,
+  },
+  {
+    id: "disc-3",
+    code: "BOLE-TRANSIT",
+    name: "Bole Airport Transit Direct Voucher",
+    discountType: "fixed_amount",
+    value: 500,
+    scope: "branch",
+    branchName: "Addis Ababa Bole",
+    applicableTo: "rooms",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    minNightsRequired: 1,
+    isEnabled: true,
+  },
+];
+
+const DEFAULT_PROMOTIONAL_PACKAGES: PromotionalPackage[] = [
+  {
+    id: "pkg-1",
+    code: "WKND-GETAWAY",
+    name: "Luxury Weekend Retreat & Spa",
+    description: "2 nights in luxury deluxe room with daily buffet breakfast and 60-minute couple spa voucher included.",
+    scope: "global",
+    targetRoomTypeIds: ["all"],
+    pricingType: "fixed_package",
+    packagePrice: 16500,
+    inclusions: [
+      "Daily Gourmet Buffet Breakfast",
+      "60-Min Swedish Spa Voucher",
+      "Complimentary Airport Chauffeur",
+      "Late Check-Out until 14:00",
+    ],
+    minNights: 2,
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    isEnabled: true,
+    featured: true,
+  },
+  {
+    id: "pkg-2",
+    code: "BIZ-EXECUTIVE",
+    name: "Executive Corporate Bed & Breakfast",
+    description: "Tailored for business travelers with express breakfast, high-speed WiFi, and meeting room voucher.",
+    scope: "branch",
+    branchName: "Addis Ababa Bole",
+    targetRoomTypeIds: ["all"],
+    pricingType: "discount_percent",
+    discountPercent: 15,
+    inclusions: [
+      "Express Executive Buffet Breakfast",
+      "High-Speed Fiber WiFi Voucher",
+      "Laundry Service (2 garments/day)",
+      "1-Hour Executive Boardroom Credit",
+    ],
+    minNights: 1,
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    isEnabled: true,
+    featured: false,
+  },
+  {
+    id: "pkg-3",
+    code: "HONEYMOON-PARADISE",
+    name: "Presidential Honeymoon Romance",
+    description: "Chilled champagne welcome, 3-course candlelight dinner, and rose petal turndown in our signature suite.",
+    scope: "global",
+    targetRoomTypeIds: ["all"],
+    pricingType: "fixed_package",
+    packagePrice: 28000,
+    inclusions: [
+      "Chilled Champagne & Exotic Fruit Basket",
+      "3-Course Candlelight Dinner at Chef's Table",
+      "In-Room Champagne Breakfast",
+      "Signature Rose Petal Turndown Service",
+    ],
+    minNights: 2,
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    isEnabled: true,
+    featured: true,
   },
 ];
 
@@ -530,6 +740,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   nightAuditTime: "02:00",
   noShowReleaseWindow: "18:00",
   overbookingThreshold: 2,
+  allowBranchCatalogManagement: true,
 
   propertyFacilities: [
     "gardens",
@@ -603,7 +814,7 @@ const DEFAULT_SETTINGS: HotelSettings = {
   paymentAccountsList: DEFAULT_PAYMENT_ACCOUNTS,
 };
 
-type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "housekeeping" | "policies";
+type TabKey = "identity" | "operations" | "facilities" | "media" | "revenue" | "rates_promos" | "housekeeping" | "policies";
 
 // ---------------------------------------------------------------------------
 // PAYMENT BRAND LOGOS & METADATA
@@ -799,30 +1010,37 @@ export default function HotelPage() {
   // Effective Hotel Object: Exact same layout as Super Admin Hotel Config,
   // populated with branch values where set, with seamless fallback to Chain HQ defaults
   const hotel: Hotel | undefined = useMemo(() => {
-    if (!chainHotel) return undefined;
+    if (!chainHotel && !branchData) return undefined;
     if (isGlobal || !branchData) return chainHotel;
 
     const bSettings = branchData.settings || {};
-    const hSettings = chainHotel.settings || {};
+    const hSettings = chainHotel?.settings || {};
 
     return {
-      ...chainHotel,
-      id: chainHotel.id,
-      hotelName: branchData.branchName || chainHotel.hotelName,
-      hotelCode: branchData.branchCode || chainHotel.hotelCode,
-      legalName: branchData.manager || chainHotel.legalName,
-      phone: branchData.phone || chainHotel.phone,
-      email: branchData.email || chainHotel.email,
-      address: branchData.address || chainHotel.address,
-      description: branchData.description || chainHotel.description,
-      starRating: branchData.starRating ? Number(branchData.starRating) : chainHotel.starRating,
-      checkInTime: branchData.checkInTime || chainHotel.checkInTime,
-      checkOutTime: branchData.checkOutTime || chainHotel.checkOutTime,
-      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel.lateCheckoutGraceMinutes,
-      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel.lateCheckoutHourlyFee,
-      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel.lateCheckoutTier1Percent,
-      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel.lateCheckoutTier2Percent,
-      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel.lateCheckoutCutoffTime,
+      ...(chainHotel || {}),
+      id: branchData.id || chainHotel?.id,
+      hotelName: branchData.branchName ?? chainHotel?.hotelName ?? "",
+      hotelCode: branchData.branchCode ?? chainHotel?.hotelCode ?? "",
+      legalName: branchData.legalName ?? branchData.manager ?? chainHotel?.legalName ?? "",
+      phone: branchData.phone ?? chainHotel?.phone ?? "",
+      email: branchData.email ?? chainHotel?.email ?? "",
+      website: branchData.website ?? chainHotel?.website ?? "",
+      address: branchData.address ?? chainHotel?.address ?? "",
+      city: branchData.city ?? chainHotel?.city ?? "",
+      country: branchData.country ?? chainHotel?.country ?? "Ethiopia",
+      timezone: branchData.timezone ?? chainHotel?.timezone ?? "Africa/Addis_Ababa",
+      currencyCode: branchData.currencyCode ?? chainHotel?.currencyCode ?? "ETB",
+      taxNumber: branchData.taxNumber ?? chainHotel?.taxNumber ?? "",
+      licenseNumber: branchData.licenseNumber ?? chainHotel?.licenseNumber ?? "",
+      description: branchData.description ?? chainHotel?.description ?? "",
+      starRating: branchData.starRating ? Number(branchData.starRating) : (chainHotel?.starRating ?? 5),
+      checkInTime: branchData.checkInTime || chainHotel?.checkInTime || "14:00",
+      checkOutTime: branchData.checkOutTime || chainHotel?.checkOutTime || "12:00",
+      lateCheckoutGraceMinutes: bSettings.lateCheckoutGraceMinutes ?? chainHotel?.lateCheckoutGraceMinutes ?? 30,
+      lateCheckoutHourlyFee: bSettings.lateCheckoutHourlyFee ?? chainHotel?.lateCheckoutHourlyFee ?? "25",
+      lateCheckoutTier1Percent: bSettings.lateCheckoutTier1Percent ?? chainHotel?.lateCheckoutTier1Percent ?? "25",
+      lateCheckoutTier2Percent: bSettings.lateCheckoutTier2Percent ?? chainHotel?.lateCheckoutTier2Percent ?? "50",
+      lateCheckoutCutoffTime: bSettings.lateCheckoutCutoffTime ?? chainHotel?.lateCheckoutCutoffTime ?? "18:00",
       settings: {
         ...hSettings,
         ...bSettings,
@@ -857,9 +1075,40 @@ export default function HotelPage() {
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountSpecifier[]>(DEFAULT_PAYMENT_ACCOUNTS);
   const [complianceDocuments, setComplianceDocuments] = useState<ComplianceDocument[]>(DEFAULT_COMPLIANCE_DOCUMENTS);
   const [fiscalCashRegisterEnabled, setFiscalCashRegisterEnabled] = useState(false);
+  const [allowBranchCatalogManagement, setAllowBranchCatalogManagement] = useState(true);
+  const [currencyRateScope, setCurrencyRateScope] = useState<"global" | "branch_bounded">("global");
+  const [currenciesList, setCurrenciesList] = useState<SupportedCurrency[]>(DEFAULT_SUPPORTED_CURRENCIES);
+  const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
+  const [lastRatesSyncTime, setLastRatesSyncTime] = useState<string | null>(null);
+
+  const [discountsList, setDiscountsList] = useState<DiscountRule[]>(DEFAULT_DISCOUNTS);
+  const [promoPackagesList, setPromoPackagesList] = useState<PromotionalPackage[]>(DEFAULT_PROMOTIONAL_PACKAGES);
+  const [promoScopeFilter, setPromoScopeFilter] = useState<string>("all");
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState<DiscountRule | null>(null);
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<PromotionalPackage | null>(null);
+  const [promoInclusions, setPromoInclusions] = useState<string[]>([
+    "Daily Gourmet Buffet Breakfast",
+    "Airport Shuttle Transfer",
+  ]);
+  const [inclusionInput, setInclusionInput] = useState<string>("");
+
+  const [editingCurrency, setEditingCurrency] = useState<SupportedCurrency | null>(null);
+  const [editingBranchOverride, setEditingBranchOverride] = useState<SupportedCurrency | null>(null);
+  const [isBranchOverrideModalOpen, setIsBranchOverrideModalOpen] = useState(false);
+  const [branchOverrideRate, setBranchOverrideRate] = useState<number>(0);
+  const [branchOverrideActive, setBranchOverrideActive] = useState<boolean>(true);
+
+  const branchCurrencyOverrides = useMemo(() => {
+    return (branchData?.settings?.currencyOverrides as Record<string, { exchangeRate?: number; isEnabled?: boolean }>) || {};
+  }, [branchData]);
+
   const [policiesList, setPoliciesList] = useState<CustomPolicyItem[]>(DEFAULT_POLICIES);
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<CustomPolicyItem | null>(null);
+  const [editablePolicyIds, setEditablePolicyIds] = useState<Record<string, boolean>>({});
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<ComplianceDocument | null>(null);
@@ -906,6 +1155,13 @@ export default function HotelPage() {
       if (s.paymentAccountsList && s.paymentAccountsList.length > 0) setPaymentAccounts(s.paymentAccountsList);
       if (s.complianceDocuments && s.complianceDocuments.length > 0) setComplianceDocuments(s.complianceDocuments);
       if (s.fiscalCashRegisterEnabled !== undefined) setFiscalCashRegisterEnabled(s.fiscalCashRegisterEnabled);
+      if (s.allowBranchCatalogManagement !== undefined) setAllowBranchCatalogManagement(s.allowBranchCatalogManagement !== false);
+      if (s.currencyRateScope) setCurrencyRateScope(s.currencyRateScope);
+      if (s.supportedCurrencies && s.supportedCurrencies.length > 0) setCurrenciesList(s.supportedCurrencies);
+      if (s.discounts && s.discounts.length > 0) setDiscountsList(s.discounts);
+      if (s.promotionalPackages && s.promotionalPackages.length > 0) setPromoPackagesList(s.promotionalPackages);
+
+
       if (s.customPoliciesList && s.customPoliciesList.length > 0) setPoliciesList(s.customPoliciesList);
       if (s.refundTermsText) setRefundText(s.refundTermsText);
       if (s.folioTermsFooter) setFolioFooterText(s.folioTermsFooter);
@@ -951,10 +1207,18 @@ export default function HotelPage() {
           method: "PATCH",
           body: JSON.stringify({
             branchName: data.hotelName,
+            legalName: data.legalName,
             manager: data.legalName,
             phone: data.phone,
             email: data.email,
+            website: data.website,
             address: data.address,
+            city: data.city,
+            country: data.country,
+            timezone: data.timezone,
+            currencyCode: data.currencyCode,
+            taxNumber: data.taxNumber,
+            licenseNumber: data.licenseNumber,
             description: data.description,
             checkInTime: data.checkInTime,
             checkOutTime: data.checkOutTime,
@@ -989,6 +1253,18 @@ export default function HotelPage() {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleToggleBranchCatalog = (enabled: boolean) => {
+    setAllowBranchCatalogManagement(enabled);
+    if (!isEditing && hotel) {
+      saveMutation.mutate({
+        settings: {
+          ...(hotel.settings || {}),
+          allowBranchCatalogManagement: enabled,
+        },
+      } as any);
+    }
   };
 
   // Facility Actions
@@ -1223,6 +1499,15 @@ export default function HotelPage() {
 
 
   // Dynamic Policy Handlers
+  const formatContentForInput = (html: string) => {
+    if (!html) return "";
+    return html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+  };
+
   const handleSavePolicy = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -1233,14 +1518,20 @@ export default function HotelPage() {
     }
     const category = String(fd.get("category") || "General").trim();
     const badge = String(fd.get("badge") || "Active Policy").trim();
-    const contentText = String(fd.get("content") || "").trim();
+    let contentText = String(fd.get("content") || "").trim();
+    if (contentText && !contentText.startsWith("<")) {
+      contentText = contentText
+        .split("\n\n")
+        .map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`)
+        .join("");
+    }
     const initials = title.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL";
 
     if (editingPolicy) {
       setPoliciesList((prev) =>
         prev.map((p) =>
           p.id === editingPolicy.id
-            ? { ...p, title, category, badge, initials, content: contentText }
+            ? { ...p, title, category, badge, initials, content: contentText || p.content }
             : p
         )
       );
@@ -1252,9 +1543,10 @@ export default function HotelPage() {
         category,
         badge,
         initials,
-        content: contentText,
+        content: contentText || "<p>Policy terms and operating guidelines.</p>",
       };
       setPoliciesList((prev) => [...prev, newPolicy]);
+      setExpandedPolicies((prev) => ({ ...prev, [newPolicy.id]: true }));
       toast({ title: "New policy issue created" });
     }
     setIsPolicyModalOpen(false);
@@ -1285,6 +1577,223 @@ export default function HotelPage() {
     );
   };
 
+  // Currency Handlers (Immediate Persistence)
+  const handleSaveCurrency = (currency: SupportedCurrency) => {
+    const idx = currenciesList.findIndex((c) => c.code.toUpperCase() === currency.code.toUpperCase());
+    let nextList: SupportedCurrency[];
+    if (idx >= 0) {
+      nextList = [...currenciesList];
+      nextList[idx] = { ...currency, updatedAt: new Date().toISOString().split("T")[0] };
+    } else {
+      nextList = [...currenciesList, { ...currency, updatedAt: new Date().toISOString().split("T")[0] }];
+    }
+    setCurrenciesList(nextList);
+    setIsCurrencyModalOpen(false);
+    setEditingCurrency(null);
+    toast({ title: "Currency updated", description: `${currency.code} rate saved successfully.` });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), supportedCurrencies: nextList },
+      } as any);
+    }
+  };
+
+  const handleDeleteCurrency = (code: string) => {
+    if (code === "ETB") {
+      toast({ title: "Cannot delete base currency", description: "ETB is the primary legal reporting currency.", variant: "destructive" });
+      return;
+    }
+    const nextList = currenciesList.filter((c) => c.code !== code);
+    setCurrenciesList(nextList);
+    toast({ title: "Currency removed" });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), supportedCurrencies: nextList },
+      } as any);
+    }
+  };
+
+  const handleToggleCurrency = (code: string) => {
+    const nextList = currenciesList.map((c) => (c.code === code ? { ...c, isEnabled: !c.isEnabled } : c));
+    setCurrenciesList(nextList);
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), supportedCurrencies: nextList },
+      } as any);
+    }
+  };
+
+  const handleUpdateCurrencyRate = (code: string, newRate: number) => {
+    const nextList = currenciesList.map((c) =>
+      c.code === code ? { ...c, exchangeRate: newRate, updatedAt: new Date().toISOString().split("T")[0] } : c
+    );
+    setCurrenciesList(nextList);
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), supportedCurrencies: nextList },
+      } as any);
+    }
+  };
+
+  const handleFetchLiveRates = async () => {
+    setIsFetchingRates(true);
+    try {
+      let rates: Record<string, number> | null = null;
+      try {
+        const res = await fetch("https://open.er-api.com/v6/latest/ETB");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.rates) {
+            rates = data.rates;
+          }
+        }
+      } catch (primaryErr) {
+        console.warn("Primary live exchange rate API failed, attempting fallback...", primaryErr);
+      }
+
+      if (!rates) {
+        const fallbackRes = await fetch("https://api.exchangerate-api.com/v4/latest/ETB");
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData && fallbackData.rates) {
+            rates = fallbackData.rates;
+          }
+        }
+      }
+
+      if (!rates) {
+        throw new Error("Unable to contact live exchange rate providers. Please check your network connection.");
+      }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      let updatedCount = 0;
+
+      const nextList = currenciesList.map((cur) => {
+        if (cur.isBaseCurrency || cur.code.toUpperCase() === "ETB") {
+          return cur;
+        }
+        const foreignPerEtb = rates![cur.code.toUpperCase()];
+        if (foreignPerEtb && foreignPerEtb > 0) {
+          const liveEtbRate = +(1 / foreignPerEtb).toFixed(2);
+          updatedCount++;
+          return {
+            ...cur,
+            exchangeRate: liveEtbRate,
+            updatedAt: todayStr,
+          };
+        }
+        return cur;
+      });
+
+      setCurrenciesList(nextList);
+      const syncTime = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+      setLastRatesSyncTime(syncTime);
+
+      if (hotel) {
+        saveMutation.mutate({
+          settings: { ...(hotel.settings || {}), supportedCurrencies: nextList },
+        } as any);
+      }
+
+      toast({
+        title: "Live exchange rates updated",
+        description: `Successfully synchronized ${updatedCount} currencies against base ETB.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Exchange rate sync failed",
+        description: err?.message || "Failed to fetch live rates.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingRates(false);
+    }
+  };
+
+  // Discounts Handlers (Immediate Persistence)
+  const handleSaveDiscount = (discount: DiscountRule) => {
+    const idx = discountsList.findIndex((d) => d.id === discount.id);
+    let nextList: DiscountRule[];
+    if (idx >= 0) {
+      nextList = [...discountsList];
+      nextList[idx] = discount;
+    } else {
+      nextList = [...discountsList, discount];
+    }
+    setDiscountsList(nextList);
+    setIsDiscountModalOpen(false);
+    setEditingDiscount(null);
+    toast({ title: "Discount Rule Saved", description: `${discount.code} has been successfully saved.` });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), discounts: nextList },
+      } as any);
+    }
+  };
+
+  const handleDeleteDiscount = (id: string) => {
+    const nextList = discountsList.filter((d) => d.id !== id);
+    setDiscountsList(nextList);
+    toast({ title: "Discount Removed" });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), discounts: nextList },
+      } as any);
+    }
+  };
+
+  const handleToggleDiscount = (id: string) => {
+    const nextList = discountsList.map((d) => (d.id === id ? { ...d, isEnabled: !d.isEnabled } : d));
+    setDiscountsList(nextList);
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), discounts: nextList },
+      } as any);
+    }
+  };
+
+  // Promotional Package Handlers (Immediate Persistence)
+  const handleSavePromo = (pkg: PromotionalPackage) => {
+    const idx = promoPackagesList.findIndex((p) => p.id === pkg.id);
+    let nextList: PromotionalPackage[];
+    if (idx >= 0) {
+      nextList = [...promoPackagesList];
+      nextList[idx] = pkg;
+    } else {
+      nextList = [...promoPackagesList, pkg];
+    }
+    setPromoPackagesList(nextList);
+    setIsPromoModalOpen(false);
+    setEditingPromo(null);
+    toast({ title: "Package Saved", description: `${pkg.name} has been successfully updated.` });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), promotionalPackages: nextList },
+      } as any);
+    }
+  };
+
+  const handleDeletePromo = (id: string) => {
+    const nextList = promoPackagesList.filter((p) => p.id !== id);
+    setPromoPackagesList(nextList);
+    toast({ title: "Package Removed" });
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), promotionalPackages: nextList },
+      } as any);
+    }
+  };
+
+  const handleTogglePromo = (id: string) => {
+    const nextList = promoPackagesList.map((p) => (p.id === id ? { ...p, isEnabled: !p.isEnabled } : p));
+    setPromoPackagesList(nextList);
+    if (hotel) {
+      saveMutation.mutate({
+        settings: { ...(hotel.settings || {}), promotionalPackages: nextList },
+      } as any);
+    }
+  };
+
   // Main Form Submit Handler
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1302,6 +1811,7 @@ export default function HotelPage() {
       nightAuditTime: String(formObj.nightAuditTime || mergedSettings.nightAuditTime || "02:00"),
       noShowReleaseWindow: String(formObj.noShowReleaseWindow || mergedSettings.noShowReleaseWindow || "18:00"),
       overbookingThreshold: Number(formObj.overbookingThreshold) || 0,
+      allowBranchCatalogManagement: allowBranchCatalogManagement,
 
       // Facilities CRUD list & Active IDs
       propertyFacilities: selectedFacilities,
@@ -1368,22 +1878,23 @@ export default function HotelPage() {
     };
 
     saveMutation.mutate({
-      hotelName: String(formObj.hotelName || hotel?.hotelName),
-      legalName: String(formObj.legalName || hotel?.legalName),
-      hotelCode: String(formObj.hotelCode || hotel?.hotelCode),
+      hotelName: String(formObj.hotelName || hotel?.hotelName || ""),
+      legalName: String(formObj.legalName || hotel?.legalName || ""),
+      hotelCode: String(formObj.hotelCode || hotel?.hotelCode || ""),
       starRating: Number(formObj.starRating) || 5,
-      email: String(formObj.email || hotel?.email),
-      phone: String(formObj.phone || hotel?.phone),
-      website: String(formObj.website || hotel?.website),
-      address: String(formObj.address || hotel?.address),
-      city: String(formObj.city || hotel?.city),
-      country: String(formObj.country || hotel?.country),
-      timezone: String(formObj.timezone || hotel?.timezone),
-      currencyCode: String(formObj.currencyCode || hotel?.currencyCode),
-      checkInTime: String(formObj.checkInTime || hotel?.checkInTime),
-      checkOutTime: String(formObj.checkOutTime || hotel?.checkOutTime),
-      taxNumber: String(formObj.taxNumber || hotel?.taxNumber),
-      licenseNumber: String(formObj.licenseNumber || hotel?.licenseNumber),
+      email: String(formObj.email || hotel?.email || ""),
+      phone: String(formObj.phone || hotel?.phone || ""),
+      website: String(formObj.website || hotel?.website || ""),
+      address: String(formObj.address || hotel?.address || ""),
+      city: String(formObj.city || hotel?.city || ""),
+      country: String(formObj.country || hotel?.country || "Ethiopia"),
+      timezone: String(formObj.timezone || hotel?.timezone || "Africa/Addis_Ababa"),
+      currencyCode: String(formObj.currencyCode || hotel?.currencyCode || "ETB"),
+      checkInTime: String(formObj.checkInTime || hotel?.checkInTime || "14:00"),
+      checkOutTime: String(formObj.checkOutTime || hotel?.checkOutTime || "12:00"),
+      taxNumber: String(formObj.taxNumber || hotel?.taxNumber || ""),
+      licenseNumber: String(formObj.licenseNumber || hotel?.licenseNumber || ""),
+      description: String(formObj.description || hotel?.description || ""),
       lateCheckoutGraceMinutes: formObj.lateCheckoutGraceMinutes !== undefined ? Number(formObj.lateCheckoutGraceMinutes) : (hotel?.lateCheckoutGraceMinutes ?? 30),
       lateCheckoutHourlyFee: formObj.lateCheckoutHourlyFee !== undefined ? String(formObj.lateCheckoutHourlyFee) : (hotel?.lateCheckoutHourlyFee ?? "25"),
       lateCheckoutTier1Percent: formObj.lateCheckoutTier1Percent !== undefined ? String(formObj.lateCheckoutTier1Percent) : (hotel?.lateCheckoutTier1Percent ?? "25"),
@@ -1600,6 +2111,19 @@ export default function HotelPage() {
           >
             <CreditCard className="w-4 h-4" />
             <span>Revenue & Payments</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("rates_promos")}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer ${
+              activeTab === "rates_promos"
+                ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-400 font-bold"
+                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>Rates & Promotions</span>
           </button>
 
           <button
@@ -2577,25 +3101,16 @@ export default function HotelPage() {
 
               {/* Dynamic Policy Accordions */}
               {policiesList.length === 0 ? (
-                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-3">
+                <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] space-y-2">
                   <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-50" />
                   <p className="text-sm font-medium text-[var(--text-primary)]">No policies configured</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingPolicy(null);
-                      setIsPolicyModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Create First Policy</span>
-                  </button>
+                  <p className="text-xs text-[var(--text-secondary)]">Use the &quot;Add Policy / Issue&quot; button above to create a new hotel policy or house rule.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {policiesList.map((policy) => {
                     const isExpanded = expandedPolicies[policy.id] !== false;
+                    const isPolicyWritable = isEditing || !!editablePolicyIds[policy.id];
                     return (
                       <div
                         key={policy.id}
@@ -2610,18 +3125,48 @@ export default function HotelPage() {
                           }}
                           className="flex items-center justify-between p-4 sm:p-5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer select-none border-b border-[var(--border)]"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-lg bg-blue-700/10 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
                               {policy.initials || policy.title.slice(0, 2).toUpperCase()}
                             </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
-                                {policy.title}
-                              </h4>
-                              {policy.category && (
-                                <span className="text-[11px] text-[var(--text-secondary)]">
-                                  {policy.category}
-                                </span>
+                            <div className="min-w-0 flex-1">
+                              {isPolicyWritable ? (
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={policy.title}
+                                    onChange={(e) => {
+                                      const newTitle = e.target.value;
+                                      setPoliciesList((prev) =>
+                                        prev.map((p) =>
+                                          p.id === policy.id
+                                            ? {
+                                                ...p,
+                                                title: newTitle,
+                                                initials: newTitle.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "PL",
+                                              }
+                                            : p
+                                        )
+                                      );
+                                    }}
+                                    className="text-sm font-bold text-[var(--text-primary)] px-2.5 py-1 rounded-lg border border-blue-500 bg-[var(--surface)] outline-none w-full max-w-sm"
+                                    placeholder="Policy Title"
+                                  />
+                                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 w-fit">
+                                    Writable Mode
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  <h4 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                                    {policy.title}
+                                  </h4>
+                                  {policy.category && (
+                                    <span className="text-[11px] text-[var(--text-secondary)]">
+                                      {policy.category}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -2636,13 +3181,26 @@ export default function HotelPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingPolicy(policy);
-                                setIsPolicyModalOpen(true);
+                                setExpandedPolicies((prev) => ({
+                                  ...prev,
+                                  [policy.id]: true,
+                                }));
+                                setEditablePolicyIds((prev) => ({
+                                  ...prev,
+                                  [policy.id]: !prev[policy.id],
+                                }));
+                                if (!isEditing) {
+                                  setIsEditing(true);
+                                }
                               }}
-                              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)] transition-colors cursor-pointer"
-                              title="Edit Policy Details"
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isPolicyWritable
+                                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-xs"
+                                  : "text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface)]"
+                              }`}
+                              title={isPolicyWritable ? "Writable Active (Click to finish)" : "Make Policy Writable & Edit"}
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              {isPolicyWritable ? <Check className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
                             </button>
                             <button
                               type="button"
@@ -2675,7 +3233,7 @@ export default function HotelPage() {
                                   prev.map((p) => (p.id === policy.id ? { ...p, content: val } : p))
                                 );
                               }}
-                              isEditable={isEditing}
+                              isEditable={isPolicyWritable}
                               minHeight="200px"
                             />
                           </div>
@@ -2696,16 +3254,10 @@ export default function HotelPage() {
                   <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
                     Arrival & Check-In Triggers
                   </h3>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    Official arrival window and complimentary early check-in allowance.
-                  </p>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                    <div>
-                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-In</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">Official hotel arrival time</span>
-                    </div>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-In</span>
                     {isEditing ? (
                       <input
                         type="text"
@@ -2715,20 +3267,14 @@ export default function HotelPage() {
                         className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
                       />
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
-                          {hotel?.checkInTime || "14:00"}
-                        </span>
-                        <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Reservations)</span>
-                      </div>
+                      <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                        {hotel?.checkInTime || "14:00"}
+                      </span>
                     )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <div>
-                      <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Early Check-In Allowed</span>
-                      <span className="text-[11px] text-[var(--text-muted)]">Complimentary arrival before standard check-in</span>
-                    </div>
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Early Check-In Allowed</span>
                     {isEditing ? (
                       <input
                         type="text"
@@ -2739,132 +3285,119 @@ export default function HotelPage() {
                       />
                     ) : (
                       <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
-                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Complimentary)</span>
+                        {hotel?.settings?.earlyCheckInAllowedTime || "10:00"}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Check-Out Time */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+              {/* Departure & Late Check-Out Policies */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
                 <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Standard Check-Out</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Official hotel departure deadline</span>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Departure & Late Check-Out
+                  </h3>
                 </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="checkOutTime"
-                    defaultValue={hotel?.checkOutTime || "12:00"}
-                    required
-                    placeholder="12:00"
-                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
-                      {hotel?.checkOutTime || "12:00"}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">(Enforced across Front Desk & Folios)</span>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Standard Check-Out</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="checkOutTime"
+                        defaultValue={hotel?.checkOutTime || "12:00"}
+                        required
+                        placeholder="12:00"
+                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-bold font-mono text-[var(--text-primary)] px-2.5 py-1 bg-blue-500/10 text-blue-600 rounded-md border border-blue-500/20">
+                        {hotel?.checkOutTime || "12:00"}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Late Check-Out Grace Period */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Check-Out Grace Period</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Buffer window before any late penalty is levied</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutGraceMinutes"
-                      defaultValue={hotel?.lateCheckoutGraceMinutes ?? 30}
-                      min="0"
-                      max="180"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">Minutes</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Check-Out Grace Period</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutGraceMinutes"
+                          defaultValue={hotel?.lateCheckoutGraceMinutes ?? 30}
+                          min="0"
+                          max="180"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">min</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutGraceMinutes ?? 30} minutes
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutGraceMinutes ?? 30} minutes <span className="text-xs text-emerald-600 dark:text-emerald-400 font-normal">(Zero charge)</span>
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Tier 1 Fee (1h–3h) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 1 Rate (1h – 3h late)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Percentage of daily room accommodation rate</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutTier1Percent"
-                      defaultValue={hotel?.lateCheckoutTier1Percent ?? 25}
-                      min="0"
-                      max="100"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Tier 1 Rate (1h – 3h late)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutTier1Percent"
+                          defaultValue={hotel?.lateCheckoutTier1Percent ?? 25}
+                          min="0"
+                          max="100"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutTier1Percent ?? 25}% of daily rate
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutTier1Percent ?? 25}% of daily rate
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Tier 2 Fee (3h–6h) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Tier 2 Rate (3h – 6h late)</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">Half-day charge percentage</span>
-                </div>
-                {isEditing ? (
-                  <div className="flex items-center gap-2 max-w-xs flex-1">
-                    <input
-                      type="number"
-                      name="lateCheckoutTier2Percent"
-                      defaultValue={hotel?.lateCheckoutTier2Percent ?? 50}
-                      min="0"
-                      max="100"
-                      className="w-24 h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">% of daily rate (Half-day)</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Tier 2 Rate (3h – 6h late)</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 w-36">
+                        <input
+                          type="number"
+                          name="lateCheckoutTier2Percent"
+                          defaultValue={hotel?.lateCheckoutTier2Percent ?? 50}
+                          min="0"
+                          max="100"
+                          className="w-24 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                        />
+                        <span className="text-xs text-[var(--text-secondary)]">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutTier2Percent ?? 50}% of daily rate
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutTier2Percent ?? 50}% of daily rate (Half-day)
-                  </span>
-                )}
-              </div>
 
-              {/* Late Check-Out Cut-Off Deadline */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
-                <div>
-                  <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0 block">Late Checkout Cut-Off Time</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">After this hour, 100% full night rate is charged</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-48 shrink-0">Late Checkout Cut-Off Time</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="lateCheckoutCutoffTime"
+                        defaultValue={hotel?.lateCheckoutCutoffTime || "18:00"}
+                        placeholder="18:00"
+                        className="w-36 h-9 px-3 text-sm font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">
+                        {hotel?.lateCheckoutCutoffTime || "18:00"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="lateCheckoutCutoffTime"
-                    defaultValue={hotel?.lateCheckoutCutoffTime || "18:00"}
-                    placeholder="18:00"
-                    className="flex-1 max-w-xs h-9 px-3 text-sm font-mono rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] focus:border-blue-700 focus:ring-1 focus:ring-blue-700 outline-none"
-                  />
-                ) : (
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    {hotel?.lateCheckoutCutoffTime || "18:00"} <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">(Full night rate applies thereafter)</span>
-                  </span>
-                )}
               </div>
 
               {/* Night Audit & Safeguards */}
@@ -2941,6 +3474,53 @@ export default function HotelPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Branch Delegation */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Branch Delegation
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">
+                      Branch Catalog Management
+                    </span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-[var(--text-secondary)]">
+                          {allowBranchCatalogManagement ? "Delegated" : "Centralized"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBranchCatalog(!allowBranchCatalogManagement)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
+                            allowBranchCatalogManagement ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
+                          }`}
+                          role="switch"
+                          aria-checked={allowBranchCatalogManagement}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              allowBranchCatalogManagement ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium tracking-wide border ${
+                        allowBranchCatalogManagement
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60"
+                          : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${allowBranchCatalogManagement ? "bg-emerald-500" : "bg-slate-400"}`} />
+                        {allowBranchCatalogManagement ? "Delegated to Branches" : "HQ Centralized"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -3007,7 +3587,183 @@ export default function HotelPage() {
                 </div>
               </div>
 
+              {/* Currency Support & Daily Exchange Rates */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 border-t border-[var(--border)]">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-[var(--text-primary)] uppercase">
+                    Currency & Exchange Rates
+                  </h3>
+                </div>
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">Rate Governance Scope</span>
+                    {isEditing ? (
+                      <select
+                        name="currencyRateScope"
+                        value={currencyRateScope}
+                        onChange={(e) => setCurrencyRateScope(e.target.value as any)}
+                        className="h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 font-medium cursor-pointer"
+                      >
+                        <option value="global">System-Wide (Centralized)</option>
+                        <option value="branch_bounded">Branch-Bounded (Branch Overrides Allowed)</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide border ${
+                        currencyRateScope === "global"
+                          ? "bg-purple-500/10 text-purple-700 border-purple-500/20 dark:text-purple-300"
+                          : "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${currencyRateScope === "global" ? "bg-purple-500" : "bg-blue-500"}`} />
+                        {currencyRateScope === "global" ? "System-Wide (Centralized)" : "Branch-Bounded Overrides"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">Base Accounting Currency</span>
+                    <span className="font-mono font-bold text-xs text-blue-700 dark:text-blue-400 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                      {hotel?.currencyCode || "ETB"} &mdash; Ethiopian Birr (MoR Standard)
+                    </span>
+                  </div>
+
+                  {/* Multi-Currency Rates Table */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                          Supported Multi-Currencies
+                        </span>
+                        {lastRatesSyncTime && (
+                          <span className="text-[11px] text-[var(--text-secondary)] font-normal">
+                            Synced at {lastRatesSyncTime}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleFetchLiveRates}
+                          disabled={isFetchingRates}
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer disabled:opacity-60"
+                          title="Fetch live market exchange rates against ETB"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 text-blue-700 ${isFetchingRates ? "animate-spin" : ""}`} />
+                          <span>{isFetchingRates ? "Syncing..." : "Sync Live Rates"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCurrency(null);
+                            setIsCurrencyModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Currency</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+                            <TableHead className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Currency</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Symbol</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Exchange Rate (to Base ETB)</TableHead>
+                            <TableHead className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Status</TableHead>
+                            <TableHead className="w-[80px] text-right text-xs font-semibold uppercase text-[var(--text-secondary)]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {currenciesList.map((cur) => (
+                            <TableRow key={cur.code} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]/40">
+                              <TableCell className="font-medium text-[var(--text-primary)]">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)]">
+                                    {cur.code}
+                                  </span>
+                                  <span className="text-xs text-[var(--text-secondary)]">{cur.name}</span>
+                                  {cur.isBaseCurrency && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-blue-500/10 text-blue-700 border border-blue-500/20">
+                                      BASE
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-[var(--text-primary)]">
+                                {cur.symbol}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-[var(--text-primary)]">
+                                {cur.isBaseCurrency ? (
+                                  <span className="text-emerald-600 font-semibold">1.0000 (Peg)</span>
+                                ) : isEditing ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs text-[var(--text-muted)]">1 {cur.code} =</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={cur.exchangeRate}
+                                      onChange={(e) => handleUpdateCurrencyRate(cur.code, parseFloat(e.target.value) || 0)}
+                                      className="w-24 h-7 px-2 text-xs font-mono rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                                    />
+                                    <span className="text-xs text-[var(--text-secondary)]">ETB</span>
+                                  </div>
+                                ) : (
+                                  <span>1 {cur.code} = <strong>{cur.exchangeRate.toFixed(2)}</strong> ETB</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleCurrency(cur.code)}
+                                  disabled={cur.isBaseCurrency}
+                                  className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
+                                    cur.isEnabled
+                                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20"
+                                      : "bg-gray-500/10 text-gray-500 border border-gray-500/20 hover:bg-gray-500/20"
+                                  } ${cur.isBaseCurrency ? "cursor-default opacity-80" : "cursor-pointer"}`}
+                                  title={cur.isBaseCurrency ? "Base currency is always active" : "Toggle active state"}
+                                >
+                                  {cur.isEnabled ? "Active" : "Disabled"}
+                                </button>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingCurrency(cur);
+                                      setIsCurrencyModalOpen(true);
+                                    }}
+                                    className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 hover:bg-[var(--surface-hover)] cursor-pointer"
+                                    title="Edit Rate"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  {!cur.isBaseCurrency && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCurrency(cur.code)}
+                                      className="p-1 rounded text-red-500 hover:bg-red-500/10 cursor-pointer"
+                                      title="Remove Currency"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Payment Services & Recipient Accounts with full CRUD */}
+
               <div className="space-y-4 pt-6 pb-2 border-t border-[var(--border)]">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-base font-bold tracking-tight text-[var(--text-primary)]">
@@ -3258,6 +4014,305 @@ export default function HotelPage() {
           {/* ================================================================= */}
           {/* TAB 7: HOUSEKEEPING & DINING (CRIBS & EXTRA BEDS CRUD)            */}
           {/* ================================================================= */}
+          {/* ================================================================= */}
+          {/* TAB: RATES, DISCOUNTS & PROMOTIONAL PACKAGES                      */}
+          {/* ================================================================= */}
+          {activeTab === "rates_promos" && (
+            <div className="space-y-8">
+              {/* Luxury Action Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+                    Rates & Promotions
+                  </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] px-3 py-1.5 rounded-lg text-xs">
+                    <Filter className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                    <select
+                      value={promoScopeFilter}
+                      onChange={(e) => setPromoScopeFilter(e.target.value)}
+                      className="bg-transparent text-[var(--text-primary)] font-semibold outline-none cursor-pointer text-xs"
+                    >
+                      <option value="all">All Properties</option>
+                      <option value="global">System-Wide</option>
+                      <option value="branch">Branch Specific</option>
+                      {branches && branches.map((b: any) => (
+                        <option key={b.id} value={b.id}>{b.branchName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPromo(null);
+                      setPromoInclusions(["Daily Gourmet Buffet Breakfast", "Airport Shuttle Transfer"]);
+                      setInclusionInput("");
+                      setIsPromoModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-700 hover:bg-blue-800 text-white transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Package</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDiscount(null);
+                      setIsDiscountModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Percent className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>New Discount Code</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* SECTION 1: PROMOTIONAL PACKAGES */}
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold tracking-wider text-[var(--text-secondary)] uppercase flex items-center gap-2">
+                    <Gift className="w-4 h-4 text-amber-500" />
+                    <span>Promotional Packages</span>
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {promoPackagesList
+                    .filter((p) => {
+                      if (promoScopeFilter === "all") return true;
+                      if (promoScopeFilter === "global") return p.scope === "global";
+                      if (promoScopeFilter === "branch") return p.scope === "branch";
+                      return p.branchId === promoScopeFilter;
+                    })
+                    .map((pkg) => (
+                      <div
+                        key={pkg.id}
+                        className={`flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 bg-[var(--surface)] ${
+                          pkg.isEnabled
+                            ? "border-[var(--border)] shadow-xs hover:border-blue-500/40"
+                            : "border-[var(--border)] opacity-60 bg-gray-50/50 dark:bg-gray-900/20"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-sm text-[var(--text-primary)]">
+                                  {pkg.name}
+                                </h4>
+                                {pkg.featured && (
+                                  <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                    Featured
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">
+                                #{pkg.code}
+                              </span>
+                            </div>
+
+                            <span
+                              className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${
+                                pkg.scope === "global"
+                                  ? "bg-purple-500/10 text-purple-700 border-purple-500/20"
+                                  : "bg-blue-500/10 text-blue-700 border-blue-500/20"
+                              }`}
+                            >
+                              {pkg.scope === "global" ? "System-Wide" : (pkg.branchName || "Branch Specific")}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-3">
+                            {pkg.description}
+                          </p>
+
+                          <div className="flex items-center justify-between py-2 border-y border-[var(--border)] mb-3 text-xs">
+                            <div>
+                              <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Tariff</span>
+                              <strong className="text-sm font-bold text-[var(--text-primary)]">
+                                {pkg.pricingType === "fixed_package"
+                                  ? `${(pkg.packagePrice || 0).toLocaleString()} ETB`
+                                  : `${pkg.discountPercent || 0}% Off Base Rate`}
+                              </strong>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Stay</span>
+                              <span className="font-semibold text-[var(--text-primary)]">
+                                {pkg.minNights} {pkg.minNights === 1 ? "Night" : "Nights"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 mb-4">
+                            {pkg.inclusions.map((inc, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] font-medium"
+                              >
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>{inc}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between text-xs">
+                          <span className="text-[10px] font-mono text-[var(--text-secondary)]">
+                            {pkg.startDate} &ndash; {pkg.endDate}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePromo(pkg.id)}
+                              className={`w-8 h-4 rounded-full transition-colors relative cursor-pointer shrink-0 ${
+                                pkg.isEnabled ? "bg-emerald-600" : "bg-slate-300 dark:bg-slate-700"
+                              }`}
+                              title={pkg.isEnabled ? "Active" : "Disabled"}
+                            >
+                              <span
+                                className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${
+                                  pkg.isEnabled ? "right-0.5" : "left-0.5"
+                                }`}
+                              />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingPromo(pkg);
+                                setPromoInclusions(pkg.inclusions || []);
+                                setInclusionInput("");
+                                setIsPromoModalOpen(true);
+                              }}
+                              className="p-1 text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer"
+                              title="Edit Package"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePromo(pkg.id)}
+                              className="p-1 text-[var(--text-secondary)] hover:text-red-600 cursor-pointer"
+                              title="Delete Package"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* SECTION 2: DISCOUNT RULES & COUPONS */}
+              <div className="space-y-3.5 pt-6 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold tracking-wider text-[var(--text-secondary)] uppercase flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-emerald-600" />
+                    <span>Discount Rules & Coupons</span>
+                  </h3>
+                </div>
+
+                <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--surface)] shadow-xs">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-[var(--border)] bg-[var(--surface-hover)]">
+                        <TableHead className="font-bold text-xs uppercase">Coupon Code</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Name</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Benefit</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Scope</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Applicable Category</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Validity Window</TableHead>
+                        <TableHead className="font-bold text-xs uppercase">Status</TableHead>
+                        <TableHead className="font-bold text-xs uppercase text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {discountsList
+                        .filter((d) => {
+                          if (promoScopeFilter === "all") return true;
+                          if (promoScopeFilter === "global") return d.scope === "global";
+                          if (promoScopeFilter === "branch") return d.scope === "branch";
+                          return d.branchId === promoScopeFilter;
+                        })
+                        .map((disc) => (
+                          <TableRow key={disc.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)]/40">
+                            <TableCell className="font-mono text-xs font-bold text-blue-700 dark:text-blue-400">
+                              <span className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded">
+                                {disc.code}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold text-[var(--text-primary)]">
+                              {disc.name}
+                            </TableCell>
+                            <TableCell className="text-xs font-bold text-emerald-600">
+                              {disc.discountType === "percentage" ? `${disc.value}% OFF` : `-${disc.value} ETB`}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                                  disc.scope === "global"
+                                    ? "bg-purple-500/10 text-purple-700 border-purple-500/20"
+                                    : "bg-blue-500/10 text-blue-700 border-blue-500/20"
+                                }`}
+                              >
+                                {disc.scope === "global" ? "System-Wide" : (disc.branchName || "Branch Specific")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-[var(--text-secondary)] capitalize">
+                              {disc.applicableTo === "all" ? "All Folio Items" : disc.applicableTo === "rooms" ? "Room Tariffs Only" : "Restaurant / F&B"}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-[var(--text-secondary)]">
+                              {disc.startDate} to {disc.endDate}
+                            </TableCell>
+                            <TableCell>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDiscount(disc.id)}
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors cursor-pointer ${
+                                  disc.isEnabled
+                                    ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                                    : "bg-gray-500/10 text-gray-500 border border-gray-500/20"
+                                }`}
+                              >
+                                {disc.isEnabled ? "Active" : "Disabled"}
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDiscount(disc);
+                                    setIsDiscountModalOpen(true);
+                                  }}
+                                  className="p-1 rounded text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer"
+                                  title="Edit Discount"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDiscount(disc.id)}
+                                  className="p-1 rounded text-red-500 hover:bg-red-500/10 cursor-pointer"
+                                  title="Remove Discount"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === "housekeeping" && (
             <div className="space-y-8">
               {/* Housekeeping Operations */}
@@ -4117,6 +5172,793 @@ export default function HotelPage() {
                 className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
               >
                 {editingDoc ? "Save Changes" : "Attach Document"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 6: ADD / EDIT CUSTOM HOTEL POLICY (CRUD)                      */}
+      
+      {/* =================================================================== */}
+      {/* MODAL: ADD / EDIT CURRENCY & EXCHANGE RATE                          */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isCurrencyModalOpen}
+        onOpenChange={(open) => {
+          setIsCurrencyModalOpen(open);
+          if (!open) setEditingCurrency(null);
+        }}
+      >
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingCurrency ? `Edit Rate for ${editingCurrency.code}` : "Add Supported Currency"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const code = ((fd.get("code") as string) || "").toUpperCase().trim();
+              const name = (fd.get("name") as string) || "";
+              const symbol = (fd.get("symbol") as string) || "";
+              const exchangeRate = parseFloat(fd.get("exchangeRate") as string) || 1;
+              const isEnabled = fd.get("isEnabled") === "on";
+
+              if (!code || !name) {
+                toast({ title: "Validation Error", description: "Currency code and name are required.", variant: "destructive" });
+                return;
+              }
+
+              handleSaveCurrency({
+                code,
+                name,
+                symbol: symbol || code,
+                exchangeRate,
+                isBaseCurrency: editingCurrency?.isBaseCurrency || false,
+                isEnabled,
+              });
+            }}
+            className="space-y-4 pt-2 text-xs"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Currency Code (ISO) *
+                </label>
+                <input
+                  type="text"
+                  name="code"
+                  defaultValue={editingCurrency?.code || ""}
+                  placeholder="e.g. USD, EUR, AED, SAR"
+                  required
+                  maxLength={5}
+                  disabled={editingCurrency?.isBaseCurrency}
+                  className="w-full h-9 px-3 font-mono font-bold uppercase rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 disabled:opacity-50"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Currency Symbol *
+                </label>
+                <input
+                  type="text"
+                  name="symbol"
+                  defaultValue={editingCurrency?.symbol || "$"}
+                  placeholder="e.g. $, €, £, د.إ"
+                  required
+                  className="w-full h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                Currency Full Name *
+              </label>
+              <input
+                type="text"
+                name="name"
+                defaultValue={editingCurrency?.name || ""}
+                placeholder="e.g. United States Dollar, Euro"
+                required
+                className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                Exchange Rate (1 Unit = X ETB) *
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0.0001"
+                  name="exchangeRate"
+                  defaultValue={editingCurrency ? editingCurrency.exchangeRate : 135.5}
+                  disabled={editingCurrency?.isBaseCurrency}
+                  required
+                  className="flex-1 h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 disabled:opacity-50"
+                />
+                <span className="text-xs font-mono font-bold text-[var(--text-secondary)]">ETB</span>
+              </div>
+              <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">
+                {editingCurrency?.isBaseCurrency ? "Base reporting currency is always pegged at 1.0000" : "Rate used for guest folio conversions and multi-currency billing."}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                name="isEnabled"
+                id="curEnabled"
+                defaultChecked={editingCurrency ? editingCurrency.isEnabled : true}
+                disabled={editingCurrency?.isBaseCurrency}
+                className="w-4 h-4 rounded text-blue-700"
+              />
+              <label htmlFor="curEnabled" className="text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                Active for guest payments and billing conversions
+              </label>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCurrencyModalOpen(false);
+                  setEditingCurrency(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingCurrency ? "Update Rate" : "Add Currency"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      <Dialog
+        open={isPolicyModalOpen}
+        onOpenChange={(open) => {
+          setIsPolicyModalOpen(open);
+          if (!open) setEditingPolicy(null);
+        }}
+      >
+        <DialogContent className="max-w-xl border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-700" />
+              <span>{editingPolicy ? "Edit Hotel Policy / Issue" : "Add Hotel Policy / Issue"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSavePolicy} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Policy Title *
+              </label>
+              <input
+                type="text"
+                name="title"
+                defaultValue={editingPolicy?.title || ""}
+                placeholder="e.g. Standard Cancellation & Refund Policy, Pet Accommodation"
+                required
+                className="w-full h-9 px-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Category
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  defaultValue={editingPolicy?.category || "Guest Policy & Guidelines"}
+                  placeholder="e.g. Reservations, House Rules"
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                  Badge / Tag Label
+                </label>
+                <input
+                  type="text"
+                  name="badge"
+                  defaultValue={editingPolicy?.badge || "Active Policy"}
+                  placeholder="e.g. Mandatory, Core Policy"
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">
+                Policy Content / Operating Guidelines *
+              </label>
+              <textarea
+                name="content"
+                defaultValue={editingPolicy ? formatContentForInput(editingPolicy.content) : ""}
+                rows={6}
+                placeholder="Enter detailed guidelines, operating rules, disclaimers, or cancellation timelines..."
+                required
+                className="w-full p-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 leading-relaxed resize-y"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPolicyModalOpen(false);
+                  setEditingPolicy(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingPolicy ? "Save Policy Changes" : "Create Policy"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* =================================================================== */}
+      {/* MODAL 8: ADD / EDIT PROMOTIONAL PACKAGE                             */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isPromoModalOpen}
+        onOpenChange={(open) => {
+          setIsPromoModalOpen(open);
+          if (!open) setEditingPromo(null);
+        }}
+      >
+        <DialogContent className="max-w-lg border border-[var(--border)] bg-[var(--surface)] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingPromo ? "Edit Promotional Package" : "Create Promotional Package"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const scope = fd.get("scope") as "global" | "branch";
+              const branchIdVal = fd.get("branchId") as string;
+              const selectedBranch = branches?.find((b: any) => b.id === branchIdVal);
+              const pricingType = fd.get("pricingType") as "fixed_package" | "discount_percent";
+              const inclusions = promoInclusions.length > 0 ? promoInclusions : ["Daily Gourmet Buffet Breakfast"];
+
+              const pkg: PromotionalPackage = {
+                id: editingPromo?.id || `pkg-${Date.now()}`,
+                code: ((fd.get("code") as string) || "").toUpperCase().trim(),
+                name: (fd.get("name") as string) || "",
+                description: (fd.get("description") as string) || "",
+                scope,
+                branchId: scope === "branch" ? branchIdVal : undefined,
+                branchName: scope === "branch" ? (selectedBranch?.branchName || "Branch") : undefined,
+                targetRoomTypeIds: ["all"],
+                pricingType,
+                packagePrice: pricingType === "fixed_package" ? parseFloat(fd.get("packagePrice") as string) || 0 : undefined,
+                discountPercent: pricingType === "discount_percent" ? parseFloat(fd.get("discountPercent") as string) || 0 : undefined,
+                inclusions: inclusions.length > 0 ? inclusions : ["Complimentary Breakfast"],
+                minNights: parseInt(fd.get("minNights") as string) || 1,
+                startDate: (fd.get("startDate") as string) || "2026-01-01",
+                endDate: (fd.get("endDate") as string) || "2026-12-31",
+                isEnabled: editingPromo ? editingPromo.isEnabled : true,
+                featured: fd.get("featured") === "on",
+              };
+              handleSavePromo(pkg);
+            }}
+            className="space-y-4 pt-2 text-xs"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Package Code *
+                </label>
+                <input
+                  type="text"
+                  name="code"
+                  defaultValue={editingPromo?.code || ""}
+                  placeholder="e.g. WKND-ESCAPE"
+                  required
+                  className="w-full h-9 px-3 font-mono font-bold rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Package Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={editingPromo?.name || ""}
+                  placeholder="e.g. Weekend Retreat & Spa"
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 font-semibold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                Description / Highlights *
+              </label>
+              <textarea
+                name="description"
+                defaultValue={editingPromo?.description || ""}
+                placeholder="Describe package benefits, experiences, and inclusions..."
+                rows={2}
+                required
+                className="w-full p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Scope
+                </label>
+                <select
+                  name="scope"
+                  defaultValue={editingPromo?.scope || "global"}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  <option value="global">System-Wide (All Branches)</option>
+                  <option value="branch">Branch Specific</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Assigned Branch
+                </label>
+                <select
+                  name="branchId"
+                  defaultValue={editingPromo?.branchId || branches?.[0]?.id || ""}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  {branches && branches.map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.branchName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Tariff Model
+                </label>
+                <select
+                  name="pricingType"
+                  defaultValue={editingPromo?.pricingType || "fixed_package"}
+                  className="w-full h-9 px-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  <option value="fixed_package">Fixed Package (ETB)</option>
+                  <option value="discount_percent">% Off Room Rate</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Price / Discount Value
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="packagePrice"
+                  defaultValue={editingPromo?.packagePrice || 15000}
+                  placeholder="e.g. 15000"
+                  className="w-full h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Min Nights
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  name="minNights"
+                  defaultValue={editingPromo?.minNights || 2}
+                  className="w-full h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-semibold text-[var(--text-secondary)]">
+                  Package Inclusions
+                </label>
+                <span className="text-[10px] text-[var(--text-secondary)]">
+                  {promoInclusions.length} inclusion(s) added
+                </span>
+              </div>
+
+              {/* Removable Inclusion Chips Container */}
+              <div className="flex flex-wrap gap-1.5 min-h-[42px] p-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] mb-2">
+                {promoInclusions.map((inc, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] shadow-2xs"
+                  >
+                    <span>{inc}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPromoInclusions(promoInclusions.filter((_, i) => i !== idx))}
+                      className="text-[var(--text-secondary)] hover:text-red-500 cursor-pointer ml-0.5"
+                      title="Remove"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                {promoInclusions.length === 0 && (
+                  <span className="text-xs text-[var(--text-secondary)] self-center italic">
+                    No inclusions added yet. Add items below.
+                  </span>
+                )}
+              </div>
+
+              {/* Free-field Add Input */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inclusionInput}
+                  onChange={(e) => setInclusionInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (inclusionInput.trim()) {
+                        setPromoInclusions([...promoInclusions, inclusionInput.trim()]);
+                        setInclusionInput("");
+                      }
+                    }
+                  }}
+                  placeholder="Type an inclusion and press Enter or Add..."
+                  className="flex-1 h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (inclusionInput.trim()) {
+                      setPromoInclusions([...promoInclusions, inclusionInput.trim()]);
+                      setInclusionInput("");
+                    }
+                  }}
+                  className="px-3.5 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs cursor-pointer shadow-xs transition-colors shrink-0"
+                >
+                  + Add
+                </button>
+              </div>
+
+              {/* Quick Suggestion Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px]">
+                <span className="text-[var(--text-secondary)] font-medium">Quick Suggestions:</span>
+                {[
+                  "Daily Buffet Breakfast",
+                  "Airport Shuttle Transfer",
+                  "60-Min Swedish Spa Voucher",
+                  "Late Check-Out until 14:00",
+                  "Chef's 3-Course Dinner",
+                  "Chilled Champagne & Fruits",
+                ].map((sug, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      if (!promoInclusions.includes(sug)) {
+                        setPromoInclusions([...promoInclusions, sug]);
+                      }
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-[var(--surface-hover)] border border-[var(--border)] hover:border-blue-500/50 text-[var(--text-secondary)] hover:text-blue-700 cursor-pointer transition-colors"
+                  >
+                    + {sug}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  name="startDate"
+                  defaultValue={editingPromo?.startDate || "2026-01-01"}
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  name="endDate"
+                  defaultValue={editingPromo?.endDate || "2026-12-31"}
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                name="featured"
+                id="promoFeatured"
+                defaultChecked={editingPromo?.featured}
+                className="w-4 h-4 rounded text-blue-700"
+              />
+              <label htmlFor="promoFeatured" className="text-xs font-medium text-[var(--text-primary)] cursor-pointer">
+                Highlight as Featured Package on Guest Portal Booking Engine
+              </label>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPromoModalOpen(false);
+                  setEditingPromo(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingPromo ? "Save Package Changes" : "Create Package"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =================================================================== */}
+      {/* MODAL 9: ADD / EDIT DISCOUNT RULE                                   */}
+      {/* =================================================================== */}
+      <Dialog
+        open={isDiscountModalOpen}
+        onOpenChange={(open) => {
+          setIsDiscountModalOpen(open);
+          if (!open) setEditingDiscount(null);
+        }}
+      >
+        <DialogContent className="max-w-md border border-[var(--border)] bg-[var(--surface)]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[var(--text-primary)]">
+              {editingDiscount ? "Edit Discount Rule" : "Create Discount Rule / Coupon"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const scope = fd.get("scope") as "global" | "branch";
+              const branchIdVal = fd.get("branchId") as string;
+              const selectedBranch = branches?.find((b: any) => b.id === branchIdVal);
+
+              const disc: DiscountRule = {
+                id: editingDiscount?.id || `disc-${Date.now()}`,
+                code: ((fd.get("code") as string) || "").toUpperCase().trim(),
+                name: (fd.get("name") as string) || "",
+                discountType: (fd.get("discountType") as "percentage" | "fixed_amount") || "percentage",
+                value: parseFloat(fd.get("value") as string) || 0,
+                scope,
+                branchId: scope === "branch" ? branchIdVal : undefined,
+                branchName: scope === "branch" ? (selectedBranch?.branchName || "Branch") : undefined,
+                applicableTo: (fd.get("applicableTo") as "rooms" | "restaurant" | "all") || "rooms",
+                startDate: (fd.get("startDate") as string) || "2026-01-01",
+                endDate: (fd.get("endDate") as string) || "2026-12-31",
+                minNightsRequired: parseInt(fd.get("minNightsRequired") as string) || 1,
+                isEnabled: editingDiscount ? editingDiscount.isEnabled : true,
+              };
+              handleSaveDiscount(disc);
+            }}
+            className="space-y-4 pt-2 text-xs"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Coupon Code *
+                </label>
+                <input
+                  type="text"
+                  name="code"
+                  defaultValue={editingDiscount?.code || ""}
+                  placeholder="e.g. SUMMER15"
+                  required
+                  className="w-full h-9 px-3 font-mono font-bold rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Discount Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={editingDiscount?.name || ""}
+                  placeholder="e.g. Summer Special 15%"
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Discount Type
+                </label>
+                <select
+                  name="discountType"
+                  defaultValue={editingDiscount?.discountType || "percentage"}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed_amount">Fixed Amount (ETB)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Value (% or ETB) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="value"
+                  defaultValue={editingDiscount?.value || 15}
+                  required
+                  className="w-full h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Scope
+                </label>
+                <select
+                  name="scope"
+                  defaultValue={editingDiscount?.scope || "global"}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  <option value="global">System-Wide</option>
+                  <option value="branch">Branch Specific</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Assigned Branch
+                </label>
+                <select
+                  name="branchId"
+                  defaultValue={editingDiscount?.branchId || branches?.[0]?.id || ""}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  {branches && branches.map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.branchName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Applicable Category
+                </label>
+                <select
+                  name="applicableTo"
+                  defaultValue={editingDiscount?.applicableTo || "rooms"}
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700 cursor-pointer"
+                >
+                  <option value="rooms">Room Tariffs Only</option>
+                  <option value="restaurant">Restaurant & F&B Only</option>
+                  <option value="all">Entire Guest Folio</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Min Nights Required
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  name="minNightsRequired"
+                  defaultValue={editingDiscount?.minNightsRequired || 1}
+                  className="w-full h-9 px-3 font-mono rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  name="startDate"
+                  defaultValue={editingDiscount?.startDate || "2026-01-01"}
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[var(--text-secondary)] block mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  name="endDate"
+                  defaultValue={editingDiscount?.endDate || "2026-12-31"}
+                  required
+                  className="w-full h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-blue-700"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDiscountModalOpen(false);
+                  setEditingDiscount(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                {editingDiscount ? "Save Discount Changes" : "Create Discount Rule"}
               </button>
             </DialogFooter>
           </form>

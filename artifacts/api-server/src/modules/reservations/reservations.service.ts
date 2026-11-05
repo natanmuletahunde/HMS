@@ -14,6 +14,8 @@ import {
   notificationsTable,
   preCheckoutInspectionsTable,
   usersTable,
+  buildingsTable,
+  branchesTable,
 } from '@workspace/db';
 import { EventBusService } from '../event-bus/event-bus.service';
 
@@ -150,6 +152,24 @@ export class ReservationsService {
     remarks?: string;
     notes?: string;
   }) {
+    if (body.roomId) {
+      const [branchInfo] = await db
+        .select({
+          branchName: branchesTable.branchName,
+          settings: branchesTable.settings,
+        })
+        .from(roomsTable)
+        .innerJoin(buildingsTable, eq(roomsTable.buildingId, buildingsTable.id))
+        .innerJoin(branchesTable, eq(buildingsTable.branchId, branchesTable.id))
+        .where(eq(roomsTable.id, body.roomId));
+
+      if (branchInfo && (branchInfo.settings as any)?.isFrozen) {
+        throw new BadRequestException(
+          `Cannot create reservation: Branch '${branchInfo.branchName}' is under an Administrative Decommissioning Freeze. New reservations are locked.`
+        );
+      }
+    }
+
     const nights = calcNights(body.checkInDate, body.checkOutDate);
 
     if (!body.roomTypeId && body.roomId) {
@@ -356,6 +376,22 @@ export class ReservationsService {
 
     if (!assignedRoomId) {
       throw new BadRequestException('No available rooms in the hotel to complete check-in. Please ensure a room is cleaned and available.');
+    }
+
+    const [assignedBranch] = await db
+      .select({
+        branchName: branchesTable.branchName,
+        settings: branchesTable.settings,
+      })
+      .from(roomsTable)
+      .innerJoin(buildingsTable, eq(roomsTable.buildingId, buildingsTable.id))
+      .innerJoin(branchesTable, eq(buildingsTable.branchId, branchesTable.id))
+      .where(eq(roomsTable.id, assignedRoomId));
+
+    if (assignedBranch && (assignedBranch.settings as any)?.isFrozen) {
+      throw new BadRequestException(
+        `Cannot complete check-in: Branch '${assignedBranch.branchName}' is under an Administrative Decommissioning Freeze. Only check-outs and folio settlements are permitted.`
+      );
     }
 
     const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, assignedRoomId));

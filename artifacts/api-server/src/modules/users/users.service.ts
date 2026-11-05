@@ -8,6 +8,7 @@ import {
   userBranchesTable,
   auditLogsTable,
   branchesTable,
+  buildingsTable,
   mfaConfigsTable,
   mobileSessionsTable,
   employeesTable,
@@ -36,6 +37,8 @@ const fields = {
   roleName: rolesTable.name,
   roleScope: rolesTable.scope,
   primaryBranchId: usersTable.primaryBranchId,
+  buildingId: usersTable.buildingId,
+  buildingName: buildingsTable.buildingName,
   isActive: usersTable.isActive,
   isOnDuty: usersTable.isOnDuty,
   createdAt: usersTable.createdAt,
@@ -50,6 +53,8 @@ const fmt = (u: any, branches: any[] = []) => ({
   roleName: u.roleName ?? null,
   roleScope: u.roleScope ?? 'branch',
   primaryBranchId: u.primaryBranchId ?? null,
+  buildingId: u.buildingId ?? null,
+  buildingName: u.buildingName ?? null,
   branches,
   createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
 });
@@ -69,7 +74,7 @@ function validateEthiopianPhone(phone: string): string {
 
 @Injectable()
 export class UsersService {
-  async findAll(page = 1, limit = 20, search?: string, roleId?: string, isActive?: string, branchId?: string) {
+  async findAll(page = 1, limit = 20, search?: string, roleId?: string, isActive?: string, branchId?: string, buildingId?: string) {
     const l = Math.min(limit, 100);
     const offset = (page - 1) * l;
     const conds: any[] = [];
@@ -85,6 +90,7 @@ export class UsersService {
     }
     if (roleId) conds.push(eq(usersTable.roleId, roleId));
     if (isActive !== undefined) conds.push(eq(usersTable.isActive, isActive === 'true'));
+    if (buildingId) conds.push(eq(usersTable.buildingId, buildingId));
     
     // If filtering by branch, locate users assigned to this branch
     if (branchId) {
@@ -101,7 +107,7 @@ export class UsersService {
 
     const where = conds.length > 0 ? and(...conds) : undefined;
     const [rows, [{ count }]] = await Promise.all([
-      db.select(fields).from(usersTable).leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id)).where(where).limit(l).offset(offset).orderBy(usersTable.createdAt),
+      db.select(fields).from(usersTable).leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id)).leftJoin(buildingsTable, eq(usersTable.buildingId, buildingsTable.id)).where(where).limit(l).offset(offset).orderBy(usersTable.createdAt),
       db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(where),
     ]);
 
@@ -168,6 +174,21 @@ export class UsersService {
       formattedPhone = validateEthiopianPhone(body.phone);
     }
 
+    let buildingId: string | null = null;
+    if (body.buildingId && typeof body.buildingId === 'string' && body.buildingId.trim()) {
+      const [bld] = await db
+        .select({ id: buildingsTable.id, isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(eq(buildingsTable.id, body.buildingId.trim()));
+      if (!bld) {
+        throw new BadRequestException('Selected building does not exist.');
+      }
+      if (!bld.isActive) {
+        throw new BadRequestException(`Cannot assign staff to inactive building '${bld.buildingName}'.`);
+      }
+      buildingId = bld.id;
+    }
+
     const branchIds: string[] = Array.isArray(body.branchIds)
       ? body.branchIds
       : body.branchId
@@ -187,6 +208,7 @@ export class UsersService {
         department: body.department ? body.department.trim() : null,
         roleId: body.roleId,
         primaryBranchId,
+        buildingId,
       })
       .returning();
 
@@ -227,6 +249,7 @@ export class UsersService {
       .select(fields)
       .from(usersTable)
       .leftJoin(rolesTable, eq(usersTable.roleId, rolesTable.id))
+      .leftJoin(buildingsTable, eq(usersTable.buildingId, buildingsTable.id))
       .where(eq(usersTable.id, id));
     if (!u) throw new NotFoundException('User not found');
 
@@ -253,6 +276,24 @@ export class UsersService {
 
   async update(id: string, body: any) {
     const updates: any = {};
+    if (body.buildingId !== undefined) {
+      if (body.buildingId && typeof body.buildingId === 'string' && body.buildingId.trim()) {
+        const [bld] = await db
+          .select({ id: buildingsTable.id, isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+          .from(buildingsTable)
+          .where(eq(buildingsTable.id, body.buildingId.trim()));
+        if (!bld) {
+          throw new BadRequestException('Selected building does not exist.');
+        }
+        if (!bld.isActive) {
+          throw new BadRequestException(`Cannot assign staff to inactive building '${bld.buildingName}'.`);
+        }
+        updates.buildingId = bld.id;
+      } else {
+        updates.buildingId = null;
+      }
+    }
+
     for (const k of ['firstName', 'lastName', 'roleId', 'department', 'isOnDuty']) {
       if (body[k] !== undefined) updates[k] = body[k];
     }
@@ -300,9 +341,24 @@ export class UsersService {
     }
 
     // Branch synchronisation
-    if (body.branchIds !== undefined) {
-      const branchIds: string[] = Array.isArray(body.branchIds) ? body.branchIds : [];
-      const primaryBranchId = body.primaryBranchId || (branchIds.length > 0 ? branchIds[0] : null);
+    const singleBranchId = body.branchId ?? body.branch_id ?? body.primaryBranchId ?? body.primary_branch_id;
+    const arrayBranchIds = body.branchIds ?? body.branch_ids;
+
+    if (arrayBranchIds !== undefined || singleBranchId !== undefined) {
+      let branchIds: string[];
+      if (Array.isArray(arrayBranchIds)) {
+        branchIds = arrayBranchIds.filter(Boolean);
+      } else if (singleBranchId) {
+        branchIds = [singleBranchId];
+      } else {
+        branchIds = [];
+      }
+
+      if (singleBranchId && !branchIds.includes(singleBranchId)) {
+        branchIds.push(singleBranchId);
+      }
+
+      const primaryBranchId = singleBranchId || (branchIds.length > 0 ? branchIds[0] : null);
       updates.primaryBranchId = primaryBranchId;
 
       // Replace user_branches assignments
@@ -316,18 +372,6 @@ export class UsersService {
             isPrimary: bId === primaryBranchId,
           })
           .onConflictDoNothing();
-      }
-    } else if (body.primaryBranchId !== undefined) {
-      updates.primaryBranchId = body.primaryBranchId;
-      await db
-        .update(userBranchesTable)
-        .set({ isPrimary: false })
-        .where(eq(userBranchesTable.userId, id));
-      if (body.primaryBranchId) {
-        await db
-          .update(userBranchesTable)
-          .set({ isPrimary: true })
-          .where(and(eq(userBranchesTable.userId, id), eq(userBranchesTable.branchId, body.primaryBranchId)));
       }
     }
 

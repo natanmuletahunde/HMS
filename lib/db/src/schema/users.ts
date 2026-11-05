@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { rolesTable } from "./roles";
 import { branchesTable } from "./branches";
+import { buildingsTable } from "./buildings";
 
 export const usersTable = pgTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -16,6 +17,7 @@ export const usersTable = pgTable("users", {
   department: text("department"),
   roleId: text("role_id").notNull().references(() => rolesTable.id),
   primaryBranchId: text("primary_branch_id").references(() => branchesTable.id, { onDelete: "set null" }),
+  buildingId: text("building_id").references(() => buildingsTable.id, { onDelete: "set null" }),
   // null = platform admin (can access all tenants)
   tenantId: text("tenant_id"),
   isOnDuty: boolean("is_on_duty").notNull().default(true),
