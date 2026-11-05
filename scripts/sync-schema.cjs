@@ -4,7 +4,7 @@ const { Client } = require('pg');
 
 async function sync() {
   const client = new Client({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:045422@localhost:5433/hotel_management',
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:045422@localhost:5432/hotel_management',
   });
   await client.connect();
 
