@@ -95,11 +95,21 @@ function RoomsContent() {
     user?.roleName === "System Admin" ||
     user?.roleScope === "global";
 
-  const canManageRooms =
-    isGlobal ||
-    hasPermission("*") ||
-    hasPermission("hotel:*") ||
-    hasPermission("rooms:*");
+  const { data: rawHotel } = useQuery({
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
+  });
+  const chainHotel = Array.isArray(rawHotel) ? rawHotel[0] : (rawHotel?.data?.[0] ?? rawHotel);
+  const allowBranchCatalog = chainHotel?.settings?.allowBranchCatalogManagement === true;
+  const isBranchManager = user?.roleName === "Branch Manager" || user?.roleName === "Manager";
+
+  // When a branch is active (selected in topbar or user is branch-scoped),
+  // room creation is strictly restricted if Branch Catalog Management is HQ Centralized (!allowBranchCatalog).
+  const isBranchScoped = Boolean(activeBranch?.id || !isGlobal);
+
+  const canManageRooms = isBranchScoped
+    ? allowBranchCatalog && (isGlobal || isBranchManager || hasPermission("*") || hasPermission("rooms:*") || hasPermission("hotel:*"))
+    : isGlobal || (allowBranchCatalog && (isBranchManager || hasPermission("*") || hasPermission("rooms:*")));
 
   const handleMainTabChange = (tab: "rooms" | "types" | "categories" | "pricing") => {
     if (tab === "rooms") {
@@ -449,25 +459,12 @@ function RoomsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-primary/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-            <BedDouble className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
-                Rooms Management
-              </h1>
-              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border-primary/30 shadow-xs">
-                Inventory & Hierarchy
-              </Badge>
-            </div>
-            <p className="text-xs text-text-muted mt-0.5">
-              Room allocation, live availability calendar, rates, categories, and building floor status.
-            </p>
-          </div>
+      {/* Top Page Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+            Rooms Management
+          </h1>
         </div>
       </div>
 
@@ -514,34 +511,43 @@ function RoomsContent() {
 
       {activeMainTab === "rooms" && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-border/40">
-            <Button
-              size="sm"
-              variant={activeRoomSubTab === "inventory" ? "default" : "outline"}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[var(--surface-hover)]/60 border border-[var(--border)] w-fit">
+            <button
+              type="button"
               onClick={() => handleRoomSubTabChange("inventory")}
-              className="text-xs h-8"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeRoomSubTab === "inventory"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-xs border border-[var(--border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
             >
-              <BedDouble className="mr-1.5 h-3.5 w-3.5" />
-              Room Inventory & Status
-            </Button>
-            <Button
-              size="sm"
-              variant={activeRoomSubTab === "availability" ? "default" : "outline"}
+              <BedDouble className="h-3.5 w-3.5" />
+              <span>Room Inventory & Status</span>
+            </button>
+            <button
+              type="button"
               onClick={() => handleRoomSubTabChange("availability")}
-              className="text-xs h-8"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeRoomSubTab === "availability"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-xs border border-[var(--border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
             >
-              <CalendarSearch className="mr-1.5 h-3.5 w-3.5" />
-              Date Availability & Booking
-            </Button>
-            <Button
-              size="sm"
-              variant={activeRoomSubTab === "calendar" ? "default" : "outline"}
+              <CalendarSearch className="h-3.5 w-3.5" />
+              <span>Date Availability & Booking</span>
+            </button>
+            <button
+              type="button"
               onClick={() => handleRoomSubTabChange("calendar")}
-              className="text-xs h-8"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeRoomSubTab === "calendar"
+                  ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-xs border border-[var(--border)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
             >
-              <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
-              Reservation Calendar
-            </Button>
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>Reservation Calendar</span>
+            </button>
           </div>
 
           {activeRoomSubTab === "inventory" && (
@@ -613,9 +619,13 @@ function RoomsContent() {
             </div>
 
             {canManageRooms && (!allowedBranchIds || branches.length > 0) && (
-              <Button onClick={openAddRoom}>
-                <Plus className="mr-2 h-4 w-4" /> Add Room
-              </Button>
+              <button
+                type="button"
+                onClick={openAddRoom}
+                className="inline-flex items-center justify-center h-8 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer shrink-0"
+              >
+                <span>Add Room</span>
+              </button>
             )}
 
             <Dialog open={isAddOpen} onOpenChange={(open) => {

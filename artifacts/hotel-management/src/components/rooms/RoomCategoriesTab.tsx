@@ -20,10 +20,11 @@ export function RoomCategoriesTab() {
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
 
   const { data: hotels = [] } = useQuery({
-    queryKey: ["hotels-primary-setting"],
-    queryFn: () => apiFetch<any[]>("/hotels"),
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
   });
-  const allowBranchCatalog = hotels[0]?.settings?.allowBranchCatalogManagement !== false;
+  const chainHotel = Array.isArray(hotels) ? hotels[0] : ((hotels as any)?.data?.[0] ?? hotels);
+  const allowBranchCatalog = chainHotel?.settings?.allowBranchCatalogManagement === true;
   const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -86,9 +87,12 @@ export function RoomCategoriesTab() {
             if (!open) setEditItem(null);
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
-                <Plus className="mr-2 h-4 w-4" /> Add Category
-              </Button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-8 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+              >
+                <span>Add Category</span>
+              </button>
             </DialogTrigger>
             <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
               <DialogHeader>

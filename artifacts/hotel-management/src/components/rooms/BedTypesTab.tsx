@@ -20,10 +20,11 @@ export function BedTypesTab() {
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
 
   const { data: hotels = [] } = useQuery({
-    queryKey: ["hotels-primary-setting"],
-    queryFn: () => apiFetch<any[]>("/hotels"),
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
   });
-  const allowBranchCatalog = hotels[0]?.settings?.allowBranchCatalogManagement !== false;
+  const chainHotel = Array.isArray(hotels) ? hotels[0] : ((hotels as any)?.data?.[0] ?? hotels);
+  const allowBranchCatalog = chainHotel?.settings?.allowBranchCatalogManagement === true;
   const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
 
   const [isAddOpen, setIsAddOpen] = useState(false);

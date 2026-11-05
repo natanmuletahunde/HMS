@@ -159,9 +159,12 @@ export function FloorsTab() {
               }
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
-                  <Plus className="mr-2 h-4 w-4" /> Add Floor
-                </Button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-9 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer shrink-0"
+                >
+                  <span>Add Floor</span>
+                </button>
               </DialogTrigger>
               <DialogContent className="border-[var(--border)] bg-[var(--surface)]">
                 <DialogHeader>

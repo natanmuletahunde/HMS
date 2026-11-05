@@ -27,10 +27,11 @@ export function RoomTypesTab() {
   const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
 
   const { data: hotels = [] } = useQuery({
-    queryKey: ["hotels-primary-setting"],
-    queryFn: () => apiFetch<any[]>("/hotels"),
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
   });
-  const allowBranchCatalog = hotels[0]?.settings?.allowBranchCatalogManagement !== false;
+  const chainHotel = Array.isArray(hotels) ? hotels[0] : ((hotels as any)?.data?.[0] ?? hotels);
+  const allowBranchCatalog = chainHotel?.settings?.allowBranchCatalogManagement === true;
   const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -207,15 +208,16 @@ export function RoomTypesTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Room Types</h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Configure sellable room inventory profiles with default bed setups, pricing, amenities, and photos.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {canManage && (
-            <Button onClick={openAdd} className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
-              <Plus className="mr-2 h-4 w-4" /> Add Room Type
-            </Button>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="inline-flex items-center justify-center h-8 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+            >
+              <span>Add Room Type</span>
+            </button>
           )}
 
           <Dialog open={isAddOpen} onOpenChange={(open) => {

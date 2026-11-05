@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@n
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { HotelService } from './hotel.service';
 
-@Controller('hotel')
+@Controller(['hotel', 'hotels'])
 @UseGuards(JwtAuthGuard)
 export class HotelController {
   constructor(private readonly svc: HotelService) {}

@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
+import { useAuth } from "@/components/auth-provider";
 
 const PRICING_TYPES = [
   { value: "base", label: "Base Rate" },
@@ -26,6 +27,17 @@ const PRICING_TYPES = [
 ];
 
 export function PricingTab() {
+  const { user, hasPermission } = useAuth();
+  const isGlobal = user?.roleName === "Admin" || user?.roleName === "System Admin" || user?.roleScope === "global";
+
+  const { data: hotels = [] } = useQuery({
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
+  });
+  const chainHotel = Array.isArray(hotels) ? hotels[0] : ((hotels as any)?.data?.[0] ?? hotels);
+  const allowBranchCatalog = chainHotel?.settings?.allowBranchCatalogManagement === true;
+  const canManage = isGlobal || (allowBranchCatalog && (user?.roleName === "Branch Manager" || hasPermission("*") || hasPermission("hotel:*") || hasPermission("rooms:*")));
+
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("all");
   const [selectedRoomId, setSelectedRoomId] = useState<string>("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -158,9 +170,6 @@ export function PricingTab() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Pricing Rules</h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Configure rates by Room Type (propagating to all rooms) or set custom overrides per physical room.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -204,9 +213,15 @@ export function PricingTab() {
             </Select>
           </div>
 
-          <Button onClick={openAdd} className="bg-blue-700 hover:bg-blue-800 text-white shadow-xs">
-            <Plus className="mr-2 h-4 w-4" /> Add Pricing Rule
-          </Button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={openAdd}
+              className="inline-flex items-center justify-center h-8 px-4 rounded-lg text-xs font-semibold bg-blue-700 text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
+            >
+              <span>Add Pricing Rule</span>
+            </button>
+          )}
 
           <Dialog open={isAddOpen} onOpenChange={(open) => {
             setIsAddOpen(open);

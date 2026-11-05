@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,31 @@ import {
   Check,
 } from "lucide-react";
 import type { GuestRecord, AccompanyingGuest } from "./guest-registration-modal";
+
+export type PromotionalPackage = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  scope?: "global" | "branch";
+  pricingType: "fixed_package" | "discount_percent";
+  packagePrice?: number;
+  discountPercent?: number;
+  inclusions: string[];
+  minNights: number;
+  isEnabled: boolean;
+};
+
+export type DiscountRule = {
+  id: string;
+  code: string;
+  name: string;
+  discountType: "percentage" | "fixed_amount";
+  value: number;
+  applicableTo: "rooms" | "restaurant" | "all";
+  minNightsRequired?: number;
+  isEnabled: boolean;
+};
 
 export interface RoomType {
   id: string;
@@ -169,6 +194,74 @@ export function ReservationBookingModal({
   const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; percent?: number; amount?: number; label: string } | null>(null);
   const [securityDeposit, setSecurityDeposit] = useState<number>(1000);
 
+  // Fetch active hotel packages & discount rules from configuration
+  const { data: rawHotel } = useQuery({
+    queryKey: ["hotel"],
+    queryFn: () => apiFetch<any>("/hotel"),
+  });
+  const hotelObj = Array.isArray(rawHotel) ? rawHotel[0] : (rawHotel?.data?.[0] ?? rawHotel);
+
+  const activePackages: PromotionalPackage[] = React.useMemo(() => {
+    const list = hotelObj?.settings?.promotionalPackages;
+    if (Array.isArray(list) && list.length > 0) {
+      return list.filter((p: any) => p.isEnabled);
+    }
+    return [
+      {
+        id: "pkg_weekend_retreat",
+        code: "WKND-GETAWAY",
+        name: "Luxury Weekend Retreat & Spa",
+        description: "2 nights in deluxe room with daily breakfast and couple spa voucher.",
+        scope: "global",
+        pricingType: "fixed_package",
+        packagePrice: 16500,
+        inclusions: [
+          "Daily Gourmet Buffet Breakfast",
+          "60-Min Swedish Spa Voucher",
+          "Complimentary Airport Chauffeur",
+          "Late Check-Out until 14:00",
+        ],
+        minNights: 2,
+        isEnabled: true,
+      },
+      {
+        id: "pkg_honeymoon",
+        code: "HONEYMOON-DELUXE",
+        name: "Presidential Honeymoon Package",
+        description: "All-inclusive romantic stay with champagne, candlelit dinner, and breakfast in bed.",
+        scope: "global",
+        pricingType: "fixed_package",
+        packagePrice: 28000,
+        inclusions: [
+          "Chilled Champagne & Exotic Fruit Basket",
+          "Chef's 3-Course Candlelit Dinner",
+          "In-Bed Gourmet Breakfast",
+          "Unlimited Hydrotherapy & Spa Access",
+          "Guaranteed Late Check-Out until 16:00",
+        ],
+        minNights: 2,
+        isEnabled: true,
+      },
+    ];
+  }, [hotelObj]);
+
+  const activeDiscounts: DiscountRule[] = React.useMemo(() => {
+    const list = hotelObj?.settings?.discounts;
+    if (Array.isArray(list) && list.length > 0) {
+      return list.filter((d: any) => d.isEnabled);
+    }
+    return [
+      { id: "d1", code: "SUMMER20", name: "Summer Special 20% Off", discountType: "percentage", value: 20, applicableTo: "rooms", isEnabled: true },
+      { id: "d2", code: "CORP-ETHIOAIR", name: "Ethiopian Airlines Corporate (15% OFF)", discountType: "percentage", value: 15, applicableTo: "all", isEnabled: true },
+      { id: "d3", code: "BOLE-TRANSIT", name: "Bole Airport Transit Direct Voucher (500 ETB)", discountType: "fixed_amount", value: 500, applicableTo: "rooms", isEnabled: true },
+    ];
+  }, [hotelObj]);
+
+  const selectedPackage = React.useMemo(() => {
+    if (ratePlan === "standard") return null;
+    return activePackages.find((p) => p.id === ratePlan || p.code === ratePlan) || null;
+  }, [ratePlan, activePackages]);
+
   // Determine Base Price per night based on selected Room Types
   const primaryRoomType = roomTypes.find((t) => t.id === resRoomTypeId);
   const secondaryRoomType = roomTypes.find((t) => t.id === (secondaryRoomTypeId || resRoomTypeId));
@@ -190,12 +283,25 @@ export function ReservationBookingModal({
     return 1.0;
   }, [resCheckIn]);
 
+  // Calculate nights
+  const nights = React.useMemo(() => {
+    if (!resCheckIn || !resCheckOut) return 1;
+    const diff = new Date(resCheckOut).getTime() - new Date(resCheckIn).getTime();
+    return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
+  }, [resCheckIn, resCheckOut]);
+
   // Rate Plan Package Price Override if applicable
   const packagePriceOverride = React.useMemo(() => {
-    if (ratePlan === "pkg_weekend_retreat") return 16500;
-    if (ratePlan === "pkg_honeymoon") return 28000;
+    if (!selectedPackage) return null;
+    if (selectedPackage.pricingType === "fixed_package" && selectedPackage.packagePrice) {
+      return selectedPackage.packagePrice;
+    }
+    if (selectedPackage.pricingType === "discount_percent" && selectedPackage.discountPercent) {
+      const standardCost = baseRatePerNight * rateMultiplier * nights;
+      return Math.round(standardCost * (1 - selectedPackage.discountPercent / 100));
+    }
     return null;
-  }, [ratePlan]);
+  }, [selectedPackage, baseRatePerNight, rateMultiplier, nights]);
 
   // Discount code application handler
   const handleApplyDiscountCode = () => {
@@ -204,7 +310,23 @@ export function ReservationBookingModal({
       setAppliedDiscount(null);
       return;
     }
-    if (code === "SUMMER20") {
+    const matched = activeDiscounts.find((d) => d.code.toUpperCase() === code);
+    if (matched) {
+      if (matched.applicableTo === "restaurant") {
+        toast({ title: "Dining Discount Only", description: `${matched.name} applies strictly to F&B and dining orders.`, variant: "destructive" });
+        return;
+      }
+      if (matched.minNightsRequired && nights < matched.minNightsRequired) {
+        toast({ title: "Minimum Stay Required", description: `This promo requires a minimum stay of ${matched.minNightsRequired} nights.`, variant: "destructive" });
+        return;
+      }
+      if (matched.discountType === "percentage") {
+        setAppliedDiscount({ code: matched.code, percent: matched.value, label: `${matched.name} (${matched.value}% OFF)` });
+      } else {
+        setAppliedDiscount({ code: matched.code, amount: matched.value, label: `${matched.name} (${matched.value} ETB OFF)` });
+      }
+      toast({ title: "Discount Applied", description: `${matched.name} applied to room folio.` });
+    } else if (code === "SUMMER20") {
       setAppliedDiscount({ code: "SUMMER20", percent: 20, label: "Summer Special (20% OFF)" });
       toast({ title: "Discount Applied", description: "20% deducted from room rate." });
     } else if (code === "CORP-ETHIOAIR" || code === "ETHIOAIR") {
@@ -217,13 +339,6 @@ export function ReservationBookingModal({
       toast({ title: "Invalid Promo Code", description: "Code not found or expired. Check active campaigns.", variant: "destructive" });
     }
   };
-
-  // Calculate nights
-  const nights = React.useMemo(() => {
-    if (!resCheckIn || !resCheckOut) return 1;
-    const diff = new Date(resCheckOut).getTime() - new Date(resCheckIn).getTime();
-    return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
-  }, [resCheckIn, resCheckOut]);
 
   // Calculation Breakdown
   const grossRoomCharge = React.useMemo(() => {
@@ -304,6 +419,10 @@ export function ReservationBookingModal({
     }
 
     let finalSpecialRequests = resSpecialRequests || "";
+    if (selectedPackage && selectedPackage.inclusions && selectedPackage.inclusions.length > 0) {
+      const inclusionsTag = `Package [${selectedPackage.name}]: ${selectedPackage.inclusions.join(", ")}`;
+      finalSpecialRequests = finalSpecialRequests ? `${finalSpecialRequests} | ${inclusionsTag}` : inclusionsTag;
+    }
     if (Number(resAdults) >= 2) {
       const modeTag = accommodationMode === "separate_rooms" ? "2 Separate Rooms (1 per guest)" : "Twin Bed Configuration (2 Separate Beds)";
       if (!finalSpecialRequests.includes(modeTag)) {
@@ -325,6 +444,10 @@ export function ReservationBookingModal({
       taxAmount: taxAmount,
       depositRequired: securityDeposit,
       ratePlan: ratePlan,
+      packageId: selectedPackage?.id,
+      packageName: selectedPackage?.name,
+      packageInclusions: selectedPackage?.inclusions,
+      discountCode: appliedDiscount?.code,
     };
     if (resRoomTypeId) payload.roomTypeId = resRoomTypeId;
     if (finalSpecialRequests) payload.specialRequests = finalSpecialRequests;
@@ -727,63 +850,90 @@ export function ReservationBookingModal({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Rate Plan / Package Selector */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="ratePlan" className="text-xs font-semibold">
-                    Rate Plan / Promotional Package
-                  </Label>
-                  <select
-                    id="ratePlan"
-                    value={ratePlan}
-                    onChange={(e) => setRatePlan(e.target.value)}
-                    className="h-10 w-full rounded-md border border-border bg-white dark:bg-[#0E172E] px-3 py-2 text-xs text-foreground cursor-pointer"
-                  >
-                    <option value="standard">Standard Flexible Rate (Dynamic Daily)</option>
-                    <option value="pkg_weekend_retreat">Weekend Retreat & Spa (Fixed 16,500 ETB / 2 Nights)</option>
-                    <option value="pkg_honeymoon">Presidential Honeymoon Package (Fixed 28,000 ETB)</option>
-                    <option value="corporate">Corporate Negotiated Tariff (Standard Terms)</option>
-                  </select>
+              <div className="space-y-3">
+                {/* Rate Plan / Package Selector & Promo Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ratePlan" className="text-xs font-semibold flex items-center gap-1.5">
+                      <Gift className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Rate Plan / Promotional Package</span>
+                    </Label>
+                    <select
+                      id="ratePlan"
+                      value={ratePlan}
+                      onChange={(e) => setRatePlan(e.target.value)}
+                      className="h-10 w-full rounded-md border border-border bg-white dark:bg-[#0E172E] px-3 py-2 text-xs text-foreground cursor-pointer"
+                    >
+                      <option value="standard">Standard Flexible Rate (Dynamic Daily)</option>
+                      {activePackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} ({pkg.pricingType === "fixed_package" ? `${pkg.packagePrice?.toLocaleString()} ETB Fixed` : `${pkg.discountPercent}% Off`})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Promo / Discount Coupon Input */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="discountCode" className="text-xs font-semibold flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Promotional Coupon / Corporate Code</span>
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="discountCode"
+                        value={discountCode}
+                        onChange={(e) => setDiscountCode(e.target.value)}
+                        placeholder="e.g. SUMMER20, ETHIOAIR"
+                        className="h-10 text-xs font-mono uppercase"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleApplyDiscountCode}
+                        className="h-10 px-3 text-xs font-semibold shrink-0 cursor-pointer"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                    {appliedDiscount && (
+                      <div className="flex items-center justify-between text-[11px] text-emerald-600 font-medium px-1">
+                        <span>✓ {appliedDiscount.label}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedDiscount(null);
+                            setDiscountCode("");
+                          }}
+                          className="text-[10px] text-muted-foreground hover:text-red-500 underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Promo / Discount Coupon Input */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="discountCode" className="text-xs font-semibold">
-                    Promotional Coupon / Corporate Code
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="discountCode"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value)}
-                      placeholder="e.g. SUMMER20, ETHIOAIR"
-                      className="h-10 text-xs font-mono uppercase"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleApplyDiscountCode}
-                      className="h-10 px-3 text-xs font-semibold shrink-0"
-                    >
-                      Apply
-                    </Button>
-                  </div>
-                  {appliedDiscount && (
-                    <div className="flex items-center justify-between text-[11px] text-emerald-600 font-medium px-1">
-                      <span>✓ {appliedDiscount.label}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAppliedDiscount(null);
-                          setDiscountCode("");
-                        }}
-                        className="text-[10px] text-muted-foreground hover:text-red-500 underline cursor-pointer"
-                      >
-                        Remove
-                      </button>
+                {/* Dynamic Package Inclusions Showcase */}
+                {selectedPackage && selectedPackage.inclusions && selectedPackage.inclusions.length > 0 && (
+                  <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-300 mb-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Included Package Amenities ({selectedPackage.name}):</span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedPackage.inclusions.map((inc, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[11px] font-medium border border-blue-500/20"
+                        >
+                          <Check className="w-3 h-3 text-blue-600" />
+                          <span>{inc}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Live Formula Breakdown Card */}

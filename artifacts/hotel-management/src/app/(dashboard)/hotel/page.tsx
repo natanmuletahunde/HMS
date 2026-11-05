@@ -1255,16 +1255,47 @@ export default function HotelPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const toggleCatalogMutation = useMutation({
+    mutationFn: (enabled: boolean) => {
+      const targetHotel = chainHotel || hotel;
+      if (!targetHotel?.id) {
+        throw new Error("Hotel configuration not loaded");
+      }
+      return apiFetch(`/hotel/${targetHotel.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          settings: {
+            ...(targetHotel.settings || {}),
+            allowBranchCatalogManagement: enabled,
+          },
+        }),
+      });
+    },
+    onSuccess: (_, enabled) => {
+      queryClient.invalidateQueries({ queryKey: ["hotel"] });
+      queryClient.invalidateQueries({ queryKey: ["hotels"] });
+      queryClient.invalidateQueries({ queryKey: ["hotels-primary-setting"] });
+      queryClient.invalidateQueries({ queryKey: ["hotel-settings-for-rooms"] });
+      toast({
+        title: enabled ? "Branch Delegation Enabled" : "HQ Centralized Mode Active",
+        description: enabled
+          ? "Branch Managers can now create and manage rooms and room catalogs for their assigned branch."
+          : "Room creation and catalog management is now restricted to Chain SuperAdmins.",
+      });
+    },
+    onError: (err: Error) => {
+      setAllowBranchCatalogManagement(!allowBranchCatalogManagement);
+      toast({
+        title: "Failed to update delegation",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleToggleBranchCatalog = (enabled: boolean) => {
     setAllowBranchCatalogManagement(enabled);
-    if (!isEditing && hotel) {
-      saveMutation.mutate({
-        settings: {
-          ...(hotel.settings || {}),
-          allowBranchCatalogManagement: enabled,
-        },
-      } as any);
-    }
+    toggleCatalogMutation.mutate(enabled);
   };
 
   // Facility Actions
@@ -3483,41 +3514,50 @@ export default function HotelPage() {
                   </h3>
                 </div>
                 <div className="md:col-span-2 space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2">
-                    <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">
-                      Branch Catalog Management
-                    </span>
-                    {isEditing ? (
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-[var(--text-secondary)]">
-                          {allowBranchCatalogManagement ? "Delegated" : "Centralized"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleBranchCatalog(!allowBranchCatalogManagement)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
-                            allowBranchCatalogManagement ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
-                          }`}
-                          role="switch"
-                          aria-checked={allowBranchCatalogManagement}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                              allowBranchCatalogManagement ? "translate-x-5" : "translate-x-0"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium tracking-wide border ${
-                        allowBranchCatalogManagement
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60"
-                          : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${allowBranchCatalogManagement ? "bg-emerald-500" : "bg-slate-400"}`} />
-                        {allowBranchCatalogManagement ? "Delegated to Branches" : "HQ Centralized"}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2 border-b border-[var(--border)]">
+                    <div>
+                      <span className="text-sm font-semibold text-[var(--text-primary)] block">
+                        Branch Catalog Management
                       </span>
-                    )}
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        Allow assigned Branch Managers to create, configure, and maintain rooms and room types for their branch.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBranchCatalog(!allowBranchCatalogManagement)}
+                        disabled={toggleCatalogMutation.isPending}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide border transition-all cursor-pointer shadow-xs disabled:opacity-60 ${
+                          allowBranchCatalogManagement
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100"
+                            : "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 hover:bg-slate-200"
+                        }`}
+                        title="Click to toggle branch catalog delegation"
+                      >
+                        <span className={`w-2 h-2 rounded-full ${allowBranchCatalogManagement ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                        <span>{allowBranchCatalogManagement ? "Delegated to Branches" : "HQ Centralized"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBranchCatalog(!allowBranchCatalogManagement)}
+                        disabled={toggleCatalogMutation.isPending}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-60 ${
+                          allowBranchCatalogManagement ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
+                        }`}
+                        role="switch"
+                        aria-checked={allowBranchCatalogManagement}
+                        title="Toggle branch catalog delegation"
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            allowBranchCatalogManagement ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3622,7 +3662,7 @@ export default function HotelPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-[var(--border)]">
                     <span className="text-sm text-[var(--text-secondary)] sm:w-64 shrink-0">Base Accounting Currency</span>
                     <span className="font-mono font-bold text-xs text-blue-700 dark:text-blue-400 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
-                      {hotel?.currencyCode || "ETB"} &mdash; Ethiopian Birr (MoR Standard)
+                      {hotel?.currencyCode || "ETB"} &mdash; Ethiopian Birr
                     </span>
                   </div>
 

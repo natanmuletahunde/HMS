@@ -6,7 +6,7 @@ import {
   Receipt, Search, Bell, Clock, CheckCircle2, AlertCircle, Printer,
   DollarSign, ArrowUpRight, ArrowRight, RefreshCw, Utensils, Hotel,
   CreditCard, Wallet, Banknote, UserCheck, Check, Sparkles, Filter,
-  ChevronDown, ChevronUp, FileText, X
+  ChevronDown, ChevronUp, FileText, X, Tag
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -160,6 +160,8 @@ export default function CashierPage() {
   const [settleMethod, setSettleMethod] = useState<"cash" | "telebirr" | "card" | "room_charge" | "complimentary_breakfast">("cash");
   const [tenderedAmount, setTenderedAmount] = useState<string>("");
   const [settleNotes, setSettleNotes] = useState("");
+  const [cashierDiscountType, setCashierDiscountType] = useState<string>("none");
+  const [cashierCustomDiscountVal, setCashierCustomDiscountVal] = useState<string>("");
 
   // Persistent settled orders registry
   const [settledMap, setSettledMap] = useState<Record<string, SettledOrderInfo>>({});
@@ -528,24 +530,43 @@ export default function CashierPage() {
     setSettleModalOrder(null);
   }
 
-  // Calculate taxes and service charge for display
-  function getOrderFinances(order: CashierOrder) {
+  // Calculate taxes, discounts, and service charge for display
+  function getOrderFinances(order: CashierOrder, discountType = "none", customDiscount = 0) {
     const rawTotal = order.totalAmount ?? order.total ?? 0;
     const isComplimentary = order.settlementType === "complimentary_breakfast";
     if (isComplimentary) {
       return {
+        grossSubtotal: order.complimentaryDiscountAmount || 38.00,
         subtotal: order.complimentaryDiscountAmount || 38.00,
         discount: order.complimentaryDiscountAmount || 38.00,
+        discountLabel: "Complimentary Breakfast",
         vat: 0,
         serviceCharge: 0,
         netTotal: 0,
       };
     }
-    const subtotal = Math.round((rawTotal / 1.15) * 100) / 100;
-    const vat = Math.round((subtotal * 0.10) * 100) / 100;
-    const serviceCharge = Math.round((subtotal * 0.05) * 100) / 100;
-    const netTotal = rawTotal;
-    return { subtotal, discount: 0, vat, serviceCharge, netTotal };
+    const grossSubtotal = Math.round((rawTotal / 1.15) * 100) / 100;
+    let discount = 0;
+    let discountLabel = "";
+    if (discountType === "resident_15") {
+      discount = Math.round(grossSubtotal * 0.15 * 100) / 100;
+      discountLabel = "In-House Resident (15% OFF)";
+    } else if (discountType === "corporate_10") {
+      discount = Math.round(grossSubtotal * 0.10 * 100) / 100;
+      discountLabel = "Corporate Partner (10% OFF)";
+    } else if (discountType === "happy_hour_20") {
+      discount = Math.round(grossSubtotal * 0.20 * 100) / 100;
+      discountLabel = "Happy Hour (20% OFF)";
+    } else if (discountType === "custom" && customDiscount > 0) {
+      discount = Math.min(grossSubtotal, customDiscount);
+      discountLabel = `Courtesy Waiver ($${discount.toFixed(2)})`;
+    }
+
+    const netSubtotal = Math.max(0, grossSubtotal - discount);
+    const vat = Math.round((netSubtotal * 0.10) * 100) / 100;
+    const serviceCharge = Math.round((netSubtotal * 0.05) * 100) / 100;
+    const netTotal = Math.round((netSubtotal + vat + serviceCharge) * 100) / 100;
+    return { grossSubtotal, subtotal: netSubtotal, discount, discountLabel, vat, serviceCharge, netTotal };
   }
 
   return (

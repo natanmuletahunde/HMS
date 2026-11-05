@@ -441,9 +441,8 @@ function BranchesContent() {
               <button
                 type="button"
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all shadow-xs shrink-0 cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
                 <span>Add Branch</span>
               </button>
             )}
@@ -466,9 +465,9 @@ function BranchesContent() {
                 <button
                   type="button"
                   onClick={handleOpenAdd}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--blue-700)] text-white hover:bg-[var(--navy-800)] transition-all cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" /> Add Branch
+                  <span>Add Branch</span>
                 </button>
               ) : undefined
             }
@@ -609,8 +608,8 @@ function BranchesContent() {
               </div>
               <span>Administrative Decommissioning Freeze</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Placing <strong className="text-[var(--text-primary)] font-semibold">{freezeModalBranch?.branchName}</strong> into an Administrative Freeze locks all inbound reservations and check-ins immediately so operations can safely relocate guests and settle folios.
+            <DialogDescription className="sr-only">
+              Administrative Decommissioning Freeze
             </DialogDescription>
           </DialogHeader>
 

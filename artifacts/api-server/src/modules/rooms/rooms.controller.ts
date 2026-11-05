@@ -3,9 +3,18 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { RoomsService } from './rooms.service';
-import { db, buildingsTable, roomsTable } from '@workspace/db';
+import { db, buildingsTable, roomsTable, hotelsTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { getUserAccessInfo } from '../../common/utils/access-control';
+
+async function assertBranchRoomManagementAllowed(access: any) {
+  if (access.isGlobal || access.roleName === 'Admin' || access.roleName === 'System Admin') return;
+  const [hotel] = await db.select({ settings: hotelsTable.settings }).from(hotelsTable).limit(1);
+  const settings = (hotel?.settings as Record<string, any>) || {};
+  if (settings.allowBranchCatalogManagement === false) {
+    throw new ForbiddenException('Branch room management is disabled by Super Admin. HQ Centralized catalog is active.');
+  }
+}
 
 @Controller('rooms')
 @UseGuards(JwtAuthGuard)
@@ -60,6 +69,7 @@ export class RoomsController {
   @Post()
   async create(@CurrentUser() user: JwtPayload, @Body() body: any) {
     const access = await getUserAccessInfo(user);
+    await assertBranchRoomManagementAllowed(access);
     if (!access.isGlobal) {
       const [bld] = await db.select({ branchId: buildingsTable.branchId }).from(buildingsTable).where(eq(buildingsTable.id, body.buildingId));
       if (!bld || !access.branchIds.includes(bld.branchId)) {
@@ -86,6 +96,7 @@ export class RoomsController {
   @Patch(':id')
   async update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() body: any) {
     const access = await getUserAccessInfo(user);
+    await assertBranchRoomManagementAllowed(access);
     if (!access.isGlobal) {
       const [r] = await db.select({ buildingId: roomsTable.buildingId }).from(roomsTable).where(eq(roomsTable.id, id));
       if (!r) throw new NotFoundException('Room not found');
@@ -102,6 +113,7 @@ export class RoomsController {
   @Delete(':id')
   async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     const access = await getUserAccessInfo(user);
+    await assertBranchRoomManagementAllowed(access);
     if (!access.isGlobal) {
       const [r] = await db.select({ buildingId: roomsTable.buildingId }).from(roomsTable).where(eq(roomsTable.id, id));
       if (!r) throw new NotFoundException('Room not found');
