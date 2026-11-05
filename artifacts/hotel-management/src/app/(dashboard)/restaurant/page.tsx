@@ -128,10 +128,10 @@ const MENU_CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Dessert", "Fast
 const FOOD_MENU_CATEGORIES = ["All Food", "Breakfast", "Lunch", "Dinner", "Traditional", "Fast Food", "Dessert"];
 
 const DRINK_STATIONS = [
-  { id: "all", label: "All Beverages", icon: "🍹" },
-  { id: "bar", label: "Bar Station (Barman 🍸)", icon: "🍸" },
-  { id: "coffee", label: "Coffee Station (Barista ☕)", icon: "☕" },
-  { id: "juice", label: "Juice & Soft Drinks (Beverage Staff 🧃)", icon: "🧃" },
+  { id: "all", label: "All Drinks", icon: "🍹" },
+  { id: "bar", label: "🍸 Bar Station", icon: "🍸" },
+  { id: "coffee", label: "☕ Coffee & Barista", icon: "☕" },
+  { id: "juice", label: "🧃 Juices & Soft Drinks", icon: "🧃" },
 ] as const;
 
 const isBeverageItem = (m: any): boolean => {
@@ -332,6 +332,7 @@ export default function RestaurantPage() {
   const [menuTickCategory, setMenuTickCategory] = useState("All Food");
   const [menuDrinkSearch, setMenuDrinkSearch] = useState("");
   const [menuDrinkStation, setMenuDrinkStation] = useState<"all" | "bar" | "coffee" | "juice">("all");
+  const [orderMenuSection, setOrderMenuSection] = useState<"food" | "drinks">("food");
 
   // Multi-round / Re-ordering state (Adding dishes to existing open tab)
   const [isAddRoundOpen, setIsAddRoundOpen] = useState(false);
@@ -629,6 +630,22 @@ export default function RestaurantPage() {
   }, [menuItems, menuDrinkStation, menuDrinkSearch]);
 
   const tickableMenuItems = tickableFoodItems;
+
+  const selectedFoodCount = useMemo(() => {
+    return newOrderItems.filter(i => !isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0);
+  }, [newOrderItems]);
+
+  const selectedDrinksCount = useMemo(() => {
+    return newOrderItems.filter(i => isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0);
+  }, [newOrderItems]);
+
+  const orderCartTotal = useMemo(() => {
+    return newOrderItems.reduce((acc, i) => {
+      const isBreakfast = (i.category || "").toLowerCase() === "breakfast";
+      const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
+      return acc + (isFree ? 0 : i.price * i.quantity);
+    }, 0);
+  }, [newOrderItems, newOrderDiningCase, newOrderSettlementType]);
 
   function invalidateOrders() {
     queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
@@ -2988,25 +3005,42 @@ export default function RestaurantPage() {
             setNewOrderTableId("");
             setNewOrderDiningCase("walk_in");
             setNewOrderSettlementType("direct_payment");
+            setOrderMenuSection("food");
+            setMenuTickSearch("");
+            setMenuTickCategory("All Food");
+            setMenuDrinkSearch("");
+            setMenuDrinkStation("all");
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center justify-between">
-              <span>New Restaurant Order</span>
-              <Badge variant="outline" className="font-mono text-xs">
-                {newOrderDiningCase === "walk_in"
-                  ? "Walk-In Table"
-                  : newOrderDiningCase === "in_house_table"
-                  ? "In-House Guest Table"
-                  : "Room Service Delivery"}
-              </Badge>
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl w-[96vw] sm:w-full max-h-[92vh] flex flex-col p-0 overflow-hidden border border-border/80 bg-card shadow-2xl rounded-2xl">
+          {/* Fixed Modal Header */}
+          <div className="shrink-0 px-6 py-4 border-b border-border/60 bg-gradient-to-r from-muted/30 via-muted/10 to-transparent flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+                <UtensilsCrossed className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-text">
+                  New Waiter Order
+                </h2>
+                <p className="text-[11px] text-text-muted">
+                  Floor table ordering, guest pacing & kitchen dispatch
+                </p>
+              </div>
+            </div>
+
+            <Badge variant="outline" className="font-mono text-xs font-semibold px-2.5 py-0.5">
+              {newOrderDiningCase === "walk_in"
+                ? "🍽️ Walk-In Table"
+                : newOrderDiningCase === "in_house_table"
+                ? "🏨 In-House Guest"
+                : "🛎️ Room Service"}
+            </Badge>
+          </div>
 
           <form
-            className="space-y-4"
+            className="flex flex-col flex-1 min-h-0 overflow-hidden"
             onSubmit={(e) => {
               e.preventDefault();
               if (newOrderDiningCase === "room_service" && !newOrderRoomNumber.trim()) {
@@ -3022,7 +3056,7 @@ export default function RestaurantPage() {
                 return;
               }
               if (newOrderItems.length === 0) {
-                toast({ title: "No Items Selected", description: "Please select at least one item from the menu.", variant: "destructive" });
+                toast({ title: "No Items Selected", description: "Please select at least one food or drink item.", variant: "destructive" });
                 return;
               }
 
@@ -3057,166 +3091,80 @@ export default function RestaurantPage() {
               createOrderMutation.mutate(body);
             }}
           >
-            {/* Scenario Buttons */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase text-text-muted">Dining Classification *</Label>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewOrderDiningCase("walk_in");
-                    setNewOrderSettlementType("direct_payment");
-                  }}
-                  className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderDiningCase === "walk_in"
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <Utensils className="h-3.5 w-3.5" />
-                    <span>Walk-In Table</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Floor seating & dining</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewOrderDiningCase("in_house_table");
-                    setNewOrderSettlementType("room_charge");
-                  }}
-                  className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderDiningCase === "in_house_table"
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <Hotel className="h-3.5 w-3.5" />
-                    <span>In-House Guest</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Resident at table</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewOrderDiningCase("room_service");
-                    setNewOrderSettlementType("room_charge");
-                  }}
-                  className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderDiningCase === "room_service"
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <DoorOpen className="h-3.5 w-3.5" />
-                    <span>Room Service</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Direct room delivery</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Resident Verification for Room Service */}
-            {newOrderDiningCase === "room_service" && (
-              <div className="p-3 bg-muted/30 rounded-lg border border-border space-y-2.5">
-                <div className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-8">
-                    <Label className="text-xs">Hotel Room # *</Label>
-                    <Input
-                      placeholder="e.g. 204"
-                      value={newOrderRoomNumber}
-                      onChange={(e) => {
-                        setNewOrderRoomNumber(e.target.value);
-                        setNewOrderResidentVerified(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleVerifyResident(newOrderRoomNumber);
-                        }
-                      }}
-                      className="h-9 text-sm font-mono uppercase"
-                    />
-                  </div>
-                  <div className="col-span-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-9 text-xs"
-                      onClick={() => handleVerifyResident(newOrderRoomNumber)}
-                      disabled={newOrderVerifyingResident || !newOrderRoomNumber.trim()}
-                    >
-                      {newOrderVerifyingResident ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Verify Resident"}
-                    </Button>
-                  </div>
-                </div>
-
-                {newOrderResidentVerified && newOrderResidentVerified.valid && (
-                  <div className="p-2.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1">
-                    <div className="flex items-center justify-between font-medium text-emerald-800 dark:text-emerald-300">
-                      <span className="flex items-center gap-1.5">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        {newOrderResidentVerified.guestName}
-                      </span>
-                      <span className="font-mono text-[11px]">Room {newOrderResidentVerified.roomNumber}</span>
-                    </div>
-
-                    {newOrderResidentVerified.complimentaryBreakfast && (
-                      <div className="pt-1 border-t border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
-                        {newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed
-                          ? "⚠️ Breakfast already claimed today for this room."
-                          : "✨ Eligible for 100% complimentary hotel breakfast."}
-                      </div>
+            {/* Scrollable Form Body (Strictly Vertical Scroll, No Side Sliding) */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4">
+              {/* 1. Dining Classification */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-text-muted">Dining Classification *</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewOrderDiningCase("walk_in");
+                      setNewOrderSettlementType("direct_payment");
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-xl border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                      newOrderDiningCase === "walk_in"
+                        ? "border-primary bg-primary/10 text-primary font-semibold ring-2 ring-primary/20 shadow-xs"
+                        : "border-border hover:bg-muted/40 text-text-muted"
                     )}
-                  </div>
-                )}
-
-                {newOrderResidentVerified && !newOrderResidentVerified.valid && (
-                  <div className="p-2 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                    <span>{newOrderResidentVerified.message || "Room not active or occupied."}</span>
-                  </div>
-                )}
-
-                <div>
-                  <Label className="text-xs">Settlement Route</Label>
-                  <select
-                    value={newOrderSettlementType}
-                    onChange={(e) => setNewOrderSettlementType(e.target.value as any)}
-                    className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs mt-1"
                   >
-                    <option value="room_charge">🏨 Charge to Room Folio (Pay at Checkout)</option>
-                    <option value="direct_payment">💳 Direct Payment at Door (Cash / Card / Telebirr)</option>
-                  </select>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Utensils className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Walk-In Table</span>
+                    </div>
+                    <span className="text-[10px] text-text-muted leading-tight truncate">Floor seating</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewOrderDiningCase("in_house_table");
+                      setNewOrderSettlementType("room_charge");
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-xl border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                      newOrderDiningCase === "in_house_table"
+                        ? "border-primary bg-primary/10 text-primary font-semibold ring-2 ring-primary/20 shadow-xs"
+                        : "border-border hover:bg-muted/40 text-text-muted"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Hotel className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">In-House Guest</span>
+                    </div>
+                    <span className="text-[10px] text-text-muted leading-tight truncate">Resident at table</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewOrderDiningCase("room_service");
+                      setNewOrderSettlementType("room_charge");
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-xl border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                      newOrderDiningCase === "room_service"
+                        ? "border-primary bg-primary/10 text-primary font-semibold ring-2 ring-primary/20 shadow-xs"
+                        : "border-border hover:bg-muted/40 text-text-muted"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <DoorOpen className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Room Service</span>
+                    </div>
+                    <span className="text-[10px] text-text-muted leading-tight truncate">Direct room delivery</span>
+                  </button>
                 </div>
               </div>
-            )}
 
-            {/* In-House Dining (Resident seated at restaurant table) */}
-            {newOrderDiningCase === "in_house_table" && (
-              <div className="space-y-2.5">
-                <div className="grid gap-1.5">
-                  <Label className="text-xs">Restaurant Table *</Label>
-                  <select
-                    value={newOrderTableId}
-                    onChange={(e) => setNewOrderTableId(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs"
-                  >
-                    <option value="">Select Restaurant Table for In-House Guest...</option>
-                    {tables.map((t) => (
-                      <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="p-3 bg-muted/30 rounded-lg border border-border space-y-2.5">
+              {/* 2. Room Service Verification */}
+              {newOrderDiningCase === "room_service" && (
+                <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-2.5">
                   <div className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-8">
-                      <Label className="text-xs">Resident Hotel Room # (For Folio Billing)</Label>
+                      <Label className="text-xs font-semibold">Hotel Room # *</Label>
                       <Input
                         placeholder="e.g. 204"
                         value={newOrderRoomNumber}
@@ -3230,14 +3178,14 @@ export default function RestaurantPage() {
                             handleVerifyResident(newOrderRoomNumber);
                           }
                         }}
-                        className="h-9 text-sm font-mono uppercase"
+                        className="h-9 text-xs font-mono uppercase bg-surface"
                       />
                     </div>
                     <div className="col-span-4">
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full h-9 text-xs"
+                        className="w-full h-9 text-xs rounded-xl"
                         onClick={() => handleVerifyResident(newOrderRoomNumber)}
                         disabled={newOrderVerifyingResident || !newOrderRoomNumber.trim()}
                       >
@@ -3247,15 +3195,14 @@ export default function RestaurantPage() {
                   </div>
 
                   {newOrderResidentVerified && newOrderResidentVerified.valid && (
-                    <div className="p-2.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1">
+                    <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1">
                       <div className="flex items-center justify-between font-medium text-emerald-800 dark:text-emerald-300">
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 font-bold">
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                           {newOrderResidentVerified.guestName}
                         </span>
-                        <span className="font-mono text-[11px]">Room {newOrderResidentVerified.roomNumber}</span>
+                        <span className="font-mono text-[11px] bg-emerald-500/20 px-2 py-0.5 rounded-md">Room {newOrderResidentVerified.roomNumber}</span>
                       </div>
-
                       {newOrderResidentVerified.complimentaryBreakfast && (
                         <div className="pt-1 border-t border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
                           {newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed
@@ -3266,416 +3213,618 @@ export default function RestaurantPage() {
                     </div>
                   )}
 
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Resident Guest Name</Label>
-                    <Input
-                      value={newOrderGuestName}
-                      onChange={(e) => setNewOrderGuestName(e.target.value)}
-                      placeholder="e.g. Ariel Hikmat"
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                  {newOrderResidentVerified && !newOrderResidentVerified.valid && (
+                    <div className="p-2 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{newOrderResidentVerified.message || "Room not active or occupied."}</span>
+                    </div>
+                  )}
 
                   <div>
-                    <Label className="text-xs">Settlement Route</Label>
+                    <Label className="text-xs font-semibold">Settlement Route</Label>
                     <select
                       value={newOrderSettlementType}
                       onChange={(e) => setNewOrderSettlementType(e.target.value as any)}
-                      className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs mt-1"
+                      className="flex h-9 w-full rounded-xl border border-border bg-surface px-3 py-1 text-xs mt-1"
                     >
                       <option value="room_charge">🏨 Charge to Room Folio (Pay at Checkout)</option>
-                      <option value="direct_payment">💳 Direct Payment at Table (Cash / Card / Telebirr)</option>
-                      {newOrderResidentVerified?.complimentaryBreakfast && !newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed && (
-                        <option value="complimentary_breakfast">🍳 100% Complimentary Hotel Breakfast</option>
-                      )}
+                      <option value="direct_payment">💳 Direct Payment at Door (Cash / Card / Telebirr)</option>
                     </select>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Walk-In Table (Outside Floor Diners) */}
-            {newOrderDiningCase === "walk_in" && (
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Restaurant Table *</Label>
-                <select
-                  value={newOrderTableId}
-                  onChange={(e) => setNewOrderTableId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-border bg-surface px-3 py-1 text-xs"
-                >
-                  <option value="">Select Table...</option>
-                  {tables.map((t) => (
-                    <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
-                  ))}
-                </select>
-              </div>
-            )}
+              {/* 3. In-House Dining (Table Seated) */}
+              {newOrderDiningCase === "in_house_table" && (
+                <div className="space-y-2.5">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Restaurant Table *</Label>
+                    <select
+                      value={newOrderTableId}
+                      onChange={(e) => setNewOrderTableId(e.target.value)}
+                      className="flex h-9 w-full rounded-xl border border-border bg-surface px-3 py-1 text-xs"
+                    >
+                      <option value="">Select Restaurant Table for In-House Guest...</option>
+                      {tables.map((t) => (
+                        <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* Table QR Button for Guests */}
-            {newOrderDiningCase !== "room_service" && newOrderTableId && (
-              <div className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="flex items-center gap-2">
-                  <QrCode className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-medium text-text">
-                    Digital Table Menu QR for Table #{tables.find(t => t.id === newOrderTableId)?.tableNumber || "—"}
-                  </span>
+                  <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-2.5">
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-8">
+                        <Label className="text-xs font-semibold">Resident Hotel Room # (For Folio Billing)</Label>
+                        <Input
+                          placeholder="e.g. 204"
+                          value={newOrderRoomNumber}
+                          onChange={(e) => {
+                            setNewOrderRoomNumber(e.target.value);
+                            setNewOrderResidentVerified(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleVerifyResident(newOrderRoomNumber);
+                            }
+                          }}
+                          className="h-9 text-xs font-mono uppercase bg-surface"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full h-9 text-xs rounded-xl"
+                          onClick={() => handleVerifyResident(newOrderRoomNumber)}
+                          disabled={newOrderVerifyingResident || !newOrderRoomNumber.trim()}
+                        >
+                          {newOrderVerifyingResident ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Verify Resident"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {newOrderResidentVerified && newOrderResidentVerified.valid && (
+                      <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1">
+                        <div className="flex items-center justify-between font-medium text-emerald-800 dark:text-emerald-300">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            {newOrderResidentVerified.guestName}
+                          </span>
+                          <span className="font-mono text-[11px] bg-emerald-500/20 px-2 py-0.5 rounded-md">Room {newOrderResidentVerified.roomNumber}</span>
+                        </div>
+                        {newOrderResidentVerified.complimentaryBreakfast && (
+                          <div className="pt-1 border-t border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
+                            {newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed
+                              ? "⚠️ Breakfast already claimed today for this room."
+                              : "✨ Eligible for 100% complimentary hotel breakfast."}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-semibold">Resident Guest Name</Label>
+                      <Input
+                        value={newOrderGuestName}
+                        onChange={(e) => setNewOrderGuestName(e.target.value)}
+                        placeholder="e.g. Ariel Hikmat"
+                        className="h-9 text-xs bg-surface"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs font-semibold">Settlement Route</Label>
+                      <select
+                        value={newOrderSettlementType}
+                        onChange={(e) => setNewOrderSettlementType(e.target.value as any)}
+                        className="flex h-9 w-full rounded-xl border border-border bg-surface px-3 py-1 text-xs mt-1"
+                      >
+                        <option value="room_charge">🏨 Charge to Room Folio (Pay at Checkout)</option>
+                        <option value="direct_payment">💳 Direct Payment at Table (Cash / Card / Telebirr)</option>
+                        {newOrderResidentVerified?.complimentaryBreakfast && !newOrderResidentVerified.complimentaryBreakfast.alreadyClaimed && (
+                          <option value="complimentary_breakfast">🍳 100% Complimentary Hotel Breakfast</option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsTableQrModalOpen(true)}
-                  className="h-7 text-xs border-primary/40 text-primary hover:bg-primary/10"
-                >
-                  <QrCode className="h-3 w-3 mr-1" />
-                  Show QR on Tablet
-                </Button>
-              </div>
-            )}
+              )}
 
-            {/* Kitchen Order Routing */}
-            <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/20">
-              <Label className="text-xs font-semibold uppercase text-text-muted">Kitchen Order Routing *</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewOrderRoutedVia("coordinator")}
-                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderRoutedVia === "coordinator"
-                      ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300 font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <GitMerge className="h-3.5 w-3.5 text-teal-600" />
-                    <span>Via F&B Coordinator</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Middleman inventory verification</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewOrderRoutedVia("direct_kitchen")}
-                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderRoutedVia === "direct_kitchen"
-                      ? "border-red-500 bg-red-500/10 text-red-700 dark:text-red-300 font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <ChefHat className="h-3.5 w-3.5 text-red-500" />
-                    <span>Direct to Kitchen Officer</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Express line queue bypass</span>
-                </button>
-              </div>
-
-              {newOrderRoutedVia === "coordinator" && (
-                <div className="pt-1.5">
-                  <Label className="text-[11px] font-medium text-text-muted">Assign Available Coordinator:</Label>
+              {/* 4. Walk-In Table Seating */}
+              {newOrderDiningCase === "walk_in" && (
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Restaurant Table *</Label>
                   <select
-                    value={newOrderCoordinatorId}
-                    onChange={(e) => setNewOrderCoordinatorId(e.target.value)}
-                    className="flex h-8 w-full rounded-md border border-border bg-surface px-2.5 py-1 text-xs mt-1"
+                    value={newOrderTableId}
+                    onChange={(e) => setNewOrderTableId(e.target.value)}
+                    className="flex h-9 w-full rounded-xl border border-border bg-surface px-3 py-1 text-xs"
                   >
-                    <option value="">Auto-assign to available coordinator</option>
-                    {coordinators.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} {c.isFree ? "🟢 (Available - 0 orders)" : `🟡 (Busy - ${c.activeOrdersCount} active)`}
-                      </option>
+                    <option value="">Select Table...</option>
+                    {tables.map((t) => (
+                      <option key={t.id} value={t.id}>Table #{t.tableNumber} ({t.capacity} seats - {t.status})</option>
                     ))}
                   </select>
                 </div>
               )}
-            </div>
 
-            {/* Guest Beverage Pacing Preference */}
-            <div className="space-y-2 p-3 rounded-lg border border-border bg-muted/20">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-text-muted">Guest Beverage Delivery Preference *</Label>
-                <span className="text-[10px] text-primary font-medium">Guest Pacing</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewOrderPacingPreference("drinks_first")}
-                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderPacingPreference === "drinks_first"
-                      ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <Wine className="h-3.5 w-3.5 text-amber-600" />
-                    <span>🍸 Serve Drinks First</span>
+              {/* Digital Table Menu QR Button */}
+              {newOrderDiningCase !== "room_service" && newOrderTableId && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs font-medium text-text">
+                      Digital Menu QR for Table #{tables.find(t => t.id === newOrderTableId)?.tableNumber || "—"}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Deliver drinks as soon as ready while food cooks</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewOrderPacingPreference("serve_together")}
-                  className={`p-2.5 rounded-lg border text-left flex flex-col gap-0.5 transition-all ${
-                    newOrderPacingPreference === "serve_together"
-                      ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300 font-semibold"
-                      : "border-border hover:bg-muted/40 text-text-muted"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <Utensils className="h-3.5 w-3.5 text-blue-500" />
-                    <span>🍽️ Serve Together with Meal</span>
-                  </div>
-                  <span className="text-[10px] text-text-muted leading-tight">Hold drinks, deliver at the same time as food</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ─── SECTION 1: STRICTLY FOOD DISHES (KITCHEN LINE) ─── */}
-            <div className="space-y-2 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <ChefHat className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <Label className="text-xs font-bold uppercase text-slate-900 dark:text-slate-100">Select / Tick Food Dishes *</Label>
-                </div>
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  {newOrderItems.filter(i => !isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0)} food dishes
-                </span>
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search plated dishes (tibs, wat, pasta, burgers)..."
-                  value={menuTickSearch}
-                  onChange={(e) => setMenuTickSearch(e.target.value)}
-                  className="h-8 text-xs flex-1 bg-white dark:bg-card"
-                />
-                <select
-                  value={menuTickCategory}
-                  onChange={(e) => setMenuTickCategory(e.target.value)}
-                  className="h-8 rounded-md border border-border bg-white dark:bg-card px-2 text-xs font-medium"
-                >
-                  {FOOD_MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              {/* Food Ticking Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto p-1.5 border border-border rounded-lg bg-white dark:bg-card">
-                {tickableFoodItems.length === 0 ? (
-                  <p className="col-span-2 text-xs text-text-muted text-center py-3">No food items match filter.</p>
-                ) : (
-                  tickableFoodItems.map((item) => {
-                    const inCart = newOrderItems.find(i => i.menuItemId === item.id);
-                    const isBreakfast = (item.category || "").toLowerCase() === "breakfast";
-                    const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-2 rounded-md border text-xs flex items-center justify-between transition-all ${
-                          inCart
-                            ? "border-amber-500 bg-amber-500/10 shadow-2xs"
-                            : "border-border/60 hover:bg-muted/30"
-                        }`}
-                      >
-                        <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0 pr-1 select-none">
-                          <input
-                            type="checkbox"
-                            checked={!!inCart}
-                            onChange={() => {
-                              if (inCart) {
-                                setNewOrderItems(prev => prev.filter(i => i.menuItemId !== item.id));
-                              } else {
-                                addOrderItem(item.id);
-                              }
-                            }}
-                            className="mt-0.5 rounded border-border text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
-                          />
-                          <div className="truncate">
-                            <span className="font-semibold text-text block truncate">{item.name}</span>
-                            <span className="text-[10px] text-text-muted">
-                              {item.category} • {isFree ? <span className="text-emerald-600 font-bold">100% Free</span> : `${Number(item.price).toFixed(2)}`}
-                            </span>
-                          </div>
-                        </label>
-
-                        {inCart && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => updateOrderItemQty(item.id, -1)}
-                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
-                            >
-                              -
-                            </button>
-                            <span className="w-4 text-center font-mono font-bold text-xs">{inCart.quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateOrderItemQty(item.id, 1)}
-                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* ─── SECTION 2: DEDICATED 3-STATION BEVERAGES & DRINKS ─── */}
-            <div className="space-y-2 p-3 rounded-xl border border-cyan-200/80 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Wine className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                  <Label className="text-xs font-bold uppercase text-slate-900 dark:text-slate-100">Select Drinks & Beverages * (3 Stations)</Label>
-                </div>
-                <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400">
-                  {newOrderItems.filter(i => isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0)} drinks selected
-                </span>
-              </div>
-
-              {/* Station Tabs */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                {DRINK_STATIONS.map((st) => (
-                  <button
-                    key={st.id}
+                  <Button
                     type="button"
-                    onClick={() => setMenuDrinkStation(st.id as any)}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                      menuDrinkStation === st.id
-                        ? "bg-cyan-600 text-white shadow-xs font-bold"
-                        : "bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
-                    }`}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsTableQrModalOpen(true)}
+                    className="h-7 text-xs border-primary/40 text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
                   >
-                    <span>{st.label}</span>
-                  </button>
-                ))}
-              </div>
+                    <QrCode className="h-3 w-3 mr-1" />
+                    Show QR on Tablet
+                  </Button>
+                </div>
+              )}
 
-              {/* Drink Search Input */}
-              <Input
-                placeholder="Search cocktails, beers, Buna, macchiatos, Spris, juices, sodas..."
-                value={menuDrinkSearch}
-                onChange={(e) => setMenuDrinkSearch(e.target.value)}
-                className="h-8 text-xs bg-white dark:bg-card"
-              />
-
-              {/* Drink Ticking Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto p-1.5 border border-border rounded-lg bg-white dark:bg-card">
-                {tickableDrinkItems.length === 0 ? (
-                  <p className="col-span-2 text-xs text-text-muted text-center py-3">No beverages match filter.</p>
-                ) : (
-                  tickableDrinkItems.map((item) => {
-                    const inCart = newOrderItems.find(i => i.menuItemId === item.id);
-                    const station = resolveItemStation(item);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-2 rounded-md border text-xs flex items-center justify-between transition-all ${
-                          inCart
-                            ? "border-cyan-500 bg-cyan-500/10 shadow-2xs"
-                            : "border-border/60 hover:bg-muted/30"
-                        }`}
-                      >
-                        <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0 pr-1 select-none">
-                          <input
-                            type="checkbox"
-                            checked={!!inCart}
-                            onChange={() => {
-                              if (inCart) {
-                                setNewOrderItems(prev => prev.filter(i => i.menuItemId !== item.id));
-                              } else {
-                                addOrderItem(item.id);
-                              }
-                            }}
-                            className="mt-0.5 rounded border-border text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5"
-                          />
-                          <div className="truncate">
-                            <span className="font-semibold text-text block truncate">{item.name}</span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                                station === "bar"
-                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
-                                  : station === "coffee"
-                                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
-                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              }`}>
-                                {station === "bar" ? "Barman 🍸" : station === "coffee" ? "Barista ☕" : "Beverage 🧃"}
-                              </span>
-                              <span className="text-[10px] text-text-muted font-mono">
-                                ${Number(item.price).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        </label>
-
-                        {inCart && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => updateOrderItemQty(item.id, -1)}
-                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
-                            >
-                              -
-                            </button>
-                            <span className="w-4 text-center font-mono font-bold text-xs">{inCart.quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateOrderItemQty(item.id, 1)}
-                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
+              {/* 5. Routing & Beverage Pacing (2-Column Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Guest Beverage Pacing Preference */}
+                <div className="space-y-1.5 p-3 rounded-xl border border-border bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-text-muted">Beverage Pacing *</Label>
+                    <span className="text-[10px] text-primary font-semibold">Guest Preference</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setNewOrderPacingPreference("drinks_first")}
+                      className={cn(
+                        "p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                        newOrderPacingPreference === "drinks_first"
+                          ? "border-amber-500 bg-amber-500/10 text-amber-800 dark:text-amber-200 font-semibold ring-1 ring-amber-500/30 shadow-xs"
+                          : "border-border/80 hover:bg-muted/40 text-text-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <Wine className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        <span className="truncate">🍸 Drinks First</span>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                      <span className="text-[9px] text-text-muted leading-tight line-clamp-2">Serve drinks right away</span>
+                    </button>
 
-            {/* Order Cart Tally Summary */}
-            {newOrderItems.length > 0 && (
-              <div className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold text-text border-b border-border/40 pb-1">
-                  <span>Order Cart Summary ({newOrderItems.length} dish types)</span>
-                  <span className="text-primary font-mono font-bold">
-                    ${newOrderItems.reduce((acc, i) => {
-                      const isBreakfast = (i.category || "").toLowerCase() === "breakfast";
-                      const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
-                      return acc + (isFree ? 0 : i.price * i.quantity);
-                    }, 0).toFixed(2)}
+                    <button
+                      type="button"
+                      onClick={() => setNewOrderPacingPreference("serve_together")}
+                      className={cn(
+                        "p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                        newOrderPacingPreference === "serve_together"
+                          ? "border-blue-500 bg-blue-500/10 text-blue-800 dark:text-blue-200 font-semibold ring-1 ring-blue-500/30 shadow-xs"
+                          : "border-border/80 hover:bg-muted/40 text-text-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <Utensils className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate">🍽️ Together</span>
+                      </div>
+                      <span className="text-[9px] text-text-muted leading-tight line-clamp-2">Deliver with food tray</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Kitchen Order Routing */}
+                <div className="space-y-1.5 p-3 rounded-xl border border-border bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-text-muted">Order Routing *</Label>
+                    <span className="text-[10px] text-text-muted font-medium">Kitchen Line</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setNewOrderRoutedVia("direct_kitchen")}
+                      className={cn(
+                        "p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                        newOrderRoutedVia === "direct_kitchen"
+                          ? "border-rose-500 bg-rose-500/10 text-rose-800 dark:text-rose-200 font-semibold ring-1 ring-rose-500/30 shadow-xs"
+                          : "border-border/80 hover:bg-muted/40 text-text-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <ChefHat className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate">⚡ Direct Kitchen</span>
+                      </div>
+                      <span className="text-[9px] text-text-muted leading-tight line-clamp-2">Express line bypass</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNewOrderRoutedVia("coordinator")}
+                      className={cn(
+                        "p-2 rounded-lg border text-left flex flex-col gap-0.5 transition-all cursor-pointer",
+                        newOrderRoutedVia === "coordinator"
+                          ? "border-teal-500 bg-teal-500/10 text-teal-800 dark:text-teal-200 font-semibold ring-1 ring-teal-500/30 shadow-xs"
+                          : "border-border/80 hover:bg-muted/40 text-text-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold">
+                        <GitMerge className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                        <span className="truncate">🛡️ Coordinator</span>
+                      </div>
+                      <span className="text-[9px] text-text-muted leading-tight line-clamp-2">QA stock validation</span>
+                    </button>
+                  </div>
+
+                  {newOrderRoutedVia === "coordinator" && (
+                    <select
+                      value={newOrderCoordinatorId}
+                      onChange={(e) => setNewOrderCoordinatorId(e.target.value)}
+                      className="flex h-7 w-full rounded-md border border-border bg-surface px-2 text-[11px] mt-1.5"
+                    >
+                      <option value="">Auto-assign available coordinator</option>
+                      {coordinators.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.isFree ? "🟢 (Free - 0)" : `🟡 (${c.activeOrdersCount} active)`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* ─── 6. BULLET SELECTOR: FOOD VS DRINKS ─── */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                    <span>Order Menu Engine *</span>
+                  </Label>
+                  <span className="text-[11px] text-text-muted">
+                    Click a bullet to toggle menu section
                   </span>
                 </div>
-                <div className="text-[11px] text-text-muted space-y-0.5 max-h-24 overflow-y-auto">
-                  {newOrderItems.map(i => (
-                    <div key={i.menuItemId} className="flex justify-between">
-                      <span>{i.quantity}× {i.name}</span>
-                      <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
+
+                {/* The Two Bullets: Food vs Drinks */}
+                <div className="grid grid-cols-2 gap-2.5 p-1 bg-muted/40 rounded-xl border border-border">
+                  {/* Bullet 1: Food */}
+                  <button
+                    type="button"
+                    onClick={() => setOrderMenuSection("food")}
+                    className={cn(
+                      "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
+                      orderMenuSection === "food"
+                        ? "bg-surface text-text shadow-sm border border-amber-500/50 ring-2 ring-amber-500/20"
+                        : "text-text-muted hover:text-text hover:bg-surface/50 border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={cn(
+                          "w-3.5 h-3.5 rounded-full shrink-0 transition-all flex items-center justify-center",
+                          orderMenuSection === "food"
+                            ? "bg-amber-500 ring-4 ring-amber-500/20 shadow-xs"
+                            : "bg-muted-foreground/30 border border-muted-foreground/40"
+                        )}
+                      >
+                        {orderMenuSection === "food" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                      <span className="font-bold text-sm tracking-wide capitalize truncate">
+                        food
+                      </span>
                     </div>
-                  ))}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "px-2 py-0.5 text-[10px] font-mono font-bold shrink-0",
+                        selectedFoodCount > 0
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                          : "text-text-muted border-transparent"
+                      )}
+                    >
+                      {selectedFoodCount} selected
+                    </Badge>
+                  </button>
+
+                  {/* Bullet 2: Drinks */}
+                  <button
+                    type="button"
+                    onClick={() => setOrderMenuSection("drinks")}
+                    className={cn(
+                      "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
+                      orderMenuSection === "drinks"
+                        ? "bg-surface text-text shadow-sm border border-cyan-500/50 ring-2 ring-cyan-500/20"
+                        : "text-text-muted hover:text-text hover:bg-surface/50 border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={cn(
+                          "w-3.5 h-3.5 rounded-full shrink-0 transition-all flex items-center justify-center",
+                          orderMenuSection === "drinks"
+                            ? "bg-cyan-500 ring-4 ring-cyan-500/20 shadow-xs"
+                            : "bg-muted-foreground/30 border border-muted-foreground/40"
+                        )}
+                      >
+                        {orderMenuSection === "drinks" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                      <span className="font-bold text-sm tracking-wide capitalize truncate">
+                        drinks
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "px-2 py-0.5 text-[10px] font-mono font-bold shrink-0",
+                        selectedDrinksCount > 0
+                          ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30"
+                          : "text-text-muted border-transparent"
+                      )}
+                    >
+                      {selectedDrinksCount} selected
+                    </Badge>
+                  </button>
                 </div>
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full text-xs h-10 font-bold"
-              disabled={createOrderMutation.isPending || newOrderItems.length === 0}
-            >
-              {createOrderMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : newOrderRoutedVia === "coordinator" ? (
-                <Send className="mr-2 h-4 w-4" />
-              ) : (
-                <ChefHat className="mr-2 h-4 w-4" />
+              {/* ─── WHEN BULLET 'FOOD' IS OPEN ─── */}
+              {orderMenuSection === "food" && (
+                <div className="space-y-2.5 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 transition-all">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <ChefHat className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-text">Food Dishes Selection</span>
+                    </div>
+                    <select
+                      value={menuTickCategory}
+                      onChange={(e) => setMenuTickCategory(e.target.value)}
+                      className="h-8 rounded-lg border border-border bg-surface px-2.5 text-xs font-medium focus:ring-1 focus:ring-amber-500"
+                    >
+                      {FOOD_MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Food Search Input */}
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <Input
+                      placeholder="Search plated food (tibs, wat, pasta, burger, salad)..."
+                      value={menuTickSearch}
+                      onChange={(e) => setMenuTickSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-surface"
+                    />
+                  </div>
+
+                  {/* Food Items Grid (Vertical scroll only, no side-slip) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto overflow-x-hidden p-1 border border-border/70 rounded-xl bg-surface/60">
+                    {tickableFoodItems.length === 0 ? (
+                      <p className="col-span-2 text-xs text-text-muted text-center py-4">No food items match filter.</p>
+                    ) : (
+                      tickableFoodItems.map((item) => {
+                        const inCart = newOrderItems.find(i => i.menuItemId === item.id);
+                        const isBreakfast = (item.category || "").toLowerCase() === "breakfast";
+                        const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-xs flex items-center justify-between transition-all min-w-0 select-none",
+                              inCart
+                                ? "border-amber-500 bg-amber-500/10 shadow-xs"
+                                : "border-border/70 bg-surface/90 hover:bg-muted/40"
+                            )}
+                          >
+                            <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0 pr-1 select-none">
+                              <input
+                                type="checkbox"
+                                checked={!!inCart}
+                                onChange={() => {
+                                  if (inCart) {
+                                    setNewOrderItems(prev => prev.filter(i => i.menuItemId !== item.id));
+                                  } else {
+                                    addOrderItem(item.id);
+                                  }
+                                }}
+                                className="mt-0.5 rounded border-border text-amber-600 focus:ring-amber-500 h-3.5 w-3.5 shrink-0"
+                              />
+                              <div className="min-w-0 truncate">
+                                <span className="font-semibold text-text block truncate">{item.name}</span>
+                                <span className="text-[10px] text-text-muted block truncate">
+                                  {item.category} • {isFree ? <span className="text-emerald-600 font-bold">100% Free</span> : `$${Number(item.price).toFixed(2)}`}
+                                </span>
+                              </div>
+                            </label>
+
+                            {inCart && (
+                              <div className="flex items-center gap-1 shrink-0 ml-1 bg-surface px-1.5 py-0.5 rounded-lg border border-border/80">
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderItemQty(item.id, -1)}
+                                  className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted font-bold text-xs cursor-pointer text-text"
+                                >
+                                  -
+                                </button>
+                                <span className="w-4 text-center font-mono font-bold text-xs text-text">{inCart.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderItemQty(item.id, 1)}
+                                  className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted font-bold text-xs cursor-pointer text-text"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               )}
-              Submit Order & Dispatch ({newOrderRoutedVia === "coordinator" ? "Via Coordinator" : "Direct to Kitchen"})
-            </Button>
+
+              {/* ─── WHEN BULLET 'DRINKS' IS OPEN ─── */}
+              {orderMenuSection === "drinks" && (
+                <div className="space-y-2.5 p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-500/5 transition-all">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Wine className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-text">Drinks & Beverages Selection</span>
+                    </div>
+                  </div>
+
+                  {/* Station Pills (Wrapping, strictly no overflow-x) */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {DRINK_STATIONS.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setMenuDrinkStation(st.id as any)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 border",
+                          menuDrinkStation === st.id
+                            ? "bg-cyan-600 text-white border-cyan-600 shadow-xs font-bold"
+                            : "bg-surface border-border text-text-muted hover:text-text hover:bg-muted/40"
+                        )}
+                      >
+                        <span>{st.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Drinks Search Input */}
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <Input
+                      placeholder="Search cocktails, beers, coffee, macchiato, juices, sodas..."
+                      value={menuDrinkSearch}
+                      onChange={(e) => setMenuDrinkSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-surface"
+                    />
+                  </div>
+
+                  {/* Grid of Drinks (No horizontal scroll, strictly vertical max-h-56) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto overflow-x-hidden p-1 border border-border/70 rounded-xl bg-surface/60">
+                    {tickableDrinkItems.length === 0 ? (
+                      <p className="col-span-2 text-xs text-text-muted text-center py-4">No beverages match filter.</p>
+                    ) : (
+                      tickableDrinkItems.map((item) => {
+                        const inCart = newOrderItems.find(i => i.menuItemId === item.id);
+                        const station = resolveItemStation(item);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-xs flex items-center justify-between transition-all min-w-0 select-none",
+                              inCart
+                                ? "border-cyan-500 bg-cyan-500/10 shadow-xs"
+                                : "border-border/70 bg-surface/90 hover:bg-muted/40"
+                            )}
+                          >
+                            <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0 pr-1 select-none">
+                              <input
+                                type="checkbox"
+                                checked={!!inCart}
+                                onChange={() => {
+                                  if (inCart) {
+                                    setNewOrderItems(prev => prev.filter(i => i.menuItemId !== item.id));
+                                  } else {
+                                    addOrderItem(item.id);
+                                  }
+                                }}
+                                className="mt-0.5 rounded border-border text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5 shrink-0"
+                              />
+                              <div className="min-w-0 truncate">
+                                <span className="font-semibold text-text block truncate">{item.name}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className={cn(
+                                    "text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0",
+                                    station === "bar"
+                                      ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                                      : station === "coffee"
+                                      ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                                      : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  )}>
+                                    {station === "bar" ? "Bar 🍸" : station === "coffee" ? "Barista ☕" : "Juice 🧃"}
+                                  </span>
+                                  <span className="text-[10px] text-text-muted font-mono truncate">
+                                    ${Number(item.price).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            </label>
+
+                            {inCart && (
+                              <div className="flex items-center gap-1 shrink-0 ml-1 bg-surface px-1.5 py-0.5 rounded-lg border border-border/80">
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderItemQty(item.id, -1)}
+                                  className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted font-bold text-xs cursor-pointer text-text"
+                                >
+                                  -
+                                </button>
+                                <span className="w-4 text-center font-mono font-bold text-xs text-text">{inCart.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderItemQty(item.id, 1)}
+                                  className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted font-bold text-xs cursor-pointer text-text"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Bottom Summary & Submission Tray */}
+            <div className="shrink-0 p-4 border-t border-border bg-surface/90 backdrop-blur-xs space-y-3">
+              {newOrderItems.length > 0 && (
+                <div className="p-2.5 rounded-xl border border-border bg-muted/20 flex items-center justify-between text-xs gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="font-bold text-text shrink-0">Tray:</span>
+                    <Badge variant="outline" className="text-[10px] font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 shrink-0">
+                      {selectedFoodCount} Food
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/30 shrink-0">
+                      {selectedDrinksCount} Drinks
+                    </Badge>
+                    <span className="text-[11px] text-text-muted truncate">({newOrderItems.length} types)</span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs text-text-muted mr-1.5">Total:</span>
+                    <span className="text-sm font-mono font-bold text-primary">
+                      ${orderCartTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full text-xs h-10 font-bold rounded-xl shadow-sm cursor-pointer"
+                disabled={createOrderMutation.isPending || newOrderItems.length === 0}
+              >
+                {createOrderMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : newOrderRoutedVia === "coordinator" ? (
+                  <Send className="mr-2 h-4 w-4" />
+                ) : (
+                  <ChefHat className="mr-2 h-4 w-4" />
+                )}
+                Submit Order & Dispatch ({newOrderRoutedVia === "coordinator" ? "Via Coordinator" : "Direct to Kitchen"})
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

@@ -235,7 +235,7 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
 
   if (r.includes('admin') || r.includes('super')) return 'admin';
   if (r.includes('head chef') || r.includes('headchef')) return 'head_chef';
-  if (r.includes('chief officer') || r === 'chief' || r.includes('chief op') || r.includes('coo')) return 'chief_officer';
+  if (r.includes('chief officer') || r === 'chief' || r.includes('chief op') || /\bcoo\b/.test(r)) return 'chief_officer';
   if (
     r.includes('restaurant manager') ||
     r.includes('f&b manager') ||
@@ -389,9 +389,13 @@ export const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   '/housekeeping': ['housekeeping:*'],
   '/maintenance': ['maintenance:*'],
   '/restaurant': ['restaurant:*'],
-  '/bar': ['bar:*', 'restaurant:*'],
-  '/coffee': ['restaurant:*', 'bar:*'],
-  '/beverages': ['restaurant:*', 'bar:*'],
+  '/kitchen': ['kitchen:*'],
+  '/bar': ['bar:*'],
+  '/coffee': ['coffee:*', 'barista:*'],
+  '/beverages': ['beverages:*', 'juice:*'],
+  '/coordinator': ['coordinator:*'],
+  '/staff-supplies': ['supplies:*', 'housekeeping:*', 'restaurant:*', 'bar:*', 'coffee:*', 'beverages:*', 'kitchen:*', 'maintenance:*', 'coordinator:*', 'storekeeper:*'],
+  '/cashier': ['cashier:*'],
   '/pos': ['pos:*'],
   '/room-service': ['room-service:*', 'restaurant:*'],
   '/invoices': ['invoices:*', 'financial:*'],
@@ -562,15 +566,15 @@ export function isRouteAuthorized(
   // Kitchen Officer: Strictly Kitchen Command Center & KDS (NO Floor Waiter POS, NO Coordinator Buffer)
   if (category === 'chief_officer') return true;
   if (category === 'barman') {
-    const allowed = ['/dashboard', '/bar', '/inventory', '/staff-supplies'];
+    const allowed = ['/dashboard', '/bar', '/staff-supplies'];
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
   if (category === 'barista') {
-    const allowed = ['/dashboard', '/coffee', '/inventory', '/staff-supplies'];
+    const allowed = ['/dashboard', '/coffee', '/staff-supplies'];
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
   if (category === 'beverage_staff') {
-    const allowed = ['/dashboard', '/beverages', '/inventory', '/staff-supplies'];
+    const allowed = ['/dashboard', '/beverages', '/staff-supplies'];
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
   if (category === 'kitchen_officer' || category === 'head_chef' || category === 'chief_chef') {

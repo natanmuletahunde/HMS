@@ -138,19 +138,76 @@ export function Sidebar() {
       const authorizedItems = items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
         const roleCat = normalizeRole(currentRole);
+        const isManagement =
+          isGlobal ||
+          ["admin", "manager", "chief_officer"].includes(roleCat) ||
+          user?.roleName === "Admin" ||
+          user?.roleName === "System Admin";
 
-        // Waiter station (/restaurant): strictly visible ONLY for Waiter (and SuperAdmin)
-        if (pathOnly === "/restaurant") {
-          if (roleCat !== "waiter" && !isGlobal && user?.roleName !== "Admin") {
-            return false;
-          }
+        // ── Operational Station Isolation (Strict 1-Station-per-Role) ──
+        if (pathOnly === "/bar" && roleCat !== "barman" && !isManagement) {
+          return false;
         }
 
-        // POS terminal (/pos): strictly visible ONLY for Cashier, Hotel Manager, Restaurant Manager (and SuperAdmin)
-        if (pathOnly === "/pos") {
-          if (!["cashier", "manager", "restaurant_manager"].includes(roleCat) && !isGlobal && user?.roleName !== "Admin") {
-            return false;
-          }
+        if (pathOnly === "/coffee" && roleCat !== "barista" && !isManagement) {
+          return false;
+        }
+
+        if (pathOnly === "/beverages" && roleCat !== "beverage_staff" && !isManagement) {
+          return false;
+        }
+
+        if (
+          pathOnly === "/kitchen" &&
+          !["kitchen_officer", "head_chef", "chief_chef"].includes(roleCat) &&
+          !isManagement
+        ) {
+          return false;
+        }
+
+        if (pathOnly === "/restaurant" && roleCat !== "waiter" && !isManagement) {
+          return false;
+        }
+
+        if (pathOnly === "/coordinator" && roleCat !== "coordinator" && !isManagement) {
+          return false;
+        }
+
+        if (pathOnly === "/cashier" && roleCat !== "cashier" && !isManagement) {
+          return false;
+        }
+
+        if (
+          pathOnly === "/pos" &&
+          !["cashier", "manager", "restaurant_manager"].includes(roleCat) &&
+          !isManagement
+        ) {
+          return false;
+        }
+
+        if (pathOnly === "/housekeeping" && roleCat !== "housekeeping" && !isManagement) {
+          return false;
+        }
+
+        if (pathOnly === "/maintenance" && roleCat !== "maintenance" && !isManagement) {
+          return false;
+        }
+
+        // ── Warehouse & Procurement Isolation ──
+        if (
+          pathOnly === "/inventory" &&
+          !["storekeeper", "coordinator", "manager", "restaurant_manager"].includes(roleCat) &&
+          !isManagement
+        ) {
+          return false;
+        }
+
+        if (
+          pathOnly === "/procurement" &&
+          !["storekeeper", "accountant", "manager"].includes(roleCat) &&
+          !isManagement
+        ) {
+          return false;
         }
 
         return isRouteAuthorized(user, pathOnly, user?.permissions);
