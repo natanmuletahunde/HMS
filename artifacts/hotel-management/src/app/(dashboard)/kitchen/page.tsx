@@ -16,6 +16,7 @@ import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { getInHouseRequests, markInHouseRequestServed, InHouseServiceRequest } from "@/lib/in-house-requests";
+import { canStartPreparation, canMarkOrderReady, canMarkOrderPlated } from "@/lib/rbac";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ type KitchenOrderItem = {
   notes?: string | null;
   station?: "grill" | "hot" | "cold" | "pastry" | "bar" | string;
   isItemCompleted?: boolean;
-  kitchenStatus?: "pending" | "preparing" | "ready" | "served" | "cancelled" | string;
+  kitchenStatus?: "pending" | "preparing" | "cooking" | "ready" | "plated" | "served" | "cancelled" | string;
   roundNumber?: number;
   category?: string | null;
   kitchenSection?: string | null;
@@ -53,7 +54,7 @@ type KitchenOrder = {
   diningCase?: "walk_in" | "in_house_table" | "room_service";
   roomNumber?: string | null;
   orderType?: string;
-  status: "pending" | "preparing" | "partially_ready" | "partially_served" | "ready" | "served" | "cancelled";
+  status: "pending" | "preparing" | "cooking" | "partially_ready" | "partially_served" | "ready" | "plated" | "served" | "cancelled";
   coordinatorId?: string | null;
   coordinatorName?: string | null;
   waiterId?: string | null;
@@ -67,6 +68,7 @@ type KitchenOrder = {
   notifiedParty?: "waiter" | "coordinator" | null;
   isRushPriority?: boolean;
   readyAt?: string | null;
+  platedAt?: string | null;
   createdAt: string;
   items: KitchenOrderItem[];
 };
@@ -261,7 +263,7 @@ const ETHIOPIAN_HOTEL_MENU: MenuCategoryDef[] = [
 ];
 
 // Assign stations automatically to items based on configured section, category, or keywords
-export const assignStation = (itemName: string, category?: string | null, section?: string | null): "grill" | "hot" | "cold" | "pastry" | "bar" => {
+const assignStation = (itemName: string, category?: string | null, section?: string | null): "grill" | "hot" | "cold" | "pastry" | "bar" => {
   const s = (section || "").toLowerCase().trim();
   if (s === "bar" || s === "drinks" || s === "beverage") return "bar";
   if (s === "cold" || s === "salad" || s === "pantry") return "cold";
@@ -310,6 +312,14 @@ export default function KitchenOfficerOperationPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const userRole = (user?.role || (user as any)?.roleName || "").toLowerCase().trim();
+  const canStep1 = canStartPreparation(user); // Step 1: Start Preparation (Pending -> Cooking)
+  const canStep2 = canMarkOrderReady(user);    // Step 2: Mark as Ready (Cooking -> Ready)
+  const canStep3 = canMarkOrderPlated(user);   // Step 3: Mark as Plated (Ready -> Plated)
+
+  const isKitchenOfficer = userRole.includes("kitchen officer") || userRole.includes("kitchen manager") || userRole.includes("admin") || userRole === "manager";
+  const isHeadChefOfficer = (userRole.includes("head chef") || userRole.includes("headchef") || userRole.includes("executive chef")) && !isKitchenOfficer;
+  const isChiefChef = (userRole.includes("chief chef") || userRole.includes("cook") || userRole.includes("line chef") || userRole === "chef") && !isHeadChefOfficer && !isKitchenOfficer;
 
   const [showActiveSubTabs, setShowActiveSubTabs] = useState(false);
   const [activeOriginTab, setActiveOriginTab] = useState<"all" | "waiter" | "coordinator">("all");
@@ -535,18 +545,47 @@ export default function KitchenOfficerOperationPage() {
   });
 
   // Notify Ready mutation (notifying either Waiter or Coordinator)
-  const notifyReadyMutation = useMutation({
-    mutationFn: ({ id, notifiedParty, notes }: { id: string; notifiedParty: "waiter" | "coordinator"; notes?: string }) =>
-      apiFetch(`/restaurant/orders/${id}/notify-ready`, {
+  // Step 1: Start Cooking / Preparation Mutation (Pending -> Cooking)
+  const startPrepMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      apiFetch(`/restaurant/orders/${orderId}/start-prep`, {
+        method: "PATCH",
+        body: JSON.stringify({ stationSource: "kitchen" }),
+      }),
+    onSuccess: (_, orderId) => {
+      setLocalOrderStatus(prev => ({ ...prev, [orderId]: "cooking" }));
+      queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["coordinator-workbench-orders"] });
+      if (typeof window !== "undefined") {
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "STATUS_UPDATED", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
+      toast({
+        title: "Cooking Started 🔥 (Step 1 Complete)",
+        description: "Food order moved from Pending to Cooking on active line.",
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to Start Prep", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Step 2: Mark as Ready Mutation (Cooking -> Ready)
+  const markReadyMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      apiFetch(`/restaurant/orders/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          notifiedParty,
-          kitchenOfficerId: user?.id,
-          notes: notes || undefined,
+          status: "ready",
+          readyAt: new Date().toISOString(),
+          ...(notes ? { kitchenNotes: notes } : {}),
         }),
       }),
     onSuccess: (_, vars) => {
-      setSentOrdersMap(prev => ({ ...prev, [vars.id]: true }));
       setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "ready" }));
       queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
@@ -558,22 +597,51 @@ export default function KitchenOfficerOperationPage() {
           channel.close();
         } catch {}
       }
-      setIsNotifyModalOpen(false);
-      setSelectedOrder(null);
-      setKitchenOfficerNote("");
       toast({
-        title: "Dishes Plated at Pass 🛎️",
-        description: `Buzzer notification sent to ${vars.notifiedParty === "waiter" ? "Floor Waiter" : "F&B Coordinator"}.`,
+        title: "Food Ready 🛎️ (Step 2 Complete)",
+        description: "Dishes marked as Ready. Waiting for Kitchen Officer to plate.",
       });
     },
-    onError: (err: any, vars) => {
+    onError: (err: any) => {
+      toast({ title: "Failed to Mark Ready", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Step 3: Mark as Plated Mutation (Ready -> Plated)
+  const notifyReadyMutation = useMutation({
+    mutationFn: ({
+      id,
+      notifiedParty,
+      notes,
+      readyItemIds,
+    }: {
+      id: string;
+      notifiedParty: "waiter" | "coordinator";
+      notes?: string;
+      readyItemIds?: string[];
+    }) =>
+      apiFetch(`/restaurant/orders/${id}/notify-ready`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          notifiedParty,
+          kitchenOfficerId: user?.id,
+          stationSource: "kitchen",
+          status: "plated",
+          targetStatus: "plated",
+          notes: notes || undefined,
+          readyItemIds: readyItemIds && readyItemIds.length > 0 ? readyItemIds : undefined,
+        }),
+      }),
+    onSuccess: (_, vars) => {
       setSentOrdersMap(prev => ({ ...prev, [vars.id]: true }));
-      setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "ready" }));
+      setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "plated" }));
       queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["coordinator-workbench-orders"] });
       if (typeof window !== "undefined") {
         try {
           const channel = new BroadcastChannel("hms_orders_channel");
-          channel.postMessage({ type: "ORDER_READY", timestamp: Date.now() });
+          channel.postMessage({ type: "ORDER_PLATED", timestamp: Date.now() });
           channel.close();
         } catch {}
       }
@@ -581,7 +649,26 @@ export default function KitchenOfficerOperationPage() {
       setSelectedOrder(null);
       setKitchenOfficerNote("");
       toast({
-        title: "Dishes Plated at Pass 🛎️",
+        title: "Dishes Plated at Pass 🍽️ (Step 3 Complete)",
+        description: `Buzzer notification sent to ${vars.notifiedParty === "waiter" ? "Floor Waiter" : "F&B Coordinator"}.`,
+      });
+    },
+    onError: (err: any, vars) => {
+      setSentOrdersMap(prev => ({ ...prev, [vars.id]: true }));
+      setLocalOrderStatus(prev => ({ ...prev, [vars.id]: "plated" }));
+      queryClient.invalidateQueries({ queryKey: ["restaurant-kitchen"] });
+      if (typeof window !== "undefined") {
+        try {
+          const channel = new BroadcastChannel("hms_orders_channel");
+          channel.postMessage({ type: "ORDER_PLATED", timestamp: Date.now() });
+          channel.close();
+        } catch {}
+      }
+      setIsNotifyModalOpen(false);
+      setSelectedOrder(null);
+      setKitchenOfficerNote("");
+      toast({
+        title: "Dishes Plated at Pass 🍽️ (Step 3 Complete)",
         description: `Buzzer notification sent to ${vars.notifiedParty === "waiter" ? "Floor Waiter" : "F&B Coordinator"}.`,
       });
     },
@@ -755,7 +842,7 @@ export default function KitchenOfficerOperationPage() {
       tableNumber: 4,
       guestName: "Emma Johnson",
       diningCase: "walk_in",
-      status: "preparing",
+      status: "cooking",
       isRushPriority: true,
       routedVia: "direct_kitchen",
       waiterName: "Sarah K. (Floor Waiter)",
@@ -772,7 +859,7 @@ export default function KitchenOfficerOperationPage() {
       guestName: "James Smith",
       diningCase: "in_house_table",
       roomNumber: "204",
-      status: "preparing",
+      status: "cooking",
       routedVia: "coordinator",
       coordinatorName: "Robel (F&B Expediter)",
       coordinatorNotes: "VIP in-house table. Please time steak with pasta together.",
@@ -821,10 +908,11 @@ export default function KitchenOfficerOperationPage() {
       roomNumber: "304",
       diningCase: "room_service",
       guestName: "Olivia Davis",
-      status: "ready",
+      status: "plated",
       routedVia: "direct_kitchen",
       waiterName: "In-Room Dining Cart #2",
       readyAt: new Date(Date.now() - 5 * 60000).toISOString(),
+      platedAt: new Date(Date.now() - 2 * 60000).toISOString(),
       createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
       items: [
         { id: "it-8", menuItemId: "m8", name: "Angus Beef Tenderloin 8oz", quantity: 1, unitPrice: 32, total: 32, notes: "MEDIUM RARE • Rosemary jus on side", station: "grill" },
@@ -923,17 +1011,19 @@ export default function KitchenOfficerOperationPage() {
         ...order,
         status: currentStatus,
         isRushPriority: rushTickets[order.id] !== undefined ? rushTickets[order.id] : order.isRushPriority,
-        items: (order.items || []).map(item => {
-          const itemStation = (item.station as string) || assignStation(item.name, item.category, item.kitchenSection);
-          const itemKStatus = itemStatusMap[item.id] || item.kitchenStatus || (currentStatus === "ready" ? "ready" : currentStatus === "served" ? "served" : currentStatus === "preparing" ? "preparing" : "pending");
-          return {
-            ...item,
-            station: itemStation,
-            kitchenStatus: itemKStatus,
-            roundNumber: item.roundNumber || 1,
-            isItemCompleted: completedItemMap[item.id] || itemKStatus === "ready" || itemKStatus === "served" || false,
-          };
-        }),
+        items: (order.items || [])
+          .map(item => {
+            const itemStation = (item.station as string) || assignStation(item.name, item.category, item.kitchenSection);
+            const itemKStatus = itemStatusMap[item.id] || item.kitchenStatus || (currentStatus === "plated" ? "plated" : currentStatus === "ready" ? "ready" : currentStatus === "served" ? "served" : (currentStatus === "cooking" || currentStatus === "preparing") ? "cooking" : "pending");
+            return {
+              ...item,
+              station: itemStation,
+              kitchenStatus: itemKStatus,
+              roundNumber: item.roundNumber || 1,
+              isItemCompleted: completedItemMap[item.id] || itemKStatus === "ready" || itemKStatus === "plated" || itemKStatus === "served" || false,
+            };
+          })
+          .filter(item => item.station !== "bar"), // STRICTLY FOOD DISHES ONLY FOR KITCHEN
       };
     });
   }, [combinedOrders, completedItemMap, rushTickets, localOrderStatus, itemStatusMap]);
@@ -987,7 +1077,7 @@ export default function KitchenOfficerOperationPage() {
     }
 
     if (selectedStation === "pass") {
-      list = list.filter(o => o.status === "ready" || o.status === "partially_ready");
+      list = list.filter(o => o.status === "ready" || o.status === "partially_ready" || o.status === "plated");
     } else if (selectedStation === "hot") {
       list = list.filter(o => (o.items || []).some(i => (i.station === "hot" || i.station === "grill") && i.kitchenStatus !== "served"));
     } else if (selectedStation === "cold") {
@@ -1023,7 +1113,7 @@ export default function KitchenOfficerOperationPage() {
       cold: unserved.filter(o => (o.items || []).some(i => i.station === "cold" && i.kitchenStatus !== "served")).length,
       bar: unserved.filter(o => (o.items || []).some(i => i.station === "bar" && i.kitchenStatus !== "served")).length,
       pastry: unserved.filter(o => (o.items || []).some(i => i.station === "pastry" && i.kitchenStatus !== "served")).length,
-      pass: unserved.filter(o => o.status === "ready" || o.status === "partially_ready").length,
+      pass: unserved.filter(o => o.status === "ready" || o.status === "partially_ready" || o.status === "plated").length,
       shortages: realMenuItems.length > 0 ? realMenuItems.filter(m => !m.isAvailable).length : shortageItems.filter(s => s.is86).length,
     };
   }, [enrichedOrders, realMenuItems, shortageItems]);
@@ -1059,7 +1149,12 @@ export default function KitchenOfficerOperationPage() {
     setKitchenOfficerNote(order.kitchenNotes || "");
     const map: Record<string, boolean> = {};
     (order.items || []).forEach(it => {
-      map[it.id] = true;
+      if (it.station === "bar") return; // Skip all drinks
+      if (selectedStation !== "all" && selectedStation !== "pass" && selectedStation !== "shortages") {
+        map[it.id] = it.station === selectedStation;
+      } else {
+        map[it.id] = true;
+      }
     });
     setCookedItemsMap(map);
     setIsNotifyModalOpen(true);
@@ -1068,16 +1163,52 @@ export default function KitchenOfficerOperationPage() {
   const handleConfirmSend = () => {
     if (!selectedOrder) return;
     setSentOrdersMap(prev => ({ ...prev, [selectedOrder.id]: true }));
-    setLocalOrderStatus(prev => ({ ...prev, [selectedOrder.id]: "ready" }));
+    setLocalOrderStatus(prev => ({ ...prev, [selectedOrder.id]: "plated" }));
+    const checkedItemIds = Object.keys(cookedItemsMap).filter(k => cookedItemsMap[k]);
     notifyReadyMutation.mutate({
       id: selectedOrder.id,
       notifiedParty: notifyPartyTarget,
       notes: kitchenOfficerNote.trim() || undefined,
+      readyItemIds: checkedItemIds.length > 0 ? checkedItemIds : undefined,
     });
   };
 
   return (
     <div className="space-y-6">
+      {/* Header with Title and Mode */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-orange-500/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400 shadow-xs">
+            <ChefHat className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
+                Kitchen Display System (KDS)
+              </h1>
+              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse mr-1.5"></span>
+                Executive Command
+              </Badge>
+            </div>
+            <p className="text-xs text-text-muted mt-0.5">
+              Station line routing (Hot, Cold, Bar, Pastry), guest pacing directives, and 86&apos;d shortage management.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={() => setIsNewTicketOpen(true)}
+            size="sm"
+            className="h-9 px-4 text-xs gap-1.5 font-semibold bg-orange-600 text-white hover:bg-orange-700 shadow-sm rounded-xl cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            + Manual Kitchen Ticket
+          </Button>
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. TOP MAIN TAB SWITCHER: ACTIVE KDS OPERATIONS VS ALREADY SERVED ORDERS  */}
       {/* ========================================================================= */}
@@ -1151,8 +1282,7 @@ export default function KitchenOfficerOperationPage() {
               { id: "all", label: "All Stations", icon: LayoutGrid, count: stationCounts.all, color: "text-slate-700 dark:text-slate-200" },
               { id: "hot", label: "🔥 Hot Line KDS", icon: Flame, count: stationCounts.hot, color: "text-orange-500" },
               { id: "cold", label: "🥗 Pantry KDS", icon: Utensils, count: stationCounts.cold, color: "text-emerald-500" },
-              { id: "bar", label: "🍸 Bar Station", icon: Coffee, count: stationCounts.bar, color: "text-cyan-500" },
-              { id: "pastry", label: "🍰 Pastry & Bakery", icon: Sparkles, count: stationCounts.pastry, color: "text-pink-500" },
+                            { id: "pastry", label: "🍰 Pastry & Bakery", icon: Sparkles, count: stationCounts.pastry, color: "text-pink-500" },
               { id: "pass", label: "🛎️ Expediter Pass", icon: Bell, count: stationCounts.pass, color: "text-amber-500" },
               { id: "shortages", label: "⚠️ 86'd Shortages", icon: AlertTriangle, count: stationCounts.shortages, color: "text-rose-500" },
             ].map((st) => {
@@ -1272,6 +1402,59 @@ export default function KitchenOfficerOperationPage() {
             </Card>
           ) : (
             <>
+              {/* ========================================================================= */}
+              {/* 4-STEP KITCHEN ORDER LIFECYCLE & ROLE SEPARATION WORKFLOW BANNER           */}
+              {/* ========================================================================= */}
+              <div className="p-3.5 bg-surface border border-border rounded-2xl shadow-2xs space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <ChefHat className="w-4 h-4 text-orange-500" />
+                    <span className="font-bold text-text">Kitchen Order Lifecycle:</span>
+                    <span className="text-text-muted">4-Step Strict Role Workflow</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-text-muted">Active Role:</span>
+                    <Badge className={cn("text-[11px] font-bold", isKitchenOfficer ? "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30" : isHeadChefOfficer ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30" : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30")}>
+                      {user?.role || "Kitchen Staff"} ({isKitchenOfficer ? "All Roles (Steps 1, 2, 3)" : isHeadChefOfficer ? "Chief Chef + Head Chef (Steps 1 & 2)" : "Chief Chef (Step 1 Only)"})
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                  <div className={cn("p-2.5 rounded-xl border flex flex-col justify-between transition-all", canStep1 ? "bg-amber-500/10 border-amber-500/40" : "bg-muted/30 border-border opacity-60")}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-800 dark:text-amber-300">Step 1: Start Preparation</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">Chief Chef+</Badge>
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-1 font-mono">Pending → Cooking</p>
+                  </div>
+
+                  <div className={cn("p-2.5 rounded-xl border flex flex-col justify-between transition-all", canStep2 ? "bg-orange-500/10 border-orange-500/40" : "bg-muted/30 border-border opacity-60")}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-orange-800 dark:text-orange-300">Step 2: Mark as Ready</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">Head Chef+</Badge>
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-1 font-mono">Cooking → Ready</p>
+                  </div>
+
+                  <div className={cn("p-2.5 rounded-xl border flex flex-col justify-between transition-all", canStep3 ? "bg-emerald-500/10 border-emerald-500/40" : "bg-muted/30 border-border opacity-60")}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300">Step 3: Mark as Plated</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">Kitchen Officer</Badge>
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-1 font-mono">Ready → Plated</p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl border bg-indigo-500/10 border-indigo-500/40 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-indigo-800 dark:text-indigo-300">Step 4: Serve Order</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">Waiter / Coord</Badge>
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-1 font-mono">Plated → Served</p>
+                  </div>
+                </div>
+              </div>
+
               {/* ========================================================================= */}
               {/* 3. CASE B: ACTIVE COOKING LINE WITH CARDS & TABLE VIEW                    */}
               {/* ========================================================================= */}
@@ -1408,10 +1591,12 @@ export default function KitchenOfficerOperationPage() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {paginatedActiveOrders.map((order) => {
+                        const isPending = order.status === "pending";
+                        const isCooking = order.status === "cooking" || order.status === "preparing";
                         const isReady = order.status === "ready";
+                        const isPlated = order.status === "plated";
                         const isPartiallyReady = order.status === "partially_ready";
                         const isPartiallyServed = order.status === "partially_served";
-                        const isCooking = order.status === "preparing";
                         const isRush = order.isRushPriority || rushTickets[order.id];
                         const loc = order.diningCase === "room_service" ? `Room ${order.roomNumber}` : `Table ${order.tableNumber || 1}`;
                         const cleanId = (order.orderNumber || "").replace(/^[#]/, "");
@@ -1434,7 +1619,7 @@ export default function KitchenOfficerOperationPage() {
                             className={cn(
                               "rounded-2xl border p-4 flex flex-col justify-between transition-all bg-surface shadow-xs",
                               isRush ? "border-rose-500/60 ring-2 ring-rose-500/20" : "border-border",
-                              isReady ? "bg-emerald-500/5 border-emerald-500/40" : ""
+                              isPlated ? "bg-emerald-500/10 border-emerald-500/50" : isReady ? "bg-amber-500/5 border-amber-500/40" : ""
                             )}
                           >
                             {/* Card Header */}
@@ -1465,9 +1650,13 @@ export default function KitchenOfficerOperationPage() {
                                   <span className="text-[11px] text-text-muted">{order.guestName || "Guest"} • {waiterDisplayName}</span>
                                 </div>
                                 <div>
-                                  {isReady ? (
-                                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold">
-                                      Plated at Pass 🛎️
+                                  {isPlated ? (
+                                    <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                                      Plated at Pass 🍽️
+                                    </Badge>
+                                  ) : isReady ? (
+                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold">
+                                      Food Ready 🛎️
                                     </Badge>
                                   ) : isPartiallyReady ? (
                                     <Badge className="bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 font-bold">
@@ -1478,11 +1667,11 @@ export default function KitchenOfficerOperationPage() {
                                       Drinks Served ✓
                                     </Badge>
                                   ) : isCooking ? (
-                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold">
+                                    <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30 font-bold">
                                       Cooking 🔥
                                     </Badge>
                                   ) : (
-                                    <Badge variant="muted">Queued</Badge>
+                                    <Badge variant="muted">Queued (Pending)</Badge>
                                   )}
                                 </div>
                               </div>
@@ -1504,8 +1693,9 @@ export default function KitchenOfficerOperationPage() {
                             <div className="py-3 space-y-2 flex-1">
                               {relevantItems.map((item) => {
                                 const st = item.station === "grill" ? "hot" : item.station || "hot";
+                                const isItemPlated = item.kitchenStatus === "plated";
                                 const isItemReady = item.kitchenStatus === "ready";
-                                const isItemCooking = item.kitchenStatus === "preparing";
+                                const isItemCooking = item.kitchenStatus === "cooking" || item.kitchenStatus === "preparing";
                                 const isItemServed = item.kitchenStatus === "served";
                                 const isItemPending = !item.kitchenStatus || item.kitchenStatus === "pending";
 
@@ -1514,8 +1704,10 @@ export default function KitchenOfficerOperationPage() {
                                     key={item.id}
                                     className={cn(
                                       "p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all",
-                                      isItemReady
+                                      isItemPlated
                                         ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-emerald-100"
+                                        : isItemReady
+                                        ? "bg-amber-500/10 border-amber-500/40 text-amber-950 dark:text-amber-100"
                                         : isItemServed
                                         ? "bg-muted/40 border-border text-text-muted opacity-70"
                                         : "bg-surface border-border/80"
@@ -1552,28 +1744,42 @@ export default function KitchenOfficerOperationPage() {
                                         <span className="text-[10px] font-bold text-text-muted flex items-center gap-1">
                                           <Check className="w-3 h-3 text-emerald-600" /> Served
                                         </span>
+                                      ) : isItemPlated ? (
+                                        <Badge className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5">
+                                          Plated 🍽️
+                                        </Badge>
                                       ) : isItemReady ? (
-                                        <Badge className="bg-emerald-500 text-white font-bold text-[10px] px-2 py-0.5">
+                                        <Badge className="bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold text-[10px] px-2 py-0.5">
                                           Ready 🛎️
                                         </Badge>
                                       ) : isItemCooking ? (
                                         <Button
                                           size="sm"
-                                          disabled={updateItemStatusMutation.isPending}
+                                          disabled={!canStep2 || updateItemStatusMutation.isPending}
                                           onClick={() => updateItemStatusMutation.mutate({ orderId: order.id, itemId: item.id, status: "ready" })}
-                                          className="h-7 px-2.5 text-[11px] font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 cursor-pointer shadow-2xs"
+                                          className={cn(
+                                            "h-7 px-2.5 text-[11px] font-bold cursor-pointer shadow-2xs",
+                                            canStep2
+                                              ? "bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950"
+                                              : "bg-muted text-text-muted cursor-not-allowed opacity-60"
+                                          )}
+                                          title={canStep2 ? "Step 2: Mark dish ready" : "Head Chef Officer or Kitchen Officer required (Chief Chef cannot mark ready)"}
                                         >
-                                          Mark Ready 🛎️
+                                          {canStep2 ? "Mark Ready 🛎️" : "Head Chef Req."}
                                         </Button>
                                       ) : (
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          disabled={updateItemStatusMutation.isPending}
-                                          onClick={() => updateItemStatusMutation.mutate({ orderId: order.id, itemId: item.id, status: "preparing" })}
-                                          className="h-7 px-2.5 text-[11px] font-medium border-border hover:bg-muted/50 cursor-pointer"
+                                          disabled={!canStep1 || updateItemStatusMutation.isPending}
+                                          onClick={() => updateItemStatusMutation.mutate({ orderId: order.id, itemId: item.id, status: "cooking" })}
+                                          className={cn(
+                                            "h-7 px-2.5 text-[11px] font-medium border-border hover:bg-muted/50 cursor-pointer",
+                                            !canStep1 && "cursor-not-allowed opacity-50"
+                                          )}
+                                          title={canStep1 ? "Step 1: Start cooking" : "Chief Chef required"}
                                         >
-                                          Start Prep
+                                          Start Prep 🔥
                                         </Button>
                                       )}
                                     </div>
@@ -1582,21 +1788,83 @@ export default function KitchenOfficerOperationPage() {
                               })}
                             </div>
 
-                            {/* Card Footer: Send / Expedite */}
+                            {/* Card Footer: 4-Step Lifecycle Action */}
                             <div className="pt-2 border-t border-border flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => openSendModal(order)}
-                                className={cn(
-                                  "w-full h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all",
-                                  isReady
-                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    : "bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950"
-                                )}
-                              >
-                                <Send className="w-3.5 h-3.5 stroke-[2.5]" />
-                                <span>{isReady ? "Plated • Send to Waiter" : "Send Plated Food"}</span>
-                              </Button>
+                              {isPending ? (
+                                <Button
+                                  size="sm"
+                                  disabled={!canStep1 || startPrepMutation.isPending}
+                                  onClick={() => startPrepMutation.mutate(order.id)}
+                                  className={cn(
+                                    "w-full h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all",
+                                    canStep1
+                                      ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
+                                      : "bg-muted text-text-muted cursor-not-allowed opacity-60"
+                                  )}
+                                  title={canStep1 ? "Step 1: Begin cooking this order" : "Chief Chef role required"}
+                                >
+                                  <Flame className="w-3.5 h-3.5 text-slate-950" />
+                                  <span>{canStep1 ? "Step 1: Start Preparation 🔥" : "Step 1: Chief Chef Required 🔒"}</span>
+                                </Button>
+                              ) : isCooking ? (
+                                <Button
+                                  size="sm"
+                                  disabled={!canStep2 || markReadyMutation.isPending}
+                                  onClick={() => markReadyMutation.mutate({ id: order.id })}
+                                  className={cn(
+                                    "w-full h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all",
+                                    canStep2
+                                      ? "bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950"
+                                      : "bg-muted text-text-muted cursor-not-allowed opacity-60"
+                                  )}
+                                  title={canStep2 ? "Step 2: Mark food ready for plating" : "Head Chef Officer or Kitchen Officer required (Chief Chef cannot mark ready)"}
+                                >
+                                  <Bell className="w-3.5 h-3.5 text-slate-950" />
+                                  <span>{canStep2 ? "Step 2: Mark as Ready 🛎️" : "Step 2: Head Chef Required 🔒"}</span>
+                                </Button>
+                              ) : isReady || isPartiallyReady ? (
+                                <Button
+                                  size="sm"
+                                  disabled={!canStep3 || notifyReadyMutation.isPending}
+                                  onClick={() => openSendModal(order)}
+                                  className={cn(
+                                    "w-full h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all",
+                                    canStep3
+                                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      : "bg-muted text-text-muted cursor-not-allowed opacity-60"
+                                  )}
+                                  title={canStep3 ? "Step 3: Plate order and dispatch to pass" : "Kitchen Officer ONLY required (Head Chef & Chief Chef cannot plate)"}
+                                >
+                                  <UtensilsCrossed className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>{canStep3 ? "Step 3: Mark as Plated 🍽️" : "Step 3: Kitchen Officer Required 🔒"}</span>
+                                </Button>
+                              ) : isPlated ? (
+                                <div className="w-full flex items-center justify-between gap-2 p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                    <Check className="w-4 h-4 text-emerald-600" />
+                                    <span>Plated at Pass 🍽️ • Waiting for Server</span>
+                                  </div>
+                                  {canStep3 && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => openSendModal(order)}
+                                      className="h-7 px-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
+                                    >
+                                      Re-Buzzer 🛎️
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openSendModal(order)}
+                                  className="w-full h-9 font-bold text-xs gap-1.5 rounded-xl"
+                                >
+                                  <span>Order {order.status}</span>
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1660,10 +1928,11 @@ export default function KitchenOfficerOperationPage() {
                             </TableRow>
                           ) : (
                             paginatedActiveOrders.map((order) => {
-                              const isCooking = order.status === "preparing";
+                              const isPending = order.status === "pending";
+                              const isCooking = order.status === "cooking" || order.status === "preparing";
                               const isReady = order.status === "ready";
+                              const isPlated = order.status === "plated";
                               const isPartiallyReady = order.status === "partially_ready";
-                              const isSent = isReady || !!order.notifiedParty || !!sentOrdersMap[order.id];
                               const isRush = order.isRushPriority || rushTickets[order.id];
                               const loc = order.diningCase === "room_service" ? `Room ${order.roomNumber}` : `Table ${order.tableNumber || 1}`;
                               const cleanId = (order.orderNumber || "").replace(/^[#]/, "");
@@ -1724,17 +1993,21 @@ export default function KitchenOfficerOperationPage() {
 
                                   {/* 5. Cooking Status */}
                                   <TableCell>
-                                    {isReady ? (
-                                      <Badge variant="muted" className="text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200">
-                                        Plated at Pass
+                                    {isPlated ? (
+                                      <Badge className="text-xs bg-emerald-600 text-white font-bold">
+                                        Plated at Pass 🍽️
+                                      </Badge>
+                                    ) : isReady ? (
+                                      <Badge variant="muted" className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 font-bold">
+                                        Food Ready 🛎️
                                       </Badge>
                                     ) : isPartiallyReady ? (
-                                      <Badge variant="muted" className="text-xs text-cyan-700 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200">
-                                        Drinks Ready
+                                      <Badge variant="muted" className="text-xs text-cyan-700 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 font-bold">
+                                        Drinks Ready 🍸
                                       </Badge>
                                     ) : isCooking ? (
-                                      <Badge variant="muted" className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200">
-                                        Cooking
+                                      <Badge variant="muted" className="text-xs text-orange-700 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 font-bold">
+                                        Cooking 🔥
                                       </Badge>
                                     ) : (
                                       <Badge variant="muted" className="text-xs">
@@ -1745,23 +2018,67 @@ export default function KitchenOfficerOperationPage() {
 
                                   {/* 6. Action */}
                                   <TableCell className="text-right">
-                                    {isSent ? (
+                                    {isPending ? (
                                       <Button
                                         size="sm"
-                                        onClick={() => openSendModal(order)}
-                                        className="h-8 px-3.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                        disabled={!canStep1 || startPrepMutation.isPending}
+                                        onClick={() => startPrepMutation.mutate(order.id)}
+                                        className={cn(
+                                          "h-8 px-3 text-xs font-bold gap-1 rounded-lg shadow-xs transition-all cursor-pointer",
+                                          canStep1
+                                            ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
+                                            : "bg-muted text-text-muted opacity-50 cursor-not-allowed"
+                                        )}
+                                        title={canStep1 ? "Step 1: Start cooking this order" : "Chief Chef required"}
                                       >
-                                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>Sent</span>
+                                        <Flame className="w-3.5 h-3.5" />
+                                        <span>{canStep1 ? "Start Prep" : "Locked"}</span>
                                       </Button>
+                                    ) : isCooking ? (
+                                      <Button
+                                        size="sm"
+                                        disabled={!canStep2 || markReadyMutation.isPending}
+                                        onClick={() => markReadyMutation.mutate({ id: order.id })}
+                                        className={cn(
+                                          "h-8 px-3 text-xs font-bold gap-1 rounded-lg shadow-xs transition-all cursor-pointer",
+                                          canStep2
+                                            ? "bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950"
+                                            : "bg-muted text-text-muted opacity-50 cursor-not-allowed"
+                                        )}
+                                        title={canStep2 ? "Step 2: Mark order food ready" : "Head Chef Officer required"}
+                                      >
+                                        <Bell className="w-3.5 h-3.5" />
+                                        <span>{canStep2 ? "Mark Ready" : "Head Chef"}</span>
+                                      </Button>
+                                    ) : isReady || isPartiallyReady ? (
+                                      <Button
+                                        size="sm"
+                                        disabled={!canStep3 || notifyReadyMutation.isPending}
+                                        onClick={() => openSendModal(order)}
+                                        className={cn(
+                                          "h-8 px-3 text-xs font-bold gap-1 rounded-lg shadow-xs transition-all cursor-pointer",
+                                          canStep3
+                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                            : "bg-muted text-text-muted opacity-50 cursor-not-allowed"
+                                        )}
+                                        title={canStep3 ? "Step 3: Plate order and dispatch" : "Kitchen Officer required"}
+                                      >
+                                        <UtensilsCrossed className="w-3.5 h-3.5" />
+                                        <span>{canStep3 ? "Mark Plated" : "Officer Req."}</span>
+                                      </Button>
+                                    ) : isPlated ? (
+                                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold text-xs">
+                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>Plated</span>
+                                      </div>
                                     ) : (
                                       <Button
                                         size="sm"
+                                        variant="outline"
                                         onClick={() => openSendModal(order)}
-                                        className="h-8 px-3.5 text-xs font-bold bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                        className="h-8 px-2.5 text-xs font-medium cursor-pointer"
                                       >
-                                        <Send className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>Send</span>
+                                        Details
                                       </Button>
                                     )}
                                   </TableCell>
@@ -1925,14 +2242,14 @@ export default function KitchenOfficerOperationPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 4. SEND COOKED ORDER MODAL                                                */}
+      {/* 4. STEP 3: MARK ORDER AS PLATED & DISPATCH TO PASS MODAL                  */}
       {/* ========================================================================= */}
       <Dialog open={isNotifyModalOpen} onOpenChange={setIsNotifyModalOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-text">
-              <ChefHat className="h-5 w-5 text-[#FBB72C]" />
-              <span>Send Cooked Food Order</span>
+              <UtensilsCrossed className="h-5 w-5 text-emerald-600" />
+              <span>Step 3: Mark Order as Plated & Dispatch to Pass</span>
             </DialogTitle>
           </DialogHeader>
 
@@ -1964,7 +2281,7 @@ export default function KitchenOfficerOperationPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-semibold text-text">
-                    Food Order & Already Cooked Checklist *
+                    Plating Verification & Dish Checklist *
                   </Label>
                   <button
                     type="button"
@@ -1978,7 +2295,7 @@ export default function KitchenOfficerOperationPage() {
                     }}
                     className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
                   >
-                    {Object.values(cookedItemsMap).every(Boolean) ? "Uncheck All" : "Mark All Cooked"}
+                    {Object.values(cookedItemsMap).every(Boolean) ? "Uncheck All" : "Mark All Plated"}
                   </button>
                 </div>
 
@@ -2027,7 +2344,7 @@ export default function KitchenOfficerOperationPage() {
                               ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                               : "bg-muted text-text-muted"
                           )}>
-                            {isCooked ? "Cooked & Ready" : "Preparing"}
+                            {isCooked ? "Plated at Pass" : "In Progress"}
                           </span>
                         </div>
                       );
@@ -2042,7 +2359,7 @@ export default function KitchenOfficerOperationPage() {
 
               {/* Two Buttons: Coordinator and Waiter */}
               <div className="space-y-1.5 pt-1">
-                <Label className="text-xs font-semibold text-text">Select Recipient to Notify *</Label>
+                <Label className="text-xs font-semibold text-text">Select Recipient to Notify at Pass *</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -2050,7 +2367,7 @@ export default function KitchenOfficerOperationPage() {
                     className={cn(
                       "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
                       notifyPartyTarget === "coordinator"
-                        ? "border-[#FBB72C] bg-[#FBB72C]/10 text-slate-900 dark:text-amber-200 font-bold ring-1 ring-[#FBB72C]"
+                        ? "border-emerald-600 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 font-bold ring-1 ring-emerald-600"
                         : "border-border hover:bg-muted/40 text-text-muted"
                     )}
                   >
@@ -2069,13 +2386,13 @@ export default function KitchenOfficerOperationPage() {
                     className={cn(
                       "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
                       notifyPartyTarget === "waiter"
-                        ? "border-[#FBB72C] bg-[#FBB72C]/10 text-slate-900 dark:text-amber-200 font-bold ring-1 ring-[#FBB72C]"
+                        ? "border-emerald-600 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 font-bold ring-1 ring-emerald-600"
                         : "border-border hover:bg-muted/40 text-text-muted"
                     )}
                   >
                     <div className="flex items-center gap-2 text-xs font-semibold">
                       <Users className="h-4 w-4 text-indigo-600" />
-                      <span>Waiter</span>
+                      <span>Floor Waiter</span>
                     </div>
                     <span className="text-[10px] text-text-muted font-normal leading-tight">
                       {selectedOrder.waiterName || "Floor Waiter"}
@@ -2086,9 +2403,9 @@ export default function KitchenOfficerOperationPage() {
 
               {/* Chef Notes (Optional) */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-text">Chef Plating Note (Optional)</Label>
+                <Label className="text-xs font-semibold text-text">Kitchen Officer Plating Note (Optional)</Label>
                 <Textarea
-                  placeholder="e.g. Plated on hot dish, garnish ready, sauce on side..."
+                  placeholder="e.g. Plated on hot dish, garnish ready, sauce on side, ready at warming pass..."
                   value={kitchenOfficerNote}
                   onChange={(e) => setKitchenOfficerNote(e.target.value)}
                   rows={2}
@@ -2102,14 +2419,18 @@ export default function KitchenOfficerOperationPage() {
                   type="button"
                   onClick={handleConfirmSend}
                   disabled={notifyReadyMutation.isPending}
-                  className="w-full h-10 font-bold text-xs bg-[#FBB72C] hover:bg-[#F5AB1A] text-slate-950 gap-2 rounded-xl shadow-xs transition-all active:scale-95"
+                  className="w-full h-10 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
                 >
                   {notifyReadyMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Send className="w-4 h-4 stroke-[2.5]" />
                   )}
-                  <span>{selectedOrder && (selectedOrder.status === "ready" || !!sentOrdersMap[selectedOrder.id]) ? "Re-Send Notification to" : "Send to"} {notifyPartyTarget === "coordinator" ? "Coordinator" : "Waiter"}</span>
+                  <span>
+                    {selectedOrder && (selectedOrder.status === "plated" || !!sentOrdersMap[selectedOrder.id])
+                      ? `Re-Send Buzzer to ${notifyPartyTarget === "coordinator" ? "Coordinator" : "Waiter"}`
+                      : `Confirm Plated & Dispatch to ${notifyPartyTarget === "coordinator" ? "Coordinator" : "Waiter"} (Step 3)`}
+                  </span>
                 </Button>
               </div>
             </div>

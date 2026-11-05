@@ -10,7 +10,7 @@ import {
   ShoppingBag, Bike, ChevronDown, FileSpreadsheet, UtensilsCrossed,
   QrCode, GitMerge, ChefHat, Send, Check,
   Search, Bell, FileText, ArrowRight, CreditCard, Wallet, Banknote, DollarSign, DoorClosed,
-  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye, Wine
+  ShieldCheck, UserCheck, RefreshCw, ClipboardList, Flame, Eye, Wine, GlassWater
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
@@ -124,7 +124,58 @@ const TABLE_STATUS_COLOR: Record<string, string> = {
   cleaning: "border-muted",
 };
 
-const MENU_CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Drinks", "Dessert", "Coffee", "Juice", "Fast Food", "Traditional"];
+const MENU_CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Dessert", "Fast Food", "Traditional"];
+const FOOD_MENU_CATEGORIES = ["All Food", "Breakfast", "Lunch", "Dinner", "Traditional", "Fast Food", "Dessert"];
+
+const DRINK_STATIONS = [
+  { id: "all", label: "All Beverages", icon: "🍹" },
+  { id: "bar", label: "Bar Station (Barman 🍸)", icon: "🍸" },
+  { id: "coffee", label: "Coffee Station (Barista ☕)", icon: "☕" },
+  { id: "juice", label: "Juice & Soft Drinks (Beverage Staff 🧃)", icon: "🧃" },
+] as const;
+
+const isBeverageItem = (m: any): boolean => {
+  const cat = (m?.category || "").toLowerCase().trim();
+  const sec = (m?.kitchenSection || "").toLowerCase().trim();
+  const name = (m?.name || "").toLowerCase().trim();
+  if (sec === "bar" || sec === "coffee" || sec === "juice" || cat === "drinks" || cat === "coffee" || cat === "juice") {
+    return true;
+  }
+  return [
+    'beer', 'wine', 'spirit', 'cocktail', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'brandy', 'mojito', 'margarita', 'martini', 'negroni', 'spritz', 'sour', 'daiquiri', 'tej', 'tella', 'areke',
+    'buna', 'jebena', 'espresso', 'macchiato', 'cappuccino', 'latte', 'shai', 'tea', 'chocolate', 'americano', 'cortado', 'mocha', 'cold brew', 'affogato',
+    'juice', 'spris', 'smoothie', 'milkshake', 'lemonade', 'water', 'coke', 'coca', 'fanta', 'sprite', 'pepsi', 'mirinda', 'energy drink', 'red bull', 'keribo', 'borde', 'irgo'
+  ].some(k => (k === 'tea' ? /\btea\b/.test(name) : name.includes(k)));
+};
+
+const resolveItemStation = (m: any): 'bar' | 'coffee' | 'juice' | 'kitchen' => {
+  const cat = (m?.category || "").toLowerCase().trim();
+  const sec = (m?.kitchenSection || "").toLowerCase().trim();
+  const name = (m?.name || "").toLowerCase().trim();
+
+  if (
+    sec === "coffee" || cat === "coffee" ||
+    ['buna', 'jebena', 'espresso', 'macchiato', 'cappuccino', 'latte', 'shai', 'tea', 'chocolate', 'americano', 'cortado', 'mocha', 'cold brew', 'affogato'].some(k => (k === 'tea' ? /\btea\b/.test(name) : name.includes(k)))
+  ) {
+    return 'coffee';
+  }
+
+  if (
+    sec === "juice" || cat === "juice" ||
+    ['juice', 'spris', 'smoothie', 'milkshake', 'lemonade', 'water', 'coke', 'coca', 'fanta', 'sprite', 'pepsi', 'mirinda', 'energy drink', 'red bull', 'keribo', 'borde', 'irgo'].some(k => name.includes(k))
+  ) {
+    return 'juice';
+  }
+
+  if (
+    sec === "bar" || cat === "drinks" ||
+    ['beer', 'wine', 'spirit', 'cocktail', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'brandy', 'mojito', 'margarita', 'martini', 'negroni', 'spritz', 'sour', 'daiquiri', 'tej', 'tella', 'areke'].some(k => name.includes(k))
+  ) {
+    return 'bar';
+  }
+
+  return 'kitchen';
+};
 
 const SETTLED_STORAGE_KEY = "nexus_settled_orders";
 
@@ -278,7 +329,9 @@ export default function RestaurantPage() {
   const [newOrderPacingPreference, setNewOrderPacingPreference] = useState<"drinks_first" | "serve_together">("drinks_first");
   const [isTableQrModalOpen, setIsTableQrModalOpen] = useState(false);
   const [menuTickSearch, setMenuTickSearch] = useState("");
-  const [menuTickCategory, setMenuTickCategory] = useState("All");
+  const [menuTickCategory, setMenuTickCategory] = useState("All Food");
+  const [menuDrinkSearch, setMenuDrinkSearch] = useState("");
+  const [menuDrinkStation, setMenuDrinkStation] = useState<"all" | "bar" | "coffee" | "juice">("all");
 
   // Multi-round / Re-ordering state (Adding dishes to existing open tab)
   const [isAddRoundOpen, setIsAddRoundOpen] = useState(false);
@@ -554,14 +607,28 @@ export default function RestaurantPage() {
     enabled: tab === "kitchen",
   });
 
-  const tickableMenuItems = useMemo(() => {
+  const tickableFoodItems = useMemo(() => {
     return menuItems.filter(m => {
       if (!m.isAvailable) return false;
-      if (menuTickCategory !== "All" && m.category.toLowerCase() !== menuTickCategory.toLowerCase()) return false;
+      if (isBeverageItem(m)) return false; // Strictly exclude all beverages from food section
+      if (menuTickCategory !== "All Food" && (m.category || "").toLowerCase() !== menuTickCategory.toLowerCase()) return false;
       if (menuTickSearch.trim() && !m.name.toLowerCase().includes(menuTickSearch.toLowerCase())) return false;
       return true;
     });
   }, [menuItems, menuTickCategory, menuTickSearch]);
+
+  const tickableDrinkItems = useMemo(() => {
+    return menuItems.filter(m => {
+      if (!m.isAvailable) return false;
+      if (!isBeverageItem(m)) return false; // Strictly beverages
+      const station = resolveItemStation(m);
+      if (menuDrinkStation !== "all" && station !== menuDrinkStation) return false;
+      if (menuDrinkSearch.trim() && !m.name.toLowerCase().includes(menuDrinkSearch.toLowerCase())) return false;
+      return true;
+    });
+  }, [menuItems, menuDrinkStation, menuDrinkSearch]);
+
+  const tickableMenuItems = tickableFoodItems;
 
   function invalidateOrders() {
     queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
@@ -807,13 +874,13 @@ export default function RestaurantPage() {
     return true;
   });
 
-  const activeOrders = orders.filter(o => ["pending", "preparing", "ready"].includes(o.status));
+  const activeOrders = orders.filter(o => ["pending", "preparing", "cooking", "ready", "plated"].includes(o.status));
   const activeOrdersPagination = usePagination(activeOrders, 5);
   const allOrdersPagination = usePagination(orders, 5);
 
   const pendingKitchen = kitchenOrders.filter(o => o.status === "pending");
-  const preparingKitchen = kitchenOrders.filter(o => o.status === "preparing");
-  const readyKitchen = kitchenOrders.filter(o => o.status === "ready");
+  const preparingKitchen = kitchenOrders.filter(o => o.status === "preparing" || o.status === "cooking");
+  const readyKitchen = kitchenOrders.filter(o => o.status === "ready" || o.status === "plated");
 
   const totalTableSeats = tables.reduce((sum, t) => sum + (t.capacity || 0), 0);
   const occupiedCount = tables.filter(t => t.status === "occupied").length;
@@ -1139,18 +1206,34 @@ export default function RestaurantPage() {
   const tablesPagination = usePagination(filteredTables, 5);
 
   const readyPassOrders = useMemo(() => {
-    return waiterActiveOrders.filter(o => o.status === "ready");
+    return waiterActiveOrders.filter(o => o.status === "ready" || o.status === "partially_ready" || o.status === "plated");
   }, [waiterActiveOrders]);
 
   const filteredReadyPassOrders = useMemo(() => {
     return readyPassOrders.filter(o => {
-      if (readySourceFilter === "coordinator") {
+      const isReadyAtStation = (station: string) =>
+        (o.items || []).some((it: any) => (it.isReady || o.status === "ready") && it.station === station);
+
+      const hasReadyBar = isReadyAtStation("bar");
+      const hasReadyCoffee = isReadyAtStation("coffee");
+      const hasReadyJuice = isReadyAtStation("juice");
+      const hasReadyFood = (o.items || []).some((it: any) => (it.isReady || o.status === "ready") && !["bar", "coffee", "juice"].includes(it.station));
+
+      if (readySourceFilter === "bar") {
+        if (!hasReadyBar && o.stationSource !== "bar") return false;
+      } else if (readySourceFilter === "coffee") {
+        if (!hasReadyCoffee && o.stationSource !== "coffee") return false;
+      } else if (readySourceFilter === "juice") {
+        if (!hasReadyJuice && o.stationSource !== "juice") return false;
+      } else if (readySourceFilter === "kitchen") {
+        if (!hasReadyFood && ["bar", "coffee", "juice"].includes(o.stationSource)) return false;
+        const isFromKitchen = o.routedVia === "direct_kitchen" || (o.notifiedParty !== "coordinator" && o.coordinatorStatus !== "qa_verified");
+        if (!isFromKitchen && o.stationSource !== "kitchen") return false;
+      } else if (readySourceFilter === "coordinator") {
         const isFromCoord = o.coordinatorStatus === "qa_verified" || (o.routedVia === "coordinator" && o.notifiedParty === "waiter");
         if (!isFromCoord) return false;
-      } else if (readySourceFilter === "kitchen") {
-        const isFromKitchen = o.routedVia === "direct_kitchen" || (o.notifiedParty !== "coordinator" && o.coordinatorStatus !== "qa_verified");
-        if (!isFromKitchen) return false;
       }
+
       if (!readyOrderSearch.trim()) return true;
       const q = readyOrderSearch.toLowerCase();
       const guest = (o.guestName || "").toLowerCase();
@@ -1177,7 +1260,7 @@ export default function RestaurantPage() {
   }, [orders, settledMap]);
 
   const activeFloorCount = useMemo(() => {
-    return waiterActiveOrders.filter(o => ["pending", "preparing", "ready"].includes(o.status)).length;
+    return waiterActiveOrders.filter(o => ["pending", "preparing", "ready", "partially_ready", "partially_served"].includes(o.status)).length;
   }, [waiterActiveOrders]);
 
   const servedFloorCount = useMemo(() => {
@@ -1249,162 +1332,47 @@ export default function RestaurantPage() {
     setPaymentModalOrder(null);
   }
 
-  const TABS = isWaiter
-    ? ([
-        { id: "created_orders", label: "Created Orders" },
-        { id: "ready_pass", label: "Ready Food" },
-      ] as const)
-    : ([
-        { id: "orders", label: "Orders" },
-        { id: "menu", label: "Menu Catalog" },
-        { id: "tables", label: "Tables & Seating" },
-        { id: "kitchen", label: "Kitchen Tickets" },
-      ] as const);
+  const TABS = [
+    { id: "created_orders", label: "Created Orders" },
+    { id: "ready_pass", label: "Ready Food & Drinks" },
+    { id: "tables", label: "Floor Tables & Seating" },
+  ] as const;
 
   return (
     <div className="space-y-4">
       {/* Header with Title and Mode */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
-            {isWaiter ? "Waiter Operations" : "Restaurant Operations"}
-          </h1>
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-primary/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+            <UtensilsCrossed className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
+                Waiter Station
+              </h1>
+              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+                Floor Service
+              </Badge>
+            </div>
+            <p className="text-xs text-text-muted mt-0.5">
+              Floor table ordering, guest beverage pacing, multi-round additions, and kitchen pass delivery.
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!isWaiter && (
-            <>
-              <Badge variant="outline" className="px-2.5 py-0.5 font-medium text-xs">
-                👨‍🍳 Manager
-              </Badge>
-              <Link href="/dashboard">
-                <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold shadow-xs">
-                  <Sparkles className="h-3.5 w-3.5" /> Dashboard →
-                </Button>
-              </Link>
-            </>
-          )}
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={() => setIsNewOrderOpen(true)}
+            size="sm"
+            className="h-9 px-4 text-xs gap-1.5 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm rounded-xl cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            + New Order
+          </Button>
         </div>
       </div>
-
-      {/* KPI Overview Cards - Manager View Only (Hidden on Waiter Page) */}
-      {!isWaiter && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: Active Floor Orders */}
-          <button
-            type="button"
-            onClick={() => setTab("orders")}
-            className={`text-left p-4 rounded-xl border transition-all duration-200 shadow-2xs group relative overflow-hidden ${
-              tab === "orders"
-                ? "border-amber-500/60 bg-amber-50/70 dark:bg-amber-950/20 ring-2 ring-amber-500/25 shadow-xs"
-                : "border-border bg-white dark:bg-card hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-text-muted group-hover:text-text transition-colors">
-                Active Floor Orders
-              </span>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <UtensilsCrossed className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black font-mono mt-1 text-slate-900 dark:text-foreground">
-              {activeFloorCount}
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              <span>{servedFloorCount} served • dining on floor</span>
-            </div>
-          </button>
-
-          {/* Card 2: Tables & Seating */}
-          <button
-            type="button"
-            onClick={() => setTab("tables")}
-            className={`text-left p-4 rounded-xl border transition-all duration-200 shadow-2xs group relative overflow-hidden ${
-              tab === "tables"
-                ? "border-sky-500/60 bg-sky-50/70 dark:bg-sky-950/20 ring-2 ring-sky-500/25 shadow-xs"
-                : "border-border bg-white dark:bg-card hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-text-muted group-hover:text-text transition-colors">
-                Tables & Seating
-              </span>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black font-mono mt-1 text-slate-900 dark:text-foreground">
-              {occupiedCount} <span className="text-xs font-normal text-text-muted font-sans">/ {tables.length || 12} Occupied</span>
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500"></span>
-              <span>{availableTableCount} tables free ({totalTableSeats} seats)</span>
-            </div>
-          </button>
-
-          {/* Card 3: Ready at Kitchen Pass */}
-          <button
-            type="button"
-            onClick={() => setTab("kitchen")}
-            className={`text-left p-4 rounded-xl border transition-all duration-200 shadow-2xs group relative overflow-hidden ${
-              tab === "kitchen"
-                ? "border-emerald-500/60 bg-emerald-50/70 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-xs"
-                : "border-border bg-white dark:bg-card hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-text-muted group-hover:text-text transition-colors">
-                Ready at Kitchen Pass
-              </span>
-              <div className="relative w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Bell className="w-4 h-4" />
-                {readyPassOrders.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                )}
-              </div>
-            </div>
-            <div className="text-2xl font-black font-mono mt-1 text-emerald-600 dark:text-emerald-400">
-              {readyPassOrders.length}
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${readyPassOrders.length > 0 ? "bg-emerald-500" : "bg-slate-400"}`}></span>
-              <span>{readyPassOrders.length > 0 ? "Awaiting runner delivery" : "Kitchen pass clear"}</span>
-            </div>
-          </button>
-
-          {/* Card 4: Table Billing & Settlement */}
-          <button
-            type="button"
-            onClick={() => setTab("orders")}
-            className={`text-left p-4 rounded-xl border transition-all duration-200 shadow-2xs group relative overflow-hidden ${
-              tab === "orders"
-                ? "border-purple-500/60 bg-purple-50/70 dark:bg-purple-950/20 ring-2 ring-purple-500/25 shadow-xs"
-                : "border-border bg-white dark:bg-card hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-text-muted group-hover:text-text transition-colors">
-                Table Billing & Settlement
-              </span>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                <CreditCard className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-black font-mono mt-1 text-purple-600 dark:text-purple-400">
-              {openFloorTabsCount} <span className="text-xs font-normal text-text-muted font-sans">Open Tabs</span>
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-              <span>
-                {settledTodayCount} settled
-                {billsPrintingCount > 0 ? ` • ${billsPrintingCount} bill requested` : ""}
-              </span>
-            </div>
-          </button>
-        </div>
-      )}
 
       {/* Main Tabs */}
       <div className="flex gap-1 overflow-x-auto border-b border-border pb-0">
@@ -1906,11 +1874,11 @@ export default function RestaurantPage() {
                                   setRoundNotes("");
                                   setIsAddRoundOpen(true);
                                 }}
-                                className="h-8 px-2.5 text-xs font-medium border-border hover:bg-muted/50 gap-1 rounded-lg text-primary cursor-pointer"
+                                className="h-8 px-2.5 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/10 gap-1 rounded-lg text-amber-700 dark:text-amber-400 cursor-pointer shadow-2xs"
                                 title="Add dishes to table or late-arriving guests (Round 2)"
                               >
-                                <Plus className="w-3.5 h-3.5 text-primary" />
-                                <span className="hidden xl:inline">Add Dishes</span>
+                                <Plus className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 stroke-[2.5]" />
+                                <span>+ Add Round</span>
                               </Button>
                             )}
 
@@ -2048,9 +2016,12 @@ export default function RestaurantPage() {
                     <SelectValue placeholder="All Sources" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Prepared Dishes</SelectItem>
-                    <SelectItem value="kitchen">Direct from Kitchen Officer</SelectItem>
-                    <SelectItem value="coordinator">Verified by F&B Coordinator</SelectItem>
+                    <SelectItem value="all">All Prepared Items (All Passes)</SelectItem>
+                    <SelectItem value="bar">Bar Pass (Barman 🍸)</SelectItem>
+                    <SelectItem value="coffee">Coffee Pass (Barista ☕)</SelectItem>
+                    <SelectItem value="juice">Beverage Pass (Beverage Staff 🧃)</SelectItem>
+                    <SelectItem value="kitchen">Kitchen Pass (Kitchen Officer 🍽️)</SelectItem>
+                    <SelectItem value="coordinator">Verified by F&B Coordinator 🛡️</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2071,8 +2042,8 @@ export default function RestaurantPage() {
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5 pl-4">Order ID</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Dining Location</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Guest & Type</TableHead>
-                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Plated Dishes</TableHead>
-                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Ready</TableHead>
+                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Items & Beverages</TableHead>
+                  <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Pass / Station</TableHead>
                   <TableHead className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5">Ready Time</TableHead>
                   <TableHead className="text-right font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3.5 pr-4">Actions</TableHead>
                 </TableRow>
@@ -2083,7 +2054,7 @@ export default function RestaurantPage() {
                     <TableCell colSpan={7} className="h-36 text-center text-text-muted">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                        <span className="font-medium text-xs text-slate-500">Kitchen Pass is Clear. No cooked dishes waiting to be served.</span>
+                        <span className="font-medium text-xs text-slate-500">Service Passes are Clear. No cooked dishes or poured drinks waiting.</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -2137,40 +2108,147 @@ export default function RestaurantPage() {
                           </div>
                         </TableCell>
                         <TableCell className="py-3.5">
-                          <div className="text-xs max-w-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2" title={order.items?.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")}>
-                            {order.items && order.items.length > 0 ? (
-                              order.items.map((it: any) => `${it.quantity}× ${it.name || it.menuItemId}`).join(", ")
-                            ) : (
-                              `${order.itemsCount || 1} plated dishes`
-                            )}
-                          </div>
+                          {(() => {
+                            const isStation = (it: any, st: string) => it.station === st;
+                            const isFood = (it: any) => !["bar", "coffee", "juice"].includes(it.station);
+
+                            const readyBar = (order.items || []).filter((it: any) => (it.isReady || order.status === "ready") && isStation(it, "bar"));
+                            const readyCoffee = (order.items || []).filter((it: any) => (it.isReady || order.status === "ready") && isStation(it, "coffee"));
+                            const readyJuice = (order.items || []).filter((it: any) => (it.isReady || order.status === "ready") && isStation(it, "juice"));
+                            const readyFood = (order.items || []).filter((it: any) => (it.isReady || order.status === "ready") && isFood(it));
+
+                            const pendingBar = (order.items || []).filter((it: any) => !it.isReady && order.status !== "ready" && isStation(it, "bar"));
+                            const pendingCoffee = (order.items || []).filter((it: any) => !it.isReady && order.status !== "ready" && isStation(it, "coffee"));
+                            const pendingJuice = (order.items || []).filter((it: any) => !it.isReady && order.status !== "ready" && isStation(it, "juice"));
+                            const pendingFood = (order.items || []).filter((it: any) => !it.isReady && order.status !== "ready" && isFood(it));
+
+                            return (
+                              <div className="flex flex-col gap-1 max-w-xs text-xs">
+                                {readyBar.length > 0 && (
+                                  <div className="text-purple-700 dark:text-purple-300 font-medium flex items-center gap-1">
+                                    <Wine className="w-3 h-3 shrink-0" />
+                                    <span className="line-clamp-1">{readyBar.map((d: any) => `${d.quantity}× ${d.name || d.menuItemId}`).join(", ")}</span>
+                                  </div>
+                                )}
+                                {readyCoffee.length > 0 && (
+                                  <div className="text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1">
+                                    <Coffee className="w-3 h-3 shrink-0" />
+                                    <span className="line-clamp-1">{readyCoffee.map((c: any) => `${c.quantity}× ${c.name || c.menuItemId}`).join(", ")}</span>
+                                  </div>
+                                )}
+                                {readyJuice.length > 0 && (
+                                  <div className="text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
+                                    <GlassWater className="w-3 h-3 shrink-0" />
+                                    <span className="line-clamp-1">{readyJuice.map((j: any) => `${j.quantity}× ${j.name || j.menuItemId}`).join(", ")}</span>
+                                  </div>
+                                )}
+                                {readyFood.length > 0 && (
+                                  <div className="text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1">
+                                    <Flame className="w-3 h-3 shrink-0" />
+                                    <span className="line-clamp-1">{readyFood.map((f: any) => `${f.quantity}× ${f.name || f.menuItemId}`).join(", ")}</span>
+                                  </div>
+                                )}
+                                {pendingFood.length > 0 && (
+                                  <div className="text-[10px] text-slate-400 italic">
+                                    Kitchen cooking: {pendingFood.map((f: any) => `${f.quantity}× ${f.name || f.menuItemId}`).join(", ")}
+                                  </div>
+                                )}
+                                {pendingBar.length > 0 && (
+                                  <div className="text-[10px] text-slate-400 italic">
+                                    Bar pouring: {pendingBar.map((d: any) => `${d.quantity}× ${d.name || d.menuItemId}`).join(", ")}
+                                  </div>
+                                )}
+                                {pendingCoffee.length > 0 && (
+                                  <div className="text-[10px] text-slate-400 italic">
+                                    Coffee brewing: {pendingCoffee.map((c: any) => `${c.quantity}× ${c.name || c.menuItemId}`).join(", ")}
+                                  </div>
+                                )}
+                                {pendingJuice.length > 0 && (
+                                  <div className="text-[10px] text-slate-400 italic">
+                                    Beverages blending: {pendingJuice.map((j: any) => `${j.quantity}× ${j.name || j.menuItemId}`).join(", ")}
+                                  </div>
+                                )}
+                                {(!order.items || order.items.length === 0) && (
+                                  <span className="text-slate-600 dark:text-slate-400">{order.itemsCount || 1} items ready</span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="py-3.5">
-                          {isFromCoord ? (
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/50">
-                                <ShieldCheck className="w-3 h-3 text-purple-600 shrink-0" />
-                                <span>QA-Verified</span>
-                              </span>
-                              {order.coordinatorName && (
-                                <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium pl-0.5">
-                                  {order.coordinatorName}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50">
-                                <Flame className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span>Kitchen Line</span>
-                              </span>
-                              {order.kitchenOfficerName && (
-                                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pl-0.5">
-                                  {order.kitchenOfficerName}
-                                </p>
-                              )}
-                            </div>
-                          )}
+                          {(() => {
+                            const isReadySt = (st: string) => (order.items || []).some((it: any) => (it.isReady || order.status === "ready") && it.station === st);
+                            const hasReadyFood = (order.items || []).some((it: any) => (it.isReady || order.status === "ready") && !["bar", "coffee", "juice"].includes(it.station));
+
+                            const readyBar = isReadySt("bar");
+                            const readyCoffee = isReadySt("coffee");
+                            const readyJuice = isReadySt("juice");
+
+                            if (order.status === "partially_ready") {
+                              return (
+                                <div className="flex flex-col gap-1 items-start">
+                                  {readyBar && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-purple-800 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80">
+                                      <Wine className="w-3 h-3 text-purple-600 shrink-0" />
+                                      <span>Bar Pass (Drinks Ready)</span>
+                                    </span>
+                                  )}
+                                  {readyCoffee && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-800 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80">
+                                      <Coffee className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>Coffee Pass (Brewed)</span>
+                                    </span>
+                                  )}
+                                  {readyJuice && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80">
+                                      <GlassWater className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      <span>Beverage Pass (Ready)</span>
+                                    </span>
+                                  )}
+                                  {hasReadyFood && (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-800 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80">
+                                      <Flame className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>Kitchen Pass (Food Ready)</span>
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-slate-400 font-medium pl-0.5">Other stations in progress</span>
+                                </div>
+                              );
+                            }
+
+                            if (isFromCoord) {
+                              return (
+                                <div className="flex flex-col gap-1 items-start">
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/50">
+                                    <ShieldCheck className="w-3 h-3 text-purple-600 shrink-0" />
+                                    <span>QA-Verified</span>
+                                  </span>
+                                  {order.coordinatorName && (
+                                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium pl-0.5">
+                                      {order.coordinatorName}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            const activeStations = [
+                              readyBar ? "Bar" : null,
+                              readyCoffee ? "Coffee" : null,
+                              readyJuice ? "Beverage" : null,
+                              hasReadyFood ? "Kitchen" : null,
+                            ].filter(Boolean);
+
+                            return (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>{activeStations.length > 1 ? `All ${activeStations.length} Passes Ready` : `${activeStations[0] || 'Kitchen'} Pass Ready`}</span>
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium pl-0.5">Full Order Ready for Table</span>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="py-3.5">
                           <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md border shadow-2xs ${
@@ -2183,21 +2261,59 @@ export default function RestaurantPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-3.5 pr-4">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              updateOrderMutation.mutate({ id: order.id, status: "served" });
-                              toast({
-                                title: "Order Delivered & Marked Served",
-                                description: `Served to ${order.tableNumber ? `Table #${order.tableNumber}` : `Room #${order.roomNumber}`}.`,
-                              });
-                            }}
-                            disabled={updateOrderMutation.isPending}
-                            className="h-8 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Serve</span>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {order.status === "partially_ready" ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    updateOrderMutation.mutate({ id: order.id, status: "partially_served" });
+                                    toast({
+                                      title: "Drinks Delivered to Guest 🍸",
+                                      description: `Served drinks to ${order.tableNumber ? `Table #${order.tableNumber}` : `Room #${order.roomNumber}`}. Kitchen continuing meal cooking.`,
+                                    });
+                                  }}
+                                  disabled={updateOrderMutation.isPending}
+                                  className="h-8 px-2.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-700 text-white gap-1 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <Wine className="w-3.5 h-3.5" />
+                                  <span>Serve Drinks</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    updateOrderMutation.mutate({ id: order.id, status: "served" });
+                                    toast({
+                                      title: "Order Delivered & Marked Served",
+                                      description: `Served to ${order.tableNumber ? `Table #${order.tableNumber}` : `Room #${order.roomNumber}`}.`,
+                                    });
+                                  }}
+                                  disabled={updateOrderMutation.isPending}
+                                  className="h-8 px-2 text-xs font-semibold text-slate-700 dark:text-slate-300 rounded-lg cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Serve All</span>
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  updateOrderMutation.mutate({ id: order.id, status: "served" });
+                                  toast({
+                                    title: "Order Delivered & Marked Served",
+                                    description: `Served to ${order.tableNumber ? `Table #${order.tableNumber}` : `Room #${order.roomNumber}`}.`,
+                                  });
+                                }}
+                                disabled={updateOrderMutation.isPending}
+                                className="h-8 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Serve</span>
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -2412,18 +2528,37 @@ export default function RestaurantPage() {
                               <span>Take Order</span>
                             </Button>
                           ) : table.status === "occupied" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setTab("billing");
-                                setWaiterPaymentSearch(String(table.tableNumber));
-                              }}
-                              className="h-7 text-xs font-semibold gap-1"
-                            >
-                              <CreditCard className="w-3 h-3" />
-                              <span>View Tab</span>
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {activeOrder && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setRoundTargetOrder(activeOrder);
+                                    setRoundDishesList([]);
+                                    setRoundNotes("");
+                                    setIsAddRoundOpen(true);
+                                  }}
+                                  className="h-7 text-xs font-semibold gap-1 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer shadow-2xs"
+                                  title="Add more dishes to this occupied table"
+                                >
+                                  <Plus className="w-3 h-3 text-amber-600 stroke-[2.5]" />
+                                  <span>+ Add Round</span>
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setTab("billing");
+                                  setWaiterPaymentSearch(String(table.tableNumber));
+                                }}
+                                className="h-7 text-xs font-semibold gap-1"
+                              >
+                                <CreditCard className="w-3 h-3" />
+                                <span>View Tab</span>
+                              </Button>
+                            </div>
                           ) : (
                             <Button
                               size="sm"
@@ -2904,9 +3039,17 @@ export default function RestaurantPage() {
                 coordinatorId: newOrderRoutedVia === "coordinator" ? (newOrderCoordinatorId || (coordinators[0]?.id || undefined)) : undefined,
                 pacingPreference: newOrderPacingPreference,
                 items: newOrderItems.map(i => {
+                  const matched = menuItems.find(m => m.id === i.menuItemId);
+                  const station = i.category && ['bar', 'coffee', 'juice'].includes(i.category)
+                    ? i.category
+                    : resolveItemStation(matched || i);
                   return {
                     menuItemId: i.menuItemId,
+                    name: i.name,
+                    price: i.price,
                     quantity: i.quantity,
+                    category: matched?.category || i.category,
+                    station: station,
                     isComplimentary: false,
                   };
                 }),
@@ -3287,37 +3430,40 @@ export default function RestaurantPage() {
               </div>
             </div>
 
-            {/* Rapid Multi-Tick Menu Selector */}
-            <div className="space-y-2">
+            {/* ─── SECTION 1: STRICTLY FOOD DISHES (KITCHEN LINE) ─── */}
+            <div className="space-y-2 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase text-text-muted">Select / Tick Food Items *</Label>
-                <span className="text-xs text-primary font-bold">
-                  {newOrderItems.reduce((acc, i) => acc + i.quantity, 0)} items selected
+                <div className="flex items-center gap-1.5">
+                  <ChefHat className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <Label className="text-xs font-bold uppercase text-slate-900 dark:text-slate-100">Select / Tick Food Dishes *</Label>
+                </div>
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  {newOrderItems.filter(i => !isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0)} food dishes
                 </span>
               </div>
 
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search dishes or beverages..."
+                  placeholder="Search plated dishes (tibs, wat, pasta, burgers)..."
                   value={menuTickSearch}
                   onChange={(e) => setMenuTickSearch(e.target.value)}
-                  className="h-8 text-xs flex-1"
+                  className="h-8 text-xs flex-1 bg-white dark:bg-card"
                 />
                 <select
                   value={menuTickCategory}
                   onChange={(e) => setMenuTickCategory(e.target.value)}
-                  className="h-8 rounded-md border border-border bg-surface px-2 text-xs"
+                  className="h-8 rounded-md border border-border bg-white dark:bg-card px-2 text-xs font-medium"
                 >
-                  {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {FOOD_MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
-              {/* Ticking Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto p-1 border border-border rounded-lg bg-surface">
-                {tickableMenuItems.length === 0 ? (
-                  <p className="col-span-2 text-xs text-text-muted text-center py-4">No menu items match filter.</p>
+              {/* Food Ticking Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto p-1.5 border border-border rounded-lg bg-white dark:bg-card">
+                {tickableFoodItems.length === 0 ? (
+                  <p className="col-span-2 text-xs text-text-muted text-center py-3">No food items match filter.</p>
                 ) : (
-                  tickableMenuItems.map((item) => {
+                  tickableFoodItems.map((item) => {
                     const inCart = newOrderItems.find(i => i.menuItemId === item.id);
                     const isBreakfast = (item.category || "").toLowerCase() === "breakfast";
                     const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
@@ -3327,7 +3473,7 @@ export default function RestaurantPage() {
                         key={item.id}
                         className={`p-2 rounded-md border text-xs flex items-center justify-between transition-all ${
                           inCart
-                            ? "border-primary bg-primary/5"
+                            ? "border-amber-500 bg-amber-500/10 shadow-2xs"
                             : "border-border/60 hover:bg-muted/30"
                         }`}
                       >
@@ -3342,12 +3488,12 @@ export default function RestaurantPage() {
                                 addOrderItem(item.id);
                               }
                             }}
-                            className="mt-0.5 rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                            className="mt-0.5 rounded border-border text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
                           />
                           <div className="truncate">
                             <span className="font-semibold text-text block truncate">{item.name}</span>
                             <span className="text-[10px] text-text-muted">
-                              {item.category} • {isFree ? <span className="text-emerald-600 font-bold">100% Free</span> : `$${Number(item.price).toFixed(2)}`}
+                              {item.category} • {isFree ? <span className="text-emerald-600 font-bold">100% Free</span> : `${Number(item.price).toFixed(2)}`}
                             </span>
                           </div>
                         </label>
@@ -3376,31 +3522,145 @@ export default function RestaurantPage() {
                   })
                 )}
               </div>
-
-              {/* Order Cart Tally Summary */}
-              {newOrderItems.length > 0 && (
-                <div className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-text border-b border-border/40 pb-1">
-                    <span>Order Cart Summary ({newOrderItems.length} dish types)</span>
-                    <span className="text-primary font-mono font-bold">
-                      ${newOrderItems.reduce((acc, i) => {
-                        const isBreakfast = (i.category || "").toLowerCase() === "breakfast";
-                        const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
-                        return acc + (isFree ? 0 : i.price * i.quantity);
-                      }, 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-text-muted space-y-0.5 max-h-24 overflow-y-auto">
-                    {newOrderItems.map(i => (
-                      <div key={i.menuItemId} className="flex justify-between">
-                        <span>{i.quantity}× {i.name}</span>
-                        <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+
+            {/* ─── SECTION 2: DEDICATED 3-STATION BEVERAGES & DRINKS ─── */}
+            <div className="space-y-2 p-3 rounded-xl border border-cyan-200/80 dark:border-cyan-900/60 bg-cyan-50/40 dark:bg-cyan-950/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Wine className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <Label className="text-xs font-bold uppercase text-slate-900 dark:text-slate-100">Select Drinks & Beverages * (3 Stations)</Label>
+                </div>
+                <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400">
+                  {newOrderItems.filter(i => isBeverageItem(i)).reduce((acc, i) => acc + i.quantity, 0)} drinks selected
+                </span>
+              </div>
+
+              {/* Station Tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                {DRINK_STATIONS.map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setMenuDrinkStation(st.id as any)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                      menuDrinkStation === st.id
+                        ? "bg-cyan-600 text-white shadow-xs font-bold"
+                        : "bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{st.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Drink Search Input */}
+              <Input
+                placeholder="Search cocktails, beers, Buna, macchiatos, Spris, juices, sodas..."
+                value={menuDrinkSearch}
+                onChange={(e) => setMenuDrinkSearch(e.target.value)}
+                className="h-8 text-xs bg-white dark:bg-card"
+              />
+
+              {/* Drink Ticking Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto p-1.5 border border-border rounded-lg bg-white dark:bg-card">
+                {tickableDrinkItems.length === 0 ? (
+                  <p className="col-span-2 text-xs text-text-muted text-center py-3">No beverages match filter.</p>
+                ) : (
+                  tickableDrinkItems.map((item) => {
+                    const inCart = newOrderItems.find(i => i.menuItemId === item.id);
+                    const station = resolveItemStation(item);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-2 rounded-md border text-xs flex items-center justify-between transition-all ${
+                          inCart
+                            ? "border-cyan-500 bg-cyan-500/10 shadow-2xs"
+                            : "border-border/60 hover:bg-muted/30"
+                        }`}
+                      >
+                        <label className="flex items-start gap-2 cursor-pointer flex-1 min-w-0 pr-1 select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!inCart}
+                            onChange={() => {
+                              if (inCart) {
+                                setNewOrderItems(prev => prev.filter(i => i.menuItemId !== item.id));
+                              } else {
+                                addOrderItem(item.id);
+                              }
+                            }}
+                            className="mt-0.5 rounded border-border text-cyan-600 focus:ring-cyan-500 h-3.5 w-3.5"
+                          />
+                          <div className="truncate">
+                            <span className="font-semibold text-text block truncate">{item.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                station === "bar"
+                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                                  : station === "coffee"
+                                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              }`}>
+                                {station === "bar" ? "Barman 🍸" : station === "coffee" ? "Barista ☕" : "Beverage 🧃"}
+                              </span>
+                              <span className="text-[10px] text-text-muted font-mono">
+                                ${Number(item.price).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </label>
+
+                        {inCart && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => updateOrderItemQty(item.id, -1)}
+                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
+                            >
+                              -
+                            </button>
+                            <span className="w-4 text-center font-mono font-bold text-xs">{inCart.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateOrderItemQty(item.id, 1)}
+                              className="h-5 w-5 rounded border border-border flex items-center justify-center hover:bg-muted font-bold text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Order Cart Tally Summary */}
+            {newOrderItems.length > 0 && (
+              <div className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-text border-b border-border/40 pb-1">
+                  <span>Order Cart Summary ({newOrderItems.length} dish types)</span>
+                  <span className="text-primary font-mono font-bold">
+                    ${newOrderItems.reduce((acc, i) => {
+                      const isBreakfast = (i.category || "").toLowerCase() === "breakfast";
+                      const isFree = newOrderDiningCase === "in_house_table" && newOrderSettlementType === "complimentary_breakfast" && isBreakfast;
+                      return acc + (isFree ? 0 : i.price * i.quantity);
+                    }, 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-[11px] text-text-muted space-y-0.5 max-h-24 overflow-y-auto">
+                  {newOrderItems.map(i => (
+                    <div key={i.menuItemId} className="flex justify-between">
+                      <span>{i.quantity}× {i.name}</span>
+                      <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"

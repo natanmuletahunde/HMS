@@ -14,6 +14,12 @@ export type RoleCategory =
   | 'restaurant_manager'
   | 'waiter'
   | 'kitchen_officer'
+  | 'head_chef'
+  | 'chief_chef'
+  | 'chief_officer'
+  | 'barman'
+  | 'barista'
+  | 'beverage_staff'
   | 'coordinator'
   | 'restaurant'
   | 'accountant'
@@ -110,8 +116,62 @@ export const ROLE_DEFINITIONS: Record<RoleCategory, RoleInfo> = {
     badge: 'Dining Server & Waiter',
     description: 'Restaurant table order taking, floor dining service, customer care, and kitchen KDS dispatch.',
     badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-    portalTitle: 'Dining Server & Waiter Portal',
+    portalTitle: 'Waiter Station',
     testEmail: 'waiter@nexushms.com',
+  },
+  head_chef: {
+    category: 'head_chef',
+    name: 'Head Chef Officer',
+    badge: 'Head Chef & Culinary Director',
+    description: 'Direct executive culinary oversight, recipe standards, kitchen station command, and food quality dispatch.',
+    badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    portalTitle: 'Head Chef Kitchen Command',
+    testEmail: 'headchef.officer@nexushms.com',
+  },
+  chief_chef: {
+    category: 'chief_chef',
+    name: 'Chief Chef',
+    badge: 'Chief Chef & Cook',
+    description: 'Food preparation specialist: Starts cooking line preparation and executes kitchen line dishes.',
+    badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
+    portalTitle: 'Kitchen Line Station',
+    testEmail: 'chief.chef@nexushms.com',
+  },
+  chief_officer: {
+    category: 'chief_officer',
+    name: 'Chief Officer',
+    badge: 'Chief Operating Officer',
+    description: 'Executive leadership across hotel operations: culinary, dining, front office, inventory, and operations.',
+    badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    portalTitle: 'Chief Officer Executive Portal',
+    testEmail: 'chief.officer@nexushms.com',
+  },
+  barista: {
+    category: 'barista',
+    name: 'Barista',
+    badge: 'Barista & Coffee Station',
+    description: 'Espresso, traditional Ethiopian Buna ceremony, and specialty coffee pass.',
+    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    portalTitle: 'Coffee & Barista Station',
+    testEmail: 'barista@nexushms.com',
+  },
+  beverage_staff: {
+    category: 'beverage_staff',
+    name: 'Beverage Staff',
+    badge: 'Fresh Juices & Cold Drinks',
+    description: 'Fresh fruit juices, Spris, soft drinks, and cold beverage pass.',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    portalTitle: 'Juice & Beverage Bar',
+    testEmail: 'beverages@nexushms.com',
+  },
+  barman: {
+    category: 'barman',
+    name: 'Bar Man',
+    badge: 'Bar Man & Bartender',
+    description: 'Direct beverage and bar management: Bar display system (BDS), drink preparation, espresso bar, and bar pass ready buzzer.',
+    badgeClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+    portalTitle: 'Bar Display System (BDS)',
+    testEmail: 'barman@nexushms.com',
   },
   kitchen_officer: {
     category: 'kitchen_officer',
@@ -174,6 +234,8 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   const r = roleName.toLowerCase().trim();
 
   if (r.includes('admin') || r.includes('super')) return 'admin';
+  if (r.includes('head chef') || r.includes('headchef')) return 'head_chef';
+  if (r.includes('chief officer') || r === 'chief' || r.includes('chief op') || r.includes('coo')) return 'chief_officer';
   if (
     r.includes('restaurant manager') ||
     r.includes('f&b manager') ||
@@ -211,16 +273,33 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   if (r.includes('cashier')) {
     return 'cashier';
   }
-  // Dedicated Kitchen Officer & Executive Chef
+  // Dedicated Kitchen Officer
   if (
     r.includes('kitchen officer') ||
-    r.includes('head chef') ||
-    r.includes('executive chef') ||
     r.includes('kitchen manager') ||
-    r.includes('kitchen supervisor') ||
-    r === 'chef'
+    r.includes('kitchen supervisor')
   ) {
     return 'kitchen_officer';
+  }
+  // Dedicated Head Chef Officer
+  if (
+    r.includes('head chef') ||
+    r.includes('headchef') ||
+    r.includes('executive chef')
+  ) {
+    return 'head_chef';
+  }
+  // Dedicated Chief Chef / Line Cook
+  if (
+    r.includes('chief chef') ||
+    r.includes('chiefchef') ||
+    r.includes('line chef') ||
+    r.includes('station chef') ||
+    r.includes('sous chef') ||
+    r.includes('cook') ||
+    r === 'chef'
+  ) {
+    return 'chief_chef';
   }
   // Dedicated F&B Coordinator
   if (
@@ -230,6 +309,30 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
     r.includes('expediter')
   ) {
     return 'coordinator';
+  }
+  // Dedicated Barman / Bartender
+  if (
+    r.includes('barman') ||
+    r.includes('bartender') ||
+    r.includes('bar staff') ||
+    r === 'bar'
+  ) {
+    return 'barman';
+  }
+  // Dedicated Barista / Coffee Attendant
+  if (
+    r.includes('barista') ||
+    r.includes('coffee') ||
+    r.includes('buna')
+  ) {
+    return 'barista';
+  }
+  // Dedicated Beverage Staff / Juice Bar
+  if (
+    r.includes('beverage') ||
+    r.includes('juice')
+  ) {
+    return 'beverage_staff';
   }
   // Dedicated Waiter / Dining Server
   if (
@@ -286,6 +389,9 @@ export const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   '/housekeeping': ['housekeeping:*'],
   '/maintenance': ['maintenance:*'],
   '/restaurant': ['restaurant:*'],
+  '/bar': ['bar:*', 'restaurant:*'],
+  '/coffee': ['restaurant:*', 'bar:*'],
+  '/beverages': ['restaurant:*', 'bar:*'],
   '/pos': ['pos:*'],
   '/room-service': ['room-service:*', 'restaurant:*'],
   '/invoices': ['invoices:*', 'financial:*'],
@@ -335,12 +441,28 @@ export function isRouteAuthorized(
   }
 
   // System Administrator / Super Admin has unrestricted access to all routes
-  const isSuperAdmin =
+  const isSuperAdmin: boolean = Boolean(
     roleName.toLowerCase() === 'admin' ||
     roleName.toLowerCase() === 'system admin' ||
-    userPermissions?.includes('*');
+    userPermissions?.includes('*')
+  );
 
   if (isSuperAdmin) return true;
+
+  const category = normalizeRole(roleName);
+  if (category === 'admin') return true;
+
+  // 1. Waiter Station (/restaurant): Strictly restricted to Waiter (and SuperAdmin)
+  // Floor table ordering, guest pacing, and food delivery are exclusive to the floor waiter.
+  if (cleanPath === '/restaurant' || cleanPath.startsWith('/restaurant/')) {
+    return category === 'waiter' || isSuperAdmin;
+  }
+
+  // 2. Point of Sale Terminal (/pos): Strictly restricted to Cashier, Hotel Manager, and Restaurant Manager (and SuperAdmin)
+  // Floor waiters, kitchen officers, housekeeping, maintenance, and front desk are excluded from POS terminal.
+  if (cleanPath === '/pos' || cleanPath.startsWith('/pos/')) {
+    return ['cashier', 'manager', 'restaurant_manager'].includes(category) || isSuperAdmin;
+  }
 
   // Dynamic Permission Check: If user has explicitly defined permissions, check them first
   if (userPermissions && userPermissions.length > 0) {
@@ -369,12 +491,10 @@ export function isRouteAuthorized(
   }
 
   // Fallback to role-category checks
-  const category = normalizeRole(roleName);
-  if (category === 'admin') return true;
-
   if (category === 'manager') {
     const restrictedForManager = [
       '/roles',
+      '/restaurant',
     ];
     return !restrictedForManager.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
@@ -427,11 +547,11 @@ export function isRouteAuthorized(
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Restaurant Manager: F&B Executive Operations & Oversight (Dashboard, Floor Operations, Inventory, Reports)
+  // Restaurant Manager: F&B Executive Operations & Oversight (Dashboard, POS Terminal, Inventory, Reports)
   if (category === 'restaurant_manager') {
     const allowed = [
       '/dashboard',
-      '/restaurant',
+      '/pos',
       '/inventory',
       '/staff-supplies',
       '/reports',
@@ -440,7 +560,20 @@ export function isRouteAuthorized(
   }
 
   // Kitchen Officer: Strictly Kitchen Command Center & KDS (NO Floor Waiter POS, NO Coordinator Buffer)
-  if (category === 'kitchen_officer') {
+  if (category === 'chief_officer') return true;
+  if (category === 'barman') {
+    const allowed = ['/dashboard', '/bar', '/inventory', '/staff-supplies'];
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
+  }
+  if (category === 'barista') {
+    const allowed = ['/dashboard', '/coffee', '/inventory', '/staff-supplies'];
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
+  }
+  if (category === 'beverage_staff') {
+    const allowed = ['/dashboard', '/beverages', '/inventory', '/staff-supplies'];
+    return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
+  }
+  if (category === 'kitchen_officer' || category === 'head_chef' || category === 'chief_chef') {
     const allowed = ['/dashboard', '/kitchen', '/staff-supplies'];
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
@@ -451,12 +584,12 @@ export function isRouteAuthorized(
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
   }
 
-  // Waiter / Floor Server: Dedicated to Floor Table Orders, Waiter POS & Floor Supplies Requisitions
+  // Waiter / Floor Server: Dedicated to Floor Table Orders, Waiter Station & Floor Supplies Requisitions
+  // (POS terminal access is strictly removed and assigned to Cashier/Managers)
   if (category === 'waiter') {
     const allowed = [
       '/dashboard',
       '/restaurant',
-      '/pos',
       '/staff-supplies',
     ];
     return allowed.some((p) => cleanPath === p || cleanPath.startsWith(p + '/'));
@@ -486,4 +619,62 @@ export function isRouteAuthorized(
   }
 
   return false;
+}
+
+/**
+ * Kitchen Order Lifecycle Permission Hierarchy:
+ * Step 1: Chief Chef clicks "Start Preparation" (Pending -> Cooking)
+ *         - Allowed: Chief Chef, Head Chef Officer, Kitchen Officer, Admin/Manager
+ * Step 2: Head Chef Officer clicks "Mark as Ready" (Cooking -> Ready)
+ *         - Allowed: Head Chef Officer, Kitchen Officer, Admin/Manager
+ *         - NOT Allowed: Chief Chef
+ * Step 3: Kitchen Officer clicks "Mark as Plated" (Ready -> Plated)
+ *         - Allowed: Kitchen Officer ONLY (plus Admin/Manager)
+ *         - NOT Allowed: Head Chef Officer, Chief Chef
+ * Step 4: Waiter / Coordinator continues serving workflow (Plated -> Served)
+ *         - Allowed: Waiter, Coordinator, Admin/Manager
+ */
+export function canStartPreparation(roleOrUser?: string | UserWithPermissions | null): boolean {
+  const roleName = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser?.roleName || roleOrUser?.role || '');
+  if (!roleName) return false;
+  const r = roleName.toLowerCase();
+  return (
+    r.includes('chef') ||
+    r.includes('cook') ||
+    r.includes('kitchen') ||
+    r.includes('admin') ||
+    r.includes('manager')
+  );
+}
+
+export function canMarkOrderReady(roleOrUser?: string | UserWithPermissions | null): boolean {
+  const roleName = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser?.roleName || roleOrUser?.role || '');
+  if (!roleName) return false;
+  const r = roleName.toLowerCase();
+  // Admin / GM
+  if (r.includes('admin') || r === 'manager' || r.includes('general manager')) return true;
+  // Kitchen Officer can do all roles
+  if (r.includes('kitchen officer') || r.includes('kitchen manager') || r.includes('kitchen supervisor')) return true;
+  // Head Chef Officer can do Chief Chef + Mark as Ready
+  if (r.includes('head chef') || r.includes('headchef') || r.includes('executive chef')) return true;
+  // Pure Chief Chef / Cook cannot mark as ready
+  return false;
+}
+
+export function canMarkOrderPlated(roleOrUser?: string | UserWithPermissions | null): boolean {
+  const roleName = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser?.roleName || roleOrUser?.role || '');
+  if (!roleName) return false;
+  const r = roleName.toLowerCase();
+  // Head Chef Officer and Chief Chef DO NOT have Kitchen Officer plating role
+  if (r.includes('head chef') || r.includes('headchef')) return false;
+  if (r.includes('chief chef') || (r.includes('cook') && !r.includes('kitchen officer'))) return false;
+  // ONLY Kitchen Officer (or Admin/GM)
+  return (
+    r.includes('kitchen officer') ||
+    r.includes('kitchen manager') ||
+    r.includes('kitchen supervisor') ||
+    r.includes('admin') ||
+    r.includes('general manager') ||
+    r === 'manager'
+  );
 }

@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Plus, Minus, X, Loader2, Utensils, Hotel, DoorOpen, CheckCircle2, 
-  AlertCircle, Coffee, Receipt, Sparkles, Search, ShoppingBag, Trash2 
+  AlertCircle, Coffee, Receipt, Sparkles, Search, ShoppingBag, ShoppingCart, Trash2 
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -309,16 +309,29 @@ export default function POSPage() {
       {/* LEFT PANEL - Menu Catalog & Search */}
       <div className="flex-1 lg:flex-[3] flex flex-col gap-3.5 overflow-hidden">
         {/* Title Header */}
-        <div className="flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground">
-              Restaurant & POS Terminal
-            </h1>
+        <div className="flex items-center justify-between shrink-0 bg-surface p-3 rounded-2xl border border-border shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-foreground">
+                  Point of Sale (POS) Terminal
+                </h1>
+                <Badge variant="outline" className="px-2 py-0.5 text-xs font-semibold bg-primary/10 text-primary border-primary/30">
+                  Cashier & Manager
+                </Badge>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5">
+                Fast order entry, resident room billing, discounts, tax, and direct payment settlement.
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-500/20">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-500/20">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Terminal
+              Live Register
             </span>
           </div>
         </div>

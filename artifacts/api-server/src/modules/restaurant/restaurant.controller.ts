@@ -42,6 +42,11 @@ export class RestaurantController {
     return this.svc.createTable(b);
   }
 
+  @Patch('tables/assign-section')
+  assignSection(@Body() b: { section: string; waiterId: string | null }) {
+    return this.svc.assignWaiterToSection(b.section, b.waiterId);
+  }
+
   @Patch('tables/:id')
   updateTable(@Param('id') id: string, @Body() b: any) {
     return this.svc.updateTable(id, b);
@@ -50,6 +55,29 @@ export class RestaurantController {
   @Get('kitchen')
   getKitchenOrders() {
     return this.svc.getKitchenOrders();
+  }
+
+  @Get('bar')
+  getBarOrders() {
+    return this.svc.getBarOrders();
+  }
+
+  @Get('coffee')
+  getCoffeeOrders() {
+    return this.svc.getCoffeeOrders();
+  }
+
+  @Get('beverages')
+  getBeverageOrders() {
+    return this.svc.getBeverageOrders();
+  }
+
+  @Patch('orders/:id/start-prep')
+  startPrep(
+    @Param('id') id: string,
+    @Body() b: { stationSource?: 'kitchen' | 'bar' | 'coffee' | 'juice'; notes?: string },
+  ) {
+    return this.svc.startPrep(id, b?.stationSource || 'kitchen', b?.notes);
   }
 
   @Get('orders')
@@ -75,6 +103,11 @@ export class RestaurantController {
   @Get('coordinators')
   getCoordinators() {
     return this.svc.getCoordinators();
+  }
+
+  @Get('waiters')
+  getWaiters() {
+    return this.svc.getWaiters();
   }
 
   @Patch('orders/:id')
@@ -114,7 +147,7 @@ export class RestaurantController {
 
   @Patch('orders/:id/notify-ready')
   notifyReady(@Param('id') id: string, @Body() b: any) {
-    return this.svc.notifyReady(id, b?.notifiedParty, b?.kitchenOfficerId, b?.notes);
+    return this.svc.notifyReady(id, b?.notifiedParty, b?.kitchenOfficerId, b?.notes, b?.readyItemIds, b?.stationSource, b?.status || b?.targetStatus);
   }
 
   @Get('cashier-feed')

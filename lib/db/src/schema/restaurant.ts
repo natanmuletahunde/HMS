@@ -50,7 +50,7 @@ export const restaurantTablesTable = pgTable("restaurant_tables", {
 });
 
 // ─── Restaurant Orders ────────────────────────────────────────────────────────
-export const restaurantOrderStatusEnum = ["pending","preparing","partially_ready","partially_served","ready","served","cancelled"] as const;
+export const restaurantOrderStatusEnum = ["pending","preparing","cooking","partially_ready","partially_served","ready","plated","served","cancelled"] as const;
 export type RestaurantOrderStatus = (typeof restaurantOrderStatusEnum)[number];
 
 export const restaurantOrderTypeEnum = ["dine_in","takeaway","room_charge","delivery","room_service"] as const;
@@ -86,6 +86,7 @@ export const restaurantOrdersTable = pgTable("restaurant_orders", {
   kitchenNotes:                text("kitchen_notes"),
   notifiedParty:               text("notified_party"), // 'waiter' | 'coordinator'
   readyAt:                     timestamp("ready_at", { withTimezone: true }),
+  platedAt:                    timestamp("plated_at", { withTimezone: true }),
   dispatchedAt:                timestamp("dispatched_at", { withTimezone: true }),
   servedAt:                    timestamp("served_at", { withTimezone: true }),
   billingStatus:               text("billing_status").default("open_tab"), // 'open_tab' | 'bill_requested' | 'bill_printed' | 'delivered' | 'settled'

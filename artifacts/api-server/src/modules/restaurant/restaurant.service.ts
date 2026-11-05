@@ -18,10 +18,41 @@ import {
 } from '@workspace/db';
 import { EventBusService } from '../event-bus/event-bus.service';
 
-export const resolveCanonicalStation = (kitchenSection?: string | null, category?: string | null): 'hot' | 'grill' | 'cold' | 'bar' | 'pastry' => {
+export type CanonicalStation = 'hot' | 'grill' | 'cold' | 'pastry' | 'bar' | 'coffee' | 'juice';
+
+export const resolveCanonicalStation = (
+  kitchenSection?: string | null,
+  category?: string | null,
+  name?: string | null,
+): CanonicalStation => {
   const s = (kitchenSection || '').toLowerCase().trim();
   const c = (category || '').toLowerCase().trim();
-  if (s === 'bar' || ['drinks', 'juice', 'coffee'].includes(c) || ['juice', 'smoothie', 'water', 'tea', 'coffee'].some((k) => s.includes(k))) return 'bar';
+  const n = (name || '').toLowerCase().trim();
+
+  // 1. Coffee Station (Barista / Coffee Attendant)
+  if (
+    s === 'coffee' || c === 'coffee' || c === 'tea' ||
+    ['buna', 'jebena', 'espresso', 'macchiato', 'cappuccino', 'latte', 'shai', 'tea', 'chocolate', 'americano', 'cortado', 'mocha', 'cold brew', 'affogato'].some(k => k === 'tea' ? /\btea\b/.test(n) : n.includes(k))
+  ) {
+    return 'coffee';
+  }
+
+  // 2. Juice & Soft Drinks Station (Beverage Staff)
+  if (
+    s === 'juice' || c === 'juice' ||
+    ['juice', 'spris', 'smoothie', 'milkshake', 'lemonade', 'water', 'coke', 'coca', 'fanta', 'sprite', 'pepsi', 'mirinda', 'energy drink', 'red bull', 'keribo', 'borde', 'irgo'].some(k => n.includes(k))
+  ) {
+    return 'juice';
+  }
+
+  // 3. Bar Station (Barman)
+  if (
+    s === 'bar' || c === 'drinks' ||
+    ['beer', 'wine', 'spirit', 'cocktail', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'brandy', 'mojito', 'margarita', 'martini', 'negroni', 'spritz', 'sour', 'daiquiri', 'tej', 'tella', 'areke'].some(k => n.includes(k))
+  ) {
+    return 'bar';
+  }
+
   if (s === 'cold' || s === 'salad') return 'cold';
   if (s === 'bakery' || s === 'pastry' || c === 'dessert') return 'pastry';
   if (s === 'grill') return 'grill';
@@ -76,6 +107,7 @@ const fmtOrder = (o: any, items: any[]) => ({
     isComplimentary: !!i.isComplimentary,
     notes: i.notes ?? null,
     kitchenStatus: i.kitchenStatus ?? 'pending',
+    isReady: i.kitchenStatus === 'ready' || i.kitchenStatus === 'served',
     roundNumber: i.roundNumber ?? 1,
     station: i.station ?? 'hot',
     category: i.category ?? null,
@@ -549,7 +581,7 @@ export class RestaurantService {
         complimentaryDiscountAmount += lt;
       }
 
-      const canonicalStation = resolveCanonicalStation(mi.kitchenSection, mi.category);
+      const canonicalStation = resolveCanonicalStation(mi.kitchenSection, mi.category, item.name || mi.name);
       ois.push({
         menuItemId: mi.id,
         name: item.name || mi.name,
@@ -598,18 +630,18 @@ export class RestaurantService {
       .insert(restaurantOrdersTable)
       .values({
         orderNumber,
-        tableNumber: b.tableNumber ?? null,
-        tableId: b.tableId ?? null,
+        tableNumber: b.tableNumber ? Number(b.tableNumber) : null,
+        tableId: b.tableId ? b.tableId : null,
         orderType: diningCase === 'room_service' ? 'room_service' : b.orderType ?? (roomId ? 'room_charge' : 'dine_in'),
         diningCase,
         settlementType,
         complimentaryDiscountAmount: String(complimentaryDiscountAmount.toFixed(2)),
-        reservationId: reservationId ?? null,
-        guestId: guestId ?? null,
-        roomId: roomId ?? null,
-        waiterId: b.waiterId ?? null,
-        coordinatorId: coordinatorId,
-        kitchenOfficerId: b.kitchenOfficerId ?? null,
+        reservationId: reservationId ? reservationId : null,
+        guestId: guestId ? guestId : null,
+        roomId: roomId ? roomId : null,
+        waiterId: b.waiterId ? b.waiterId : null,
+        coordinatorId: coordinatorId ? coordinatorId : null,
+        kitchenOfficerId: b.kitchenOfficerId ? b.kitchenOfficerId : null,
         routedVia: routedVia,
         coordinatorStatus: coordinatorStatus,
         coordinatorNotes: b.coordinatorNotes ?? null,
@@ -779,6 +811,7 @@ export class RestaurantService {
     }
     if (b.status === 'served') u.servedAt = new Date();
     if (b.status === 'ready' && !b.readyAt) u.readyAt = new Date();
+    if (b.status === 'plated' && !b.platedAt) u.platedAt = new Date();
     if (b.coordinatorStatus === 'dispatched' && !b.dispatchedAt) u.dispatchedAt = new Date();
 
     let [o] = await db
@@ -822,7 +855,7 @@ export class RestaurantService {
       .from(restaurantOrdersTable)
       .where(
         and(
-          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'partially_ready', 'partially_served', 'ready'] as any[]),
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'cooking', 'partially_ready', 'partially_served', 'ready', 'plated'] as any[]),
           eq(restaurantOrdersTable.isActive, true),
         ),
       )
@@ -831,9 +864,119 @@ export class RestaurantService {
     const result = [];
     for (const o of orders) {
       const items = await fetchItems(o.id);
-      result.push(fmtOrder(o, items));
+      // Strictly exclude beverage stations (bar, coffee, juice) from Kitchen Officer view
+      const foodItems = items.filter((i) => !['bar', 'coffee', 'juice'].includes(i.station));
+      if (foodItems.length > 0) {
+        result.push(fmtOrder(o, foodItems));
+      }
     }
     return enrichOrdersWithUserNames(result);
+  }
+
+  async getBarOrders() {
+    const orders = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(
+        and(
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'cooking', 'partially_ready', 'partially_served', 'ready', 'plated'] as any[]),
+          eq(restaurantOrdersTable.isActive, true),
+        ),
+      )
+      .orderBy(asc(restaurantOrdersTable.createdAt));
+
+    const result = [];
+    for (const o of orders) {
+      const items = await fetchItems(o.id);
+      // Strictly include only bar/drink items for the Bar Man view
+      const drinkItems = items.filter((i) => i.station === 'bar');
+      if (drinkItems.length > 0) {
+        result.push(fmtOrder(o, drinkItems));
+      }
+    }
+    return enrichOrdersWithUserNames(result);
+  }
+
+  async getCoffeeOrders() {
+    const orders = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(
+        and(
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'cooking', 'partially_ready', 'partially_served', 'ready', 'plated'] as any[]),
+          eq(restaurantOrdersTable.isActive, true),
+        ),
+      )
+      .orderBy(asc(restaurantOrdersTable.createdAt));
+
+    const result = [];
+    for (const o of orders) {
+      const items = await fetchItems(o.id);
+      const coffeeItems = items.filter((i) => i.station === 'coffee');
+      if (coffeeItems.length > 0) {
+        result.push(fmtOrder(o, coffeeItems));
+      }
+    }
+    return enrichOrdersWithUserNames(result);
+  }
+
+  async getBeverageOrders() {
+    const orders = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(
+        and(
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'cooking', 'partially_ready', 'partially_served', 'ready', 'plated'] as any[]),
+          eq(restaurantOrdersTable.isActive, true),
+        ),
+      )
+      .orderBy(asc(restaurantOrdersTable.createdAt));
+
+    const result = [];
+    for (const o of orders) {
+      const items = await fetchItems(o.id);
+      const juiceItems = items.filter((i) => i.station === 'juice');
+      if (juiceItems.length > 0) {
+        result.push(fmtOrder(o, juiceItems));
+      }
+    }
+    return enrichOrdersWithUserNames(result);
+  }
+
+  async startPrep(orderId: string, stationSource: 'kitchen' | 'bar' | 'coffee' | 'juice', notes?: string) {
+    let [o] = await db
+      .select()
+      .from(restaurantOrdersTable)
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)));
+    if (!o) throw new NotFoundException(`Order ${orderId} not found`);
+
+    const allItems = await fetchItems(o.id);
+    const targetItems = allItems.filter((i) => {
+      if (stationSource === 'bar') return i.station === 'bar';
+      if (stationSource === 'coffee') return i.station === 'coffee';
+      if (stationSource === 'juice') return i.station === 'juice';
+      return !['bar', 'coffee', 'juice'].includes(i.station);
+    });
+
+    for (const it of targetItems) {
+      if (it.kitchenStatus === 'pending') {
+        await db
+          .update(restaurantOrderItemsTable)
+          .set({ kitchenStatus: 'cooking' })
+          .where(eq(restaurantOrderItemsTable.id, it.id));
+      }
+    }
+
+    if (o.status === 'pending') {
+      await db
+        .update(restaurantOrdersTable)
+        .set({ status: 'cooking' })
+        .where(eq(restaurantOrdersTable.id, o.id));
+    }
+
+    const items = await fetchItems(o.id);
+    const [enriched] = await enrichOrdersWithUserNames([fmtOrder(o, items)]);
+    return enriched;
   }
 
   async getCoordinators() {
@@ -877,6 +1020,65 @@ export class RestaurantService {
     }));
   }
 
+  async getWaiters() {
+    const [role] = await db.select().from(rolesTable).where(sql`lower(${rolesTable.name}) = 'waiter'`);
+    if (!role) return [];
+
+    const users = await db
+      .select({
+        id: usersTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        isOnDuty: usersTable.isOnDuty,
+        isActive: usersTable.isActive,
+      })
+      .from(usersTable)
+      .where(and(eq(usersTable.roleId, role.id), eq(usersTable.isActive, true)));
+
+    const tableCounts = await db
+      .select({
+        waiterId: restaurantTablesTable.waiterId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(restaurantTablesTable)
+      .where(and(eq(restaurantTablesTable.isActive, true), sql`${restaurantTablesTable.waiterId} IS NOT NULL`))
+      .groupBy(restaurantTablesTable.waiterId);
+    const tableCountMap = new Map(tableCounts.map((t) => [t.waiterId, t.count]));
+
+    const activeOrderCounts = await db
+      .select({
+        waiterId: restaurantOrdersTable.waiterId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(restaurantOrdersTable)
+      .where(
+        and(
+          inArray(restaurantOrdersTable.status, ['pending', 'preparing', 'partially_ready', 'ready', 'partially_served'] as any[]),
+          eq(restaurantOrdersTable.isActive, true),
+        ),
+      )
+      .groupBy(restaurantOrdersTable.waiterId);
+    const activeOrderCountMap = new Map(activeOrderCounts.map((o) => [o.waiterId, o.count]));
+
+    return users.map((u) => ({
+      ...u,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+      assignedTablesCount: tableCountMap.get(u.id) || 0,
+      activeOrdersCount: activeOrderCountMap.get(u.id) || 0,
+    }));
+  }
+
+  async assignWaiterToSection(section: string, waiterId: string | null) {
+    await db
+      .update(restaurantTablesTable)
+      .set({ waiterId: waiterId ?? null })
+      .where(eq(restaurantTablesTable.section, section));
+
+    return this.getTables({ section });
+  }
+
   async dispatchToKitchen(orderId: string, coordinatorId?: string, notes?: string) {
     const u: any = {
       status: 'preparing',
@@ -918,20 +1120,14 @@ export class RestaurantService {
     notifiedParty: 'waiter' | 'coordinator' = 'waiter',
     kitchenOfficerId?: string,
     notes?: string,
+    readyItemIds?: string[],
+    stationSource?: 'kitchen' | 'bar' | 'coffee' | 'juice',
+    targetStatus?: 'ready' | 'plated',
   ) {
-    const u: any = {
-      status: 'ready',
-      notifiedParty,
-      readyAt: new Date(),
-    };
-    if (kitchenOfficerId) u.kitchenOfficerId = kitchenOfficerId;
-    if (notes) u.kitchenNotes = notes;
-
     let [o] = await db
-      .update(restaurantOrdersTable)
-      .set(u)
-      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)))
-      .returning();
+      .select()
+      .from(restaurantOrdersTable)
+      .where(or(eq(restaurantOrdersTable.id, orderId), eq(restaurantOrdersTable.orderNumber, orderId)));
 
     if (!o && (orderId.startsWith('ticket-') || orderId.startsWith('ORD-') || /^\d+$/.test(orderId))) {
       const orderNum = orderId.startsWith('ticket-') ? orderId.replace('ticket-', '') : orderId;
@@ -941,19 +1137,118 @@ export class RestaurantService {
           id: orderId,
           orderNumber: orderNum,
           diningCase: 'walk_in',
-          status: 'ready',
+          status: targetStatus || 'ready',
           notifiedParty,
           kitchenOfficerId: kitchenOfficerId || null,
           kitchenNotes: notes || null,
           readyAt: new Date(),
+          ...(targetStatus === 'plated' ? { platedAt: new Date() } : {}),
         })
         .returning();
       o = inserted;
     }
 
     if (!o) throw new NotFoundException(`Order ${orderId} not found`);
-    const items = await fetchItems(o.id);
-    const [enriched] = await enrichOrdersWithUserNames([fmtOrder(o, items)]);
+
+    const allItems = await fetchItems(o.id);
+    const activeItems = allItems.filter((i) => i.kitchenStatus !== 'cancelled');
+
+    // Determine target items by stationSource or readyItemIds
+    let itemsToMarkReady: any[] = [];
+    if (readyItemIds && Array.isArray(readyItemIds) && readyItemIds.length > 0) {
+      itemsToMarkReady = activeItems.filter((i) => readyItemIds.includes(i.id));
+    } else if (stationSource === 'bar') {
+      itemsToMarkReady = activeItems.filter((i) => i.station === 'bar');
+    } else if (stationSource === 'coffee') {
+      itemsToMarkReady = activeItems.filter((i) => i.station === 'coffee');
+    } else if (stationSource === 'juice') {
+      itemsToMarkReady = activeItems.filter((i) => i.station === 'juice');
+    } else if (stationSource === 'kitchen') {
+      itemsToMarkReady = activeItems.filter((i) => !['bar', 'coffee', 'juice'].includes(i.station));
+    } else {
+      itemsToMarkReady = activeItems;
+    }
+
+    const itemNextStatus = targetStatus === 'plated' ? 'plated' : 'ready';
+
+    for (const it of activeItems) {
+      if (itemsToMarkReady.some((r) => r.id === it.id)) {
+        await db
+          .update(restaurantOrderItemsTable)
+          .set({ kitchenStatus: itemNextStatus })
+          .where(eq(restaurantOrderItemsTable.id, it.id));
+      } else if (it.kitchenStatus === 'pending') {
+        // If remaining items were pending, transition them to cooking/preparing
+        await db
+          .update(restaurantOrderItemsTable)
+          .set({ kitchenStatus: 'preparing' })
+          .where(eq(restaurantOrderItemsTable.id, it.id));
+      }
+    }
+
+    // Refresh items to see if all active items are now ready or plated
+    const updatedItems = await fetchItems(o.id);
+    const allActiveReady = updatedItems
+      .filter((i) => i.kitchenStatus !== 'cancelled')
+      .every((i) => i.kitchenStatus === 'ready' || i.kitchenStatus === 'plated' || i.kitchenStatus === 'served');
+
+    const finalStatus: 'ready' | 'partially_ready' | 'plated' = targetStatus === 'plated'
+      ? 'plated'
+      : (allActiveReady ? 'ready' : 'partially_ready');
+
+    const u: any = {
+      status: finalStatus,
+      notifiedParty,
+      readyAt: o.readyAt || new Date(),
+    };
+    if (finalStatus === 'plated') {
+      u.platedAt = new Date();
+    }
+    if (kitchenOfficerId) u.kitchenOfficerId = kitchenOfficerId;
+    if (notes) u.kitchenNotes = notes;
+
+    const [updated] = await db
+      .update(restaurantOrdersTable)
+      .set(u)
+      .where(eq(restaurantOrdersTable.id, o.id))
+      .returning();
+
+    let notifyTitle = finalStatus === 'plated' ? `Plated Food Ready at Kitchen Pass 🍽️` : `Food Cooked & Ready at Station 🛎️`;
+    let notifyMsg = `Plated dishes for Table #${updated.tableNumber || '-'} are ready at the Kitchen Pass!`;
+
+    const isBar = stationSource === 'bar' || (itemsToMarkReady.length > 0 && itemsToMarkReady.every((i) => i.station === 'bar'));
+    const isCoffee = stationSource === 'coffee' || (itemsToMarkReady.length > 0 && itemsToMarkReady.every((i) => i.station === 'coffee'));
+    const isJuice = stationSource === 'juice' || (itemsToMarkReady.length > 0 && itemsToMarkReady.every((i) => i.station === 'juice'));
+
+    const tableLabel = updated.tableNumber ? `Table #${updated.tableNumber}` : `Room ${(updated as any).roomNumber || '-'}`;
+
+    if (isBar) {
+      notifyTitle = `Drinks Ready at Bar Pass 🍸`;
+      notifyMsg = `Cocktails and drinks for ${tableLabel} are ready at the Bar Pass!`;
+    } else if (isCoffee) {
+      notifyTitle = `Coffee & Tea Ready at Coffee Pass ☕`;
+      notifyMsg = `Ethiopian Buna and coffees for ${tableLabel} are brewed and ready at the Coffee Pass!`;
+    } else if (isJuice) {
+      notifyTitle = `Juices & Soft Drinks Ready at Beverage Pass 🧃`;
+      notifyMsg = `Fresh juices and soft drinks for ${tableLabel} are ready at the Beverage Pass!`;
+    }
+
+    const targetUserId = updated.waiterId || updated.coordinatorId;
+    if (targetUserId) {
+      try {
+        await db.insert(notificationsTable).values({
+          userId: targetUserId,
+          type: 'restaurant_ready',
+          title: notifyTitle,
+          message: notifyMsg,
+          resourceType: 'restaurant_order',
+          resourceId: updated.id,
+        });
+      } catch (err) {}
+    }
+
+    const items = await fetchItems(updated.id);
+    const [enriched] = await enrichOrdersWithUserNames([fmtOrder(updated, items)]);
     return enriched;
   }
 
@@ -1031,7 +1326,7 @@ export class RestaurantService {
   }
 
   async updateItemStatus(orderId: string, itemId: string, kitchenStatus: string, notes?: string) {
-    const validStatuses = ['pending', 'preparing', 'ready', 'served', 'cancelled'];
+    const validStatuses = ['pending', 'preparing', 'cooking', 'ready', 'plated', 'served', 'cancelled'];
     if (!validStatuses.includes(kitchenStatus)) {
       throw new BadRequestException(`Invalid kitchen status: ${kitchenStatus}`);
     }
@@ -1066,25 +1361,30 @@ export class RestaurantService {
 
     let compositeStatus = order.status;
     const allServed = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'served');
-    const allReadyOrServed = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'ready' || i.kitchenStatus === 'served');
+    const allPlated = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'plated' || i.kitchenStatus === 'served');
+    const allReadyOrPlatedOrServed = activeItems.length > 0 && activeItems.every((i) => i.kitchenStatus === 'ready' || i.kitchenStatus === 'plated' || i.kitchenStatus === 'served');
     const anyServed = activeItems.some((i) => i.kitchenStatus === 'served');
+    const anyPlated = activeItems.some((i) => i.kitchenStatus === 'plated');
     const anyReady = activeItems.some((i) => i.kitchenStatus === 'ready');
-    const anyPreparing = activeItems.some((i) => i.kitchenStatus === 'preparing');
+    const anyCooking = activeItems.some((i) => i.kitchenStatus === 'preparing' || i.kitchenStatus === 'cooking');
 
     if (allServed) {
       compositeStatus = 'served';
-    } else if (allReadyOrServed && anyReady) {
+    } else if (allPlated && anyPlated) {
+      compositeStatus = 'plated';
+    } else if (allReadyOrPlatedOrServed && anyReady) {
       compositeStatus = 'ready';
-    } else if (anyServed && (anyPreparing || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
+    } else if (anyServed && (anyCooking || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
       compositeStatus = 'partially_served';
-    } else if (anyReady && (anyPreparing || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
+    } else if ((anyPlated || anyReady) && (anyCooking || activeItems.some((i) => i.kitchenStatus === 'pending'))) {
       compositeStatus = 'partially_ready';
-    } else if (anyPreparing) {
-      compositeStatus = 'preparing';
+    } else if (anyCooking) {
+      compositeStatus = 'cooking';
     }
 
     const orderUpdate: any = { status: compositeStatus as any };
     if (compositeStatus === 'served' && !order.servedAt) orderUpdate.servedAt = new Date();
+    if (compositeStatus === 'plated' && !order.platedAt) orderUpdate.platedAt = new Date();
     if (compositeStatus === 'ready' && !order.readyAt) orderUpdate.readyAt = new Date();
 
     const [updatedOrder] = await db

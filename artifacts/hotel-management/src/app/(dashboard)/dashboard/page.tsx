@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { 
@@ -87,8 +88,27 @@ function PeriodFilterDropdown({
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const roleCategory = normalizeRole(currentRole);
+
+  useEffect(() => {
+    if (roleCategory === "barista") {
+      router.replace("/coffee");
+      return;
+    }
+    if (roleCategory === "beverage_staff") {
+      router.replace("/beverages");
+      return;
+    }
+    if (roleCategory === "barman") {
+      router.push("/bar");
+    }
+  }, [roleCategory, router]);
+
+  if (roleCategory === "barman" || roleCategory === "barista" || roleCategory === "beverage_staff") {
+    return null;
+  }
 
   if (roleCategory === "receptionist") {
     return <FrontDeskDashboard currentRole={currentRole} />;
@@ -126,7 +146,7 @@ export default function DashboardPage() {
     return <WaiterDashboard currentRole={currentRole} />;
   }
 
-  if (roleCategory === "kitchen_officer") {
+  if (roleCategory === "kitchen_officer" || roleCategory === "head_chef") {
     return <KitchenDashboard currentRole={currentRole} />;
   }
 
@@ -134,7 +154,7 @@ export default function DashboardPage() {
     return <CoordinatorDashboard currentRole={currentRole} />;
   }
 
-  if (roleCategory === "admin") {
+  if (roleCategory === "admin" || roleCategory === "chief_officer") {
     return <ExecutiveDashboard currentRole={currentRole} />;
   }
 
@@ -1437,7 +1457,7 @@ function ManagerDashboard({ currentRole }: { currentRole: string }) {
           { title: "Front Desk & Check-In", desc: "Arrivals & Check-Ins", href: "/check-in", icon: LogIn },
           { title: "Housekeeping", desc: "Room Turnaround", href: "/housekeeping", icon: Sparkles },
           { title: "Maintenance", desc: "Work Order Queue", href: "/maintenance", icon: Wrench },
-          { title: "F&B & POS", desc: "Dining & Orders", href: "/restaurant", icon: UtensilsCrossed },
+          { title: "POS Terminal", desc: "Sales & Terminal Billing", href: "/pos", icon: ShoppingCart },
           { title: "Financial Shift", desc: "Cash & Ledger", href: "/financial", icon: DollarSign },
           { title: "Staff Roster", desc: "HR, Shifts & Roster", href: "/hr", icon: Users2 },
         ].map((item, i) => (
@@ -2075,9 +2095,9 @@ function RestaurantManagerDashboard({ currentRole }: { currentRole: string }) {
               <Sparkles className="h-3.5 w-3.5" /> Insights
             </Button>
 
-            <Link href="/restaurant">
+            <Link href="/pos">
               <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-semibold">
-                Floor Operations →
+                Launch POS Terminal →
               </Button>
             </Link>
           </div>

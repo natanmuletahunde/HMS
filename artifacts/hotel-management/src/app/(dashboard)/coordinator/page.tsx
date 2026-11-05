@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { 
   ChefHat, Clock, Send, RefreshCw, Bell, UserCheck, Calendar,
-  Check, Search, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck
+  Check, Search, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck,
+  Users, LayoutGrid, MapPin, Utensils, Layers
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
@@ -40,7 +41,8 @@ type CoordinatorOrder = {
   guestName?: string | null;
   diningCase?: "walk_in" | "in_house_table" | "room_service";
   roomNumber?: string | null;
-  status: "pending" | "preparing" | "partially_ready" | "partially_served" | "ready" | "served" | "cancelled";
+  status: "pending" | "preparing" | "cooking" | "partially_ready" | "partially_served" | "ready" | "plated" | "served" | "cancelled";
+  platedAt?: string | null;
   coordinatorId?: string | null;
   coordinatorName?: string | null;
   waiterId?: string | null;
@@ -58,13 +60,40 @@ type CoordinatorOrder = {
   items: CoordinatorOrderItem[];
 };
 
+type RestaurantTable = {
+  id: string;
+  tableNumber: number;
+  name?: string | null;
+  capacity: number;
+  floor?: string | null;
+  section?: string | null;
+  status: "available" | "occupied" | "reserved" | "cleaning";
+  currentOrderId?: string | null;
+  waiterId?: string | null;
+  waiterName?: string | null;
+};
+
+type WaiterUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  assignedTablesCount: number;
+  activeOrdersCount: number;
+};
+
 export default function CoordinatorPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Exactly two primary tabs reflecting the real restaurant coordinator flow
-  const [activeTab, setActiveTab] = useState<"orders_from_waiter" | "ready_from_kitchen">("orders_from_waiter");
+  // Primary tabs: Orders from Waiter, Ready from Kitchen, Waiter & Section Distribution
+  const [activeTab, setActiveTab] = useState<"orders_from_waiter" | "ready_from_kitchen" | "waiter_sections">("orders_from_waiter");
+  
+  // Section distribution filter state
+  const [sectionFilter, setSectionFilter] = useState<string>("all");
+  const [bulkWaiterAssignments, setBulkWaiterAssignments] = useState<Record<string, string>>({});
   
   // Tab 1 (Dispatch) State
   const [selectedOrder, setSelectedOrder] = useState<CoordinatorOrder | null>(null);
@@ -129,6 +158,54 @@ export default function CoordinatorPage() {
       window.removeEventListener("storage", handleSync);
     };
   }, [refetch, queryClient]);
+
+  // Fetch tables and floor waiters for section allocation
+  const { data: tables = [], isLoading: tablesLoading } = useQuery<RestaurantTable[]>({
+    queryKey: ["coordinator-tables"],
+    queryFn: () => apiFetch<RestaurantTable[]>("/restaurant/tables"),
+    refetchInterval: 5000,
+  });
+
+  const { data: waiters = [], isLoading: waitersLoading } = useQuery<WaiterUser[]>({
+    queryKey: ["coordinator-waiters"],
+    queryFn: () => apiFetch<WaiterUser[]>("/restaurant/waiters"),
+    refetchInterval: 5000,
+  });
+
+  const assignTableMutation = useMutation({
+    mutationFn: ({ tableId, waiterId }: { tableId: string; waiterId: string | null }) =>
+      apiFetch(`/restaurant/tables/${tableId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ waiterId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coordinator-tables"] });
+      queryClient.invalidateQueries({ queryKey: ["coordinator-waiters"] });
+      toast({ title: "Table Server Updated", description: "Floor server successfully reassigned." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Assignment Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const assignSectionMutation = useMutation({
+    mutationFn: ({ section, waiterId }: { section: string; waiterId: string | null }) =>
+      apiFetch(`/restaurant/tables/assign-section`, {
+        method: "PATCH",
+        body: JSON.stringify({ section, waiterId }),
+      }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["coordinator-tables"] });
+      queryClient.invalidateQueries({ queryKey: ["coordinator-waiters"] });
+      toast({
+        title: "Section Responsibility Assigned",
+        description: `Section ${vars.section.toUpperCase()} assigned to server.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Section Assignment Failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   // Coordinator Dispatch Mutation
   const dispatchMutation = useMutation({
@@ -291,7 +368,7 @@ export default function CoordinatorPage() {
   const pendingDispatch = useMemo(() => {
     const list = rawOrders.filter(
       (o) =>
-        (o.status === "pending" || o.status === "preparing") &&
+        (o.status === "pending" || o.status === "preparing" || o.status === "cooking") &&
         (o.coordinatorStatus === "pending" || !o.coordinatorStatus || o.routedVia === "coordinator") &&
         o.coordinatorStatus !== "dispatched" &&
         o.coordinatorStatus !== "qa_verified"
@@ -300,9 +377,9 @@ export default function CoordinatorPage() {
     return defaultCoordinatorQueue;
   }, [rawOrders, defaultCoordinatorQueue]);
 
-  // TAB 2: Ready from kitchen at Pass
+  // TAB 2: Ready from kitchen at Pass (Plated dishes)
   const readyAtPass = useMemo(() => {
-    const list = rawOrders.filter((o) => o.status === "ready");
+    const list = rawOrders.filter((o) => o.status === "plated" || o.status === "ready");
     if (list.length > 0) return list;
     return defaultPassQueue;
   }, [rawOrders, defaultPassQueue]);
@@ -444,7 +521,8 @@ export default function CoordinatorPage() {
 
   const TABS = [
     { id: "orders_from_waiter", label: "Orders from Waiter (Dispatch) 🍳", count: pendingDispatch.length },
-    { id: "ready_from_kitchen", label: "Ready from Kitchen (Pass & QA Check) 🛎️", count: readyAtPass.length },
+    { id: "ready_from_kitchen", label: "Ready from Kitchen (Plated Pass & QA) 🍽️", count: readyAtPass.length },
+    { id: "waiter_sections", label: "Tables & Waiter Sections 👥", count: tables.length },
   ] as const;
 
   return (
@@ -858,6 +936,261 @@ export default function CoordinatorPage() {
               onPrev={readyPagination.onPrev}
               onNext={readyPagination.onNext}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW 3: TABLES & WAITER SECTION DISTRIBUTION                             */}
+      {/* ========================================================================= */}
+      {activeTab === "waiter_sections" && (
+        <div className="space-y-6">
+          {/* Top KPI Metrics Banner */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-1">
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">Total Tables</span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-text">{tables.length}</span>
+                <Badge variant="outline" className="text-[10px] font-mono">100% Active</Badge>
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-1">
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">Occupied Tables</span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                  {tables.filter((t) => t.status === "occupied").length}
+                </span>
+                <span className="text-xs text-text-muted">
+                  {tables.filter((t) => t.status === "available").length} free
+                </span>
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-1">
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">Waiters on Shift</span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">{waiters.length}</span>
+                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-[10px]">
+                  Ready
+                </Badge>
+              </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-1">
+              <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block">Unassigned Tables</span>
+              <div className="flex items-baseline justify-between">
+                <span className={`text-2xl font-bold ${tables.filter((t) => !t.waiterId).length > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                  {tables.filter((t) => !t.waiterId).length}
+                </span>
+                <span className="text-xs text-text-muted">
+                  {tables.filter((t) => !!t.waiterId).length} assigned
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Waiter Roster & Active Workloads */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm text-text flex items-center gap-2">
+                  <Users className="w-4 h-4 text-teal-600" />
+                  <span>Floor Waiter Staff Workload</span>
+                </h3>
+                <p className="text-xs text-text-muted">Active floor servers, assigned table counts, and orders in progress.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {waitersLoading ? (
+                <div className="col-span-full py-4 text-center text-xs text-text-muted">Loading waiter staff...</div>
+              ) : waiters.length === 0 ? (
+                <div className="col-span-full py-4 text-center text-xs text-text-muted">No waiter accounts found.</div>
+              ) : (
+                waiters.map((w) => (
+                  <div key={w.id} className="p-3.5 rounded-xl border border-border bg-slate-50/50 dark:bg-muted/30 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="font-bold text-xs text-text block truncate">{w.name}</span>
+                      <span className="text-[11px] text-text-muted truncate block">{w.email}</span>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                          {w.assignedTablesCount} Tables Assigned
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                          {w.activeOrdersCount} Active Orders
+                        </span>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 font-bold text-emerald-600 border-emerald-500/30">
+                      On Duty
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Section Distribution & Table Assignment Grid */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="font-bold text-sm text-text flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-teal-600" />
+                <span>Restaurant Section & Table Allocation</span>
+              </h3>
+
+              {/* Section Filter */}
+              <div className="flex items-center gap-1.5">
+                {["all", "main_hall", "terrace", "bar", "outdoor", "private"].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setSectionFilter(sec)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+                      sectionFilter === sec
+                        ? "bg-[#0D9488] text-white shadow-xs"
+                        : "bg-muted text-text-muted hover:text-text hover:bg-muted/80"
+                    }`}
+                  >
+                    {sec.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sections List */}
+            {["main_hall", "terrace", "bar", "outdoor", "private"]
+              .filter((sec) => sectionFilter === "all" || sectionFilter === sec)
+              .map((sec) => {
+                const sectionTables = tables.filter((t) => (t.section || "main_hall") === sec);
+                if (sectionTables.length === 0 && sectionFilter !== "all") return null;
+
+                const secLabel =
+                  sec === "main_hall"
+                    ? "Main Dining Hall 🍽️"
+                    : sec === "terrace"
+                    ? "Outdoor Terrace 🌿"
+                    : sec === "bar"
+                    ? "Bar Lounge 🍸"
+                    : sec === "outdoor"
+                    ? "Garden Patio ☀️"
+                    : "VIP Private Dining 👑";
+
+                const currentBulkWaiter = bulkWaiterAssignments[sec] || "";
+
+                return (
+                  <div key={sec} className="p-4 rounded-2xl bg-white dark:bg-card border border-border shadow-xs space-y-3">
+                    {/* Section Header with Bulk Assignment Controls */}
+                    <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border/60">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-text">{secLabel}</span>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {sectionTables.length} Tables
+                        </Badge>
+                      </div>
+
+                      {/* Bulk Assign Entire Section */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-muted hidden sm:inline">Bulk Assign Section:</span>
+                        <Select
+                          value={currentBulkWaiter}
+                          onValueChange={(val) => setBulkWaiterAssignments((prev) => ({ ...prev, [sec]: val }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-44 rounded-xl">
+                            <SelectValue placeholder="Choose server..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">-- Unassign Server --</SelectItem>
+                            {waiters.map((w) => (
+                              <SelectItem key={w.id} value={w.id}>
+                                {w.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          disabled={!currentBulkWaiter || assignSectionMutation.isPending}
+                          onClick={() => {
+                            assignSectionMutation.mutate({
+                              section: sec,
+                              waiterId: currentBulkWaiter === "unassigned" ? null : currentBulkWaiter,
+                            });
+                          }}
+                          className="h-8 text-xs font-bold bg-[#0D9488] hover:bg-[#0B7D73] text-white rounded-xl shadow-xs cursor-pointer"
+                        >
+                          <span>Assign Section</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Tables Grid for this section */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-1">
+                      {sectionTables.map((t) => {
+                        const isOccupied = t.status === "occupied";
+                        return (
+                          <div
+                            key={t.id}
+                            className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                              isOccupied
+                                ? "bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
+                                : t.status === "available"
+                                ? "bg-slate-50/40 dark:bg-muted/20 border-border hover:border-teal-500/40"
+                                : "bg-amber-50/40 dark:bg-amber-950/20 border-amber-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-xs text-text">
+                                Table #{t.tableNumber} {t.name && t.name !== `Table ${t.tableNumber}` ? `• ${t.name}` : ""}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold uppercase ${
+                                  isOccupied
+                                    ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30"
+                                    : t.status === "available"
+                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                                    : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                                }`}
+                              >
+                                {t.status}
+                              </Badge>
+                            </div>
+
+                            <div className="text-[11px] text-text-muted flex items-center justify-between">
+                              <span>Capacity: {t.capacity} guests</span>
+                              <span>Floor: {t.floor || "1"}</span>
+                            </div>
+
+                            {/* Server Assign Selector */}
+                            <div className="space-y-1 pt-1 border-t border-border/50">
+                              <span className="text-[10px] font-semibold text-text-muted block">Assigned Waiter:</span>
+                              <Select
+                                value={t.waiterId || "none"}
+                                onValueChange={(val) => {
+                                  assignTableMutation.mutate({
+                                    tableId: t.id,
+                                    waiterId: val === "none" ? null : val,
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs rounded-lg w-full">
+                                  <SelectValue placeholder="Unassigned" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">-- Unassigned --</SelectItem>
+                                  {waiters.map((w) => (
+                                    <SelectItem key={w.id} value={w.id}>
+                                      {w.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

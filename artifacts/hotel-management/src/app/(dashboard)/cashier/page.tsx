@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, FileText, X
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -549,6 +550,41 @@ export default function CashierPage() {
 
   return (
     <div className="space-y-4 pb-12">
+      {/* Header with Title and Mode */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-primary/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+            <Receipt className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
+                Cashier Settlement Desk
+              </h1>
+              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border-primary/30 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+                Active Cash Drawer
+              </Badge>
+            </div>
+            <p className="text-xs text-text-muted mt-0.5">
+              Real-time dining order billing feed, official thermal receipt printing, and split/folio transaction settlement.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-9 px-3.5 text-xs gap-1.5 rounded-xl border-border hover:bg-muted/50 cursor-pointer"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isRefetching && "animate-spin")} />
+            Sync Feed
+          </Button>
+        </div>
+      </div>
+
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Priority Bills Requested */}

@@ -449,10 +449,25 @@ function RoomsContent() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-          Rooms
-        </h1>
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-primary/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+            <BedDouble className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
+                Rooms Management
+              </h1>
+              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-primary/10 text-primary border-primary/30 shadow-xs">
+                Inventory & Hierarchy
+              </Badge>
+            </div>
+            <p className="text-xs text-text-muted mt-0.5">
+              Room allocation, live availability calendar, rates, categories, and building floor status.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Main Tabs: Rooms | Room Types | Room Categories */}

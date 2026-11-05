@@ -12,7 +12,7 @@ import {
   ShoppingBag, Users2,
   BarChart2,
   GitMerge,
-  QrCode, ChefHat, Receipt, Boxes,
+  QrCode, ChefHat, Receipt, Boxes, Wine, Coffee, GlassWater,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
@@ -59,8 +59,11 @@ const NAV_GROUPS = [
     items: [
       { name: "Housekeeping", href: "/housekeeping", icon: Sparkles },
       { name: "Maintenance", href: "/maintenance", icon: Wrench },
-      { name: "Restaurant", href: "/restaurant", icon: UtensilsCrossed },
+      { name: "Waiter", href: "/restaurant", icon: UtensilsCrossed },
       { name: "Kitchen", href: "/kitchen", icon: ChefHat },
+      { name: "Bar Station", href: "/bar", icon: Wine },
+  { name: "Coffee Station", href: "/coffee", icon: Coffee },
+  { name: "Beverage Station", href: "/beverages", icon: GlassWater },
       { name: "Coordinator", href: "/coordinator", icon: GitMerge },
       { name: "Staff Supplies", href: "/staff-supplies", icon: Boxes },
       { name: "Cashier Desk", href: "/cashier", icon: Receipt },
@@ -134,13 +137,23 @@ export function Sidebar() {
 
       const authorizedItems = items.filter((item) => {
         const pathOnly = item.href.split('?')[0];
-        if (isRouteAuthorized(user, pathOnly, user?.permissions)) {
-          if (isWaiter && item.href === "/restaurant") {
-            return { ...item, name: "Waiter" };
+        const roleCat = normalizeRole(currentRole);
+
+        // Waiter station (/restaurant): strictly visible ONLY for Waiter (and SuperAdmin)
+        if (pathOnly === "/restaurant") {
+          if (roleCat !== "waiter" && !isGlobal && user?.roleName !== "Admin") {
+            return false;
           }
-          return item;
         }
-        return false;
+
+        // POS terminal (/pos): strictly visible ONLY for Cashier, Hotel Manager, Restaurant Manager (and SuperAdmin)
+        if (pathOnly === "/pos") {
+          if (!["cashier", "manager", "restaurant_manager"].includes(roleCat) && !isGlobal && user?.roleName !== "Admin") {
+            return false;
+          }
+        }
+
+        return isRouteAuthorized(user, pathOnly, user?.permissions);
       });
       return {
         ...group,
