@@ -304,6 +304,19 @@ export class UsersService {
       }
     }
 
+    // Email update & duplicate check
+    if (body.email !== undefined && body.email && body.email.trim() !== '') {
+      const cleanEmail = body.email.trim().toLowerCase();
+      const [existingEmail] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(eq(usersTable.email, cleanEmail), sql`${usersTable.id} != ${id}`));
+      if (existingEmail) {
+        throw new BadRequestException(`A staff account with email "${cleanEmail}" already exists.`);
+      }
+      updates.email = cleanEmail;
+    }
+
     // Phone validation & format
     if (body.phone !== undefined) {
       if (body.phone && body.phone.trim()) {

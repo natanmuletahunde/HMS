@@ -137,6 +137,10 @@ function generateSecurePassword(): string {
 const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   "System Admin": ["*"],
   "Admin": ["*"],
+  "System Administrator": ["*"],
+  "Hotel / General Manager": [
+    "hotel:*", "financial:*", "reports:*", "bi:*", "procurement:*", "reservations:*", "rooms:*"
+  ],
   "General Manager": [
     "hotel:*", "rooms:*", "reservations:*", "guests:*", "front-office:*",
     "housekeeping:*", "maintenance:*", "restaurant:*", "pos:*", "room-service:*",
@@ -144,18 +148,50 @@ const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     "conference:*", "transport:*", "hr:*", "employees:*", "customer-service:*",
     "documents:*", "reports:*", "bi:*"
   ],
+  "Front Desk / Receptionist": [
+    "reservations:*", "guests:*", "rooms:*", "checkins:*", "checkouts:*", "invoices:*"
+  ],
   "Front Office Officer": [
     "rooms:*", "reservations:*", "guests:*", "front-office:*",
     "invoices:*", "payments:*", "customer-service:*", "transport:*",
     "documents:*", "reports:*"
   ],
   "Front Desk": [
-    "rooms:*", "reservations:*", "guests:*", "front-office:*",
-    "invoices:*", "payments:*"
+    "reservations:*", "guests:*", "rooms:*", "checkins:*", "checkouts:*", "invoices:*"
+  ],
+  "VIP Concierge Supervisor": [
+    "reservations:*", "guests:*", "restaurant:*", "customer-service:*"
   ],
   "Reservation Agent": [
     "rooms:*", "reservations:*", "guests:*", "front-office:*",
     "customer-service:*", "documents:*"
+  ],
+  "Floor Waiter / Server": [
+    "restaurant:orders:create", "restaurant:orders:read", "pos:orders:create", "kitchen:update", "restaurant:read"
+  ],
+  "Restaurant / F&B Manager": [
+    "restaurant:*", "pos:*", "inventory:read", "reports:fnb", "reservations:restaurant"
+  ],
+  "Restaurant Cashier": [
+    "pos:orders:read", "pos:payment", "invoices:read", "payments:*", "financial:read"
+  ],
+  "Kitchen Officer / Head Chef": [
+    "kitchen:*", "restaurant:orders:read", "restaurant:orders:update", "inventory:read"
+  ],
+  "Hot Line Cook": [
+    "kitchen:read", "kitchen:update"
+  ],
+  "Pantry / Cold Prep Cook": [
+    "kitchen:read", "kitchen:update"
+  ],
+  "Bartender / Barista": [
+    "kitchen:read", "kitchen:update", "restaurant:read"
+  ],
+  "Pastry Chef / Baker": [
+    "kitchen:read", "kitchen:update"
+  ],
+  "F&B Coordinator / Expediter": [
+    "coordinator:*", "restaurant:orders:read", "restaurant:orders:update", "inventory:read"
   ],
   "Night Auditor": [
     "reservations:*", "front-office:*", "invoices:*", "payments:*",
@@ -168,7 +204,7 @@ const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     "maintenance:*", "rooms:*", "inventory:*"
   ],
   "Cashier": [
-    "pos:*", "restaurant:*", "room-service:*", "invoices:*", "payments:*"
+    "pos:orders:read", "pos:payment", "invoices:read", "payments:*", "financial:read"
   ],
   "Accountant": [
     "financial:*", "invoices:*", "payments:*", "procurement:*", "reports:*"
@@ -188,14 +224,25 @@ function getDefaultPermissionsForRole(name: string): string[] {
       return perms;
     }
   }
-  if (trimmed.includes("admin") || trimmed.includes("super")) return ROLE_DEFAULT_PERMISSIONS["System Admin"];
-  if (trimmed.includes("general manager") || trimmed.includes("gm")) return ROLE_DEFAULT_PERMISSIONS["General Manager"];
-  if (trimmed.includes("front office") || trimmed.includes("reception")) return ROLE_DEFAULT_PERMISSIONS["Front Office Officer"];
+  if (trimmed.includes("admin") || trimmed.includes("super")) return ROLE_DEFAULT_PERMISSIONS["System Administrator"];
+  if (trimmed.includes("hotel") && trimmed.includes("manager")) return ROLE_DEFAULT_PERMISSIONS["Hotel / General Manager"];
+  if (trimmed.includes("general manager") || trimmed.includes("gm")) return ROLE_DEFAULT_PERMISSIONS["Hotel / General Manager"];
+  if (trimmed.includes("concierge")) return ROLE_DEFAULT_PERMISSIONS["VIP Concierge Supervisor"];
+  if (trimmed.includes("waiter") || trimmed.includes("server")) return ROLE_DEFAULT_PERMISSIONS["Floor Waiter / Server"];
+  if (trimmed.includes("restaurant") && trimmed.includes("cashier")) return ROLE_DEFAULT_PERMISSIONS["Restaurant Cashier"];
+  if (trimmed.includes("restaurant") || trimmed.includes("f&b manager")) return ROLE_DEFAULT_PERMISSIONS["Restaurant / F&B Manager"];
+  if (trimmed.includes("kitchen officer") || trimmed.includes("head chef")) return ROLE_DEFAULT_PERMISSIONS["Kitchen Officer / Head Chef"];
+  if (trimmed.includes("hot line") || trimmed.includes("hotline")) return ROLE_DEFAULT_PERMISSIONS["Hot Line Cook"];
+  if (trimmed.includes("pantry") || trimmed.includes("cold prep")) return ROLE_DEFAULT_PERMISSIONS["Pantry / Cold Prep Cook"];
+  if (trimmed.includes("bartender") || trimmed.includes("barista")) return ROLE_DEFAULT_PERMISSIONS["Bartender / Barista"];
+  if (trimmed.includes("pastry") || trimmed.includes("baker")) return ROLE_DEFAULT_PERMISSIONS["Pastry Chef / Baker"];
+  if (trimmed.includes("coordinator") || trimmed.includes("expediter")) return ROLE_DEFAULT_PERMISSIONS["F&B Coordinator / Expediter"];
+  if (trimmed.includes("front desk") || trimmed.includes("reception")) return ROLE_DEFAULT_PERMISSIONS["Front Desk / Receptionist"];
   if (trimmed.includes("reservation")) return ROLE_DEFAULT_PERMISSIONS["Reservation Agent"];
   if (trimmed.includes("auditor") || trimmed.includes("night")) return ROLE_DEFAULT_PERMISSIONS["Night Auditor"];
   if (trimmed.includes("housekeep")) return ROLE_DEFAULT_PERMISSIONS["Housekeeping"];
   if (trimmed.includes("maint")) return ROLE_DEFAULT_PERMISSIONS["Maintenance"];
-  if (trimmed.includes("cashier") || trimmed.includes("pos")) return ROLE_DEFAULT_PERMISSIONS["Cashier"];
+  if (trimmed.includes("cashier") || trimmed.includes("pos")) return ROLE_DEFAULT_PERMISSIONS["Restaurant Cashier"];
   if (trimmed.includes("account")) return ROLE_DEFAULT_PERMISSIONS["Accountant"];
   if (trimmed.includes("store") || trimmed.includes("inventory")) return ROLE_DEFAULT_PERMISSIONS["Storekeeper"];
   if (trimmed.includes("manager")) return ROLE_DEFAULT_PERMISSIONS["Manager"];
@@ -338,6 +385,7 @@ function UsersAndRolesContent() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editFaydaId, setEditFaydaId] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
@@ -544,6 +592,7 @@ function UsersAndRolesContent() {
     setEditingUser(u);
     setEditFirstName(u.firstName || "");
     setEditLastName(u.lastName || "");
+    setEditEmail(u.email || "");
     setEditPhone(u.phone || "");
     setEditFaydaId(u.faydaId || "");
     setEditDepartment(u.department || "");
@@ -638,6 +687,16 @@ function UsersAndRolesContent() {
     e.preventDefault();
     if (!editingUser) return;
 
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      setEditUserErrorMsg("First and last names are required.");
+      return;
+    }
+
+    if (!editEmail.trim()) {
+      setEditUserErrorMsg("Email address is required.");
+      return;
+    }
+
     if (editBranchIds.length === 0) {
       setEditUserErrorMsg("Please select at least one assigned branch.");
       return;
@@ -654,6 +713,7 @@ function UsersAndRolesContent() {
     const payload: any = {
       firstName: editFirstName.trim(),
       lastName: editLastName.trim(),
+      email: editEmail.trim().toLowerCase(),
       phone: editPhone.trim() || null,
       faydaId: editFaydaId.trim() || null,
       department: editDepartment.trim() || null,
@@ -1508,10 +1568,17 @@ function UsersAndRolesContent() {
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-3xl p-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
-              <Edit2 className="h-4 w-4 text-[var(--blue-600)]" />
-              Edit User & Branch Access
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
+                <Edit2 className="h-4 w-4 text-[var(--blue-600)]" />
+                Edit User & Branch Access
+              </DialogTitle>
+              {editingUser && (
+                <span className="text-xs font-mono font-medium text-[var(--text-secondary)] bg-[var(--surface-hover)] px-2.5 py-1 rounded-full border border-[var(--border)]">
+                  {editingUser.email}
+                </span>
+              )}
+            </div>
           </DialogHeader>
 
           {editUserErrorMsg && (
@@ -1527,7 +1594,7 @@ function UsersAndRolesContent() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold">First Name</Label>
+                    <Label className="text-xs font-semibold">First Name *</Label>
                     <Input 
                       value={editFirstName} 
                       onChange={(e) => setEditFirstName(e.target.value)}
@@ -1536,7 +1603,7 @@ function UsersAndRolesContent() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Last Name</Label>
+                    <Label className="text-xs font-semibold">Last Name *</Label>
                     <Input 
                       value={editLastName} 
                       onChange={(e) => setEditLastName(e.target.value)}
@@ -1547,33 +1614,46 @@ function UsersAndRolesContent() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Phone Number</Label>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-mono">{editPhone.length}/10</span>
-                  </div>
+                  <Label className="text-xs font-semibold">Email Address *</Label>
                   <Input 
-                    placeholder="0911223344" 
-                    value={editPhone} 
-                    maxLength={10}
-                    onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                    className="h-9 text-xs rounded-md font-mono"
+                    type="email"
+                    placeholder="e.g. staff@nexusgrand.com"
+                    value={editEmail} 
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="h-9 text-xs rounded-md"
+                    required
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Role</Label>
-                  <select
-                    value={editRoleId}
-                    onChange={(e) => setEditRoleId(e.target.value)}
-                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
-                    required
-                  >
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Phone Number</Label>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono">{editPhone.length}/10</span>
+                    </div>
+                    <Input 
+                      placeholder="0911223344" 
+                      value={editPhone} 
+                      maxLength={10}
+                      onChange={(e) => setEditPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                      className="h-9 text-xs rounded-md font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Role *</Label>
+                    <select
+                      value={editRoleId}
+                      onChange={(e) => setEditRoleId(e.target.value)}
+                      className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
+                      required
+                    >
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

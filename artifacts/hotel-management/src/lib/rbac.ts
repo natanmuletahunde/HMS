@@ -256,7 +256,7 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   if (
     r.includes('front desk') ||
     r.includes('receptionist') ||
-    r.includes('reservation') ||
+    r.includes('reservation') || r.includes('concierge') || r.includes('vip concierge') ||
     r.includes('guest relations') ||
     r.includes('guest services') ||
     r.includes('front office')
@@ -395,7 +395,7 @@ export const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   '/beverages': ['beverages:*', 'juice:*'],
   '/coordinator': ['coordinator:*'],
   '/staff-supplies': ['supplies:*', 'housekeeping:*', 'restaurant:*', 'bar:*', 'coffee:*', 'beverages:*', 'kitchen:*', 'maintenance:*', 'coordinator:*', 'storekeeper:*'],
-  '/cashier': ['cashier:*'],
+  '/cashier': ['cashier:*', 'pos:*', 'pos:payment', 'pos:orders:read'],
   '/pos': ['pos:*'],
   '/room-service': ['room-service:*', 'restaurant:*'],
   '/invoices': ['invoices:*', 'financial:*'],
@@ -447,7 +447,7 @@ export function isRouteAuthorized(
   // System Administrator / Super Admin has unrestricted access to all routes
   const isSuperAdmin: boolean = Boolean(
     roleName.toLowerCase() === 'admin' ||
-    roleName.toLowerCase() === 'system admin' ||
+    roleName.toLowerCase() === 'system admin' || roleName.toLowerCase() === 'system administrator' ||
     userPermissions?.includes('*')
   );
 
