@@ -69,7 +69,27 @@ export class BuildingsService {
     const [exist] = await db.select().from(buildingsTable).where(eq(buildingsTable.buildingCode, b.buildingCode));
     if (exist) throw new ConflictException('Building code already exists');
     const numFloors = Math.max(1, +(b.numberOfFloors || 1));
-    const [row] = await db.insert(buildingsTable).values({ branchId: b.branchId, buildingName: b.buildingName, buildingCode: b.buildingCode, numberOfFloors: numFloors, description: b.description, createdBy: b.createdBy }).returning();
+    let amenitiesArr: string[] = [];
+    if (Array.isArray(b.amenities)) {
+      amenitiesArr = b.amenities.filter(Boolean);
+    } else if (typeof b.amenities === 'string' && b.amenities.trim()) {
+      amenitiesArr = b.amenities.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+
+    const [row] = await db.insert(buildingsTable).values({
+      branchId: b.branchId,
+      buildingName: b.buildingName,
+      buildingCode: b.buildingCode,
+      numberOfFloors: numFloors,
+      description: b.description || null,
+      contactPhone: b.contactPhone || null,
+      contactEmail: b.contactEmail || null,
+      checkInTime: b.checkInTime || '02:00 PM',
+      checkOutTime: b.checkOutTime || '12:00 PM',
+      operatingStatus: b.operatingStatus || 'active',
+      amenities: amenitiesArr,
+      createdBy: b.createdBy,
+    }).returning();
     const floorRows = [];
     for (let i = 1; i <= numFloors; i++) {
       floorRows.push({
@@ -92,8 +112,25 @@ export class BuildingsService {
     if (!existing) throw new NotFoundException('Building not found');
 
     const u: any = {};
-    for (const k of ['buildingName', 'numberOfFloors', 'description']) {
-      if (b[k] !== undefined) u[k] = b[k];
+    for (const k of [
+      'buildingName',
+      'numberOfFloors',
+      'description',
+      'contactPhone',
+      'contactEmail',
+      'checkInTime',
+      'checkOutTime',
+      'operatingStatus',
+    ]) {
+      if (b[k] !== undefined) u[k] = b[k] || null;
+    }
+
+    if (b.amenities !== undefined) {
+      if (Array.isArray(b.amenities)) {
+        u.amenities = b.amenities.filter(Boolean);
+      } else if (typeof b.amenities === 'string') {
+        u.amenities = b.amenities.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
     }
 
     if (b.isActive !== undefined) {

@@ -1,22 +1,30 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq, ilike, and, sql } from 'drizzle-orm';
-import { db, rolesTable } from '@workspace/db';
+import { eq, ilike, and, sql, getTableColumns } from 'drizzle-orm';
+import { db, rolesTable, departmentsTable } from '@workspace/db';
 
 const fmt = (r: any) => ({
   ...r,
   description: r.description ?? null,
+  departmentId: r.departmentId ?? null,
+  departmentName: r.departmentName ?? null,
+  departmentCode: r.departmentCode ?? null,
   createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
 });
 
 @Injectable()
 export class RolesService {
-  findAll() {
-    return db
-      .select()
+  async findAll() {
+    const rows = await db
+      .select({
+        ...getTableColumns(rolesTable),
+        departmentName: departmentsTable.name,
+        departmentCode: departmentsTable.code,
+      })
       .from(rolesTable)
+      .leftJoin(departmentsTable, eq(rolesTable.departmentId, departmentsTable.id))
       .where(eq(rolesTable.isActive, true))
-      .orderBy(rolesTable.name)
-      .then((r) => r.map(fmt));
+      .orderBy(rolesTable.name);
+    return rows.map(fmt);
   }
 
   async create(body: any) {
@@ -36,12 +44,14 @@ export class RolesService {
           .update(rolesTable)
           .set({
             isActive: true,
+            scope: body.scope || existing.scope,
+            departmentId: body.departmentId !== undefined ? body.departmentId : existing.departmentId,
             description: body.description ?? existing.description,
             permissions: body.permissions ?? existing.permissions,
           })
           .where(eq(rolesTable.id, existing.id))
           .returning();
-        return fmt(reactivated);
+        return this.findOne(reactivated.id);
       }
       throw new BadRequestException(`A role with name "${roleName}" already exists.`);
     }
@@ -52,11 +62,12 @@ export class RolesService {
         .values({
           name: roleName,
           scope: body.scope || 'branch',
+          departmentId: body.departmentId || null,
           description: body.description || null,
           permissions: body.permissions ?? [],
         })
         .returning();
-      return fmt(r);
+      return this.findOne(r.id);
     } catch (err: any) {
       if (err.code === '23505') {
         throw new BadRequestException(`A role with name "${roleName}" already exists.`);
@@ -66,14 +77,22 @@ export class RolesService {
   }
 
   async findOne(id: string) {
-    const [r] = await db.select().from(rolesTable).where(eq(rolesTable.id, id));
+    const [r] = await db
+      .select({
+        ...getTableColumns(rolesTable),
+        departmentName: departmentsTable.name,
+        departmentCode: departmentsTable.code,
+      })
+      .from(rolesTable)
+      .leftJoin(departmentsTable, eq(rolesTable.departmentId, departmentsTable.id))
+      .where(eq(rolesTable.id, id));
     if (!r) throw new NotFoundException();
     return fmt(r);
   }
 
   async update(id: string, body: any) {
     const u: any = {};
-    for (const k of ['name', 'description', 'scope', 'permissions', 'isActive']) {
+    for (const k of ['name', 'description', 'scope', 'permissions', 'departmentId', 'isActive']) {
       if (body[k] !== undefined) u[k] = body[k];
     }
     if (u.name) {
@@ -90,7 +109,7 @@ export class RolesService {
     try {
       const [r] = await db.update(rolesTable).set(u).where(eq(rolesTable.id, id)).returning();
       if (!r) throw new NotFoundException('Role not found');
-      return fmt(r);
+      return this.findOne(r.id);
     } catch (err: any) {
       const msg = err.message || '';
       if (err.code === '23505' || err.cause?.code === '23505' || msg.includes('unique') || msg.includes('23505')) {

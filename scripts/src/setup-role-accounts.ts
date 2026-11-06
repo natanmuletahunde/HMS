@@ -10,8 +10,8 @@ async function setupRoleAccounts() {
   // 1. Define standard roles with full module permissions
   const standardRoles = [
     {
-      name: 'Admin',
-      description: 'Full system administrator',
+      name: 'System Administrator',
+      description: 'Universal administrative access, user account provisioning, role management, and global audit logs.',
       permissions: ['*'],
     },
     {

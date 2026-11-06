@@ -109,6 +109,7 @@ export function Sidebar() {
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const isWaiter = normalizeRole(currentRole) === "waiter";
   const isGlobal =
+    user?.roleName === "System Administrator" ||
     user?.roleName === "Admin" ||
     user?.roleName === "System Admin" ||
     user?.roleScope === "global";
@@ -141,6 +142,7 @@ export function Sidebar() {
         const isManagement =
           isGlobal ||
           ["admin", "manager", "chief_officer"].includes(roleCat) ||
+          user?.roleName === "System Administrator" ||
           user?.roleName === "Admin" ||
           user?.roleName === "System Admin";
 

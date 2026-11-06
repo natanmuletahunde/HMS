@@ -10,6 +10,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 // Phase 2 Hotel Core
 import { HotelModule } from './modules/hotel/hotel.module';
 import { BranchesModule } from './modules/branches/branches.module';
@@ -88,6 +89,7 @@ import { GuestPortalModule } from './modules/guest-portal/guest-portal.module';
     AuthModule,
     UsersModule,
     RolesModule,
+    DepartmentsModule,
     HotelModule,
     BranchesModule,
     BuildingsModule,

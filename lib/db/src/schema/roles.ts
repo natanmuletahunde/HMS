@@ -7,6 +7,7 @@ export const rolesTable = pgTable("roles", {
   name: text("name").notNull().unique(),
   description: text("description"),
   scope: text("scope").notNull().default("branch"), // 'global' | 'branch'
+  departmentId: text("department_id"),
   permissions: text("permissions").array().notNull().default([]),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

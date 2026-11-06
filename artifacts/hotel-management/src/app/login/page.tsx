@@ -90,17 +90,23 @@ export default function LoginPage() {
   } = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      email: "receptionist@nexushms.com",
-      password: "Nexus@1234",
+      email: "",
+      password: "",
     },
   });
 
-  // Pre-fill remembered email if available
+  // Pre-fill remembered email and sync remember-me preference
   useEffect(() => {
     try {
-      const savedEmail = localStorage.getItem("nexus_remembered_staff_email");
-      if (savedEmail) {
-        setValue("email", savedEmail);
+      const storedPref = localStorage.getItem("nexus_remember_me");
+      const isRememberEnabled = storedPref === null || storedPref === "true";
+      setRememberMe(isRememberEnabled);
+
+      if (isRememberEnabled) {
+        const savedEmail = localStorage.getItem("nexus_remembered_staff_email");
+        if (savedEmail) {
+          setValue("email", savedEmail, { shouldValidate: true });
+        }
       }
     } catch {}
   }, [setValue]);
@@ -117,10 +123,12 @@ export default function LoginPage() {
 
       if (rememberMe) {
         try {
-          localStorage.setItem("nexus_remembered_staff_email", data.email);
+          localStorage.setItem("nexus_remember_me", "true");
+          localStorage.setItem("nexus_remembered_staff_email", data.email.trim().toLowerCase());
         } catch {}
       } else {
         try {
+          localStorage.setItem("nexus_remember_me", "false");
           localStorage.removeItem("nexus_remembered_staff_email");
         } catch {}
       }
@@ -386,7 +394,16 @@ export default function LoginPage() {
                     type="checkbox"
                     id="rememberMe"
                     checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setRememberMe(checked);
+                      try {
+                        localStorage.setItem("nexus_remember_me", String(checked));
+                        if (!checked) {
+                          localStorage.removeItem("nexus_remembered_staff_email");
+                        }
+                      } catch {}
+                    }}
                     className="w-4 h-4 rounded text-amber-500 border-white/20 bg-black/50 focus:ring-amber-500/30 accent-amber-500 cursor-pointer"
                   />
                   <span>Remember me</span>

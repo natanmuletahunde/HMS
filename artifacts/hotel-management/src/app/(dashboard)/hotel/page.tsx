@@ -68,6 +68,9 @@ import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
 import { BranchConfigView } from "@/components/setup/BranchConfigView";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -972,6 +975,7 @@ function getPaymentMetadata(account: PaymentAccountSpecifier) {
 export default function HotelPage() {
   const { user, activeBranch, branches, switchBranch } = useAuth();
   const isGlobal =
+    user?.roleName === "System Administrator" ||
     user?.roleName === "Admin" ||
     user?.roleName === "System Admin" ||
     user?.roleScope === "global";
@@ -993,7 +997,75 @@ export default function HotelPage() {
     ? rawHotel[0]
     : (rawHotel?.data?.[0] ?? rawHotel);
 
-  // 2. Fetch Branch-specific configuration if branch-scoped
+  // 1b. Fetch Branch Buildings for Facility Switcher
+  const { data: rawBuildings } = useQuery({
+    queryKey: ["buildings", branchId],
+    queryFn: () => (branchId ? apiFetch<any>(`/buildings?branchId=${branchId}&status=all`) : apiFetch<any>("/buildings?status=all")),
+  });
+  const branchBuildings: any[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+
+  // Building Scoping: If user is stationed in a building, default to their building!
+  const userBuildingId: string | null = (user as any)?.buildingId || null;
+  const defaultBuildingId = (!isGlobal && userBuildingId) ? userBuildingId : "all";
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(defaultBuildingId);
+
+  useEffect(() => {
+    if (!isGlobal && userBuildingId) {
+      setSelectedBuildingId(userBuildingId);
+    }
+  }, [userBuildingId, isGlobal]);
+
+  const selectedBuilding = branchBuildings.find((b: any) => b.id === selectedBuildingId);
+
+  // Local Building Edit State
+  const [bldgName, setBldgName] = useState("");
+  const [bldgCode, setBldgCode] = useState("");
+  const [bldgFloors, setBldgFloors] = useState<number | string>(1);
+  const [bldgPhone, setBldgPhone] = useState("");
+  const [bldgEmail, setBldgEmail] = useState("");
+  const [bldgCheckIn, setBldgCheckIn] = useState("02:00 PM");
+  const [bldgCheckOut, setBldgCheckOut] = useState("12:00 PM");
+  const [bldgStatus, setBldgStatus] = useState("active");
+  const [bldgAmenities, setBldgAmenities] = useState<string[]>([]);
+  const [bldgDesc, setBldgDesc] = useState("");
+
+  useEffect(() => {
+    if (selectedBuilding) {
+      setBldgName(selectedBuilding.buildingName || "");
+      setBldgCode(selectedBuilding.buildingCode || "");
+      setBldgFloors(selectedBuilding.numberOfFloors || 1);
+      setBldgPhone(selectedBuilding.contactPhone || "");
+      setBldgEmail(selectedBuilding.contactEmail || "");
+      setBldgCheckIn(selectedBuilding.checkInTime || "02:00 PM");
+      setBldgCheckOut(selectedBuilding.checkOutTime || "12:00 PM");
+      setBldgStatus(selectedBuilding.operatingStatus || (selectedBuilding.isActive ? "active" : "inactive"));
+      setBldgAmenities(Array.isArray(selectedBuilding.amenities) ? selectedBuilding.amenities : []);
+      setBldgDesc(selectedBuilding.description || "");
+    }
+  }, [selectedBuilding]);
+
+  const saveBuildingMutation = useMutation({
+    mutationFn: (data: any) => apiFetch(`/buildings/${selectedBuildingId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["buildings"] });
+      toast({ title: "Building hotel configuration saved successfully" });
+      setIsEditing(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to save building configuration", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const toggleBuildingAmenity = (amenity: string) => {
+    setBldgAmenities((prev) =>
+      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
+    );
+  };
+
+    // 2. Fetch Branch-specific configuration if branch-scoped
   const { data: branchData, isLoading: isBranchLoading, isError: isBranchError, refetch: refetchBranch } = useQuery({
     queryKey: ["branch", branchId],
     queryFn: () => (branchId ? apiFetch<any>(`/branches/${branchId}`) : null),
@@ -1983,7 +2055,35 @@ export default function HotelPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {/* Building / Facility Selector */}
+            {branchBuildings.length > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xs">
+                <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="text-xs font-semibold text-[var(--text-secondary)] whitespace-nowrap">Facility:</span>
+                <select
+                  value={selectedBuildingId}
+                  onChange={(e) => setSelectedBuildingId(e.target.value)}
+                  disabled={!isGlobal && !!userBuildingId}
+                  className="h-7 text-xs font-semibold text-[var(--text-primary)] bg-transparent focus:outline-none cursor-pointer"
+                >
+                  {(isGlobal || !userBuildingId) && (
+                    <option value="all">Main Campus / Entire Branch</option>
+                  )}
+                  {branchBuildings.map((b: any) => (
+                    <option key={b.id} value={b.id}>
+                      {b.buildingName} ({b.buildingCode})
+                    </option>
+                  ))}
+                </select>
+                {!isGlobal && userBuildingId && (
+                  <span className="text-[9px] uppercase font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900">
+                    Stationed
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-2 shrink-0">
             {isEditing ? (
               <>
                 <button
@@ -2020,8 +2120,278 @@ export default function HotelPage() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Hero Luxury Identity Banner (No StatusPill as requested) */}
+        {selectedBuildingId !== "all" && selectedBuilding ? (
+          /* ─────────────────────────────────────────────────────────────────────────────
+              BUILDING-SCOPED HOTEL CONFIGURATION VIEW
+          ───────────────────────────────────────────────────────────────────────────── */
+          <div className="mt-4 space-y-6">
+            {/* Building Hero Identity Card */}
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-700/10 via-blue-600/5 to-transparent dark:from-blue-900/30 dark:via-blue-950/10 dark:to-transparent border border-blue-600/20 dark:border-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-900 text-white flex items-center justify-center font-bold text-xl tracking-wider shadow-sm border border-blue-400/30">
+                  <Building2 className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xl text-[var(--text-primary)]">
+                      {selectedBuilding.buildingName}
+                    </span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      Hotel Facility Unit
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-[var(--text-secondary)] font-mono mt-1">
+                    <span className="font-semibold px-2 py-0.5 rounded bg-blue-700/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                      {selectedBuilding.buildingCode}
+                    </span>
+                    <span>&bull;</span>
+                    <span>Branch: {activeBranch?.branchName || "Main Property"}</span>
+                    <span>&bull;</span>
+                    <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
+                      selectedBuilding.operatingStatus === "renovation"
+                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                        : selectedBuilding.operatingStatus === "seasonal_maintenance"
+                        ? "bg-sky-100 text-sky-800 border border-sky-200"
+                        : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    }`}>
+                      {selectedBuilding.operatingStatus === "renovation"
+                        ? "Under Renovation"
+                        : selectedBuilding.operatingStatus === "seasonal_maintenance"
+                        ? "Seasonal Maintenance"
+                        : "Operational (Open)"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Metrics Ribbon */}
+              <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--text-secondary)] border-t md:border-t-0 md:border-l border-[var(--border)] pt-4 md:pt-0 md:pl-6">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block font-semibold">Physical Floors</span>
+                  <span className="font-mono font-bold text-[var(--text-primary)] text-sm">{selectedBuilding.numberOfFloors || 1} Floors</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block font-semibold">Check-In / Out</span>
+                  <span className="font-mono font-bold text-[var(--text-primary)]">
+                    {selectedBuilding.checkInTime || "02:00 PM"} / {selectedBuilding.checkOutTime || "12:00 PM"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block font-semibold">Lobby Reception Phone</span>
+                  <span className="font-mono font-medium text-[var(--text-primary)]">{selectedBuilding.contactPhone || "Not configured"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Building Hotel Configuration Form Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: 2 Spans */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Facility Identity */}
+                <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-4 shadow-xs">
+                  <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-600" />
+                    Facility Identification
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Building / Hotel Wing Name</Label>
+                      {isEditing ? (
+                        <Input value={bldgName} onChange={(e) => setBldgName(e.target.value)} required className="h-9 text-xs" />
+                      ) : (
+                        <p className="text-xs font-medium text-[var(--text-primary)] py-1.5">{bldgName || selectedBuilding.buildingName}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Building Code</Label>
+                      {isEditing ? (
+                        <Input value={bldgCode} onChange={(e) => setBldgCode(e.target.value)} required className="h-9 text-xs font-mono" />
+                      ) : (
+                        <p className="text-xs font-mono text-[var(--text-primary)] py-1.5">{bldgCode || selectedBuilding.buildingCode}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[var(--border)]">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Total Floors</Label>
+                      {isEditing ? (
+                        <Input type="number" min={1} value={bldgFloors} onChange={(e) => setBldgFloors(e.target.value)} required className="h-9 text-xs font-mono" />
+                      ) : (
+                        <p className="text-xs font-mono text-[var(--text-primary)] py-1.5">{bldgFloors || 1} Physical Floors</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Operating Status</Label>
+                      {isEditing ? (
+                        <select
+                          value={bldgStatus}
+                          onChange={(e) => setBldgStatus(e.target.value)}
+                          className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-600"
+                        >
+                          <option value="active">Operational (Open)</option>
+                          <option value="renovation">Under Renovation (Closed)</option>
+                          <option value="seasonal_maintenance">Seasonal Maintenance</option>
+                        </select>
+                      ) : (
+                        <p className="text-xs font-medium text-[var(--text-primary)] py-1.5 capitalize">{bldgStatus || "Operational"}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operating Schedule & Contact */}
+                <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-4 shadow-xs">
+                  <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    Operating Schedule & Reception Desk
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Check-In Time</Label>
+                      {isEditing ? (
+                        <Input value={bldgCheckIn} onChange={(e) => setBldgCheckIn(e.target.value)} placeholder="02:00 PM" className="h-9 text-xs font-mono" />
+                      ) : (
+                        <p className="text-xs font-mono text-[var(--text-primary)] py-1.5">{bldgCheckIn || "02:00 PM"}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Check-Out Time</Label>
+                      {isEditing ? (
+                        <Input value={bldgCheckOut} onChange={(e) => setBldgCheckOut(e.target.value)} placeholder="12:00 PM" className="h-9 text-xs font-mono" />
+                      ) : (
+                        <p className="text-xs font-mono text-[var(--text-primary)] py-1.5">{bldgCheckOut || "12:00 PM"}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[var(--border)]">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Lobby Reception Phone</Label>
+                      {isEditing ? (
+                        <Input value={bldgPhone} onChange={(e) => setBldgPhone(e.target.value)} placeholder="0911223344" className="h-9 text-xs font-mono" />
+                      ) : (
+                        <p className="text-xs font-mono text-[var(--text-primary)] py-1.5">{bldgPhone || "None specified"}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-[var(--text-primary)]">Lobby Front Desk Email</Label>
+                      {isEditing ? (
+                        <Input type="email" value={bldgEmail} onChange={(e) => setBldgEmail(e.target.value)} placeholder="wing.desk@hotel.com" className="h-9 text-xs" />
+                      ) : (
+                        <p className="text-xs text-[var(--text-primary)] py-1.5">{bldgEmail || "None specified"}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Facility Overview Description */}
+                <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3 shadow-xs">
+                  <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    Facility Overview & Guest Policies
+                  </h4>
+                  {isEditing ? (
+                    <textarea
+                      value={bldgDesc}
+                      onChange={(e) => setBldgDesc(e.target.value)}
+                      rows={3}
+                      placeholder="Summary of this hotel facility, special check-in procedures, or guest privileges..."
+                      className="w-full p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    />
+                  ) : (
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                      {bldgDesc || "No overview provided for this hotel building facility."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: 1 Span */}
+              <div className="space-y-6">
+                {/* Building Amenities */}
+                <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      Facility Amenities
+                    </h4>
+                    <span className="text-[11px] text-[var(--text-muted)] font-mono">{bldgAmenities.length} active</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {[
+                      "Elevator Access",
+                      "Dedicated Reception Desk",
+                      "Executive Lounge",
+                      "Private Pool",
+                      "Valet Parking",
+                      "Direct Spa Access",
+                      "Room Service Kitchen",
+                      "Conference Hall",
+                      "24/7 Security Patrol",
+                      "Luggage Storage",
+                      "Fitness Center",
+                      "High-Speed Wi-Fi 6"
+                    ].map((amenity) => {
+                      const isChecked = bldgAmenities.includes(amenity);
+                      return isEditing ? (
+                        <button
+                          key={amenity}
+                          type="button"
+                          onClick={() => toggleBuildingAmenity(amenity)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-all cursor-pointer ${
+                            isChecked
+                              ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                              : "bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] hover:bg-[var(--surface-hover)]"
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3 h-3 text-white" />}
+                          <span>{amenity}</span>
+                        </button>
+                      ) : isChecked ? (
+                        <span key={amenity} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/40">
+                          <Check className="w-3 h-3 text-blue-600" />
+                          <span>{amenity}</span>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                  {!isEditing && bldgAmenities.length === 0 && (
+                    <p className="text-xs text-[var(--text-muted)] italic">No specific amenities configured.</p>
+                  )}
+                </div>
+
+                {/* Building Quick Actions */}
+                <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-hover)]/30 space-y-3">
+                  <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider block">
+                    Campus Scope
+                  </span>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    You are configuring <strong>{selectedBuilding.buildingName}</strong> under branch <strong>{activeBranch?.branchName || "Main Property"}</strong>.
+                  </p>
+                  {(isGlobal || !userBuildingId) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelectedBuildingId("all")}
+                      className="w-full h-8 text-xs font-semibold"
+                    >
+                      Return to Main Campus View
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ─────────────────────────────────────────────────────────────────────────────
+              MAIN PROPERTY / ENTIRE BRANCH VIEW (STANDARD HOTEL CONFIG)
+          ───────────────────────────────────────────────────────────────────────────── */
+          <>
+          {/* Hero Luxury Identity Banner (No StatusPill as requested) */}
         <div className="mt-4 p-6 rounded-2xl bg-gradient-to-r from-blue-700/10 via-blue-600/5 to-transparent dark:from-blue-900/30 dark:via-blue-950/10 dark:to-transparent border border-blue-600/20 dark:border-blue-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-700 to-blue-950 text-white flex items-center justify-center font-bold text-xl tracking-wider shadow-sm border border-blue-400/30">
@@ -4638,6 +5008,8 @@ export default function HotelPage() {
               </button>
             </div>
           </div>
+        )}
+          </>
         )}
       </form>
 

@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, MoreHorizontal, Loader2, UserPlus, Building2, Check, Shield, Edit2, AlertTriangle, 
   Users as UsersIcon, ShieldCheck, Globe, Trash2, Edit, RotateCw, Copy,
-  CalendarDays, Sparkles, UtensilsCrossed, CreditCard, Package, CheckSquare, Square, Search, Eye, EyeOff
+  CalendarDays, Sparkles, UtensilsCrossed, CreditCard, Package, CheckSquare, Square, Search, Eye, EyeOff,
+  FolderTree
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -60,9 +61,32 @@ type Role = {
   name: string;
   description: string | null;
   scope?: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  departmentCode?: string | null;
   permissions?: string[];
   permissionsCount?: number;
   isActive: boolean;
+};
+
+type DepartmentRole = {
+  id: string;
+  name: string;
+  scope?: string;
+  permissionsCount?: number;
+};
+
+type Department = {
+  id: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  roles?: DepartmentRole[];
+  rolesCount?: number;
+  staffCount?: number;
 };
 
 type Branch = {
@@ -367,16 +391,19 @@ function UsersAndRolesContent() {
   const { user: currentUser, logout, refreshUser } = useAuth();
 
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"users" | "roles">(tabParam === "roles" ? "roles" : "users");
+  const [activeTab, setActiveTab] = useState<"users" | "roles" | "departments">(
+    tabParam === "roles" ? "roles" : tabParam === "departments" ? "departments" : "users"
+  );
 
   useEffect(() => {
     if (tabParam === "roles" && activeTab !== "roles") setActiveTab("roles");
-    if (tabParam !== "roles" && activeTab !== "users" && !tabParam) setActiveTab("users");
+    else if (tabParam === "departments" && activeTab !== "departments") setActiveTab("departments");
+    else if (!tabParam && activeTab !== "users") setActiveTab("users");
   }, [tabParam, activeTab]);
 
-  const handleTabChange = (newTab: "users" | "roles") => {
+  const handleTabChange = (newTab: "users" | "roles" | "departments") => {
     setActiveTab(newTab);
-    const url = newTab === "roles" ? "/users?tab=roles" : "/users";
+    const url = newTab === "users" ? "/users" : `/users?tab=${newTab}`;
     router.replace(url, { scroll: false });
   };
 
@@ -385,6 +412,7 @@ function UsersAndRolesContent() {
   // ─────────────────────────────────────────────────────────────────────────────
   const [userSearch, setUserSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
+  const [userDeptFilter, setUserDeptFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -454,6 +482,12 @@ function UsersAndRolesContent() {
     queryFn: () => apiFetch<any>("/buildings?status=active"),
   });
   const buildings: { id: string; buildingName: string; branchId: string }[] = Array.isArray(rawBuildings) ? rawBuildings : (rawBuildings?.data ?? []);
+
+  const { data: rawDepts, isLoading: isDeptsLoading } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => apiFetch<any>("/departments"),
+  });
+  const departments: Department[] = Array.isArray(rawDepts) ? rawDepts : (rawDepts?.data ?? []);
 
   const createUserMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -797,6 +831,16 @@ function UsersAndRolesContent() {
     if (statusFilter === "active" && !u.isActive) return false;
     if (statusFilter === "inactive" && u.isActive) return false;
 
+    // Department filter
+    if (userDeptFilter !== "all") {
+      const uDept = (u.department || "").toLowerCase();
+      const targetDept = userDeptFilter.toLowerCase();
+      const userRole = roles.find((r) => r.id === u.roleId);
+      const matchesDeptName = uDept === targetDept;
+      const matchesRoleDept = (userRole?.departmentName || "").toLowerCase() === targetDept;
+      if (!matchesDeptName && !matchesRoleDept) return false;
+    }
+
     if (branchFilter === "all") return true;
 
     const isGlobal = u.roleName === "Admin" || u.roleScope === "global";
@@ -821,15 +865,29 @@ function UsersAndRolesContent() {
   // ─────────────────────────────────────────────────────────────────────────────
   // ROLES STATE & LOGIC
   // ─────────────────────────────────────────────────────────────────────────────
+  const [roleSearch, setRoleSearch] = useState("");
+  const [roleDeptFilter, setRoleDeptFilter] = useState("all");
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [roleName, setRoleName] = useState("");
   const [roleDesc, setRoleDesc] = useState("");
   const [roleScope, setRoleScope] = useState("branch");
+  const [roleDepartmentId, setRoleDepartmentId] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [roleErrorMsg, setRoleErrorMsg] = useState("");
   const [useDefaultPerms, setUseDefaultPerms] = useState(false);
   const [permissionSearch, setPermissionSearch] = useState("");
+
+  const filteredRoles = roles.filter((r) => {
+    const q = roleSearch.toLowerCase().trim();
+    if (q && !r.name.toLowerCase().includes(q) && !(r.description || "").toLowerCase().includes(q)) {
+      return false;
+    }
+    if (roleDeptFilter !== "all") {
+      if (r.departmentId !== roleDeptFilter) return false;
+    }
+    return true;
+  });
 
   const {
     currentPage: rolePage,
@@ -838,7 +896,12 @@ function UsersAndRolesContent() {
     paginatedItems: paginatedRoles,
     onPrev: onRolePrev,
     onNext: onRoleNext,
-  } = usePagination(roles, 8);
+    setCurrentPage: setRolePage,
+  } = usePagination(filteredRoles, 8);
+
+  useEffect(() => {
+    setRolePage(1);
+  }, [roleSearch, roleDeptFilter, setRolePage]);
 
   const saveRoleMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -849,6 +912,7 @@ function UsersAndRolesContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
       closeRoleDialog();
     },
     onError: (err: any) => {
@@ -862,6 +926,7 @@ function UsersAndRolesContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
     },
   });
 
@@ -870,6 +935,7 @@ function UsersAndRolesContent() {
     setRoleName("");
     setRoleDesc("");
     setRoleScope("branch");
+    setRoleDepartmentId("");
     setSelectedPermissions(["hotel:*", "rooms:*", "reservations:*", "guests:*"]);
     setRoleErrorMsg("");
     setPermissionSearch("");
@@ -881,6 +947,7 @@ function UsersAndRolesContent() {
     setRoleName(r.name);
     setRoleDesc(r.description || "");
     setRoleScope(r.scope || "branch");
+    setRoleDepartmentId(r.departmentId || "");
     const currentPerms = r.permissions || [];
     setSelectedPermissions(currentPerms);
     const defaults = getDefaultPermissionsForRole(r.name);
@@ -902,6 +969,7 @@ function UsersAndRolesContent() {
   const closeRoleDialog = () => {
     setIsRoleModalOpen(false);
     setEditingRole(null);
+    setRoleDepartmentId("");
     setRoleErrorMsg("");
   };
 
@@ -936,8 +1004,148 @@ function UsersAndRolesContent() {
       name: roleName.trim(),
       description: roleDesc.trim(),
       scope: roleScope,
+      departmentId: roleDepartmentId || null,
       permissions: selectedPermissions,
     });
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DEPARTMENTS STATE & LOGIC
+  // ─────────────────────────────────────────────────────────────────────────────
+  const [deptSearch, setDeptSearch] = useState("");
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [deptName, setDeptName] = useState("");
+  const [deptCode, setDeptCode] = useState("");
+  const [deptDesc, setDeptDesc] = useState("");
+  const [deptRoleIds, setDeptRoleIds] = useState<string[]>([]);
+  const [deptRoleSearch, setDeptRoleSearch] = useState("");
+  const [deptErrorMsg, setDeptErrorMsg] = useState("");
+  const [deptToDelete, setDeptToDelete] = useState<Department | null>(null);
+  const [reassignDeptId, setReassignDeptId] = useState("");
+
+  const filteredDepartments = departments.filter((d) => {
+    const q = deptSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      d.name.toLowerCase().includes(q) ||
+      (d.code && d.code.toLowerCase().includes(q)) ||
+      (d.description && d.description.toLowerCase().includes(q)) ||
+      (d.roles && d.roles.some((r) => r.name.toLowerCase().includes(q)))
+    );
+  });
+
+  const {
+    currentPage: deptPage,
+    totalPages: deptTotalPages,
+    totalItems: deptTotalItems,
+    paginatedItems: paginatedDepartments,
+    onPrev: onDeptPrev,
+    onNext: onDeptNext,
+    setCurrentPage: setDeptPage,
+  } = usePagination(filteredDepartments, 8);
+
+  useEffect(() => {
+    setDeptPage(1);
+  }, [deptSearch, setDeptPage]);
+
+  const saveDeptMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (editingDept) {
+        return apiFetch(`/departments/${editingDept.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      }
+      return apiFetch("/departments", { method: "POST", body: JSON.stringify(payload) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      closeDeptDialog();
+      toast({
+        title: editingDept ? "Department Updated" : "Department Created",
+        description: "Department information and role assignments have been saved.",
+      });
+    },
+    onError: (err: any) => {
+      setDeptErrorMsg(err.message || "Failed to save department");
+    },
+  });
+
+  const deleteDeptMutation = useMutation({
+    mutationFn: async ({ id, reassignToDepartmentId }: { id: string; reassignToDepartmentId?: string }) => {
+      const url = reassignToDepartmentId 
+        ? `/departments/${id}?reassignToDepartmentId=${encodeURIComponent(reassignToDepartmentId)}` 
+        : `/departments/${id}`;
+      return apiFetch(url, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setDeptToDelete(null);
+      setReassignDeptId("");
+      toast({
+        title: "Department Removed",
+        description: "Department has been deactivated and role bindings handled.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Deletion Failed",
+        description: err.message || "Could not delete department",
+        variant: "destructive",
+      });
+      setDeptToDelete(null);
+    },
+  });
+
+  const openCreateDeptDialog = () => {
+    setEditingDept(null);
+    setDeptName("");
+    setDeptCode("");
+    setDeptDesc("");
+    setDeptRoleIds([]);
+    setDeptRoleSearch("");
+    setDeptErrorMsg("");
+    setIsDeptModalOpen(true);
+  };
+
+  const openEditDeptDialog = (d: Department) => {
+    setEditingDept(d);
+    setDeptName(d.name);
+    setDeptCode(d.code || "");
+    setDeptDesc(d.description || "");
+    const initialRoleIds = (d.roles || []).map((r) => r.id);
+    setDeptRoleIds(initialRoleIds);
+    setDeptRoleSearch("");
+    setDeptErrorMsg("");
+    setIsDeptModalOpen(true);
+  };
+
+  const closeDeptDialog = () => {
+    setIsDeptModalOpen(false);
+    setEditingDept(null);
+    setDeptErrorMsg("");
+  };
+
+  const handleDeptSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deptName.trim()) {
+      setDeptErrorMsg("Department name is required");
+      return;
+    }
+    saveDeptMutation.mutate({
+      name: deptName.trim(),
+      code: deptCode.trim().toUpperCase() || undefined,
+      description: deptDesc.trim() || undefined,
+      roleIds: deptRoleIds,
+    });
+  };
+
+  const toggleDeptRole = (roleId: string) => {
+    setDeptRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+    );
   };
 
   const selectedRoleObj = roles.find((r) => r.id === roleId);
@@ -969,7 +1177,7 @@ function UsersAndRolesContent() {
             type="button"
             onClick={() => handleTabChange("roles")}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
               activeTab === "roles"
                 ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -977,6 +1185,19 @@ function UsersAndRolesContent() {
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Roles & Permissions</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("departments")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              activeTab === "departments"
+                ? "bg-[var(--surface)] text-[var(--blue-700)] shadow-sm border border-[var(--border)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            )}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Departments</span>
           </button>
         </div>
 
@@ -998,6 +1219,20 @@ function UsersAndRolesContent() {
                 ))}
               </select>
 
+              {/* Department Filter */}
+              <select
+                value={userDeptFilter}
+                onChange={(e) => setUserDeptFilter(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs font-semibold text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="all">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+
               {/* Status Filter */}
               <select
                 value={statusFilter}
@@ -1013,16 +1248,50 @@ function UsersAndRolesContent() {
                 placeholder="Search staff..." 
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                className="w-[180px] h-9 text-xs rounded-lg"
+                className="w-[170px] h-9 text-xs rounded-lg"
               />
               <Button onClick={openAddUserDialog} className="h-9 text-xs font-semibold rounded-lg">
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add User
               </Button>
             </>
+          ) : activeTab === "roles" ? (
+            <>
+              {/* Department Filter for Roles */}
+              <select
+                value={roleDeptFilter}
+                onChange={(e) => setRoleDeptFilter(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs font-semibold text-[var(--text-primary)] focus:outline-none"
+              >
+                <option value="all">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.rolesCount || 0})
+                  </option>
+                ))}
+              </select>
+
+              <Input 
+                placeholder="Search roles..." 
+                value={roleSearch}
+                onChange={(e) => setRoleSearch(e.target.value)}
+                className="w-[170px] h-9 text-xs rounded-lg"
+              />
+              <Button onClick={openCreateRoleDialog} className="h-9 text-xs font-semibold rounded-lg">
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Role
+              </Button>
+            </>
           ) : (
-            <Button onClick={openCreateRoleDialog} className="h-9 text-xs font-semibold rounded-lg">
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Create Role
-            </Button>
+            <>
+              <Input 
+                placeholder="Search departments..." 
+                value={deptSearch}
+                onChange={(e) => setDeptSearch(e.target.value)}
+                className="w-[200px] h-9 text-xs rounded-lg"
+              />
+              <Button onClick={openCreateDeptDialog} className="h-9 text-xs font-semibold rounded-lg">
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Department
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -1260,6 +1529,7 @@ function UsersAndRolesContent() {
               <TableRow className="border-b border-[var(--border)] bg-[var(--blue-50)]/40 hover:bg-[var(--blue-50)]/40">
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Role Name</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Scope</TableHead>
+                <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Department</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Description</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Permissions</TableHead>
                 <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Status</TableHead>
@@ -1269,14 +1539,16 @@ function UsersAndRolesContent() {
             <TableBody>
               {isRolesLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-28 text-center">
+                  <TableCell colSpan={7} className="h-28 text-center">
                     <Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--text-secondary)]" />
                   </TableCell>
                 </TableRow>
-              ) : roles.length === 0 ? (
+              ) : filteredRoles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-28 text-center text-xs text-[var(--text-secondary)]">
-                    No roles found. Click "Create Role" to add one.
+                  <TableCell colSpan={7} className="h-28 text-center text-xs text-[var(--text-secondary)]">
+                    {roleSearch || roleDeptFilter !== "all" 
+                      ? "No roles match your filter criteria." 
+                      : 'No roles found. Click "Create Role" to add one.'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1306,7 +1578,19 @@ function UsersAndRolesContent() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="py-3 text-[var(--text-secondary)] text-xs max-w-[260px] truncate">
+                      <TableCell className="py-3">
+                        {role.departmentName ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                            {role.departmentName}
+                            {role.departmentCode && (
+                              <span className="text-[9px] font-bold text-indigo-500">[{role.departmentCode}]</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-[var(--text-secondary)] italic">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-3 text-[var(--text-secondary)] text-xs max-w-[240px] truncate">
                         {role.description || "No description provided"}
                       </TableCell>
                       <TableCell className="py-3">
@@ -1366,6 +1650,183 @@ function UsersAndRolesContent() {
             onPrev={onRolePrev}
             onNext={onRoleNext}
           />
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          TAB 3: DEPARTMENTS & ORG STRUCTURE
+      ───────────────────────────────────────────────────────────────────────────── */}
+      {activeTab === "departments" && (
+        <div className="space-y-4">
+          {/* Summary Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--blue-50)] text-[var(--blue-700)] flex items-center justify-center shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Total Departments</p>
+                <p className="text-xl font-bold text-[var(--text-primary)]">{departments.length}</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                <FolderTree className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Roles in Departments</p>
+                <p className="text-xl font-bold text-[var(--text-primary)]">
+                  {roles.filter((r) => r.departmentId).length} <span className="text-xs text-[var(--text-secondary)] font-normal">/ {roles.length} total</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                <UsersIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Staff Enrolled</p>
+                <p className="text-xl font-bold text-[var(--text-primary)]">
+                  {users.filter((u) => u.isActive && (u.department || roles.find((r) => r.id === u.roleId)?.departmentId)).length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Departments Table */}
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-[var(--border)] bg-[var(--blue-50)]/40 hover:bg-[var(--blue-50)]/40">
+                  <TableHead className="font-semibold text-xs text-[var(--text-primary)] w-[240px]">Department</TableHead>
+                  <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Description</TableHead>
+                  <TableHead className="font-semibold text-xs text-[var(--text-primary)]">Included Roles</TableHead>
+                  <TableHead className="font-semibold text-xs text-[var(--text-primary)] text-center w-[110px]">Staff Enrolled</TableHead>
+                  <TableHead className="font-semibold text-xs text-[var(--text-primary)] w-[90px]">Status</TableHead>
+                  <TableHead className="w-[80px] text-right font-semibold text-xs text-[var(--text-primary)]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isDeptsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-28 text-center">
+                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--text-secondary)]" />
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedDepartments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-28 text-center text-xs text-[var(--text-secondary)]">
+                      {deptSearch ? "No departments match your search." : "No departments found. Click 'Add Department' to create one."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedDepartments.map((dept) => {
+                    const deptRoles = dept.roles || roles.filter((r) => r.departmentId === dept.id);
+                    return (
+                      <TableRow key={dept.id} className="border-b border-[var(--border)] hover:bg-[var(--blue-50)]/20 transition-colors">
+                        <TableCell className="py-3 font-semibold text-xs text-[var(--text-primary)]">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-[var(--blue-50)] border border-[var(--blue-200)] flex items-center justify-center text-[var(--blue-700)] shrink-0 font-bold text-[11px]">
+                              {dept.code || dept.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
+                                <span>{dept.name}</span>
+                                {dept.code && (
+                                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                    {dept.code}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3 text-[var(--text-secondary)] text-xs max-w-[260px] truncate">
+                          {dept.description || <span className="italic text-slate-400">No description provided</span>}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="flex flex-wrap items-center gap-1 max-w-[420px]">
+                            {deptRoles.length === 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => openEditDeptDialog(dept)}
+                                className="text-[11px] text-[var(--blue-600)] hover:underline inline-flex items-center gap-1 italic cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3" /> Assign roles
+                              </button>
+                            ) : (
+                              <>
+                                {deptRoles.slice(0, 3).map((r) => (
+                                  <span
+                                    key={r.id}
+                                    className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2 py-0.5 rounded-md"
+                                  >
+                                    <ShieldCheck className="w-2.5 h-2.5 text-indigo-500" />
+                                    {r.name}
+                                  </span>
+                                ))}
+                                {deptRoles.length > 3 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditDeptDialog(dept)}
+                                    className="text-[10px] font-semibold text-[var(--blue-600)] bg-[var(--blue-50)] border border-[var(--blue-200)] px-1.5 py-0.5 rounded-md hover:bg-[var(--blue-100)] transition-colors cursor-pointer"
+                                  >
+                                    +{deptRoles.length - 3} more
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3 text-center">
+                          <Badge variant="outline" className="text-[11px] font-semibold px-2 py-0.5">
+                            {dept.staffCount ?? 0} staff
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge variant={dept.isActive ? "success" : "muted"} className="uppercase text-[9px] rounded-md px-1.5">
+                            {dept.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg text-xs">
+                              <DropdownMenuItem onClick={() => openEditDeptDialog(dept)} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer">
+                                <Edit className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Edit & Manage Roles</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeptToDelete(dept)}
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer text-rose-600 focus:text-rose-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Department</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+            <TablePagination
+              currentPage={deptPage}
+              totalPages={deptTotalPages}
+              totalItems={deptTotalItems}
+              pageSize={8}
+              onPrev={onDeptPrev}
+              onNext={onDeptNext}
+            />
+          </div>
         </div>
       )}
 
@@ -1446,14 +1907,21 @@ function UsersAndRolesContent() {
                     <Label className="text-xs font-semibold">Role *</Label>
                     <select
                       value={roleId}
-                      onChange={(e) => setRoleId(e.target.value)}
+                      onChange={(e) => {
+                        const newRoleId = e.target.value;
+                        setRoleId(newRoleId);
+                        const foundRole = roles.find((r) => r.id === newRoleId);
+                        if (foundRole?.departmentName) {
+                          setDepartment(foundRole.departmentName);
+                        }
+                      }}
                       className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
                       required
                     >
                       <option value="" disabled>Select role...</option>
                       {roles.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.name}
+                          {r.name} {r.departmentName ? `[${r.departmentName}]` : ""}
                         </option>
                       ))}
                     </select>
@@ -1469,11 +1937,19 @@ function UsersAndRolesContent() {
                       className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
                     >
                       <option value="">Select department...</option>
-                      {DEPARTMENTS.map((dept) => (
-                        <option key={dept} value={dept}>
-                          {dept}
-                        </option>
-                      ))}
+                      {departments.length > 0 ? (
+                        departments.map((d) => (
+                          <option key={d.id} value={d.name}>
+                            {d.name} {d.code ? `(${d.code})` : ""}
+                          </option>
+                        ))
+                      ) : (
+                        DEPARTMENTS.map((dept) => (
+                          <option key={dept} value={dept}>
+                            {dept}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -1761,13 +2237,20 @@ function UsersAndRolesContent() {
                     <Label className="text-xs font-semibold">Role *</Label>
                     <select
                       value={editRoleId}
-                      onChange={(e) => setEditRoleId(e.target.value)}
+                      onChange={(e) => {
+                        const newRoleId = e.target.value;
+                        setEditRoleId(newRoleId);
+                        const foundRole = roles.find((r) => r.id === newRoleId);
+                        if (foundRole?.departmentName) {
+                          setEditDepartment(foundRole.departmentName);
+                        }
+                      }}
                       className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
                       required
                     >
                       {roles.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.name}
+                          {r.name} {r.departmentName ? `[${r.departmentName}]` : ""}
                         </option>
                       ))}
                     </select>
@@ -1783,11 +2266,19 @@ function UsersAndRolesContent() {
                       className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none"
                     >
                       <option value="">Select department...</option>
-                      {DEPARTMENTS.map((dept) => (
-                        <option key={dept} value={dept}>
-                          {dept}
-                        </option>
-                      ))}
+                      {departments.length > 0 ? (
+                        departments.map((d) => (
+                          <option key={d.id} value={d.name}>
+                            {d.name} {d.code ? `(${d.code})` : ""}
+                          </option>
+                        ))
+                      ) : (
+                        DEPARTMENTS.map((dept) => (
+                          <option key={dept} value={dept}>
+                            {dept}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -2206,7 +2697,7 @@ function UsersAndRolesContent() {
           <form onSubmit={handleRoleSubmit} className="flex flex-col flex-1 overflow-hidden space-y-4 pt-1">
             <div className="space-y-4 overflow-y-auto flex-1 pr-1.5">
               {/* Role Info Card */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 rounded-lg border border-[var(--border)] bg-[var(--bg-page,#f8fafc)]/60">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3.5 rounded-lg border border-[var(--border)] bg-[var(--bg-page,#f8fafc)]/60">
                 <div className="space-y-1">
                   <Label className="text-xs font-bold text-[var(--text-primary)]">Role Name *</Label>
                   <Input 
@@ -2222,7 +2713,7 @@ function UsersAndRolesContent() {
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold text-[var(--text-primary)]">Access Scope *</Label>
                     <span className="text-[10px] text-[var(--text-secondary)] font-medium">
-                      {roleScope === "global" ? "🌐 All Properties" : "📌 Bound Branch"}
+                      {roleScope === "global" ? "🌐 Global" : "📌 Branch"}
                     </span>
                   </div>
                   <select
@@ -2230,15 +2721,31 @@ function UsersAndRolesContent() {
                     onChange={(e) => setRoleScope(e.target.value)}
                     className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
                   >
-                    <option value="branch">Branch-Bound (Property Scope)</option>
+                    <option value="branch">Branch-Bound (Property)</option>
                     <option value="global">Global (System-Wide)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-[var(--text-primary)]">Department</Label>
+                  <select
+                    value={roleDepartmentId}
+                    onChange={(e) => setRoleDepartmentId(e.target.value)}
+                    className="w-full h-9 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                  >
+                    <option value="">Unassigned (No Department)</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} {d.code ? `[${d.code}]` : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-bold text-[var(--text-primary)]">Description</Label>
                   <Input 
-                    placeholder="Operational responsibilities and duties" 
+                    placeholder="Operational responsibilities..." 
                     value={roleDesc} 
                     onChange={(e) => setRoleDesc(e.target.value)}
                     className="h-9 text-xs rounded-md bg-[var(--surface)]"
@@ -2443,6 +2950,278 @@ function UsersAndRolesContent() {
               </div>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          ADD / EDIT DEPARTMENT DIALOG (WITH ROLES CHECKLIST)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <Dialog open={isDeptModalOpen} onOpenChange={setIsDeptModalOpen}>
+        <DialogContent className="max-w-2xl p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+          <DialogHeader className="pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold text-[var(--text-primary)]">
+                <div className="w-8 h-8 rounded-lg bg-[var(--blue-50)] flex items-center justify-center text-[var(--blue-700)]">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <span>{editingDept ? "Edit Department & Roles" : "Create Hotel Department"}</span>
+              </DialogTitle>
+            </div>
+            <DialogDescription className="sr-only">Manage department details and assigned roles</DialogDescription>
+          </DialogHeader>
+
+          {deptErrorMsg && (
+            <div className="p-3 text-xs rounded-lg bg-[var(--red-50,#fef2f2)] text-[var(--red-600,#dc2626)] border border-[var(--red-200,#fecaca)] font-medium">
+              {deptErrorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleDeptSubmit} className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
+                <Label className="text-xs font-bold text-[var(--text-primary)]">Department Name *</Label>
+                <Input
+                  placeholder="e.g. Front Office & Concierge"
+                  value={deptName}
+                  onChange={(e) => setDeptName(e.target.value)}
+                  className="h-9 text-xs rounded-md bg-[var(--surface)]"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-[var(--text-primary)]">Code (Abbr)</Label>
+                <Input
+                  placeholder="e.g. FOC"
+                  value={deptCode}
+                  onChange={(e) => setDeptCode(e.target.value.toUpperCase())}
+                  maxLength={8}
+                  className="h-9 text-xs font-mono uppercase rounded-md bg-[var(--surface)]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-[var(--text-primary)]">Description</Label>
+              <Input
+                placeholder="Responsibilities, mandate, and scope of this hotel department..."
+                value={deptDesc}
+                onChange={(e) => setDeptDesc(e.target.value)}
+                className="h-9 text-xs rounded-md bg-[var(--surface)]"
+              />
+            </div>
+
+            {/* Included Roles Section */}
+            <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[var(--blue-600)]" />
+                    <span>Included Roles in this Department</span>
+                  </Label>
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Select the hospitality roles that belong to {deptName || "this department"}.
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                  {deptRoleIds.length} role(s) selected
+                </span>
+              </div>
+
+              {/* Roles Search Bar & Quick Actions */}
+              <div className="flex items-center justify-between gap-2">
+                <Input
+                  placeholder="Search roles to include..."
+                  value={deptRoleSearch}
+                  onChange={(e) => setDeptRoleSearch(e.target.value)}
+                  className="h-8 text-xs max-w-xs rounded-md"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeptRoleIds(roles.map((r) => r.id))}
+                    className="text-[11px] text-[var(--blue-600)] hover:underline font-medium cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setDeptRoleIds([])}
+                    className="text-[11px] text-slate-500 hover:underline font-medium cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              {/* Roles Selection Grid */}
+              <div className="max-h-[220px] overflow-y-auto border border-[var(--border)] rounded-lg p-2.5 bg-[var(--bg-page,#f8fafc)]/50 space-y-1.5">
+                {roles
+                  .filter((r) => {
+                    const q = deptRoleSearch.toLowerCase().trim();
+                    if (!q) return true;
+                    return r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q);
+                  })
+                  .map((r) => {
+                    const isChecked = deptRoleIds.includes(r.id);
+                    const isOtherDept = r.departmentId && r.departmentId !== editingDept?.id;
+                    const otherDept = isOtherDept ? departments.find((d) => d.id === r.departmentId) : null;
+
+                    return (
+                      <label
+                        key={r.id}
+                        className={cn(
+                          "flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-all",
+                          isChecked
+                            ? "bg-indigo-50/90 border-indigo-300 text-indigo-950 font-medium"
+                            : "bg-[var(--surface)] border-[var(--border)] text-[var(--text-primary)] hover:border-slate-300"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleDeptRole(r.id)}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{r.name}</span>
+                              {r.scope === "global" && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
+                                  Global
+                                </span>
+                              )}
+                            </div>
+                            {r.description && (
+                              <p className="text-[10px] text-[var(--text-secondary)] line-clamp-1">
+                                {r.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {otherDept && !isChecked && (
+                          <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                            Currently in: {otherDept.name}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-between items-center sm:justify-between">
+              <span className="text-xs text-[var(--text-secondary)]">
+                {deptRoleIds.length} role(s) bound to this department
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" type="button" onClick={closeDeptDialog} className="h-9 text-xs rounded-md">
+                  Cancel
+                </Button>
+                <button
+                  type="submit"
+                  disabled={saveDeptMutation.isPending}
+                  className="inline-flex items-center justify-center h-9 px-4 text-xs font-semibold rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white !text-white transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {saveDeptMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-white" />}
+                  {editingDept ? "Save Changes" : "Create Department"}
+                </button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Department Confirmation Dialog */}
+      <Dialog open={deptToDelete !== null} onOpenChange={(open) => { if (!open) { setDeptToDelete(null); setReassignDeptId(""); } }}>
+        <DialogContent className="max-w-md p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-rose-600">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Department
+            </DialogTitle>
+          </DialogHeader>
+
+          {deptToDelete && (
+            <div className="space-y-3 py-2 text-xs">
+              <p className="text-[var(--text-primary)]">
+                Are you sure you want to deactivate the department{" "}
+                <span className="font-bold">{deptToDelete.name}</span>?
+              </p>
+
+              {(deptToDelete.staffCount ?? 0) > 0 ? (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Cannot delete department with active staff
+                  </p>
+                  <p className="text-[11px]">
+                    There are currently <span className="font-bold">{deptToDelete.staffCount}</span> active staff members assigned to this department. Please reassign them to another department before deleting.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {(deptToDelete.roles?.length ?? 0) > 0 ? (
+                    <div className="space-y-2 p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px]">
+                      <div className="flex items-center justify-between text-amber-900 font-semibold">
+                        <span>Assigned Roles ({deptToDelete.roles?.length})</span>
+                        <span className="text-[10px] text-amber-700">Choose reassignment</span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1.5 rounded bg-white/80 border border-amber-200">
+                        {deptToDelete.roles?.map((r) => (
+                          <span key={r.id} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {r.name}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1 pt-1">
+                        <Label className="text-[11px] font-semibold text-amber-950">
+                          Reassign Roles To:
+                        </Label>
+                        <select
+                          value={reassignDeptId}
+                          onChange={(e) => setReassignDeptId(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-amber-300 bg-white text-xs font-medium focus:outline-none"
+                        >
+                          <option value="">Do not reassign (Mark roles as Unassigned)</option>
+                          {departments
+                            .filter((d) => d.id !== deptToDelete.id)
+                            .map((d) => (
+                              <option key={d.id} value={d.id}>
+                                Move roles to: {d.name} {d.code ? `[${d.code}]` : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                      This department has no assigned roles. It can be safely deactivated.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => { setDeptToDelete(null); setReassignDeptId(""); }} className="h-9 text-xs rounded-md">
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteDeptMutation.isPending || ((deptToDelete?.staffCount ?? 0) > 0)}
+              onClick={() => deptToDelete && deleteDeptMutation.mutate({ id: deptToDelete.id, reassignToDepartmentId: reassignDeptId || undefined })}
+              className="h-9 text-xs font-semibold rounded-md"
+            >
+              {deleteDeptMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Confirm Deletion
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

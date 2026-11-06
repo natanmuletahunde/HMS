@@ -40,8 +40,8 @@ export interface RoleInfo {
 export const ROLE_DEFINITIONS: Record<RoleCategory, RoleInfo> = {
   admin: {
     category: 'admin',
-    name: 'Admin',
-    badge: 'System Admin',
+    name: 'System Administrator',
+    badge: 'System Administrator',
     description: 'Full system administration, user management, audit logs, and hotel configuration.',
     badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
     portalTitle: 'System Administrator Portal',
