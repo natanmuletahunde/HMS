@@ -92,24 +92,6 @@ export default function DashboardPage() {
   const currentRole = user?.role || (user as any)?.roleName || "Staff";
   const roleCategory = normalizeRole(currentRole);
 
-  useEffect(() => {
-    if (roleCategory === "barista") {
-      router.replace("/coffee");
-      return;
-    }
-    if (roleCategory === "beverage_staff") {
-      router.replace("/beverages");
-      return;
-    }
-    if (roleCategory === "barman") {
-      router.push("/bar");
-    }
-  }, [roleCategory, router]);
-
-  if (roleCategory === "barman" || roleCategory === "barista" || roleCategory === "beverage_staff") {
-    return null;
-  }
-
   if (roleCategory === "receptionist") {
     return <FrontDeskDashboard currentRole={currentRole} />;
   }
@@ -1748,6 +1730,7 @@ function StorekeeperDashboard({ currentRole }: { currentRole: string }) {
 // ============================================================================
 function StaffDashboard({ currentRole }: { currentRole: string }) {
   const { user } = useAuth();
+  const roleCategory = normalizeRole(currentRole);
 
   return (
     <div className="space-y-6">
@@ -1775,11 +1758,33 @@ function StaffDashboard({ currentRole }: { currentRole: string }) {
           </div>
         </Card>
 
-        <Card className="bg-surface border-border p-6">
-          <h3 className="font-semibold text-text mb-2">Role Permissions Scope</h3>
-          <p className="text-sm text-text-muted">
-            You are signed in under the <span className="font-semibold text-primary">{currentRole}</span> role. You only have access to modules authorized for your responsibilities.
-          </p>
+        <Card className="bg-surface border-border p-6 flex flex-col justify-between">
+          <div>
+            <h3 className="font-semibold text-text mb-2">Role Permissions Scope</h3>
+            <p className="text-sm text-text-muted mb-4">
+              You are signed in under the <span className="font-semibold text-primary">{currentRole}</span> role. You have access to your active station and shift supply requisitions.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-2 border-t border-border flex-wrap">
+            {roleCategory === "barman" && (
+              <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+                <Link href="/bar">Open Bar Station &rarr;</Link>
+              </Button>
+            )}
+            {roleCategory === "barista" && (
+              <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+                <Link href="/coffee">Open Coffee Station &rarr;</Link>
+              </Button>
+            )}
+            {roleCategory === "beverage_staff" && (
+              <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+                <Link href="/beverages">Open Beverage Station &rarr;</Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" size="sm">
+              <Link href="/staff-supplies">Request Staff Supplies</Link>
+            </Button>
+          </div>
         </Card>
       </div>
     </div>

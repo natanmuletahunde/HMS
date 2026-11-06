@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/components/auth-provider";
@@ -9,13 +9,10 @@ import {
   CheckCircle2,
   Clock,
   Send,
-  AlertCircle,
   RefreshCw,
   Search,
-  GlassWater,
   Flame,
   Check,
-  AlertTriangle,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -27,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type BarOrderItem = {
+type CoffeeOrderItem = {
   id: string;
   name: string;
   quantity: number;
@@ -40,7 +37,7 @@ type BarOrderItem = {
   roundNumber?: number;
 };
 
-type BarOrder = {
+type CoffeeOrder = {
   id: string;
   orderNumber: string;
   tableNumber?: number | null;
@@ -53,33 +50,35 @@ type BarOrder = {
   waiterName?: string | null;
   coordinatorId?: string | null;
   coordinatorName?: string | null;
-  items: BarOrderItem[];
+  items: CoffeeOrderItem[];
   createdAt: string;
   readyAt?: string | null;
   kitchenNotes?: string | null;
 };
 
-export default function BarDashboard() {
+type CoffeeCategory = "all" | "espresso" | "traditional_buna" | "tea" | "specialty" | "pass";
+
+export default function CoffeeDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "cocktail" | "coffee" | "juice" | "wine" | "pass">("all");
-  const [selectedOrder, setSelectedOrder] = useState<BarOrder | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CoffeeCategory>("all");
+  const [selectedOrder, setSelectedOrder] = useState<CoffeeOrder | null>(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [barNotes, setBarNotes] = useState("");
+  const [coffeeNotes, setCoffeeNotes] = useState("");
   const [sentOrderIds, setSentOrderIds] = useState<Record<string, boolean>>({});
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
 
-  // Fetch active drink orders from the dedicated backend endpoint
-  const { data: barOrders = [], isLoading, refetch } = useQuery<BarOrder[]>({
+  // Fetch active coffee orders from dedicated backend endpoint
+  const { data: coffeeOrders = [], isLoading, refetch } = useQuery<CoffeeOrder[]>({
     queryKey: ["restaurant-coffee-orders"],
-    queryFn: () => apiFetch<BarOrder[]>("/restaurant/coffee"),
+    queryFn: () => apiFetch<CoffeeOrder[]>("/restaurant/coffee"),
     refetchInterval: 3000,
   });
 
-  // Start Prep mutation for Bar
+  // Start Prep mutation for Coffee Station
   const startPrepMutation = useMutation({
     mutationFn: (orderId: string) =>
       apiFetch(`/restaurant/orders/${orderId}/start-prep`, {
@@ -91,8 +90,8 @@ export default function BarDashboard() {
       queryClient.invalidateQueries({ queryKey: ["restaurant-coffee-orders"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
       toast({
-        title: "Beverage Preparation Started ☕",
-        description: "Drink items marked as preparing in the bar queue.",
+        title: "Coffee Brewing Started ☕",
+        description: "Espresso and Buna items marked as brewing in the coffee queue.",
       });
     },
   });
@@ -121,8 +120,8 @@ export default function BarDashboard() {
       queryClient.invalidateQueries({ queryKey: ["restaurant-coffee-orders"] });
       queryClient.invalidateQueries({ queryKey: ["restaurant-orders"] });
       toast({
-        title: "Drinks Sent to Coffee Pass ☕",
-        description: "Floor waiter notified for immediate table beverage delivery.",
+        title: "Coffee Sent to Coffee Pass ☕",
+        description: "Floor waiter notified for immediate table delivery.",
       });
       setIsSendModalOpen(false);
     },
@@ -130,7 +129,7 @@ export default function BarDashboard() {
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
-    let list = barOrders.map((o) => ({
+    let list = coffeeOrders.map((o) => ({
       ...o,
       status: localStatuses[o.id] || o.status,
     }));
@@ -147,38 +146,36 @@ export default function BarDashboard() {
       );
     }
 
-    if (selectedCategory === "cocktail") {
+    if (selectedCategory === "espresso") {
       list = list.filter((o) =>
         o.items.some((i) =>
-          ["mojito", "cocktail", "margarita", "gin", "vodka", "whiskey", "rum"].some((k) =>
+          ["macchiato", "espresso", "latte", "cappuccino", "americano", "cortado", "flat white"].some((k) =>
             i.name.toLowerCase().includes(k)
           )
         )
       );
-    } else if (selectedCategory === "coffee") {
-      list = list.filter((o) =>
-        o.items.some(
-          (i) =>
-            (i.category || "").toLowerCase() === "coffee" ||
-            ["espresso", "latte", "cappuccino", "macchiato", "coffee", "tea", "ቡና"].some((k) =>
-              i.name.toLowerCase().includes(k)
-            )
-        )
-      );
-    } else if (selectedCategory === "juice") {
-      list = list.filter((o) =>
-        o.items.some(
-          (i) =>
-            (i.category || "").toLowerCase() === "juice" ||
-            ["juice", "smoothie", "detox", "water", "soda"].some((k) =>
-              i.name.toLowerCase().includes(k)
-            )
-        )
-      );
-    } else if (selectedCategory === "wine") {
+    } else if (selectedCategory === "traditional_buna") {
       list = list.filter((o) =>
         o.items.some((i) =>
-          ["wine", "beer", "draft", "champagne"].some((k) => i.name.toLowerCase().includes(k))
+          ["buna", "ቡና", "jebena", "ጀበና", "ceremony"].some((k) =>
+            i.name.toLowerCase().includes(k)
+          )
+        )
+      );
+    } else if (selectedCategory === "tea") {
+      list = list.filter((o) =>
+        o.items.some((i) =>
+          ["tea", "shai", "ሻይ", "spiced tea", "herbal", "green tea", "black tea", "ginger"].some((k) =>
+            i.name.toLowerCase().includes(k)
+          )
+        )
+      );
+    } else if (selectedCategory === "specialty") {
+      list = list.filter((o) =>
+        o.items.some((i) =>
+          ["chocolate", "cocoa", "mocha", "affogato", "cold brew", "decaf"].some((k) =>
+            i.name.toLowerCase().includes(k)
+          )
         )
       );
     } else if (selectedCategory === "pass") {
@@ -186,51 +183,57 @@ export default function BarDashboard() {
     }
 
     return list;
-  }, [barOrders, searchQuery, selectedCategory, localStatuses]);
+  }, [coffeeOrders, searchQuery, selectedCategory, localStatuses]);
 
-  // Counts
+  // Counts for Barista KPIs
   const counts = useMemo(() => {
     return {
-      all: barOrders.length,
-      drinksFirst: barOrders.filter((o) => o.pacingPreference === "drinks_first" && o.status !== "served").length,
-      readyPass: barOrders.filter((o) => o.status === "ready" || o.status === "partially_ready").length,
+      all: coffeeOrders.length,
+      traditionalBuna: coffeeOrders.filter((o) =>
+        o.items.some((i) => ["buna", "ቡና", "jebena", "ጀበና", "ceremony"].some((k) => i.name.toLowerCase().includes(k)))
+      ).length,
+      espressoMacchiato: coffeeOrders.filter((o) =>
+        o.items.some((i) => ["macchiato", "espresso", "latte", "cappuccino", "flat white"].some((k) => i.name.toLowerCase().includes(k)))
+      ).length,
+      drinksFirst: coffeeOrders.filter((o) => o.pacingPreference === "drinks_first" && o.status !== "served").length,
+      readyPass: coffeeOrders.filter((o) => o.status === "ready" || o.status === "partially_ready").length,
     };
-  }, [barOrders]);
+  }, [coffeeOrders]);
 
-  const openDispatchModal = (order: BarOrder) => {
+  const openDispatchModal = (order: CoffeeOrder) => {
     setSelectedOrder(order);
-    setBarNotes("");
+    setCoffeeNotes("");
     setIsSendModalOpen(true);
   };
 
-  const handleSendDrinks = () => {
+  const handleSendCoffee = () => {
     if (!selectedOrder) return;
     notifyReadyMutation.mutate({
       id: selectedOrder.id,
-      notes: barNotes.trim() || undefined,
+      notes: coffeeNotes.trim() || undefined,
     });
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-cyan-500/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-card/90 via-card/50 to-amber-500/5 p-4 rounded-2xl border border-border shadow-xs backdrop-blur-xs">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-xs">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-xs">
             <Coffee className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-text">
-                Bar Display System (BDS)
+                Coffee Station Display (CDS)
               </h1>
-              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 shadow-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse mr-1.5"></span>
-                Bar Station Command
+              <Badge variant="outline" className="px-2.5 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1.5"></span>
+                Barista & Buna Ceremony Command
               </Badge>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
-              Dedicated beverage production, espresso bar tickets, and instant Coffee Pass dispatch.
+              Traditional Ethiopian Jebena coffee (ቡና / ጀበና), authentic Macchiato, steamed espresso drinks, and artisanal teas.
             </p>
           </div>
         </div>
@@ -244,27 +247,37 @@ export default function BarDashboard() {
             className="gap-1.5 h-9 rounded-xl border-border hover:bg-muted/50 cursor-pointer"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
-            <span className="text-xs font-medium">Sync Tickets</span>
+            <span className="text-xs font-medium">Sync Coffee Tickets</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Highlights */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Highlights - 4 Specific Barista Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-medium text-text-muted">Active Beverage Tickets</span>
+            <span className="text-xs font-medium text-text-muted">Active Coffee Tickets</span>
             <p className="text-2xl font-bold text-text mt-1">{counts.all}</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
             <Coffee className="w-5 h-5" />
           </div>
         </div>
 
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-medium text-text-muted">"Serve Drinks First" Queue</span>
-            <p className="text-2xl font-bold text-amber-500 mt-1">{counts.drinksFirst}</p>
+            <span className="text-xs font-medium text-text-muted">Traditional Buna (ቡና / ጀበና)</span>
+            <p className="text-2xl font-bold text-orange-500 mt-1">{counts.traditionalBuna}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+            <Sparkles className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-medium text-text-muted">Espresso & Macchiato</span>
+            <p className="text-2xl font-bold text-amber-500 mt-1">{counts.espressoMacchiato}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
             <Flame className="w-5 h-5" />
@@ -282,27 +295,27 @@ export default function BarDashboard() {
         </div>
       </div>
 
-      {/* Toolbar & Category Filters */}
+      {/* Toolbar & Category Filters - Specific to Coffee Station */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: "all", label: "All Drinks", icon: Coffee },
-            { id: "cocktail", label: "☕ Cocktails", icon: Coffee },
-            { id: "coffee", label: "☕ Espresso Bar", icon: Coffee },
-            { id: "juice", label: "🧃 Juices & Cold", icon: GlassWater },
-            { id: "wine", label: "🍷 Coffee & Beer", icon: Coffee },
-            { id: "pass", label: "🛎️ Coffee Pass Ready", icon: CheckCircle2 },
+            { id: "all", label: "All Coffee & Tea" },
+            { id: "espresso", label: "☕ Espresso & Macchiato" },
+            { id: "traditional_buna", label: "🏺 Traditional Buna (ቡና / ጀበና)" },
+            { id: "tea", label: "🍵 Teas & Infusions (ሻይ)" },
+            { id: "specialty", label: "🍫 Hot Cocoa & Specialty" },
+            { id: "pass", label: "🛎️ Ready at Coffee Pass" },
           ].map((cat) => {
             const isSel = selectedCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setSelectedCategory(cat.id as any)}
+                onClick={() => setSelectedCategory(cat.id as CoffeeCategory)}
                 className={cn(
                   "px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap border shrink-0",
                   isSel
-                    ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-sm border-slate-300 dark:border-zinc-700 ring-2 ring-primary/20"
+                    ? "bg-amber-600 text-white shadow-xs border-amber-600"
                     : "bg-surface border-border text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-muted/40"
                 )}
               >
@@ -317,7 +330,7 @@ export default function BarDashboard() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search drinks or table..."
+            placeholder="Search macchiatos, Buna, teas, table..."
             className="pl-8 h-9 text-xs rounded-xl bg-surface border-border"
           />
         </div>
@@ -327,137 +340,130 @@ export default function BarDashboard() {
       {filteredOrders.length === 0 ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-border bg-card/50">
           <Coffee className="w-12 h-12 mx-auto text-text-muted/40 mb-3" />
-          <h3 className="font-bold text-base text-text">No Active Drink Tickets</h3>
-          <p className="text-xs text-text-muted max-w-sm mx-auto mt-1">
-            When waitstaff place table orders with beverages or juices, drink tickets will appear here for immediate preparation.
+          <h3 className="text-sm font-semibold text-text">No Pending Coffee Orders</h3>
+          <p className="text-xs text-text-muted mt-1 max-w-md mx-auto">
+            When waitstaff place table or room orders with espressos, authentic Ethiopian Jebena coffee, macchiatos, or teas, tickets will appear here for immediate brewing.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredOrders.map((order) => {
-            const isSent = sentOrderIds[order.id] || order.status === "ready" || order.status === "partially_ready";
-            const isPending = order.status === "pending";
+            const isReady = order.status === "ready" || order.status === "partially_ready" || sentOrderIds[order.id];
             const isDrinksFirst = order.pacingPreference === "drinks_first";
 
             return (
               <div
                 key={order.id}
                 className={cn(
-                  "p-4 rounded-2xl border bg-card shadow-xs transition-all flex flex-col justify-between space-y-4 relative",
-                  isDrinksFirst
-                    ? "border-amber-500/40 bg-amber-500/[0.02]"
-                    : "border-border"
+                  "rounded-2xl border p-4 bg-card shadow-xs flex flex-col justify-between transition-all",
+                  isReady
+                    ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/10"
+                    : "border-border hover:border-amber-500/40"
                 )}
               >
-                {/* Top Bar */}
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
+                {/* Ticket Header */}
+                <div>
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-text">
-                          {order.tableNumber ? `Table #${order.tableNumber}` : order.roomNumber ? `Room ${order.roomNumber}` : "Walk-in"}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] font-mono border-border">
-                          {order.orderNumber}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-text-muted mt-1">
-                        <Users className="w-3 h-3" />
-                        <span>Waiter: {order.waiterName || "Floor Staff"}</span>
-                      </div>
+                      <span className="text-base font-bold text-text">
+                        {order.tableNumber ? `Table #${order.tableNumber}` : order.roomNumber ? `Room ${order.roomNumber}` : "Coffee Walk-In"}
+                      </span>
+                      <span className="text-[11px] font-mono text-text-muted ml-2">
+                        {order.orderNumber}
+                      </span>
                     </div>
-
-                    <div className="text-right">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5",
-                          isSent
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                            : isPending
-                            ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                            : "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
-                        )}
-                      >
-                        {isSent ? "Ready at Pass" : isPending ? "Pending" : "In Prep"}
-                      </Badge>
-                      <div className="flex items-center justify-end gap-1 text-[11px] text-text-muted mt-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 uppercase",
+                        isReady
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                      )}
+                    >
+                      {isReady ? "Ready at Pass" : order.status}
+                    </Badge>
                   </div>
 
-                  {/* Drinks First High Priority Banner */}
+                  {/* Waiter & Time Info */}
+                  <div className="flex items-center justify-between text-[11px] text-text-muted py-2 border-b border-border/40">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      Waiter: {order.waiterName || "Floor Staff"}
+                    </span>
+                    <span className="flex items-center gap-1 font-mono">
+                      <Clock className="w-3 h-3" />
+                      {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+
+                  {/* Serve Drinks First Banner */}
                   {isDrinksFirst && (
-                    <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1.5 animate-pulse">
-                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                      <span>Serve Drinks First ☕ — Pour & Dispatch Early!</span>
+                    <div className="mt-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px] font-medium flex items-center gap-1.5">
+                      <Flame className="w-3.5 h-3.5 shrink-0" />
+                      <span>Serve Coffee First ☕ — Brew & Dispatch Early!</span>
                     </div>
                   )}
-                </div>
 
-                {/* Drinks Items List */}
-                <div className="space-y-1.5 border-t border-b border-border py-2.5 my-1">
-                  {order.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between text-xs py-1 px-1.5 rounded-lg hover:bg-muted/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-bold text-cyan-600 dark:text-cyan-400 shrink-0">
-                          {item.quantity}×
-                        </span>
-                        <span className="font-semibold text-text truncate">{item.name}</span>
-                        {item.notes && (
-                          <span className="text-[10px] text-text-muted italic truncate">({item.notes})</span>
-                        )}
+                  {/* Items List */}
+                  <div className="mt-3 space-y-1.5">
+                    {order.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between text-xs py-1 border-b border-border/20 last:border-none"
+                      >
+                        <div className="flex items-start gap-1.5">
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            {item.quantity}×
+                          </span>
+                          <div>
+                            <span className="font-medium text-text">{item.name}</span>
+                            {item.notes && (
+                              <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+                                Note: {item.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] text-text-muted capitalize">
+                          {item.kitchenStatus || "pending"}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-[9px] shrink-0 border-border text-text-muted">
-                        {item.kitchenStatus || "pending"}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
-                {/* Card Actions Footer */}
-                <div className="pt-2 flex items-center gap-2">
-                  {isPending && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => startPrepMutation.mutate(order.id)}
-                      disabled={startPrepMutation.isPending}
-                      className="h-9 font-bold text-xs gap-1.5 rounded-xl border-cyan-500/40 text-cyan-600 hover:bg-cyan-500/10 cursor-pointer flex-1"
-                    >
-                      <Flame className="w-3.5 h-3.5" />
-                      <span>Start Brewing</span>
-                    </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    onClick={() => openDispatchModal(order)}
-                    disabled={isSent || notifyReadyMutation.isPending}
-                    className={cn(
-                      "h-9 font-bold text-xs gap-1.5 rounded-xl cursor-pointer shadow-xs transition-all flex-1",
-                      isSent
-                        ? "bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 cursor-default"
-                        : "bg-cyan-600 hover:bg-cyan-700 text-white"
-                    )}
-                  >
-                    {isSent ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        <span>Sent to Waiter ✓</span>
-                      </>
-                    ) : (
-                      <>
+                {/* Ticket Footer Action Buttons */}
+                <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
+                  {!isReady ? (
+                    <>
+                      {order.status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startPrepMutation.mutate(order.id)}
+                          disabled={startPrepMutation.isPending}
+                          className="h-8 text-xs font-semibold gap-1 flex-1 cursor-pointer"
+                        >
+                          <Flame className="w-3.5 h-3.5 text-amber-500" />
+                          Start Brewing
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        onClick={() => openDispatchModal(order)}
+                        className="h-8 text-xs font-semibold gap-1.5 flex-1 bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs"
+                      >
                         <Send className="w-3.5 h-3.5" />
-                        <span>Send to Coffee Pass ☕</span>
-                      </>
-                    )}
-                  </Button>
+                        Send to Coffee Pass ☕
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="w-full py-1.5 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
+                      <Check className="w-3.5 h-3.5" />
+                      Sent to Waiter ✓
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -467,73 +473,44 @@ export default function BarDashboard() {
 
       {/* Dispatch Modal */}
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-        <DialogContent className="max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold text-text">
-              <Coffee className="w-5 h-5 text-cyan-500" />
-              <span>Send Drinks Order to Coffee Pass</span>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Coffee className="w-5 h-5 text-amber-600" />
+              Send Coffee to Coffee Pass
             </DialogTitle>
           </DialogHeader>
-
-          {selectedOrder && (
-            <div className="space-y-4 py-2">
-              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-800 dark:text-cyan-200 text-xs flex items-start gap-2">
-                <Coffee className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  Dispatches drinks directly to the Coffee Pass and triggers an immediate buzzer notification to Waiter{" "}
-                  <strong>{selectedOrder.waiterName || "Floor Staff"}</strong> to pick up beverages for{" "}
-                  <strong>{selectedOrder.tableNumber ? `Table #${selectedOrder.tableNumber}` : "the table"}</strong>!
-                </span>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-text-muted mb-1 block">
-                  Drinks Included:
-                </label>
-                <div className="space-y-1 p-2 rounded-xl border border-border bg-muted/20">
-                  {selectedOrder.items.map((i) => (
-                    <div key={i.id} className="text-xs font-medium text-text flex items-center justify-between">
-                      <span>
-                        {i.quantity}× {i.name}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30">
-                        Ready to Pour
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-text-muted mb-1 block">
-                  Coffee Pass Notes for Waiter (Optional):
-                </label>
-                <Textarea
-                  value={barNotes}
-                  onChange={(e) => setBarNotes(e.target.value)}
-                  placeholder="e.g. Glassware on tray at front counter..."
-                  className="text-xs rounded-xl resize-none h-18 bg-surface border-border"
-                />
-              </div>
+          <div className="space-y-3 py-2 text-xs">
+            <p className="text-text-muted">
+              Notify floor waiter{" "}
+              <strong className="text-text">{selectedOrder?.waiterName || "assigned to table"}</strong> that coffee and tea orders for{" "}
+              <strong className="text-text">
+                {selectedOrder?.tableNumber ? `Table #${selectedOrder.tableNumber}` : `Room ${selectedOrder?.roomNumber}`}
+              </strong>{" "}
+              are brewed and placed on saucers at the Coffee Pass counter.
+            </p>
+            <div className="space-y-1">
+              <label className="font-semibold text-text">Barista Notes for Waiter (Optional):</label>
+              <Textarea
+                value={coffeeNotes}
+                onChange={(e) => setCoffeeNotes(e.target.value)}
+                placeholder="e.g., Traditional Jebena ceremony with frankincense ready, extra hot macchiatos..."
+                className="text-xs h-20"
+              />
             </div>
-          )}
-
+          </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsSendModalOpen(false)}
-              className="rounded-xl border-border hover:bg-muted/50 cursor-pointer"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setIsSendModalOpen(false)}>
               Cancel
             </Button>
             <Button
               size="sm"
-              onClick={handleSendDrinks}
+              onClick={handleSendCoffee}
               disabled={notifyReadyMutation.isPending}
-              className="rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold cursor-pointer gap-1.5"
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
             >
-              {notifyReadyMutation.isPending ? "Dispatching..." : "Send to Coffee Pass ☕"}
+              <Send className="w-3.5 h-3.5" />
+              Confirm & Buzz Waiter ☕
             </Button>
           </DialogFooter>
         </DialogContent>

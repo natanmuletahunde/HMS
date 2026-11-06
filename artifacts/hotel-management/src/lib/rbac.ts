@@ -231,7 +231,8 @@ export const ROLE_DEFINITIONS: Record<RoleCategory, RoleInfo> = {
 
 export function normalizeRole(roleName?: string | null): RoleCategory {
   if (!roleName) return 'general';
-  const r = roleName.toLowerCase().trim();
+  const r = roleName.toLowerCase().replace(/[-_]+/g, ' ').trim();
+  const rCompact = r.replace(/\s+/g, '');
 
   if (r.includes('admin') || r.includes('super')) return 'admin';
   if (r.includes('head chef') || r.includes('headchef')) return 'head_chef';
@@ -310,16 +311,7 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   ) {
     return 'coordinator';
   }
-  // Dedicated Barman / Bartender
-  if (
-    r.includes('barman') ||
-    r.includes('bartender') ||
-    r.includes('bar staff') ||
-    r === 'bar'
-  ) {
-    return 'barman';
-  }
-  // Dedicated Barista / Coffee Attendant
+  // Dedicated Barista / Coffee Attendant (checked before bar to avoid prefix overlap)
   if (
     r.includes('barista') ||
     r.includes('coffee') ||
@@ -327,10 +319,23 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
   ) {
     return 'barista';
   }
+  // Dedicated Barman / Bartender
+  if (
+    r.includes('barman') ||
+    r.includes('bar man') ||
+    r.includes('bartender') ||
+    r.includes('bar staff') ||
+    r.includes('bar station') ||
+    r === 'bar' ||
+    /\bbar\b/.test(r)
+  ) {
+    return 'barman';
+  }
   // Dedicated Beverage Staff / Juice Bar
   if (
     r.includes('beverage') ||
-    r.includes('juice')
+    r.includes('juice') ||
+    r.includes('drink')
   ) {
     return 'beverage_staff';
   }
