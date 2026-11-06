@@ -297,6 +297,12 @@ export function normalizeRole(roleName?: string | null): RoleCategory {
     r.includes('station chef') ||
     r.includes('sous chef') ||
     r.includes('cook') ||
+    r.includes('pastry') ||
+    r.includes('baker') ||
+    r.includes('hot line') ||
+    r.includes('hotline') ||
+    r.includes('pantry') ||
+    r.includes('cold prep') ||
     r === 'chef'
   ) {
     return 'chief_chef';

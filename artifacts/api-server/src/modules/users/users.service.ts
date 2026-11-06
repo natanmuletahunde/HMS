@@ -196,6 +196,36 @@ export class UsersService {
       : [];
     const primaryBranchId = body.primaryBranchId || (branchIds.length > 0 ? branchIds[0] : null);
 
+    // Enforce that only System Administrators can oversee across buildings; all other staff must be building-bounded
+    const [targetRole] = await db
+      .select({ id: rolesTable.id, name: rolesTable.name, scope: rolesTable.scope })
+      .from(rolesTable)
+      .where(eq(rolesTable.id, body.roleId));
+
+    const isSystemAdmin = targetRole?.scope === 'global' || ['admin', 'system admin', 'system administrator'].includes(targetRole?.name?.toLowerCase() || '');
+
+    if (!isSystemAdmin && primaryBranchId) {
+      const branchBuildings = await db
+        .select({ id: buildingsTable.id, isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(and(eq(buildingsTable.branchId, primaryBranchId), eq(buildingsTable.isActive, true)));
+
+      if (branchBuildings.length > 0) {
+        if (!buildingId) {
+          if (branchBuildings.length === 1) {
+            buildingId = branchBuildings[0].id;
+          } else {
+            throw new BadRequestException('A dedicated building/wing is required for staff in this branch. Only System Administrators can oversee across buildings.');
+          }
+        } else {
+          const matches = branchBuildings.some((b) => b.id === buildingId);
+          if (!matches) {
+            throw new BadRequestException('The selected building does not belong to the user\'s primary branch.');
+          }
+        }
+      }
+    }
+
     const [user] = await db
       .insert(usersTable)
       .values({
@@ -385,6 +415,50 @@ export class UsersService {
             isPrimary: bId === primaryBranchId,
           })
           .onConflictDoNothing();
+      }
+    }
+
+    // Enforce that only System Administrators can oversee across buildings; all other staff must be building-bounded
+    const effectiveRoleId = updates.roleId !== undefined
+      ? updates.roleId
+      : (await db.select({ roleId: usersTable.roleId }).from(usersTable).where(eq(usersTable.id, id)))[0]?.roleId;
+
+    let isSystemAdmin = false;
+    if (effectiveRoleId) {
+      const [r] = await db
+        .select({ scope: rolesTable.scope, name: rolesTable.name })
+        .from(rolesTable)
+        .where(eq(rolesTable.id, effectiveRoleId));
+      isSystemAdmin = r?.scope === 'global' || ['admin', 'system admin', 'system administrator'].includes(r?.name?.toLowerCase() || '');
+    }
+
+    const effectivePrimaryBranchId = updates.primaryBranchId !== undefined
+      ? updates.primaryBranchId
+      : (await db.select({ primaryBranchId: usersTable.primaryBranchId }).from(usersTable).where(eq(usersTable.id, id)))[0]?.primaryBranchId;
+
+    if (!isSystemAdmin && effectivePrimaryBranchId) {
+      const branchBuildings = await db
+        .select({ id: buildingsTable.id, isActive: buildingsTable.isActive, buildingName: buildingsTable.buildingName })
+        .from(buildingsTable)
+        .where(and(eq(buildingsTable.branchId, effectivePrimaryBranchId), eq(buildingsTable.isActive, true)));
+
+      if (branchBuildings.length > 0) {
+        let currentBuildingId = updates.buildingId !== undefined
+          ? updates.buildingId
+          : (await db.select({ buildingId: usersTable.buildingId }).from(usersTable).where(eq(usersTable.id, id)))[0]?.buildingId;
+
+        if (!currentBuildingId) {
+          if (branchBuildings.length === 1) {
+            updates.buildingId = branchBuildings[0].id;
+          } else {
+            throw new BadRequestException('A dedicated building/wing is required for staff in this branch. Only System Administrators can oversee across buildings.');
+          }
+        } else {
+          const matches = branchBuildings.some((b) => b.id === currentBuildingId);
+          if (!matches) {
+            throw new BadRequestException('The selected building does not belong to the user\'s primary branch.');
+          }
+        }
       }
     }
 

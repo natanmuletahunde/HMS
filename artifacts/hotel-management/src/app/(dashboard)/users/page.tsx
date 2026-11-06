@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Plus, MoreHorizontal, Loader2, UserPlus, Building2, Check, Shield, Edit2, 
+  Plus, MoreHorizontal, Loader2, UserPlus, Building2, Check, Shield, Edit2, AlertTriangle, 
   Users as UsersIcon, ShieldCheck, Globe, Trash2, Edit, RotateCw, Copy,
   CalendarDays, Sparkles, UtensilsCrossed, CreditCard, Package, CheckSquare, Square, Search, Eye, EyeOff
 } from "lucide-react";
@@ -259,6 +259,8 @@ const PERMISSION_GROUPS = [
       { id: "reservations:*", label: "Reservations & Bookings", desc: "Manage room bookings, calendar grid, stay dates, and guest allocations." },
       { id: "front-office:*", label: "Front Office Operations", desc: "Arrival processing, keycard issuance, mid-stay room moves, and check-outs." },
       { id: "guests:*", label: "Guest Profiles & Fayda ID", desc: "Access guest directory, past stay histories, and national ID records." },
+      { id: "checkins:*", label: "Check-in Processing", desc: "Guest arrivals, registration, and room keycard issuance." },
+      { id: "checkouts:*", label: "Check-out & Departure", desc: "Guest departures, folio review, late checkout fee calculation, and room release." },
       { id: "customer-service:*", label: "Guest Service & Requests", desc: "Handle special guest amenities, concierge requests, and customer complaints." },
     ]
   },
@@ -289,7 +291,26 @@ const PERMISSION_GROUPS = [
     items: [
       { id: "restaurant:*", label: "Restaurant & Table Layout", desc: "Table configurations, dining menu items, and kitchen display routing." },
       { id: "pos:*", label: "POS Registers & Waiter Orders", desc: "Point-of-sale cashier terminals, order processing, and takeaway sales." },
+      { id: "pos:orders:create", label: "Waiter Order Creation", desc: "Taking table dining orders and kitchen order ticket (KOT) generation." },
+      { id: "pos:orders:read", label: "POS Order Inquiries", desc: "View active dining tables and pending order status." },
+      { id: "pos:payment", label: "Process POS Payment", desc: "Accept payments, print receipts, and room folio billing." },
+      { id: "restaurant:orders:create", label: "Floor Table Orders", desc: "Create floor dining and drink orders with meal pacing directives." },
+      { id: "restaurant:orders:read", label: "View Floor Orders", desc: "Track dining table orders, drink orders, and course progression." },
+      { id: "restaurant:orders:update", label: "Update Order Status", desc: "Modify orders, add round-2 items, or mark dishes served." },
+      { id: "reports:fnb", label: "F&B Analytics & Revenue", desc: "Food & beverage daily sales reports and item popularity." },
+      { id: "reservations:restaurant", label: "Dining Table Reservations", desc: "Reserve tables for in-house and walk-in dining guests." },
       { id: "room-service:*", label: "In-Room Dining Service", desc: "Room service meal orders, delivery tracking, and room folio charges." },
+    ]
+  },
+  {
+    id: "kitchen",
+    title: "Kitchen & Culinary Stations",
+    icon: Sparkles,
+    items: [
+      { id: "kitchen:*", label: "Full Kitchen Command (KDS)", desc: "Supervise kitchen displays, station routing, and 86'd inventory shortages." },
+      { id: "kitchen:read", label: "View Station Queue", desc: "Display active dish tickets for hot line, cold pantry, bar, or bakery." },
+      { id: "kitchen:update", label: "Update Cooking Progress", desc: "Advance ticket workflow (Pending -> Preparing -> Ready on Pass)." },
+      { id: "coordinator:*", label: "F&B Expediter & Coordinator", desc: "Pass QA, buffer dispatch, and waiter/kitchen workload balancing." },
     ]
   },
   {
@@ -383,6 +404,17 @@ function UsersAndRolesContent() {
   const [buildingId, setBuildingId] = useState("");
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [assignBuildingModalUser, setAssignBuildingModalUser] = useState<User | null>(null);
+  const [reminderBuildingId, setReminderBuildingId] = useState("");
+  const [reminderErrorMsg, setReminderErrorMsg] = useState("");
+
+  const openAssignBuildingModal = (u: User) => {
+    setAssignBuildingModalUser(u);
+    const bId = u.primaryBranchId || (u.branches && u.branches[0]?.id) || branches[0]?.id || "";
+    const bldgs = buildings.filter((b) => b.branchId === bId);
+    setReminderBuildingId(u.buildingId || (bldgs.length === 1 ? bldgs[0].id : ""));
+    setReminderErrorMsg("");
+  };
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -578,6 +610,8 @@ function UsersAndRolesContent() {
     const firstBranch = branches[0]?.id || "";
     setSelectedBranchIds(allBranchIds.length > 0 ? [firstBranch] : []);
     setPrimaryBranchId(firstBranch);
+    const initialBldgs = buildings.filter((b) => b.branchId === firstBranch);
+    setBuildingId(initialBldgs.length === 1 ? initialBldgs[0].id : "");
     setUserErrorMsg("");
     setIsAddUserOpen(true);
   };
@@ -602,8 +636,10 @@ function UsersAndRolesContent() {
     const existingIds = (u.branches || []).map((b) => b.id);
     const initialBranches = existingIds.length > 0 ? existingIds : (u.primaryBranchId ? [u.primaryBranchId] : (branches[0] ? [branches[0].id] : []));
     setEditBranchIds(initialBranches);
-    setEditPrimaryBranchId(u.primaryBranchId || initialBranches[0] || branches[0]?.id || "");
-    setEditBuildingId(u.buildingId || "");
+    const effectivePrimary = u.primaryBranchId || initialBranches[0] || branches[0]?.id || "";
+    setEditPrimaryBranchId(effectivePrimary);
+    const editBldgs = buildings.filter((b) => b.branchId === effectivePrimary);
+    setEditBuildingId(u.buildingId || (editBldgs.length === 1 ? editBldgs[0].id : ""));
     setEditUserErrorMsg("");
   };
 
@@ -660,6 +696,13 @@ function UsersAndRolesContent() {
       return;
     }
 
+    const assignedBranchId = primaryBranchId || selectedBranchIds[0];
+    const availableBranchBuildings = buildings.filter((b) => b.branchId === assignedBranchId);
+    if (availableBranchBuildings.length > 0 && !buildingId) {
+      setUserErrorMsg("Please select a dedicated building/wing for this user.");
+      return;
+    }
+
     if (phone && phone.trim()) {
       const cleanPhone = phone.trim();
       if (!/^0[79]\d{8}$/.test(cleanPhone) && !/^0\d{9}$/.test(cleanPhone)) {
@@ -699,6 +742,13 @@ function UsersAndRolesContent() {
 
     if (editBranchIds.length === 0) {
       setEditUserErrorMsg("Please select at least one assigned branch.");
+      return;
+    }
+
+    const assignedEditBranchId = editPrimaryBranchId || editBranchIds[0];
+    const availableEditBuildings = buildings.filter((b) => b.branchId === assignedEditBranchId);
+    if (availableEditBuildings.length > 0 && !editBuildingId) {
+      setEditUserErrorMsg("Please select a dedicated building/wing for this user.");
       return;
     }
 
@@ -980,8 +1030,33 @@ function UsersAndRolesContent() {
       {/* ─────────────────────────────────────────────────────────────────────────────
           TAB 1: STAFF ACCOUNTS
       ───────────────────────────────────────────────────────────────────────────── */}
-      {activeTab === "users" && (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
+      {activeTab === "users" && (() => {
+        const unassignedStaff = users.filter((u) => {
+          const isGlobal = u.roleScope === "global" || ["admin", "system admin", "system administrator"].includes((u.roleName || u.role || "").toLowerCase());
+          return !isGlobal && !u.buildingId && (u.branches?.length || u.primaryBranchId);
+        });
+
+        return (
+          <>
+            {unassignedStaff.length > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200 mb-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    <strong>{unassignedStaff.length} staff member{unassignedStaff.length > 1 ? "s" : ""}</strong> not assigned to a building. Operational staff must be bounded to a dedicated building. Only System Administrators oversee across all buildings.
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openAssignBuildingModal(unassignedStaff[0])}
+                  className="h-7 text-xs font-semibold border-amber-500/40 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200"
+                >
+                  Assign Building Now
+                </Button>
+              </div>
+            )}
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-sm">
           <Table>
             <TableHeader>
               <TableRow className="border-b border-[var(--border)] bg-[var(--blue-50)]/40 hover:bg-[var(--blue-50)]/40">
@@ -1058,11 +1133,21 @@ function UsersAndRolesContent() {
                               <span>{primaryBranch.branchName}</span>
                               <span className="text-[9px] uppercase tracking-wider bg-[var(--blue-50)] text-[var(--blue-700)] font-bold px-1 rounded ml-1">Home</span>
                             </div>
-                            {user.buildingName && (
+                            {user.buildingName ? (
                               <span className="text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 rounded">
                                 Wing: {user.buildingName}
                               </span>
-                            )}
+                            ) : !isGlobal ? (
+                              <button
+                                type="button"
+                                onClick={() => openAssignBuildingModal(user)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                                title="Click to assign a dedicated building"
+                              >
+                                <AlertTriangle className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                                <span>Unassigned Building</span>
+                              </button>
+                            ) : null}
                             {extraBranchCount > 0 && (
                               <span className="text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-1.5 py-0.5 rounded">
                                 +{extraBranchCount} more
@@ -1161,7 +1246,9 @@ function UsersAndRolesContent() {
             onNext={onUserNext}
           />
         </div>
-      )}
+      </>
+    );
+  })()}
 
       {/* ─────────────────────────────────────────────────────────────────────────────
           TAB 2: ROLES & PERMISSIONS
@@ -1519,31 +1606,62 @@ function UsersAndRolesContent() {
                   </div>
                 )}
 
-                {/* Stationed Building / Wing Selector */}
-                {selectedBranchIds.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
-                        Stationed Building / Wing
-                      </Label>
-                      <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
+                {/* Stationed Building / Wing Selector (Dedicated Building Enforcement & SysAdmin Exemption) */}
+                {(() => {
+                  const currentRole = roles.find((r) => r.id === roleId);
+                  const isSysAdmin = currentRole?.scope === "global" || ["admin", "system admin", "system administrator"].includes((currentRole?.name || "").toLowerCase());
+                  if (isSysAdmin) {
+                    return (
+                      <div className="flex items-center gap-2 p-2.5 rounded-md bg-[var(--surface-hover)] border border-[var(--border)] text-xs text-[var(--text-secondary)]">
+                        <Shield className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                        <span><strong>System Administrator:</strong> Universal multi-building & cross-branch oversight across all facilities.</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                {/* Stationed Building / Wing Selector (Dedicated Building Enforcement) */}
+                {selectedBranchIds.length > 0 && (() => {
+                  const currentBranchId = primaryBranchId || selectedBranchIds[0];
+                  const branchBuildings = buildings.filter((b) => b.branchId === currentBranchId);
+                  return (
+                    <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                          Dedicated Building / Wing {branchBuildings.length > 0 && "*"}
+                        </Label>
+                        {branchBuildings.length > 1 ? (
+                          <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/50">
+                            Required *
+                          </span>
+                        ) : branchBuildings.length === 1 ? (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/50">
+                            Auto-assigned (1 building)
+                          </span>
+                        ) : null}
+                      </div>
+                      {branchBuildings.length > 0 ? (
+                        <select
+                          value={buildingId}
+                          onChange={(e) => setBuildingId(e.target.value)}
+                          required
+                          className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                        >
+                          <option value="">Select Dedicated Building / Wing *</option>
+                          {branchBuildings.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.buildingName}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-[11px] text-[var(--text-muted)] italic py-1">
+                          No physical buildings configured for this branch.
+                        </p>
+                      )}
                     </div>
-                    <select
-                      value={buildingId}
-                      onChange={(e) => setBuildingId(e.target.value)}
-                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
-                    >
-                      <option value="">All Wings / Main Facility</option>
-                      {buildings
-                        .filter((b) => b.branchId === (primaryBranchId || selectedBranchIds[0]))
-                        .map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.buildingName}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -1804,31 +1922,48 @@ function UsersAndRolesContent() {
                   </div>
                 )}
 
-                {/* Stationed Building / Wing Selector */}
-                {editBranchIds.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-[var(--border)]">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
-                        Stationed Building / Wing
-                      </Label>
-                      <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
+                {/* Stationed Building / Wing Selector (Dedicated Building Enforcement) */}
+                {editBranchIds.length > 0 && (() => {
+                  const currentBranchId = editPrimaryBranchId || editBranchIds[0];
+                  const branchBuildings = buildings.filter((b) => b.branchId === currentBranchId);
+                  return (
+                    <div className="space-y-1 pt-2 border-t border-[var(--border)]">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                          Dedicated Building / Wing {branchBuildings.length > 0 && "*"}
+                        </Label>
+                        {branchBuildings.length > 1 ? (
+                          <span className="text-[10px] text-amber-600 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900/50">
+                            Required *
+                          </span>
+                        ) : branchBuildings.length === 1 ? (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/50">
+                            Auto-assigned (1 building)
+                          </span>
+                        ) : null}
+                      </div>
+                      {branchBuildings.length > 0 ? (
+                        <select
+                          value={editBuildingId}
+                          onChange={(e) => setEditBuildingId(e.target.value)}
+                          required
+                          className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                        >
+                          <option value="">Select Dedicated Building / Wing *</option>
+                          {branchBuildings.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.buildingName}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-[11px] text-[var(--text-muted)] italic py-1">
+                          No physical buildings configured for this branch.
+                        </p>
+                      )}
                     </div>
-                    <select
-                      value={editBuildingId}
-                      onChange={(e) => setEditBuildingId(e.target.value)}
-                      className="w-full h-8 px-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
-                    >
-                      <option value="">All Wings / Main Facility</option>
-                      {buildings
-                        .filter((b) => b.branchId === (editPrimaryBranchId || editBranchIds[0]))
-                        .map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.buildingName}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -1914,6 +2049,131 @@ function UsersAndRolesContent() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dedicated Building Assignment Reminder Pop-up Dialog */}
+      <Dialog open={!!assignBuildingModalUser} onOpenChange={(open) => { if (!open) setAssignBuildingModalUser(null); }}>
+        <DialogContent className="sm:max-w-[480px] p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+          <DialogHeader className="pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-[var(--text-primary)]">
+                  Assign Dedicated Building
+                </DialogTitle>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                  Operational and branch staff must be bounded to a physical building
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {reminderErrorMsg && (
+            <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-600 font-medium">
+              {reminderErrorMsg}
+            </div>
+          )}
+
+          {assignBuildingModalUser && (() => {
+            const u = assignBuildingModalUser;
+            const bId = u.primaryBranchId || (u.branches && u.branches[0]?.id) || branches[0]?.id || "";
+            const branchObj = branches.find((b) => b.id === bId);
+            const branchBuildings = buildings.filter((b) => b.branchId === bId);
+
+            return (
+              <div className="space-y-4 py-2">
+                <div className="p-3 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-secondary)]">Staff Member:</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{u.firstName} {u.lastName}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-secondary)]">Assigned Role:</span>
+                    <span className="font-semibold text-[var(--blue-600)]">{u.roleName || u.role || "Staff"}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-secondary)]">Primary Branch:</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{branchObj?.branchName || "Branch"}</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong>Building Bounding Rule:</strong> Only System Administrators can oversee across multiple buildings. All other staff must be stationed at a specific building to access room inventory, task queues, and floor operations.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-[var(--text-primary)]">
+                    Select Dedicated Building / Wing *
+                  </Label>
+                  {branchBuildings.length > 0 ? (
+                    <select
+                      value={reminderBuildingId}
+                      onChange={(e) => setReminderBuildingId(e.target.value)}
+                      className="w-full h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--blue-600)]"
+                    >
+                      <option value="">Choose Dedicated Building *</option>
+                      {branchBuildings.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.buildingName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-xs text-[var(--text-muted)] italic">
+                      No active buildings found for this branch. Please create a building first under Hotel Setup.
+                    </p>
+                  )}
+                </div>
+
+                <DialogFooter className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAssignBuildingModalUser(null)}
+                    className="h-8 text-xs rounded-md"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!reminderBuildingId || updateUserMutation.isPending}
+                    onClick={() => {
+                      if (!reminderBuildingId) {
+                        setReminderErrorMsg("Please choose a building to assign.");
+                        return;
+                      }
+                      updateUserMutation.mutate(
+                        { id: u.id, payload: { buildingId: reminderBuildingId } },
+                        {
+                          onSuccess: () => {
+                            setAssignBuildingModalUser(null);
+                            setReminderBuildingId("");
+                            setReminderErrorMsg("");
+                            toast({ title: "Building Assigned", description: "Staff member has been successfully bound to the building." });
+                          },
+                          onError: (err: any) => {
+                            setReminderErrorMsg(err.message || "Failed to assign building.");
+                          }
+                        }
+                      );
+                    }}
+                    className="h-8 text-xs font-semibold rounded-md"
+                  >
+                    {updateUserMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Assign Building & Confirm
+                  </Button>
+                </DialogFooter>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
